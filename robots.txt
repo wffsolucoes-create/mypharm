@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /api.php
+Disallow: /scripts/
+Disallow: /scripts/
+Disallow: /Dados/
+Disallow: /config.php
+Disallow: /.env
+Disallow: /.htaccess
+
+Sitemap: none

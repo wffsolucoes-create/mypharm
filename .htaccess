@@ -1,0 +1,71 @@
+# =============================================
+# MyPharm - Regras de Segurança (.htaccess)
+# =============================================
+
+# ----- Proteger .env (credenciais) -----
+<FilesMatch "^\.env$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# ----- Proteger config.php (acesso direto) -----
+<FilesMatch "^config\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# ----- Bloquear acesso a arquivos sensíveis (.bak, .log, .sql, .sh, .git) -----
+<FilesMatch "\.(bak|log|sql|sh|ini|conf|dist|orig|save|swp)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# ----- Desabilitar listagem de diretórios -----
+Options -Indexes
+
+# ----- Proteger pastas sensíveis (Dados, scripts) -----
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^Dados/ - [F,L]
+    RewriteRule ^scripts/importar_itens_cli\.php - [F,L]
+</IfModule>
+
+# ----- Headers de segurança para páginas HTML -----
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(self), camera=(), microphone=()"
+
+    <FilesMatch "\.(html|htm)$">
+        Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https://*.tile.openstreetmap.org https://unpkg.com; connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com;"
+        Header set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+    </FilesMatch>
+</IfModule>
+
+# ----- Prevenir acesso a arquivos ocultos (.git, .env, etc) -----
+<IfModule mod_rewrite.c>
+    RewriteRule (^\.|/\.) - [F,L]
+</IfModule>
+
+# ----- Limitar métodos HTTP permitidos -----
+<IfModule mod_rewrite.c>
+    RewriteCond %{REQUEST_METHOD} !^(GET|POST|HEAD) [NC]
+    RewriteRule .* - [F,L]
+</IfModule>

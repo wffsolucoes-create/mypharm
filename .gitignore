@@ -1,0 +1,19 @@
+# Credenciais e configuração local
+.env
+
+# Dados de clientes (CSVs pesados)
+Dados/
+
+# Sistema operacional
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# IDEs e editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cursor
+.cursor/

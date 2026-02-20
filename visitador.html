@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#E63946">
+    <title>Painel do Visitador | MyPharm</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
+    <link rel="apple-touch-icon" href="imagens/IconeMyPharm.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <!-- Mapa (Leaflet) para confirmação de local no tablet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        /* --- Status Badges (Premium) --- */
+        .days-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px 3px 3px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.05);
+            white-space: nowrap;
+        }
+
+        .days-badge .circle {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .days-badge.success {
+            color: #10B981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .days-badge.success .circle {
+            background: #10B981;
+        }
+
+        .days-badge.warning {
+            color: #EAB308;
+            background: rgba(234, 179, 8, 0.15);
+        }
+
+        .days-badge.warning .circle {
+            background: #EAB308;
+        }
+
+        .days-badge.danger {
+            color: #EF4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .days-badge.danger .circle {
+            background: #EF4444;
+        }
+
+        .val-approved {
+            color: #10B981;
+            font-weight: 600;
+        }
+
+        /* Relatórios responsivos */
+        @media (max-width: 900px) {
+            .relatorios-visitas-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        .val-refused {
+            color: #EF4444;
+            font-weight: 600;
+        }
+    </style>
+    <link rel="stylesheet" href="css/visitador.css">
+</head>
+
+<body>
+
+    <!-- Loading -->
+    <div class="loading-overlay" id="loadingOverlay" style="display:none;">
+        <div class="loading-spinner"></div>
+        <div style="font-weight:600; color:var(--text-primary); margin-top:20px;">Carregando dados...</div>
+    </div>
+
+    <header>
+        <div class="brand">
+            <!-- LOGO: Container escuro para logo branca -->
+            <div class="logo-container">
+                <img src="imagens/logoMypharm.png" alt="MyPharm"
+                    onerror="this.onerror=null;this.src='https://placehold.co/150x50?text=MyPharm';">
+            </div>
+            <div class="brand-text-col">
+                <span class="brand-title">Portal do Visitador</span>
+                <span class="brand-subtitle">Gestão de Performance</span>
+            </div>
+        </div>
+        <div class="user-menu">
+            <!-- Toggle Tema Claro/Escuro -->
+            <div class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Alternar tema">
+                <div class="theme-toggle-knob">
+                    <i class="fas fa-sun icon-sun"></i>
+                    <i class="fas fa-moon icon-moon"></i>
+                </div>
+            </div>
+            <div class="user-profile">
+                <div class="avatar" id="userAvatar">U</div>
+                <div class="d-none-mobile">
+                    <div id="visName" style="font-weight:600; font-size:0.95rem;">Visitador</div>
+                    <div id="visSubtitle" style="font-size:0.75rem; color:var(--text-secondary);">Minha Carteira</div>
+                </div>
+            </div>
+            <button class="btn-logout" onclick="doLogout()">
+                <i class="fas fa-sign-out-alt"></i> <span class="d-none-mobile">Sair</span>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <div class="welcome-section" style="display: block;">
+            <div style="margin-bottom: 24px;">
+                <h1 id="greeting">Olá, Visitador!</h1>
+                <p>Acompanhe suas metas e o desempenho da sua carteira.</p>
+                <p id="ultimaAtualizacao"
+                    style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; opacity:0.7;">
+                    <i class="fas fa-clock" style="margin-right:4px;"></i>Última atualização: --
+                </p>
+            </div>
+            <div class="meta-grid">
+                <!-- LINHA 1: METAS DE VISITAS E PREMIAÇÃO -->
+
+                <!-- Meta Semanal Visitas -->
+                <div class="card" style="margin-bottom:0; padding:14px 20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Visitas
+                            Semanais</span>
+                        <span style="font-size:0.8rem; font-weight:700; color:#10B981;"
+                            id="pctMetaVisitaSemana">0%</span>
+                    </div>
+                    <div
+                        style="height:8px; background:#E2E8F0; border-radius:4px; overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);">
+                        <div id="barMetaVisitaSemana"
+                            style="width:0%; height:100%; background:linear-gradient(90deg, #10B981, #34D399); transition:width 1.5s ease-out; border-radius:4px;">
+                        </div>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                        <span id="labelMetaVisitaSemana">0 / 30</span>
+                        <span>Meta Semanal</span>
+                    </div>
+                    <div id="visitasPorSemanaLabel" style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px; display:none;"></div>
+                </div>
+
+                <!-- Meta Mensal Visitas -->
+                <div class="card" style="margin-bottom:0; padding:14px 20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Visitas
+                            Mensais</span>
+                        <span style="font-size:0.8rem; font-weight:700; color:#F59E0B;" id="pctMetaVisitaMes">0%</span>
+                    </div>
+                    <div
+                        style="height:8px; background:#E2E8F0; border-radius:4px; overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);">
+                        <div id="barMetaVisitaMes"
+                            style="width:0%; height:100%; background:linear-gradient(90deg, #F59E0B, #FBBF24); transition:width 1.5s ease-out; border-radius:4px;">
+                        </div>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                        <span id="labelMetaVisitaMes">0 / 0</span>
+                        <span>Meta Mês</span>
+                    </div>
+                </div>
+
+                <!-- Prêmio Visitas -->
+                <div class="card" id="cardPremioVisita"
+                    style="margin-bottom:0; padding:14px 20px; display:flex; flex-direction:column; justify-content:center; align-items:center; border:1px solid transparent;">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                        <i class="fas fa-trophy" style="color:#EC4899; font-size:0.85rem;"></i>
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Prêmio</span>
+                    </div>
+                    <div style="font-size:1.25rem; font-weight:700; color:var(--text-primary);" id="valorPremioVisita">
+                        R$ 0,00</div>
+                    <div style="font-size:0.7rem; color:var(--text-secondary);" id="statusPremioVisita">Meta de Visitas
+                    </div>
+                </div>
+
+                <!-- LINHA 2: METAS DE VALORES E COMISSÃO -->
+
+                <!-- Meta Mensal Vendas -->
+                <div class="card" style="margin-bottom:0; padding:14px 20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Meta Mensal</span>
+                        <span style="font-size:0.8rem; font-weight:700; color:var(--primary);"
+                            id="labelMetaMensal">0%</span>
+                    </div>
+                    <div
+                        style="height:8px; background:#E2E8F0; border-radius:4px; overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);">
+                        <div id="barMetaMensal"
+                            style="width:0%; height:100%; background:linear-gradient(90deg, var(--primary), #60A5FA); transition:width 1.5s ease-out; border-radius:4px;">
+                        </div>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                        <span id="valorMetaMensal">R$ 0,00</span>
+                        <span id="alvoMetaMensal">Meta: R$ 0,00</span>
+                    </div>
+                </div>
+
+                <!-- Meta Anual Vendas -->
+                <div class="card" style="margin-bottom:0; padding:14px 20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Meta Anual</span>
+                        <span style="font-size:0.8rem; font-weight:700; color:var(--success);"
+                            id="labelMetaAnual">0%</span>
+                    </div>
+                    <div
+                        style="height:8px; background:#E2E8F0; border-radius:4px; overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);">
+                        <div id="barMetaAnual"
+                            style="width:0%; height:100%; background:linear-gradient(90deg, var(--success), #34D399); transition:width 1.5s ease-out; border-radius:4px;">
+                        </div>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                        <span id="valorMetaAnual">R$ 0,00</span>
+                        <span id="alvoMetaAnual">Meta: R$ 0,00</span>
+                    </div>
+                </div>
+
+                <!-- Comissão -->
+                <div class="card"
+                    style="margin-bottom:0; padding:14px 20px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                        <i class="fas fa-coins" style="color:#F59E0B; font-size:0.85rem;"></i>
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Previsão de
+                            ganhos</span>
+                    </div>
+                    <div style="font-size:1.25rem; font-weight:700; color:var(--success);" id="comissaoAtual">R$ 0,00
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="kpi-row">
+            <div class="kpi-card-mini">
+                <div class="kpi-icon-box" style="background:rgba(37,99,235,0.1); color:var(--primary);">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="kpi-details">
+                    <h3 id="kpiTotalVendido">R$ 0,00</h3>
+                    <span id="kpiTotalVendidoLabel">Vendas Aprovadas</span>
+                </div>
+            </div>
+            <div class="kpi-card-mini">
+                <div class="kpi-icon-box" style="background:rgba(239,68,68,0.1); color:var(--danger);">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="kpi-details">
+                    <h3 id="kpiTotalPendentes">0</h3>
+                    <span>Recusados + Carrinho</span>
+                </div>
+            </div>
+            <div class="kpi-card-mini" id="cardPrescritores" style="cursor:pointer; position:relative;"
+                onclick="openPrescritoresModal()" title="Clique para ver todos os prescritores">
+                <div class="kpi-icon-box" style="background:rgba(139,92,246,0.1); color:#8B5CF6;">
+                    <i class="fas fa-user-md"></i>
+                </div>
+                <div class="kpi-details">
+                    <h3 id="kpiTotalCarteira">0</h3>
+                    <span>Prescritores Ativos</span>
+                </div>
+                <i class="fas fa-external-link-alt"
+                    style="position:absolute; top:12px; right:12px; font-size:0.7rem; color:var(--text-secondary); opacity:0.5;"></i>
+            </div>
+        </div>
+
+
+
+        <div class="dashboard-grid">
+            <!-- Coluna Esquerda: Gráficos e Tabelas -->
+            <div class="main-column">
+
+                <!-- Gráfico de Evolução -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Evolução Mensal de Vendas</div>
+                            <div class="card-subtitle">Performance financeira ao longo do ano</div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <select id="mesSelect"
+                                style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-size:0.85rem;">
+                                <option value="">Todos os Meses</option>
+                                <option value="1">Janeiro</option>
+                                <option value="2">Fevereiro</option>
+                                <option value="3">Março</option>
+                                <option value="4">Abril</option>
+                                <option value="5">Maio</option>
+                                <option value="6">Junho</option>
+                                <option value="7">Julho</option>
+                                <option value="8">Agosto</option>
+                                <option value="9">Setembro</option>
+                                <option value="10">Outubro</option>
+                                <option value="11">Novembro</option>
+                                <option value="12">Dezembro</option>
+                            </select>
+                            <select id="anoSelect"
+                                style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-size:0.85rem;">
+                                <option value="2026" selected>2026</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="height: 320px;">
+                        <canvas id="chartEvolucaoMENSAL"></canvas>
+                    </div>
+                </div>
+
+                <!-- Relatórios de Visitas (Premium) -->
+                <div class="relatorios-visitas-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+
+                    <!-- Relatório Semana -->
+                    <div class="card" style="display:flex; flex-direction:column;">
+                        <div class="card-header" style="flex-shrink:0;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="width:36px; height:36px; border-radius:10px; background:rgba(16,185,129,0.12); display:flex; align-items:center; justify-content:center;">
+                                    <i class="fas fa-clipboard-list" style="color:#10B981; font-size:0.95rem;"></i>
+                                </div>
+                                <div>
+                                    <div class="card-title" style="font-size:0.95rem;">Relatório Semanal</div>
+                                    <div class="card-subtitle" style="font-size:0.72rem;">Visitas realizadas esta semana</div>
+                                </div>
+                            </div>
+                            <span id="visitasSemanaCount" style="font-size:0.7rem; padding:3px 10px; border-radius:999px; background:rgba(16,185,129,0.12); color:#10B981; font-weight:800;">0</span>
+                        </div>
+                        <div id="visitasSemanaBody" style="flex:1; overflow-y:auto; max-height:420px; padding:4px 16px 16px 16px;">
+                            <div style="text-align:center; padding:36px 0; color:var(--text-secondary); font-size:0.85rem;">
+                                <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Carregando...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Agendadas -->
+                    <div class="card" style="display:flex; flex-direction:column;">
+                        <div class="card-header" style="flex-shrink:0;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="width:36px; height:36px; border-radius:10px; background:rgba(37,99,235,0.12); display:flex; align-items:center; justify-content:center;">
+                                    <i class="fas fa-calendar-check" style="color:#3B82F6; font-size:0.95rem;"></i>
+                                </div>
+                                <div>
+                                    <div class="card-title" style="font-size:0.95rem;">Agenda de Visitas</div>
+                                    <div class="card-subtitle" style="font-size:0.72rem;">Próximas visitas agendadas</div>
+                                </div>
+                            </div>
+                            <span id="visitasAgendadasCount" style="font-size:0.7rem; padding:3px 10px; border-radius:999px; background:rgba(37,99,235,0.12); color:#3B82F6; font-weight:800;">0</span>
+                        </div>
+                        <div id="visitasAgendadasBody" style="flex:1; overflow-y:auto; max-height:420px; padding:4px 16px 16px 16px;">
+                            <div style="text-align:center; padding:36px 0; color:var(--text-secondary); font-size:0.85rem;">
+                                <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Carregando...
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Mapa de Visitas (GPS) -->
+                <div class="card" id="cardMapaVisitas">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Mapa de Visitas</div>
+                            <div class="card-subtitle">Visitas efetuadas com confirmação de GPS</div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button type="button" onclick="openMapaVisitasStatsModal()"
+                                style="padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-weight:800;">
+                                <i class="fas fa-chart-simple"></i> Estatísticas
+                            </button>
+                        </div>
+                    </div>
+                    <div id="visitasMapaResumo"
+                        style="padding:0 18px 12px 18px; font-size:0.82rem; color:var(--text-secondary);">
+                        Carregando mapa...
+                    </div>
+                    <div style="padding:0 18px 18px 18px;">
+                        <div id="visitasMapaEmpty"
+                            style="display:none; padding:18px; border:1px dashed var(--border); border-radius:12px; text-align:center; color:var(--text-secondary);">
+                            Nenhuma visita com GPS encontrada no período.
+                        </div>
+                        <div id="dashboardVisitasMap"
+                            style="height:360px; width:100%; border:1px solid var(--border); border-radius:12px; overflow:hidden;"></div>
+                    </div>
+                </div>
+
+
+            </div>
+
+            <!-- Coluna Direita: Metas -->
+            <div class="side-column">
+
+                <!-- Progresso da Meta Mensal -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Meta Mensal</div>
+                    </div>
+                    <div style="position:relative; height:180px; display:flex; justify-content:center;">
+                        <canvas id="chartMetaMensalGauge"></canvas>
+                        <div style="position:absolute; bottom:20px; text-align:center;">
+                            <div id="metaMensalPercent"
+                                style="font-size:1.5rem; font-weight:700; color:var(--primary);">0%</div>
+                            <span style="font-size:0.8rem; color:var(--text-secondary);">Atingido</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progresso da Meta Anual -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Meta Anual</div>
+                    </div>
+                    <div style="position:relative; height:180px; display:flex; justify-content:center;">
+                        <canvas id="chartMetaGauge"></canvas>
+                        <div style="position:absolute; bottom:20px; text-align:center;">
+                            <div id="metaPercent" style="font-size:1.5rem; font-weight:700;">0%</div>
+                            <span style="font-size:0.8rem; color:var(--text-secondary);">Atingido</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Distribuição por Produtos (abaixo da Meta Anual) -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Distribuição por Produtos</div>
+                            <div class="card-subtitle">Volume de vendas por família</div>
+                        </div>
+                    </div>
+                    <div style="height: 220px;">
+                        <canvas id="chartProdutos"></canvas>
+                    </div>
+                </div>
+
+                <!-- Atenção Especial: prescritores com potencial porém inativos -->
+                <div class="card" style="display:flex; flex-direction:column;">
+                    <div class="card-header" style="flex-shrink:0;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:36px; height:36px; border-radius:10px; background:rgba(239,68,68,0.12); display:flex; align-items:center; justify-content:center;">
+                                <i class="fas fa-triangle-exclamation" style="color:#EF4444; font-size:0.95rem;"></i>
+                            </div>
+                            <div>
+                                <div class="card-title" style="font-size:0.95rem;">Atenção Especial</div>
+                                <div class="card-subtitle" style="font-size:0.68rem;">Prescritores com potencial inativos</div>
+                            </div>
+                        </div>
+                        <span id="alertasCount" style="font-size:0.7rem; padding:3px 10px; border-radius:999px; background:rgba(239,68,68,0.12); color:#EF4444; font-weight:800;">0</span>
+                    </div>
+                    <div id="alertasContainer"
+                        style="flex:1; overflow-y:auto; max-height:380px; padding:4px 16px 16px 16px;">
+                        <div style="text-align:center; padding:20px 0; color:var(--text-secondary); font-size:0.85rem;">
+                            <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Analisando carteira...
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de Prescritores -->
+    <div id="modalPrescritores"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:2000; justify-content:center; align-items:center; padding:20px;">
+        <div
+            style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:95vw; max-height:85vh; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div
+                style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <div>
+                    <h2 id="modalPrescritorTitle" style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:0;"><i
+                            class="fas fa-user-md" style="color:var(--warning); margin-right:8px;"></i>Todos os Prescritores</h2>
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin:4px 0 0 0;"
+                        id="modalPrescritorSubtitle">Carteira completa do visitador</p>
+                </div>
+                <button onclick="closePrescritoresModal()"
+                    style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px; border-radius:6px; transition:all 0.2s;"
+                    onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#EF4444'"
+                    onmouseout="this.style.background='none';this.style.color='var(--text-secondary)'">&times;</button>
+            </div>
+            <div style="padding:16px 24px; border-bottom:1px solid var(--border); flex-shrink:0;">
+                <input type="text" id="searchPrescritor" placeholder="Buscar prescritor..."
+                    oninput="filterPrescritores()"
+                    style="width:100%; padding:10px 16px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; outline:none; transition:border 0.2s;"
+                    onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+            </div>
+            <div style="overflow-y:auto; flex:1; padding:0;" id="modalBodyWrapper">
+                <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                    <thead style="position:sticky; top:0; background:var(--bg-card); z-index:1;">
+                        <tr style="border-bottom:2px solid var(--border);">
+                            <th
+                                style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">
+                                #</th>
+                            <th onclick="sortTable('prescritor')"
+                                style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
+                                Prescritor <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
+                            <th onclick="sortTable('total_aprovado')"
+                                style="padding:12px 16px; text-align:right; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
+                                Valor Aprovado <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
+                            <th onclick="sortTable('total_recusado')"
+                                style="padding:12px 16px; text-align:right; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
+                                Valor Recusado <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
+                            <th onclick="sortTable('qtd_aprovados')"
+                                style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
+                                Pedidos <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
+                            <th onclick="sortTable('dias_sem_compra')"
+                                style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
+                                Dias s/ Compra <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
+                            <th onclick="sortTable('ultima_visita')"
+                                style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
+                                Dias s/ Visita <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
+                            <th
+                                style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">
+                                <i class="fab fa-whatsapp" style="color:#25D366;"></i> WhatsApp
+                            </th>
+                            <th id="thVisita"
+                                style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">
+                                Visita
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalPrescritoresBody">
+                        <tr>
+                            <td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);">
+                                Carregando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination Footer -->
+            <div id="paginationContainer"
+                style="padding:12px 24px; border-top:1px solid var(--border); background:var(--bg-card); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; font-size:0.85rem;">
+                <div style="color:var(--text-secondary);" id="paginationInfo">Mostrando 0-0 de 0</div>
+                <div style="display:flex; gap:8px;">
+                    <button id="prevPage" onclick="changePage(-1)"
+                        style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; transition:all 0.2s;">Anterior</button>
+                    <button id="nextPage" onclick="changePage(1)"
+                        style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; transition:all 0.2s;">Próximo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mini-Modal para salvar WhatsApp -->
+    <div id="modalWhatsApp"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:3000; justify-content:center; align-items:center; padding:20px;">
+        <div
+            style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:420px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div
+                style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="font-size:1rem; font-weight:700; color:var(--text-primary); margin:0;">
+                    <i class="fab fa-whatsapp" style="color:#25D366; margin-right:8px;"></i>
+                    <span id="whatsModalTitle">Salvar WhatsApp</span>
+                </h3>
+                <button onclick="closeWhatsAppModal()"
+                    style="background:none; border:none; font-size:1.3rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:20px 24px;">
+                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;"
+                    id="whatsModalPrescritorName"></p>
+                <input type="hidden" id="whatsPrescritorNome">
+                <div style="display:flex; gap:8px;">
+                    <input type="tel" id="whatsPrescritorNumero" placeholder="(00) 00000-0000" maxlength="15"
+                        style="flex:1; padding:10px 16px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.95rem; outline:none;"
+                        onfocus="this.style.borderColor='#25D366'" onblur="this.style.borderColor='var(--border)'"
+                        oninput="formatWhatsApp(this)">
+                    <button onclick="savePrescritorWhatsApp()" id="btnSaveWhats"
+                        style="padding:10px 20px; background:#25D366; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.9rem; transition:all 0.2s; display:flex; align-items:center; gap:6px;"
+                        onmouseover="this.style.background='#128C7E'" onmouseout="this.style.background='#25D366'">
+                        <i class="fas fa-save"></i> Salvar
+                    </button>
+                </div>
+                <p id="whatsStatusMsg" style="font-size:0.8rem; margin-top:8px; display:none;"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Encerrar Visita (Relatório + Próxima Visita) -->
+    <div id="modalEncerrarVisita"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:3500; justify-content:center; align-items:center; padding:20px;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:720px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:var(--text-primary);">
+                    <i class="fas fa-clipboard-check" style="color:var(--success); margin-right:8px;"></i>
+                    Encerrar Visita
+                </h3>
+                <button onclick="closeEncerrarVisitaModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:18px 22px;">
+                <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">
+                    Prescritor: <strong id="encerrarVisitaPrescritor" style="color:var(--text-primary);"></strong>
+                    <span id="encerrarVisitaInicio" style="margin-left:10px; opacity:0.8;"></span>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Status da visita</label>
+                        <select id="visitaStatus" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary);">
+                            <option value="Realizada" selected>Realizada</option>
+                            <option value="Não encontrado">Não encontrado</option>
+                            <option value="Remarcada">Remarcada</option>
+                            <option value="Cancelada">Cancelada</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Local</label>
+                        <input id="visitaLocal" type="text" placeholder="Ex.: consultório, clínica..."
+                            style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                    </div>
+                </div>
+
+                <!-- Confirmação de Local (GPS + Mapa) -->
+                <div style="margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div>
+                            <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">Confirmar local (GPS)</div>
+                            <div id="geoStatusText" style="font-size:0.72rem; color:var(--text-secondary); opacity:0.85;">Ao abrir este modal, o sistema tenta capturar o GPS automaticamente.</div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button id="btnCapturarGPS" type="button" onclick="capturarGPS()"
+                                style="padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-weight:700;">
+                                <i class="fas fa-location-crosshairs"></i> Capturar GPS
+                            </button>
+                            <a id="btnAbrirMapaExterno" href="#" target="_blank" style="display:none; padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); text-decoration:none; font-weight:700;">
+                                <i class="fas fa-map"></i> Abrir mapa
+                            </a>
+                        </div>
+                    </div>
+                    <div id="geoInfoLine" style="margin-top:8px; font-size:0.75rem; color:var(--text-secondary); display:none;"></div>
+                    <div id="mapContainer" style="display:none; margin-top:10px; border:1px solid var(--border); border-radius:12px; overflow:hidden;">
+                        <div id="visitaMap" style="height:220px; width:100%;"></div>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Amostra</label>
+                        <input id="visitaAmostra" type="text" placeholder="Opcional"
+                            style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Brinde</label>
+                        <input id="visitaBrinde" type="text" placeholder="Opcional"
+                            style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Artigo</label>
+                        <input id="visitaArtigo" type="text" placeholder="Opcional"
+                            style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                    </div>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Resumo da visita</label>
+                    <textarea id="visitaResumo" rows="4" placeholder="Escreva um resumo rápido..."
+                        style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none; resize:vertical;"></textarea>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Próxima visita (data)</label>
+                        <input id="visitaProximaData" type="date"
+                            style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Próxima visita (hora)</label>
+                        <input id="visitaProximaHora" type="time"
+                            style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                    </div>
+                </div>
+
+                <p id="encerrarVisitaMsg" style="display:none; font-size:0.8rem; margin:0 0 10px 0;"></p>
+
+                <div style="display:flex; justify-content:flex-end; gap:10px;">
+                    <button onclick="closeEncerrarVisitaModal()"
+                        style="padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer;">
+                        Cancelar
+                    </button>
+                    <button id="btnEncerrarVisita" onclick="confirmEncerrarVisita()"
+                        style="padding:10px 14px; border-radius:10px; border:none; background:var(--success); color:white; cursor:pointer; font-weight:700;">
+                        <i class="fas fa-flag-checkered"></i> Encerrar visita
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Detalhes da Visita -->
+    <div id="modalDetalheVisita"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:3700; justify-content:center; align-items:center; padding:20px;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:620px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden; max-height:90vh; display:flex; flex-direction:column;">
+            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div id="dvIconBox" style="width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center;">
+                        <i id="dvIcon" class="fas fa-check-circle" style="font-size:1rem;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.05rem; font-weight:900; color:var(--text-primary);">Detalhes da Visita</h3>
+                        <div id="dvSubtitulo" style="font-size:0.75rem; color:var(--text-secondary);">—</div>
+                    </div>
+                </div>
+                <button onclick="closeDetalheVisitaModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div style="overflow-y:auto; padding:18px 22px; flex:1;">
+
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+                    <div style="flex:1;">
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">Prescritor</div>
+                        <div id="dvPrescritor" style="font-size:1.1rem; font-weight:900; color:var(--text-primary);">—</div>
+                    </div>
+                    <div id="dvStatusBadge" style="padding:4px 12px; border-radius:999px; font-size:0.75rem; font-weight:800;">—</div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body);">
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; margin-bottom:4px;"><i class="far fa-calendar" style="margin-right:4px;"></i>Data</div>
+                        <div id="dvData" style="font-size:0.92rem; font-weight:700; color:var(--text-primary);">—</div>
+                    </div>
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body);">
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; margin-bottom:4px;"><i class="far fa-clock" style="margin-right:4px;"></i>Horário</div>
+                        <div id="dvHorario" style="font-size:0.92rem; font-weight:700; color:var(--text-primary);">—</div>
+                    </div>
+                </div>
+
+                <div id="dvLocalRow" style="display:none; margin-bottom:16px;">
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body);">
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; margin-bottom:4px;"><i class="fas fa-map-pin" style="margin-right:4px;"></i>Local</div>
+                        <div id="dvLocal" style="font-size:0.88rem; font-weight:600; color:var(--text-primary);">—</div>
+                    </div>
+                </div>
+
+                <div id="dvResumoRow" style="display:none; margin-bottom:16px;">
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;"><i class="fas fa-align-left" style="margin-right:4px;"></i>Resumo</div>
+                    <div id="dvResumo" style="font-size:0.85rem; color:var(--text-primary); line-height:1.6; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body);">—</div>
+                </div>
+
+                <div id="dvItensRow" style="display:none; margin-bottom:16px;">
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;"><i class="fas fa-box-open" style="margin-right:4px;"></i>Itens entregues</div>
+                    <div id="dvItens" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+                </div>
+
+                <div id="dvReagendRow" style="display:none; margin-bottom:16px;">
+                    <div style="padding:12px; border:1px solid rgba(37,99,235,0.25); border-radius:12px; background:rgba(37,99,235,0.06);">
+                        <div style="font-size:0.68rem; color:#3B82F6; font-weight:700; margin-bottom:4px;"><i class="fas fa-calendar-plus" style="margin-right:4px;"></i>Próxima visita agendada</div>
+                        <div id="dvReagend" style="font-size:0.88rem; font-weight:700; color:var(--text-primary);">—</div>
+                    </div>
+                </div>
+
+                <div id="dvGeoRow" style="display:none; margin-bottom:4px;">
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;"><i class="fas fa-location-dot" style="margin-right:4px;"></i>Confirmação GPS</div>
+                    <div id="dvGeoInfo" style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:8px;">—</div>
+                    <div id="dvGeoMapContainer" style="height:180px; border:1px solid var(--border); border-radius:12px; overflow:hidden;"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Estatísticas do Mapa (Distância + Quantidade de Visitas) -->
+    <div id="modalMapaVisitasStats"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:3600; justify-content:center; align-items:center; padding:20px;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:860px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:1.05rem; font-weight:900; color:var(--text-primary);">
+                    <i class="fas fa-map-location-dot" style="color:var(--primary); margin-right:8px;"></i>
+                    Estatísticas do Mapa
+                </h3>
+                <button onclick="closeMapaVisitasStatsModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:18px 22px;">
+                <div id="mapaStatsSubtitulo" style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:12px;">
+                    Calculando...
+                </div>
+
+                <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px; margin-bottom:14px;">
+                    <div style="border:1px solid var(--border); border-radius:12px; padding:12px; background:var(--bg-body);">
+                        <div style="font-size:0.72rem; color:var(--text-secondary); font-weight:700;">Visitas (período)</div>
+                        <div id="mapaStatTotalVisitas" style="font-size:1.2rem; font-weight:900; color:var(--text-primary);">-</div>
+                    </div>
+                    <div style="border:1px solid var(--border); border-radius:12px; padding:12px; background:var(--bg-body);">
+                        <div style="font-size:0.72rem; color:var(--text-secondary); font-weight:700;">Realizadas</div>
+                        <div id="mapaStatRealizadas" style="font-size:1.2rem; font-weight:900; color:var(--success);">-</div>
+                    </div>
+                    <div style="border:1px solid var(--border); border-radius:12px; padding:12px; background:var(--bg-body);">
+                        <div style="font-size:0.72rem; color:var(--text-secondary); font-weight:700;">Com GPS</div>
+                        <div id="mapaStatComGPS" style="font-size:1.2rem; font-weight:900; color:var(--primary);">-</div>
+                    </div>
+                    <div style="border:1px solid var(--border); border-radius:12px; padding:12px; background:var(--bg-body);">
+                        <div style="font-size:0.72rem; color:var(--text-secondary); font-weight:700;">Distância (km)</div>
+                        <div id="mapaStatDistanciaKm" style="font-size:1.2rem; font-weight:900; color:var(--warning);">-</div>
+                    </div>
+                </div>
+
+                <div style="border:1px solid var(--border); border-radius:12px; overflow:hidden;">
+                    <div style="padding:10px 12px; background:var(--bg-body); border-bottom:1px solid var(--border); font-weight:900; color:var(--text-primary); font-size:0.9rem;">
+                        Trechos (ordem cronológica)
+                    </div>
+                    <div class="table-responsive" style="max-height:320px; overflow:auto;">
+                        <table class="data-table" style="width:100%; min-width:0;">
+                            <thead>
+                                <tr>
+                                    <th style="width:90px;">Data</th>
+                                    <th>De → Para</th>
+                                    <th style="width:110px; text-align:right;">Distância</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mapaStatsTrechosBody">
+                                <tr><td colspan="3" style="text-align:center; padding:26px; color:var(--text-secondary);">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        // Aplicar tema salvo imediatamente (mesmo sistema do index.html/app.js)
+        (function () {
+            const savedTheme = localStorage.getItem('mypharm_theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
+        })();
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('mypharm_theme', newTheme);
+        }
+
+        // Nome do visitador cujo painel está sendo exibido (próprio usuário ou, se admin, o da URL ?visitador=)
+        let currentVisitadorName = '';
+        // Apenas usuários do setor visitador podem iniciar/encerrar visitas
+        let canManageVisits = false;
+        // Visita ativa do visitador logado (quando existir)
+        let activeVisit = null;
+
+        let allPrescritores = [];
+        let filteredPrescritores = [];
+        let prescritorContatos = {};
+        let currentSort = { column: 'total_aprovado', direction: 'desc' };
+
+        async function openPrescritoresModal() {
+            const modal = document.getElementById('modalPrescritores');
+            modal.style.display = 'flex';
+            document.getElementById('searchPrescritor').value = '';
+
+            const modalTitle = document.getElementById('modalPrescritorTitle');
+            const modalSubtitle = document.getElementById('modalPrescritorSubtitle');
+            if (modalTitle) modalTitle.textContent = currentVisitadorName ? `Todos os Prescritores — ${currentVisitadorName}` : 'Todos os Prescritores';
+            if (modalSubtitle) modalSubtitle.textContent = currentVisitadorName ? `Carteira: ${currentVisitadorName}` : 'Carteira completa do visitador';
+
+            const tbody = document.getElementById('modalPrescritoresBody');
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);">Carregando...</td></tr>';
+            document.getElementById('paginationContainer').style.display = 'none';
+
+            const visitadorParam = currentVisitadorName || localStorage.getItem('userName') || '';
+            const anoEl = document.getElementById('anoSelect');
+            const mesEl = document.getElementById('mesSelect');
+            const ano = anoEl ? anoEl.value : (new Date().getFullYear()).toString();
+            const mes = mesEl && mesEl.value ? mesEl.value : '';
+
+            try {
+                prescritorContatos = await apiGet('get_prescritor_contatos');
+            } catch (e) {
+                prescritorContatos = {};
+            }
+
+            // Buscar visita ativa
+            activeVisit = null;
+            if (canManageVisits) {
+                try {
+                    const av = await apiGet('visita_ativa', { visitador_nome: currentVisitadorName });
+                    activeVisit = av && av.active ? av.active : null;
+                } catch (e) {
+                    activeVisit = null;
+                }
+            }
+
+            const params = { visitador: visitadorParam, ano };
+            if (mes) params.mes = mes;
+            let list = [];
+            try {
+                list = await apiGet('all_prescritores', params) || [];
+            } catch (e) {
+                console.error('Erro ao carregar prescritores', e);
+            }
+            // API retorna valor_aprovado, valor_recusado, total_pedidos; modal espera total_aprovado, total_recusado, qtd_aprovados
+            allPrescritores = list.map(p => ({
+                ...p,
+                total_aprovado: p.valor_aprovado ?? p.total_aprovado ?? 0,
+                total_recusado: p.valor_recusado ?? p.total_recusado ?? 0,
+                qtd_aprovados: p.total_pedidos ?? p.qtd_aprovados ?? 0
+            }));
+            filteredPrescritores = [...allPrescritores];
+            modalCurrentPage = 1;
+            sortData(filteredPrescritores, currentSort.column, currentSort.direction);
+            renderModalPrescritores(filteredPrescritores);
+        }
+
+        function closePrescritoresModal() {
+            document.getElementById('modalPrescritores').style.display = 'none';
+        }
+
+        // Fechar modal ao clicar fora
+        document.getElementById('modalPrescritores').addEventListener('click', function (e) {
+            if (e.target === this) closePrescritoresModal();
+        });
+        document.getElementById('modalWhatsApp').addEventListener('click', function (e) {
+            if (e.target === this) closeWhatsAppModal();
+        });
+        document.getElementById('modalEncerrarVisita').addEventListener('click', function (e) {
+            if (e.target === this) closeEncerrarVisitaModal();
+        });
+
+        // fechar modal de estatísticas do mapa ao clicar fora
+        document.getElementById('modalMapaVisitasStats').addEventListener('click', function (e) {
+            if (e.target === this) closeMapaVisitasStatsModal();
+        });
+
+        // fechar modal de detalhe da visita ao clicar fora
+        document.getElementById('modalDetalheVisita').addEventListener('click', function (e) {
+            if (e.target === this) closeDetalheVisitaModal();
+        });
+
+        function filterPrescritores() {
+            const search = document.getElementById('searchPrescritor').value.toLowerCase();
+            filteredPrescritores = allPrescritores.filter(p => p.prescritor.toLowerCase().includes(search));
+            // Aplicar ordenação atual ao filtro
+            sortData(filteredPrescritores, currentSort.column, currentSort.direction);
+            modalCurrentPage = 1; // Reseta para a primeira página ao filtrar
+            renderModalPrescritores(filteredPrescritores);
+        }
+
+        function sortTable(column) {
+            // Alternar direção se clicar na mesma coluna
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+                // Ajuste para colunas numéricas onde DESC faz mais sentido inicialmente
+                if (['total_aprovado', 'total_recusado', 'qtd_aprovados', 'dias_sem_compra', 'ultima_visita'].includes(column)) {
+                    currentSort.direction = 'desc';
+                }
+            }
+
+            // Atualizar ícones visualmente (opcional, mas bom pra UX)
+            updateSortIcons(column, currentSort.direction);
+
+            sortData(filteredPrescritores, currentSort.column, currentSort.direction);
+            modalCurrentPage = 1;
+            renderModalPrescritores(filteredPrescritores);
+        }
+
+        function sortData(data, column, direction) {
+            data.sort((a, b) => {
+                let valA = a[column];
+                let valB = b[column];
+
+                // Tratamento específico para dias s/ visita (baseado em ultima_visita)
+                if (column === 'ultima_visita') {
+                    // Queremos ordenar por "dias sem visita".
+                    // Se ultima_visita é mais recente (maior data), "dias sem visita" é MENOR.
+                    // Então se ordenamos dias ASC, data deve ser DESC.
+                    // Vamos simplificar: converter data para timestamp.
+                    // Quem não tem visita (null) tem "infinitos" dias sem visita.
+                    const getTimestamp = (dt) => dt ? new Date(dt).getTime() : 0;
+                    valA = getTimestamp(valA);
+                    valB = getTimestamp(valB);
+
+                    // Se direction for 'desc' (maiores dias sem visita primeiro), queremos as MENORES datas (ou null) primeiro.
+                    // A lógica padrão de sort(a-b) ordena crescente. 
+                    // Vamos inverter a lógica aqui pois estamos lidando com "Dias SEM":
+                    // Mais dias sem visita = Data mais antiga (valor menor)
+
+                    // Se quero DIAS (SEM VISITA) CRESCENTE (1d, 2d...): Quero datas MAIS RECENTES primeiro.
+                    // Se quero DIAS (SEM VISITA) DECRESCENTE (Sem visita, 100d...): Quero datas MAIS ANTIGAS primeiro.
+
+                    // Vamos inverter o valor para o sort genérico funcionar como "Dias":
+                    // Se data é recente (grande), dias é pequeno. 
+                    // Se data é antiga (pequena), dias é grande.
+                    // Se data é 0 (null), dias é infinito.
+
+                    // Vamos calcular os dias virtuais para ordenar corretamente
+                    const getDias = (dateStr) => {
+                        if (!dateStr) return 999999; // Sem visita = muitos dias
+                        const d = new Date(dateStr);
+                        return Math.floor((new Date() - d) / (1000 * 60 * 60 * 24));
+                    };
+
+                    valA = getDias(a['ultima_visita']);
+                    valB = getDias(b['ultima_visita']);
+                } else if (column === 'dias_sem_compra') {
+                    // Tratar nulos como infinitos dias
+                    valA = valA !== null ? parseInt(valA) : 999999;
+                    valB = valB !== null ? parseInt(valB) : 999999;
+                } else {
+                    // Numéricos padrão
+                    if (column !== 'prescritor') {
+                        valA = parseFloat(valA) || 0;
+                        valB = parseFloat(valB) || 0;
+                    } else {
+                        // String
+                        valA = valA.toString().toLowerCase();
+                        valB = valB.toString().toLowerCase();
+                    }
+                }
+
+                if (valA < valB) return direction === 'asc' ? -1 : 1;
+                if (valA > valB) return direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function updateSortIcons(column, direction) {
+            // Remove todos os ícones ativos
+            document.querySelectorAll('th i.fa-sort, th i.fa-sort-up, th i.fa-sort-down').forEach(i => {
+                i.className = 'fas fa-sort';
+                i.style.opacity = '0.3';
+            });
+
+            // Encontrar o header clicado
+            const headers = document.querySelectorAll('th');
+            let targetHeader;
+            if (column === 'prescritor') targetHeader = headers[1];
+            if (column === 'total_aprovado') targetHeader = headers[2];
+            if (column === 'total_recusado') targetHeader = headers[3];
+            if (column === 'qtd_aprovados') targetHeader = headers[4];
+            if (column === 'dias_sem_compra') targetHeader = headers[5];
+            if (column === 'ultima_visita') targetHeader = headers[6];
+
+            if (targetHeader) {
+                const icon = targetHeader.querySelector('i');
+                if (icon) {
+                    icon.className = direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+                    icon.style.opacity = '1';
+                }
+            }
+        }
+
+        let modalCurrentPage = 1;
+        const itemsPerPage = 100;
+
+        function changePage(delta) {
+            modalCurrentPage += delta;
+            renderModalPrescritores(filteredPrescritores);
+            // Scroll para o topo da tabela
+            document.getElementById('modalBodyWrapper').scrollTop = 0;
+        }
+
+        function renderModalPrescritores(data) {
+            const tbody = document.getElementById('modalPrescritoresBody');
+            const subtitle = document.getElementById('modalPrescritorSubtitle');
+            subtitle.textContent = currentVisitadorName
+                ? `Carteira: ${currentVisitadorName} — ${data.length} prescritor(es)`
+                : `${data.length} prescritor(es) encontrado(s)`;
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);"><i class="fas fa-search" style="font-size:1.5rem; margin-bottom:8px; display:block; opacity:0.3;"></i>Nenhum prescritor encontrado</td></tr>';
+                document.getElementById('paginationContainer').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('paginationContainer').style.display = 'flex';
+
+            const totalPages = Math.ceil(data.length / itemsPerPage);
+            if (modalCurrentPage < 1) modalCurrentPage = 1;
+            if (modalCurrentPage > totalPages) modalCurrentPage = totalPages;
+
+            const startIdx = (modalCurrentPage - 1) * itemsPerPage;
+            const endIdx = Math.min(startIdx + itemsPerPage, data.length);
+            const paginatedData = data.slice(startIdx, endIdx);
+
+            document.getElementById('paginationInfo').textContent = `Mostrando ${startIdx + 1}-${endIdx} de ${data.length}`;
+            document.getElementById('prevPage').disabled = modalCurrentPage === 1;
+            document.getElementById('nextPage').disabled = modalCurrentPage === totalPages;
+            document.getElementById('prevPage').style.opacity = modalCurrentPage === 1 ? '0.5' : '1';
+            document.getElementById('nextPage').style.opacity = modalCurrentPage === totalPages ? '0.5' : '1';
+
+            // Função auxiliar: bolinha = ícone; número sempre fora da bolinha. Verificado=verde, Atenção=amarelo.
+            function diasBadge(days, emptyText) {
+                if (days === null || isNaN(days) || days === 999999) {
+                    return `<div class="days-badge danger"><div class="circle"><i class="fas fa-exclamation"></i></div> ${emptyText}</div>`;
+                }
+
+                let type = 'success';
+                let icon = '<i class="fas fa-check"></i>';
+                let label = ' ' + days + 'd';
+
+                if (days > 15) {
+                    type = 'danger';
+                    icon = '<i class="fas fa-exclamation"></i>';
+                } else if (days > 7) {
+                    type = 'warning';
+                    icon = '<i class="fas fa-exclamation-triangle"></i>';
+                }
+
+                return `<div class="days-badge ${type}"><div class="circle">${icon}</div>${label}</div>`;
+            }
+
+            tbody.innerHTML = paginatedData.map((p, i) => {
+                const globalIndex = startIdx + i + 1;
+                // Dias sem compra
+                const diasCompra = p.dias_sem_compra !== null ? parseInt(p.dias_sem_compra) : null;
+                const diasCompraHTML = diasBadge(diasCompra, 'Sem compras');
+
+                // Dias sem visita
+                let diasVisitaHTML = diasBadge(null, 'Sem visita');
+                if (p.ultima_visita) {
+                    const dv = new Date(p.ultima_visita);
+                    if (!isNaN(dv.getTime())) {
+                        const diasVisita = Math.floor((new Date() - dv) / (1000 * 60 * 60 * 24));
+                        diasVisitaHTML = diasBadge(diasVisita, 'Sem visita');
+                    }
+                }
+
+                // WhatsApp
+                const whats = prescritorContatos[p.prescritor] || '';
+                const safeName = p.prescritor.replace(/'/g, "\\'");
+                let whatsHTML;
+                if (whats) {
+                    const whatsNum = whats.replace(/\D/g, '');
+                    const whatsLink = `https://wa.me/55${whatsNum}`;
+                    whatsHTML = `
+                        <div style="display:flex; gap:4px; justify-content:center; align-items:center;">
+                            <a href="${whatsLink}" target="_blank" style="background:#25D366; color:white; padding:4px 10px; border-radius:6px; font-size:0.75rem; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:500; transition:all 0.2s;" onmouseover="this.style.background='#128C7E'" onmouseout="this.style.background='#25D366'">
+                                <i class="fab fa-whatsapp"></i> ${whats}
+                            </a>
+                            <button onclick="openWhatsAppModal('${safeName}', '${whats}')" style="background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:0.7rem; padding:2px;" title="Editar número">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                        </div>`;
+                } else {
+                    whatsHTML = `
+                        <button onclick="openWhatsAppModal('${safeName}', '')" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.2s;" onmouseover="this.style.borderColor='#25D366';this.style.color='#25D366'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                            <i class="fas fa-plus"></i> Adicionar
+                        </button>`;
+                }
+
+                return `
+                    <tr style="border-bottom:1px solid var(--border); transition:background 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.03)'" onmouseout="this.style.background='transparent'">
+                        <td style="padding:10px 16px; color:var(--text-secondary); font-weight:600;">${globalIndex}</td>
+                        <td style="padding:10px 16px; font-weight:500; color:var(--text-primary); text-transform: capitalize;">${p.prescritor.toLowerCase()}</td>
+                        <td class="val-approved" style="padding:10px 16px; text-align:right;">${formatMoney(p.total_aprovado)}</td>
+                        <td class="val-refused" style="padding:10px 16px; text-align:right;">${formatMoney(p.total_recusado)}</td>
+                        <td style="padding:10px 16px; text-align:center;">${p.qtd_aprovados || 0}</td>
+                        <td style="padding:10px 16px; text-align:center;">${diasCompraHTML}</td>
+                        <td style="padding:10px 16px; text-align:center;">${diasVisitaHTML}</td>
+                        <td style="padding:10px 16px; text-align:center;">${whatsHTML}</td>
+                        <td style="padding:10px 16px; text-align:center;">
+                            ${renderVisitaActionCell(p.prescritor)}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderVisitaActionCell(prescritorNome) {
+            if (!canManageVisits) return '<span style="color:var(--text-secondary);">-</span>';
+            const safe = (prescritorNome || '').replace(/'/g, "\\'");
+
+            // Se existe visita ativa
+            if (activeVisit && activeVisit.prescritor) {
+                if (activeVisit.prescritor === prescritorNome) {
+                    return `
+                        <button onclick="openEncerrarVisitaModal('${safe}')" 
+                            style="padding:6px 10px; border-radius:8px; border:none; background:#EF4444; color:white; cursor:pointer; font-weight:700; font-size:0.75rem;">
+                            Encerrar
+                        </button>
+                    `;
+                }
+                return `
+                    <button disabled
+                        style="padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-secondary); cursor:not-allowed; font-weight:700; font-size:0.75rem; opacity:0.75;">
+                        Em visita
+                    </button>
+                `;
+            }
+
+            // Sem visita ativa
+            return `
+                <button onclick="iniciarVisita('${safe}')"
+                    style="padding:6px 10px; border-radius:8px; border:none; background:var(--success); color:white; cursor:pointer; font-weight:700; font-size:0.75rem;">
+                    Iniciar
+                </button>
+            `;
+        }
+
+        // === WhatsApp Modal ===
+        function openWhatsAppModal(nome, numero) {
+            document.getElementById('whatsPrescritorNome').value = nome;
+            document.getElementById('whatsModalPrescritorName').textContent = 'Prescritor: ' + nome;
+            document.getElementById('whatsPrescritorNumero').value = numero || '';
+            document.getElementById('whatsModalTitle').textContent = numero ? 'Editar WhatsApp' : 'Adicionar WhatsApp';
+            document.getElementById('whatsStatusMsg').style.display = 'none';
+            document.getElementById('modalWhatsApp').style.display = 'flex';
+            setTimeout(() => document.getElementById('whatsPrescritorNumero').focus(), 100);
+        }
+
+        function closeWhatsAppModal() {
+            document.getElementById('modalWhatsApp').style.display = 'none';
+        }
+
+        function formatWhatsApp(input) {
+            let v = input.value.replace(/\D/g, '');
+            if (v.length > 11) v = v.slice(0, 11);
+            if (v.length > 7) v = `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`;
+            else if (v.length > 2) v = `(${v.slice(0, 2)}) ${v.slice(2)}`;
+            else if (v.length > 0) v = `(${v}`;
+            input.value = v;
+        }
+
+        async function savePrescritorWhatsApp() {
+            const nome = document.getElementById('whatsPrescritorNome').value;
+            const whatsapp = document.getElementById('whatsPrescritorNumero').value;
+            const statusMsg = document.getElementById('whatsStatusMsg');
+            const btn = document.getElementById('btnSaveWhats');
+
+            if (!whatsapp || whatsapp.replace(/\D/g, '').length < 10) {
+                statusMsg.textContent = '⚠️ Informe um número válido (DDD + número)';
+                statusMsg.style.color = 'var(--warning)';
+                statusMsg.style.display = 'block';
+                return;
+            }
+
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+            btn.disabled = true;
+
+            try {
+                const result = await apiPost('save_prescritor_whatsapp', {
+                    nome_prescritor: nome,
+                    whatsapp: whatsapp
+                });
+
+                if (result.success) {
+                    statusMsg.textContent = '✅ WhatsApp salvo com sucesso!';
+                    statusMsg.style.color = 'var(--success)';
+                    statusMsg.style.display = 'block';
+                    // Atualizar cache local
+                    prescritorContatos[nome] = whatsapp;
+                    // Re-renderizar tabela
+                    const search = document.getElementById('searchPrescritor').value.toLowerCase();
+                    const filtered = search ? allPrescritores.filter(p => p.prescritor.toLowerCase().includes(search)) : allPrescritores;
+                    renderModalPrescritores(filtered);
+                    // Fechar após 1s
+                    setTimeout(() => closeWhatsAppModal(), 1000);
+                } else {
+                    statusMsg.textContent = '❌ ' + (result.error || 'Erro ao salvar');
+                    statusMsg.style.color = 'var(--danger)';
+                    statusMsg.style.display = 'block';
+                }
+            } catch (err) {
+                statusMsg.textContent = '❌ Erro de conexão';
+                statusMsg.style.color = 'var(--danger)';
+                statusMsg.style.display = 'block';
+            }
+
+            btn.innerHTML = '<i class="fas fa-save"></i> Salvar';
+            btn.disabled = false;
+        }
+
+        // =========================
+        // DETALHE DA VISITA (Modal)
+        // =========================
+        let __dvGeoMap = null;
+        let __dvGeoMarker = null;
+
+        function openDetalheVisitaModal(visita) {
+            if (!visita) return;
+            const modal = document.getElementById('modalDetalheVisita');
+            if (!modal) return;
+
+            const statusLower = (visita.status_visita || '').toLowerCase();
+            const statusCfg = {
+                'realizada':      { icon: 'fa-check-circle',    color: '#10B981', bg: 'rgba(16,185,129,0.12)',  border: 'rgba(16,185,129,0.30)' },
+                'remarcada':      { icon: 'fa-calendar-alt',    color: '#F59E0B', bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.30)' },
+                'cancelada':      { icon: 'fa-times-circle',    color: '#EF4444', bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.30)' },
+                'não encontrado': { icon: 'fa-question-circle', color: '#94A3B8', bg: 'rgba(148,163,184,0.12)', border: 'rgba(148,163,184,0.30)' }
+            };
+            const sc = statusCfg[statusLower] || statusCfg['realizada'];
+
+            const iconBox = document.getElementById('dvIconBox');
+            const iconEl = document.getElementById('dvIcon');
+            if (iconBox) { iconBox.style.background = sc.bg; iconBox.style.border = `1px solid ${sc.border}`; }
+            if (iconEl)  { iconEl.className = `fas ${sc.icon}`; iconEl.style.color = sc.color; }
+
+            const sub = document.getElementById('dvSubtitulo');
+            if (sub) sub.textContent = visita.prescritor || '—';
+
+            document.getElementById('dvPrescritor').textContent = visita.prescritor || '—';
+
+            const badge = document.getElementById('dvStatusBadge');
+            if (badge) {
+                badge.textContent = visita.status_visita || '—';
+                badge.style.background = sc.bg;
+                badge.style.color = sc.color;
+                badge.style.border = `1px solid ${sc.border}`;
+            }
+
+            const dt = visita.data_visita ? new Date(visita.data_visita) : null;
+            document.getElementById('dvData').textContent = dt && !isNaN(dt.getTime())
+                ? dt.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+                : (visita.data_visita || '—');
+            document.getElementById('dvHorario').textContent = visita.horario ? String(visita.horario).slice(0, 5) : '—';
+
+            const localRow = document.getElementById('dvLocalRow');
+            if (visita.local_visita) {
+                localRow.style.display = 'block';
+                document.getElementById('dvLocal').textContent = visita.local_visita;
+            } else { localRow.style.display = 'none'; }
+
+            const resumoRow = document.getElementById('dvResumoRow');
+            if (visita.resumo_visita) {
+                resumoRow.style.display = 'block';
+                document.getElementById('dvResumo').textContent = visita.resumo_visita;
+            } else { resumoRow.style.display = 'none'; }
+
+            const itensRow = document.getElementById('dvItensRow');
+            const itensEl = document.getElementById('dvItens');
+            const itens = [];
+            if (visita.amostra) itens.push({ label: 'Amostra', value: visita.amostra, icon: 'fa-flask', color: '#8B5CF6' });
+            if (visita.brinde)  itens.push({ label: 'Brinde',  value: visita.brinde,  icon: 'fa-gift',  color: '#EC4899' });
+            if (visita.artigo)  itens.push({ label: 'Artigo',  value: visita.artigo,  icon: 'fa-file-lines', color: '#3B82F6' });
+            if (itens.length) {
+                itensRow.style.display = 'block';
+                itensEl.innerHTML = itens.map(it => `
+                    <div style="display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; background:var(--bg-body); border:1px solid var(--border); font-size:0.78rem;">
+                        <i class="fas ${it.icon}" style="color:${it.color}; font-size:0.7rem;"></i>
+                        <span style="font-weight:700; color:var(--text-secondary);">${it.label}:</span>
+                        <span style="color:var(--text-primary); font-weight:600;">${it.value}</span>
+                    </div>
+                `).join('');
+            } else { itensRow.style.display = 'none'; }
+
+            const reagendRow = document.getElementById('dvReagendRow');
+            if (visita.reagendado_para) {
+                reagendRow.style.display = 'block';
+                document.getElementById('dvReagend').textContent = visita.reagendado_para;
+            } else { reagendRow.style.display = 'none'; }
+
+            const geoRow = document.getElementById('dvGeoRow');
+            const geoInfo = document.getElementById('dvGeoInfo');
+            const geoMapEl = document.getElementById('dvGeoMapContainer');
+            const lat = parseFloat(visita.geo_lat);
+            const lng = parseFloat(visita.geo_lng);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                geoRow.style.display = 'block';
+                const acc = visita.geo_accuracy ? `±${Math.round(parseFloat(visita.geo_accuracy))}m` : '';
+                geoInfo.textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)} ${acc}`;
+                geoMapEl.style.display = 'block';
+                setTimeout(() => {
+                    if (typeof L === 'undefined') return;
+                    if (!__dvGeoMap) {
+                        __dvGeoMap = L.map(geoMapEl, { zoomControl: true, attributionControl: false });
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(__dvGeoMap);
+                    }
+                    __dvGeoMap.setView([lat, lng], 17);
+                    if (__dvGeoMarker) __dvGeoMarker.remove();
+                    __dvGeoMarker = L.marker([lat, lng]).addTo(__dvGeoMap);
+                    __dvGeoMap.invalidateSize();
+                }, 200);
+            } else {
+                geoRow.style.display = 'none';
+                geoMapEl.style.display = 'none';
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeDetalheVisitaModal() {
+            const modal = document.getElementById('modalDetalheVisita');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // =========================
+        // VISITAS (Iniciar / Encerrar)
+        // =========================
+        let encerrarVisitId = null;
+        let visitaGeo = { lat: null, lng: null, accuracy: null };
+        let leafletMap = null;
+        let leafletMarker = null;
+        let leafletCircle = null;
+
+        async function iniciarVisita(prescritor) {
+            if (!canManageVisits) return;
+            const subtitle = document.getElementById('modalPrescritorSubtitle');
+            const old = subtitle ? subtitle.textContent : '';
+            if (subtitle) subtitle.textContent = 'Iniciando visita...';
+            try {
+                const res = await apiPost('iniciar_visita', { prescritor, visitador_nome: currentVisitadorName });
+                if (res && res.success) {
+                    const av = await apiGet('visita_ativa', { visitador_nome: currentVisitadorName });
+                    activeVisit = av && av.active ? av.active : null;
+                    if (subtitle) subtitle.textContent = 'Visita iniciada. Para finalizar, clique em “Encerrar”.';
+                    renderModalPrescritores(filteredPrescritores);
+                } else {
+                    if (subtitle) subtitle.textContent = (res && res.error) ? res.error : 'Não foi possível iniciar a visita.';
+                }
+            } catch (e) {
+                if (subtitle) subtitle.textContent = 'Erro de conexão ao iniciar a visita.';
+            }
+            // restaurar subtítulo após 4s
+            setTimeout(() => {
+                const s = document.getElementById('modalPrescritorSubtitle');
+                if (s && old) s.textContent = old;
+            }, 4000);
+        }
+
+        function openEncerrarVisitaModal(prescritor) {
+            if (!canManageVisits) return;
+            if (!activeVisit || !activeVisit.id) return;
+            if (activeVisit.prescritor !== prescritor) return;
+
+            encerrarVisitId = activeVisit.id;
+            document.getElementById('encerrarVisitaPrescritor').textContent = prescritor;
+            const inicioTxt = activeVisit.inicio ? `Início: ${new Date(activeVisit.inicio).toLocaleString('pt-BR')}` : '';
+            document.getElementById('encerrarVisitaInicio').textContent = inicioTxt;
+
+            // limpar campos
+            document.getElementById('visitaStatus').value = 'Realizada';
+            document.getElementById('visitaLocal').value = '';
+            document.getElementById('visitaAmostra').value = '';
+            document.getElementById('visitaBrinde').value = '';
+            document.getElementById('visitaArtigo').value = '';
+            document.getElementById('visitaResumo').value = '';
+            document.getElementById('visitaProximaData').value = '';
+            document.getElementById('visitaProximaHora').value = '';
+            resetGeoUI();
+            const msg = document.getElementById('encerrarVisitaMsg');
+            if (msg) msg.style.display = 'none';
+
+            document.getElementById('modalEncerrarVisita').style.display = 'flex';
+            setTimeout(() => document.getElementById('visitaResumo').focus(), 50);
+            // Captura automática do GPS ao abrir (sem depender de clique)
+            try { capturarGPS({ mode: 'auto' }); } catch (e) { }
+        }
+
+        function closeEncerrarVisitaModal() {
+            document.getElementById('modalEncerrarVisita').style.display = 'none';
+            encerrarVisitId = null;
+        }
+
+        async function confirmEncerrarVisita() {
+            if (!canManageVisits) return;
+            const btn = document.getElementById('btnEncerrarVisita');
+            const msg = document.getElementById('encerrarVisitaMsg');
+            if (!encerrarVisitId) return;
+
+            const status_visita = document.getElementById('visitaStatus').value;
+            const local_visita = document.getElementById('visitaLocal').value;
+            const amostra = document.getElementById('visitaAmostra').value;
+            const brinde = document.getElementById('visitaBrinde').value;
+            const artigo = document.getElementById('visitaArtigo').value;
+            const resumo_visita = document.getElementById('visitaResumo').value;
+            const nextDate = document.getElementById('visitaProximaData').value;
+            const nextTime = document.getElementById('visitaProximaHora').value;
+            const reagendado_para = nextDate ? (nextTime ? `${nextDate} ${nextTime}` : nextDate) : '';
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Salvando...';
+            if (msg) { msg.style.display = 'none'; }
+            try {
+                // Garantir captura automática antes de salvar (não bloqueia se falhar)
+                if ((visitaGeo.lat == null || visitaGeo.lng == null) && navigator.geolocation) {
+                    try { await capturarGPS({ mode: 'silent', timeoutMs: 5000 }); } catch (e) { }
+                }
+                const res = await apiPost('encerrar_visita', {
+                    id: encerrarVisitId,
+                    visitador_nome: currentVisitadorName,
+                    status_visita,
+                    local_visita,
+                    resumo_visita,
+                    amostra,
+                    brinde,
+                    artigo,
+                    reagendado_para,
+                    geo_lat: visitaGeo.lat,
+                    geo_lng: visitaGeo.lng,
+                    geo_accuracy: visitaGeo.accuracy
+                });
+                if (res && res.success) {
+                    if (msg) { msg.textContent = 'Visita encerrada e registrada.'; msg.style.color = 'var(--success)'; msg.style.display = 'block'; }
+                    // atualizar visita ativa
+                    const av = await apiGet('visita_ativa', { visitador_nome: currentVisitadorName });
+                    activeVisit = av && av.active ? av.active : null;
+                    // atualizar tabela do modal
+                    renderModalPrescritores(filteredPrescritores);
+                    // recarregar dados do painel automaticamente (KPIs, gráficos e relatórios)
+                    try {
+                        const anoEl = document.getElementById('anoSelect');
+                        const mesEl = document.getElementById('mesSelect');
+                        const ano = anoEl ? anoEl.value : null;
+                        const mes = mesEl ? mesEl.value : null;
+                        const vis = currentVisitadorName || localStorage.getItem('userName') || '';
+                        // manter filtros atuais; mês vazio vira null
+                        await loadVisitadorDashboard(vis, ano, mes || null);
+                    } catch (e) {
+                        // se falhar o refresh do painel, não bloquear o fechamento
+                    }
+                    setTimeout(() => closeEncerrarVisitaModal(), 700);
+                } else {
+                    if (msg) { msg.textContent = (res && res.error) ? res.error : 'Não foi possível encerrar a visita.'; msg.style.color = 'var(--danger)'; msg.style.display = 'block'; }
+                }
+            } catch (e) {
+                if (msg) { msg.textContent = 'Erro de conexão ao encerrar a visita.'; msg.style.color = 'var(--danger)'; msg.style.display = 'block'; }
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-flag-checkered"></i> Encerrar visita';
+        }
+
+        function resetGeoUI() {
+            visitaGeo = { lat: null, lng: null, accuracy: null };
+            const status = document.getElementById('geoStatusText');
+            const info = document.getElementById('geoInfoLine');
+            const mapWrap = document.getElementById('mapContainer');
+            const btnMap = document.getElementById('btnAbrirMapaExterno');
+            if (status) status.textContent = 'Ao abrir este modal, o sistema tenta capturar o GPS automaticamente.';
+            if (info) { info.style.display = 'none'; info.textContent = ''; }
+            if (mapWrap) mapWrap.style.display = 'none';
+            if (btnMap) { btnMap.style.display = 'none'; btnMap.href = '#'; }
+        }
+
+        async function capturarGPS(opts) {
+            if (!canManageVisits) return;
+            const options = opts && typeof opts === 'object' ? opts : { mode: 'manual' };
+            const mode = options.mode || 'manual'; // manual | auto | silent
+            const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : 15000;
+            const btn = document.getElementById('btnCapturarGPS');
+            const status = document.getElementById('geoStatusText');
+            const info = document.getElementById('geoInfoLine');
+            const mapWrap = document.getElementById('mapContainer');
+            const btnMap = document.getElementById('btnAbrirMapaExterno');
+
+            if (!navigator.geolocation) {
+                if (status) status.textContent = 'Este dispositivo não suporta GPS no navegador.';
+                return;
+            }
+
+            const setBtnLoading = (isLoading) => {
+                if (!btn) return;
+                // no modo auto/silent, não “travar” UI como se fosse ação do usuário
+                if (mode === 'manual') {
+                    btn.disabled = !!isLoading;
+                    btn.innerHTML = isLoading
+                        ? '<i class="fas fa-circle-notch fa-spin"></i> Capturando...'
+                        : '<i class="fas fa-location-crosshairs"></i> Capturar GPS';
+                }
+            };
+
+            const setStatusCapturing = () => {
+                if (!status) return;
+                if (mode === 'silent') status.textContent = 'Salvando... (capturando GPS em segundo plano)';
+                else status.textContent = 'Capturando localização...';
+            };
+
+            setBtnLoading(true);
+            setStatusCapturing();
+
+            const pos = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 });
+            });
+
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const acc = pos.coords.accuracy;
+            visitaGeo = { lat, lng, accuracy: acc };
+
+            const accTxt = acc ? `±${Math.round(acc)}m` : '';
+            if (status) status.textContent = 'GPS capturado automaticamente.';
+            if (info) {
+                info.style.display = 'block';
+                info.textContent = `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)} ${accTxt}`;
+            }
+
+            const extUrl = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(lat)}&mlon=${encodeURIComponent(lng)}#map=18/${encodeURIComponent(lat)}/${encodeURIComponent(lng)}`;
+            if (btnMap) { btnMap.href = extUrl; btnMap.style.display = 'inline-flex'; }
+
+            if (mapWrap) mapWrap.style.display = 'block';
+            renderLeafletMap(lat, lng, acc);
+
+            setBtnLoading(false);
+        }
+
+        function renderLeafletMap(lat, lng, accuracy) {
+            if (typeof L === 'undefined') return;
+            const el = document.getElementById('visitaMap');
+            if (!el) return;
+
+            // Inicializar uma vez
+            if (!leafletMap) {
+                leafletMap = L.map(el, { zoomControl: true, attributionControl: false });
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19
+                }).addTo(leafletMap);
+            }
+
+            leafletMap.setView([lat, lng], 17);
+            if (leafletMarker) leafletMarker.remove();
+            if (leafletCircle) leafletCircle.remove();
+            leafletMarker = L.marker([lat, lng]).addTo(leafletMap);
+            if (accuracy) {
+                leafletCircle = L.circle([lat, lng], { radius: accuracy, color: '#2563EB', fillColor: '#2563EB', fillOpacity: 0.15 }).addTo(leafletMap);
+            }
+            setTimeout(() => leafletMap.invalidateSize(), 150);
+        }
+
+        async function doLogout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!localStorage.getItem('loggedIn')) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const userName = localStorage.getItem('userName');
+            const userType = localStorage.getItem('userType') || '';
+            const userSetor = (localStorage.getItem('userSetor') || '').toLowerCase();
+            const params = new URLSearchParams(window.location.search);
+            const viewVisitador = params.get('visitador');
+
+            let visitadorToLoad = userName;
+            if (viewVisitador && viewVisitador.trim() !== '') {
+                if (userType !== 'admin') {
+                    window.location.href = 'index.html';
+                    return;
+                }
+                visitadorToLoad = viewVisitador.trim();
+                document.getElementById('visName').textContent = visitadorToLoad;
+                document.getElementById('visSubtitle').textContent = 'Visualizando como admin';
+                document.getElementById('visSubtitle').style.color = 'var(--primary)';
+            } else {
+                document.getElementById('visName').textContent = userName;
+                document.getElementById('visSubtitle').textContent = 'Minha Carteira';
+            }
+
+            document.getElementById('userAvatar').textContent = (visitadorToLoad || 'V').charAt(0).toUpperCase();
+            document.getElementById('greeting').textContent = visitadorToLoad ? `Painel: ${visitadorToLoad.split(' ')[0]}!` : `Olá, ${(userName || '').split(' ')[0]}!`;
+
+            currentVisitadorName = visitadorToLoad || '';
+            // Visitador logado pode gerenciar suas visitas; admin também pode ao visualizar outro visitador
+            canManageVisits = (userSetor === 'visitador') || (userType === 'admin');
+            loadVisitadorDashboard(visitadorToLoad);
+        });
+    </script>
+</body>
+
+</html>
+<style>
+    /* CLASSE DEFINIDA MANUALMENTE AP�S IMPORTA��O */
+    @media (max-width: 768px) {
+        .d-none-mobile {
+            display: none !important;
+        }
+
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    }
+</style>

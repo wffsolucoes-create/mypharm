@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="MyPharm - Sistema de Gestão e Tomada de Decisões para Farmácia de Manipulação">
+    <meta name="theme-color" content="#E63946">
+    <title>MyPharm - Sistema de Gestão e Insights</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
+    <link rel="apple-touch-icon" href="imagens/IconeMyPharm.png">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/login.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <style>
+        .btn-see-all:hover {
+            filter: brightness(1.1);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(230, 57, 70, 0.3);
+        }
+
+        .btn-see-all:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ==================== LOGIN PAGE ==================== -->
+    <!-- <style>
+        /* CSS Específico para a Nova Tela de Login */
+        /* Removido estilo global do body para não afetar o dashboard */
+
+        .login-wrapper {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f2f5;
+            position: fixed;
+            /* Garante que cubra tudo */
+            top: 0;
+            left: 0;
+            z-index: 9999;
+        }
+
+        .login-card-new {
+            display: flex;
+            width: 900px;
+            height: 550px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            max-width: 95%;
+        }
+
+        .login-panel {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Painel Esquerdo (Rosa/Vermelho) */
+        .login-panel.left {
+            background: linear-gradient(135deg, #FF2D55 0%, #E91E63 100%);
+            /* Ajustado para tons de rosa avermelhado */
+            color: white;
+            align-items: flex-start;
+            /* Alinhar itens à esquerda conforme imagem */
+            padding-left: 60px;
+            padding-right: 60px;
+            position: relative;
+        }
+
+        .login-panel.left h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 40px;
+            align-self: center;
+            /* Título centralizado no painel esquerdo */
+        }
+
+        .login-form-new {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .input-group-new {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+        }
+
+        .input-group-new label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
+        .input-new {
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 1rem;
+            outline: none;
+            color: #333;
+        }
+
+        .password-toggle-icon {
+            position: absolute;
+            right: 12px;
+            top: 38px;
+            /* Ajuste fino base no label + padding */
+            color: #666;
+            cursor: pointer;
+        }
+
+        .btn-login-new {
+            margin-top: 10px;
+            background-color: #28a745;
+            /* Verde */
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+
+        .btn-login-new:hover {
+            background-color: #218838;
+        }
+
+        /* Painel Direito (Branco) */
+        .login-panel.right {
+            background: white;
+            align-items: center;
+            text-align: center;
+            color: #333;
+            position: relative;
+        }
+
+        .brand-logo-login {
+            max-width: 250px;
+            margin-bottom: 20px;
+            /* Filtro para transformar logo BRANCA em VERMELHA (#E91E63) */
+            filter: brightness(0) saturate(100%) invert(29%) sepia(55%) saturate(5452%) hue-rotate(328deg) brightness(93%) contrast(96%);
+        }
+
+        .system-description {
+            font-size: 0.9rem;
+            color: #888;
+            letter-spacing: 1px;
+            margin-bottom: 40px;
+            text-transform: uppercase;
+        }
+
+        .divider-line {
+            width: 80%;
+            height: 1px;
+            background-color: #eee;
+            margin-bottom: 30px;
+        }
+
+        .footer-info {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .secure-badge {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .login-error-msg {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            display: none;
+            width: 100%;
+            text-align: center;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .login-card-new {
+                flex-direction: column;
+                height: auto;
+                width: 90%;
+            }
+
+            .login-panel {
+                padding: 30px;
+            }
+
+            .login-panel.left h1 {
+                margin-bottom: 20px;
+            }
+        }
+    </style> -->
+
+    <div id="loginPage" class="login-wrapper">
+        <div class="login-card-new">
+            <!-- Left Panel -->
+            <div class="login-panel left">
+                <h1>Bem-vindo</h1>
+
+                <form class="login-form-new" id="loginForm" onsubmit="return doLogin(event)">
+                    <div id="loginError" class="login-error-msg"></div>
+
+                    <div class="input-group-new">
+                        <label for="loginUser">Usuário</label>
+                        <input type="text" id="loginUser" class="input-new" placeholder="Digite seu usuário" required
+                            autocomplete="username">
+                    </div>
+
+                    <div class="input-group-new">
+                        <label for="loginPass">Senha</label>
+                        <input type="password" id="loginPass" class="input-new" placeholder="Digite sua senha" required
+                            autocomplete="current-password">
+                        <i class="fas fa-eye password-toggle-icon" onclick="togglePasswordVisibility()"
+                            title="Mostrar senha"></i>
+                    </div>
+
+                    <button type="submit" class="btn-login-new" id="loginBtn">
+                        Entrar <i class="fas fa-arrow-right"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Right Panel -->
+            <div class="login-panel right">
+                <img src="imagens/logoMypharm.png" alt="MyPharm Logo - Gestão e Performance" class="brand-logo-login">
+
+                <div class="system-description">
+                    SISTEMA PARA GESTÃO E TOMADA DE DECISÕES
+                </div>
+
+                <div class="divider-line"></div>
+
+                <div class="footer-info">
+                    <strong>MyPharm</strong> - Farmácia de Manipulação<br>
+                    Gestão de Dados, Análise e Relatórios para Tomada de Decisões Estratégicas
+                </div>
+
+                <div class="secure-badge">
+                    <i class="fas fa-lock"></i> Conexão Segura
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Script auxiliar para toggle de senha
+        function togglePasswordVisibility() {
+            const passInput = document.getElementById('loginPass');
+            const icon = document.querySelector('.password-toggle-icon');
+            if (passInput.type === 'password') {
+                passInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+    </script>
+
+    <!-- ==================== MAIN APP ==================== -->
+    <div id="appLayout" class="app-layout" style="display:none;">
+
+        <!-- Overlay para fechar sidebar no mobile -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="imagens/logoMypharm.png" alt="MyPharm">
+            </div>
+            <div class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+                <i class="fas fa-chevron-left"></i>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Principal</div>
+                <a class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a class="nav-item" data-page="faturamento" onclick="navigateTo('faturamento')">
+                    <i class="fas fa-dollar-sign"></i>
+                    <span>Faturamento</span>
+                </a>
+                <a class="nav-item" data-page="prescritores" onclick="navigateTo('prescritores')">
+                    <i class="fas fa-user-md"></i>
+                    <span>Prescritores</span>
+                </a>
+                <a class="nav-item" data-page="visitadores" onclick="navigateTo('visitadores')">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Visitadores</span>
+                </a>
+
+                <div class="nav-section-title">Análises</div>
+                <a class="nav-item" data-page="clientes" onclick="navigateTo('clientes')">
+                    <i class="fas fa-users"></i>
+                    <span>Clientes</span>
+                </a>
+                <a class="nav-item" data-page="produtos" onclick="navigateTo('produtos')">
+                    <i class="fas fa-pills"></i>
+                    <span>Produtos</span>
+                </a>
+                <a class="nav-item" data-page="equipe" onclick="navigateTo('equipe')">
+                    <i class="fas fa-id-badge"></i>
+                    <span>Equipe</span>
+                </a>
+                <a class="nav-item" data-page="insights" onclick="navigateTo('insights')">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>Insights</span>
+                </a>
+
+                <div class="nav-section-title">Sistema</div>
+                <a class="nav-item" data-page="importar" onclick="navigateTo('importar')">
+                    <i class="fas fa-database"></i>
+                    <span>Importar Dados</span>
+                </a>
+                <a class="nav-item admin-only-nav" data-page="admin" onclick="navigateTo('admin')"
+                    style="display:none;">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Administração</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">A</div>
+                    <div class="user-details">
+                        <div class="user-name" id="userName">Admin</div>
+                        <div class="user-role" id="userRole">Administrador</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleMobileSidebar()"
+                        aria-label="Abrir menu" title="Menu">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 id="pageTitle">Dashboard</h1>
+                </div>
+                <div class="topbar-right">
+                    <select class="filter-select" id="anoFilter" onchange="onFilterChange()" title="Ano">
+                        <option value="">Todos os anos</option>
+                    </select>
+                    <select class="filter-select" id="mesFilter" onchange="onFilterChange()" title="Mês">
+                        <option value="">Todos os meses</option>
+                        <option value="1">Janeiro</option>
+                        <option value="2">Fevereiro</option>
+                        <option value="3">Março</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Maio</option>
+                        <option value="6">Junho</option>
+                        <option value="7">Julho</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Setembro</option>
+                        <option value="10">Outubro</option>
+                        <option value="11">Novembro</option>
+                        <option value="12">Dezembro</option>
+                    </select>
+                    <div class="theme-toggle" onclick="toggleTheme()" title="Alternar tema claro/escuro">
+                        <div class="theme-toggle-knob">
+                            <i class="fas fa-moon icon-moon"></i>
+                            <i class="fas fa-sun icon-sun"></i>
+                        </div>
+                    </div>
+                    <button class="topbar-btn" onclick="refreshData()" title="Atualizar dados">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="logout-btn" onclick="doLogout()">
+                        <i class="fas fa-sign-out-alt"></i> <span class="d-none-mobile">Sair</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ==================== DASHBOARD PAGE ==================== -->
+            <div id="page-dashboard" class="section-page active">
+                <div class="page-content">
+                    <div class="kpi-grid stagger" id="kpiGrid"></div>
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Faturamento Mensal</div>
+                                    <div class="chart-subtitle">Evolução do faturamento líquido</div>
+                                </div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chartFaturamentoMensal"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Top Formas Farmacêuticas</div>
+                                    <div class="chart-subtitle">Por faturamento</div>
+                                </div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chartFormas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Canais de Atendimento</div>
+                                    <div class="chart-subtitle">Distribuição por canal</div>
+                                </div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chartCanais"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Status dos Pedidos</div>
+                                    <div class="chart-subtitle">Aprovados vs Recusados</div>
+                                </div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chartStatus"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== VISITADORES PAGE ==================== -->
+            <div id="page-visitadores" class="section-page">
+                <div class="page-content">
+                    <div class="kpi-grid stagger" id="kpiGridVisitadores"></div>
+                    <div class="charts-grid single">
+                        <div class="chart-card full-width">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Ranking de Visitadores</div>
+                                    <div class="chart-subtitle">Faturamento (Valor Aprovado) por Visitador</div>
+                                </div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chartVisitadoresRanking"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-card">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Desempenho da Equipe de Visitação</div>
+                                <div class="chart-subtitle">Carteira de prescritores e resultados financeiros</div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="tableVisitadoresPage">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Visitador</th>
+                                        <th>Prescritores na Carteira</th>
+                                        <th>Total Aprovado</th>
+                                        <th>Total Recusado</th>
+                                        <th>Eficiência</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== FATURAMENTO PAGE ==================== -->
+            <div id="page-faturamento" class="section-page">
+                <div class="page-content">
+                    <div class="comparison-row stagger" id="faturamentoAnual"></div>
+                    <div class="charts-grid single">
+                        <div class="chart-card full-width">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Comparativo Anual de Faturamento</div>
+                                    <div class="chart-subtitle">Receita, custo e lucro por ano</div>
+                                </div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chartComparativoAnual"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Margem de Lucro por Ano</div>
+                                    <div class="chart-subtitle">Evolução percentual</div>
+                                </div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chartMargemAnual"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Ticket Médio por Ano</div>
+                                    <div class="chart-subtitle">Valor médio por pedido</div>
+                                </div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chartTicketAnual"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== PRESCRITORES PAGE ==================== -->
+            <div id="page-prescritores" class="section-page">
+                <div class="page-content">
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Profissões dos Prescritores</div>
+                                    <div class="chart-subtitle">Distribuição por profissão</div>
+                                </div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chartProfissoes"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Performance dos Visitadores</div>
+                                    <div class="chart-subtitle">Valor aprovado por visitador</div>
+                                </div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chartVisitadores"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-card">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Top 10 Prescritores</div>
+                                <div class="chart-subtitle">Ranking por faturamento gerado</div>
+                            </div>
+                            <a href="prescritores.html" class="btn-see-all"
+                                style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; white-space: nowrap; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(230, 57, 70, 0.2); cursor: pointer;">
+                                <i class="fas fa-external-link-alt"></i> Ver todos
+                            </a>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="tablePrescritores">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Prescritor</th>
+                                        <th>Pedidos</th>
+                                        <th>Faturamento</th>
+                                        <th>Ticket Médio</th>
+                                        <th>Clientes</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== CLIENTES PAGE ==================== -->
+            <div id="page-clientes" class="section-page">
+                <div class="page-content">
+                    <div class="table-card">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Top Clientes</div>
+                                <div class="chart-subtitle">Ranking por faturamento</div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="tableClientes">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Cliente</th>
+                                        <th>Pedidos</th>
+                                        <th>Faturamento</th>
+                                        <th>Ticket Médio</th>
+                                        <th>Última Compra</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card full-width">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Top 10 Clientes - Faturamento</div>
+                                    <div class="chart-subtitle">Participação no faturamento total</div>
+                                </div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chartTopClientes"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== PRODUTOS PAGE ==================== -->
+            <div id="page-produtos" class="section-page">
+                <div class="page-content">
+                    <div class="charts-grid">
+                        <div class="chart-card full-width">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Faturamento por Forma Farmacêutica</div>
+                                    <div class="chart-subtitle">Top 10 formas mais vendidas</div>
+                                </div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chartProdutosFat"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-card">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Detalhamento por Forma Farmacêutica</div>
+                                <div class="chart-subtitle">Quantidade, faturamento, custo e ticket médio</div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="tableFormas">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Forma Farmacêutica</th>
+                                        <th>Quantidade</th>
+                                        <th>Faturamento</th>
+                                        <th>Custo</th>
+                                        <th>Margem</th>
+                                        <th>Ticket Médio</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== EQUIPE PAGE ==================== -->
+            <div id="page-equipe" class="section-page">
+                <div class="page-content">
+                    <div class="charts-grid">
+                        <div class="chart-card full-width">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Performance - Atendentes</div>
+                                    <div class="chart-subtitle">Faturamento gerado por atendente</div>
+                                </div>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chartAtendentes"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-card">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Detalhamento por Atendente</div>
+                                <div class="chart-subtitle">Performance individual da equipe</div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="tableAtendentes">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Atendente</th>
+                                        <th>Pedidos</th>
+                                        <th>Faturamento</th>
+                                        <th>Clientes</th>
+                                        <th>Ticket Médio</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== INSIGHTS PAGE ==================== -->
+            <div id="page-insights" class="section-page">
+                <div class="page-content">
+                    <div class="insights-grid stagger" id="insightsGrid"></div>
+                </div>
+            </div>
+
+            <!-- ==================== IMPORTAR PAGE ==================== -->
+            <div id="page-importar" class="section-page">
+                <div class="page-content">
+                    <div class="import-container">
+                        <div class="import-card">
+                            <div class="import-icon">📊</div>
+                            <h2>Importar Dados dos CSVs</h2>
+                            <p>Clique no botão abaixo para importar todos os arquivos CSV da pasta Dados para o banco de
+                                dados MySQL. Isso pode levar alguns minutos dependendo do volume de dados.</p>
+                            <button class="import-btn" id="importBtn" onclick="importarDados()">
+                                <i class="fas fa-upload"></i> Importar Agora
+                            </button>
+                            <div class="import-progress" id="importProgress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="progressFill"></div>
+                                </div>
+                                <p class="loading-text" id="importStatus">Importando dados...</p>
+                            </div>
+                            <div class="import-results" id="importResults"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== ADMIN PAGE ==================== -->
+            <div id="page-admin" class="section-page">
+                <div class="page-content">
+                    <div class="admin-header">
+                        <div>
+                            <h2 class="admin-title"><i class="fas fa-users-cog"></i> Central de Administração</h2>
+                            <p class="admin-subtitle">Gerencie os usuários do sistema</p>
+                        </div>
+                        <button class="btn-add-user" onclick="openAddUserModal()">
+                            <i class="fas fa-user-plus"></i> Novo Usuário
+                        </button>
+                    </div>
+
+                    <!-- User Stats -->
+                    <div class="admin-stats" id="adminStats"></div>
+
+                    <!-- Users Table -->
+                    <div class="table-card">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Usuários Cadastrados</div>
+                                <div class="chart-subtitle">Lista completa de usuários do sistema</div>
+                            </div>
+                            <button class="topbar-btn" onclick="loadAdmin()" title="Atualizar lista">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="tableUsers">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nome</th>
+                                        <th>Usuário</th>
+                                        <th>Setor</th>
+                                        <th>WhatsApp</th>
+                                        <th>Tipo</th>
+                                        <th>Status</th>
+                                        <th>Criado em</th>
+                                        <th>Último Acesso</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== MODAL: Adicionar Usuário ===== -->
+            <div class="modal-overlay" id="modalAddUser" style="display:none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-user-plus"></i> Novo Usuário</h3>
+                        <button class="modal-close" onclick="closeModal('modalAddUser')">&times;</button>
+                    </div>
+                    <form id="formAddUser" onsubmit="return submitAddUser(event)">
+                        <div class="modal-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Nome Completo *</label>
+                                    <input type="text" id="addNome" placeholder="Nome do usuário" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Login (Usuário) *</label>
+                                    <input type="text" id="addUsuario" placeholder="nome.usuário" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Senha *</label>
+                                    <input type="password" id="addSenha" placeholder="Senha segura" required
+                                        minlength="4">
+                                </div>
+                                <div class="form-group">
+                                    <label><i class="fab fa-whatsapp" style="color:#25D366;"></i> WhatsApp</label>
+                                    <input type="text" id="addWhatsapp" placeholder="(00) 00000-0000" maxlength="15">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Setor</label>
+                                    <select id="addSetor" class="filter-select"
+                                        style="width:100%;background-position:right 12px center;">
+                                        <option value="">Selecione...</option>
+                                        <option value="Visitador">Visitador</option>
+                                        <option value="Vendedor">Vendedor</option>
+                                        <option value="Gerente">Gerente</option>
+                                        <option value="Caixa">Caixa</option>
+                                        <option value="Atendente">Atendente</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Tipo de Acesso</label>
+                                    <select id="addTipo" class="filter-select"
+                                        style="width:100%;background-position:right 12px center;">
+                                        <option value="usuario">Usuário</option>
+                                        <option value="admin">Administrador</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="addUserError" class="modal-error" style="display:none;"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn-cancel"
+                                onclick="closeModal('modalAddUser')">Cancelar</button>
+                            <button type="submit" class="btn-save" id="btnAddUser"><i class="fas fa-check"></i> Criar
+                                Usuário</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ===== MODAL: Editar Usuário ===== -->
+            <div class="modal-overlay" id="modalEditUser" style="display:none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-user-edit"></i> Editar Usuário</h3>
+                        <button class="modal-close" onclick="closeModal('modalEditUser')">&times;</button>
+                    </div>
+                    <form id="formEditUser" onsubmit="return submitEditUser(event)">
+                        <input type="hidden" id="editId">
+                        <div class="modal-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Nome Completo *</label>
+                                    <input type="text" id="editNome" placeholder="Nome do usuário" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Login (Usuário) *</label>
+                                    <input type="text" id="editUsuario" placeholder="nome.usuário" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Nova Senha <small>(deixe vazio para manter)</small></label>
+                                    <input type="password" id="editSenha" placeholder="Nova senha (opcional)">
+                                </div>
+                                <div class="form-group">
+                                    <label><i class="fab fa-whatsapp" style="color:#25D366;"></i> WhatsApp</label>
+                                    <input type="text" id="editWhatsapp" placeholder="(00) 00000-0000" maxlength="15">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Setor</label>
+                                    <select id="editSetor" class="filter-select"
+                                        style="width:100%;background-position:right 12px center;">
+                                        <option value="">Selecione...</option>
+                                        <option value="Visitador">Visitador</option>
+                                        <option value="Vendedor">Vendedor</option>
+                                        <option value="Gerente">Gerente</option>
+                                        <option value="Caixa">Caixa</option>
+                                        <option value="Atendente">Atendente</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Tipo de Acesso</label>
+                                    <select id="editTipo" class="filter-select"
+                                        style="width:100%;background-position:right 12px center;">
+                                        <option value="usuario">Usuário</option>
+                                        <option value="admin">Administrador</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="editUserError" class="modal-error" style="display:none;"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn-cancel"
+                                onclick="closeModal('modalEditUser')">Cancelar</button>
+                            <button type="submit" class="btn-save" id="btnEditUser"><i class="fas fa-save"></i> Salvar
+                                Alterações</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="app-footer">
+                Sistema para Gestão e Tomada de Decisões &bull; © 2026 MyPharm - Todos os direitos reservados
+            </footer>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: Editar Metas ===== -->
+    <div class="modal-overlay" id="modalEditMetas" style="display:none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img src="imagens/logoMypharm.png" alt="MyPharm" style="height: 35px;">
+                    <h3 style="margin:0;">Definir Metas</h3>
+                </div>
+                <button class="modal-close" onclick="closeModal('modalEditMetas')">&times;</button>
+            </div>
+            <form id="formEditMetas" onsubmit="return submitMetas(event)">
+                <input type="hidden" id="metasUserId">
+                <div class="modal-body">
+
+                    <!-- User Card -->
+                    <div
+                        style="background: var(--bg-body); padding: 16px; border-radius: 8px; border: 1px solid var(--border); display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+                        <div
+                            style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.2rem;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div>
+                            <div
+                                style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
+                                Editando Metas de</div>
+                            <div id="metasUserName"
+                                style="font-weight: 600; font-size: 1.1rem; color: var(--text-primary);">Carregando...
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label
+                                style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block;">Meta
+                                Mensal</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-dollar-sign input-icon"></i>
+                                <input type="number" id="metasMensal" step="0.01" min="0" placeholder="0,00"
+                                    class="modal-input styled-input" required>
+                            </div>
+                            <span
+                                style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">Objetivo
+                                de vendas para o mês atual.</span>
+                        </div>
+                        <div class="form-group">
+                            <label
+                                style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block;">Meta
+                                Anual</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-money-bill-wave input-icon"></i>
+                                <input type="number" id="metasAnual" step="0.01" min="0" placeholder="0,00"
+                                    class="modal-input styled-input" required>
+                            </div>
+                            <span
+                                style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">Objetivo
+                                acumulado para o ano.</span>
+                        </div>
+                    </div>
+
+                    <div class="form-row" style="margin-top: 16px;">
+                        <div class="form-group">
+                            <label
+                                style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block;">Previsão
+                                de ganhos
+                                (%)</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-percentage input-icon"></i>
+                                <input type="number" id="metasComissao" step="0.01" min="0" max="100"
+                                    placeholder="Ex: 3.0" class="modal-input styled-input" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label
+                                style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block;">Premiação
+                                (R$)</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-trophy input-icon"></i>
+                                <input type="number" id="metasPremio" step="0.01" min="0" placeholder="Ex: 600,00"
+                                    class="modal-input styled-input" required>
+                            </div>
+                            <span
+                                style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">Bônus
+                                ao bater todas as metas.</span>
+                        </div>
+                    </div>
+
+                    <div class="form-row" style="margin-top: 16px;">
+                        <div class="form-group">
+                            <label
+                                style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block;">Meta
+                                Visitas Semana</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-calendar-week input-icon"></i>
+                                <input type="number" id="metasVisitasSemana" min="0" placeholder="Ex: 30"
+                                    class="modal-input styled-input" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label
+                                style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block;">Meta
+                                Visitas Mês</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-calendar-alt input-icon"></i>
+                                <input type="number" id="metasVisitasMes" min="0" placeholder="Ex: 100"
+                                    class="modal-input styled-input" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="metasError" class="modal-error" style="display:none; margin-top: 16px;"></div>
+                </div>
+                <div class="modal-footer" style="padding-top: 24px; border-top: 1px solid var(--border);">
+                    <button type="button" class="btn-cancel" onclick="closeModal('modalEditMetas')">Cancelar</button>
+                    <button type="submit" class="btn-save" id="btnSaveMetas" style="background: var(--primary);">
+                        <i class="fas fa-check"></i> Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display:none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Carregando dados...</div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+
+</html>

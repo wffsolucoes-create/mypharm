@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#E63946">
+    <title>Prescritores - MyPharm</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
+    <link rel="apple-touch-icon" href="imagens/IconeMyPharm.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        :root {
+            --primary: #3B82F6;
+            --primary-dark: #60A5FA;
+            --secondary: #94A3B8;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --bg-body: #0F172A;
+            --bg-card: #1E293B;
+            --text-primary: #F1F5F9;
+            --text-secondary: #94A3B8;
+            --border: #334155;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+            --radius: 16px;
+        }
+
+        [data-theme="light"] {
+            --primary: #2563EB;
+            --primary-dark: #1E40AF;
+            --secondary: #64748B;
+            --bg-body: #F1F5F9;
+            --bg-card: #FFFFFF;
+            --text-primary: #0F172A;
+            --text-secondary: #64748B;
+            --border: #E2E8F0;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            transition: background 0.3s ease;
+        }
+
+        .full-page-container {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Header Premium --- */
+        header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .brand img {
+            height: 48px;
+            width: auto;
+            display: block;
+            object-fit: contain;
+            filter: brightness(0) invert(1);
+        }
+
+        [data-theme="light"] .brand img {
+            filter: brightness(0) saturate(100%) invert(21%) sepia(100%) saturate(7414%) hue-rotate(359deg) brightness(94%) contrast(90%);
+        }
+
+        /* --- Summary Cards --- */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .kpi-card .icon-box {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .kpi-card .info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kpi-card .label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-card .value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-top: 2px;
+        }
+
+        .icon-blue {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3B82F6;
+        }
+
+        .icon-green {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10B981;
+        }
+
+        .icon-red {
+            background: rgba(239, 68, 68, 0.1);
+            color: #EF4444;
+        }
+
+        .icon-purple {
+            background: rgba(139, 92, 246, 0.1);
+            color: #8B5CF6;
+        }
+
+        .brand-text-col {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-title {
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+        }
+
+        .brand-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-logout {
+            background: var(--bg-body);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            position: relative;
+            width: 52px;
+            height: 28px;
+            background: #334155;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 0 4px;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle-knob {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #1E293B;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transform: translateX(24px);
+        }
+
+        [data-theme="light"] .theme-toggle-knob {
+            transform: translateX(0);
+            background: white;
+        }
+
+        .icon-moon,
+        .icon-sun {
+            position: absolute;
+            font-size: 10px;
+            transition: all 0.3s;
+        }
+
+        .icon-moon {
+            color: #F59E0B;
+            opacity: 0;
+            transform: rotate(90deg);
+        }
+
+        .icon-sun {
+            color: #F59E0B;
+            opacity: 1;
+            transform: rotate(0);
+        }
+
+        [data-theme="light"] .icon-moon {
+            opacity: 1;
+            transform: rotate(0);
+        }
+
+        [data-theme="light"] .icon-sun {
+            opacity: 0;
+            transform: rotate(-90deg);
+        }
+
+        main.content {
+            flex: 1;
+            padding: 2rem;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            align-items: center;
+            background: var(--bg-card);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .search-wrapper {
+            position: relative;
+            flex: 1;
+        }
+
+        .search-wrapper i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+
+        .search-wrapper input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        .search-wrapper input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 0 0 4px rgba(230, 57, 70, 0.1);
+        }
+
+        .select-wrapper select {
+            padding: 0.75rem 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            min-width: 150px;
+        }
+
+        .select-wrapper select option {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .table-container {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        .data-table th {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 1.25rem 1rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table td {
+            padding: 1.25rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .data-table tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .rank-badge {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+        }
+
+        .rank-1 {
+            background: linear-gradient(135deg, #FFD700 0%, #DAA520 100%);
+            color: #000;
+        }
+
+        .rank-2 {
+            background: linear-gradient(135deg, #C0C0C0 0%, #A9A9A9 100%);
+            color: #000;
+        }
+
+        .rank-3 {
+            background: linear-gradient(135deg, #CD7F32 0%, #8B4513 100%);
+            color: #000;
+        }
+
+        .faturamento-val {
+            color: var(--success);
+            font-weight: 700;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-body);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-premium:hover {
+            filter: brightness(1.1);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(230, 57, 70, 0.3);
+        }
+
+        .btn-premium:active {
+            transform: translateY(0);
+        }
+
+        /* Pagination Styles */
+        .pagination-footer {
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .pagination-container {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-page {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-page:hover:not(:disabled) {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .btn-page:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* Status Badges */
+        .days-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px 3px 3px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .days-badge .circle {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: white;
+        }
+
+        .days-badge.success {
+            color: #10B981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .days-badge.success .circle {
+            background: #10B981;
+        }
+
+        .days-badge.warning {
+            color: #F59E0B;
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .days-badge.warning .circle {
+            background: #F59E0B;
+        }
+
+        .days-badge.danger {
+            color: #EF4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .days-badge.danger .circle {
+            background: #EF4444;
+        }
+
+        .val-approved {
+            color: #10B981;
+            font-weight: 600;
+        }
+
+        .val-refused {
+            color: #EF4444;
+            font-weight: 600;
+        }
+
+        .data-table th {
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+        }
+
+        .th-sort {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .th-sort i {
+            font-size: 0.7rem;
+            opacity: 0.5;
+        }
+
+        /* ===== RESPONSIVO - MacBook, Tablet e Celular ===== */
+        /* MacBook Pro 14" / Laptop padrão */
+        @media (max-width: 1280px) {
+            header { padding: 0 1.5rem; }
+            main.content { padding: 1.5rem; }
+            .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+            .toolbar { flex-wrap: wrap; gap: 0.75rem; }
+            .select-wrapper select { min-width: 120px; }
+        }
+        /* MacBook Air 13" / telas menores */
+        @media (max-width: 1152px) {
+            header { padding: 0 1.25rem; }
+            main.content { padding: 1.25rem; }
+            .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 0.875rem; }
+            .kpi-card .value { font-size: 1.1rem; }
+        }
+        /* Tablet */
+        @media (max-width: 1024px) {
+            main.content { padding: 1.25rem; }
+            .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 0.875rem; }
+            .toolbar { flex-wrap: wrap; }
+        }
+        @media (max-width: 768px) {
+            header {
+                padding: 0 1rem;
+                height: auto;
+                min-height: 70px;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+            .brand img { height: 36px; }
+            .brand-title { font-size: 1rem; }
+            main.content { padding: 1rem; }
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.75rem;
+                padding: 0.75rem;
+            }
+            .search-wrapper { order: 1; }
+            .toolbar .select-wrapper { min-width: 0; }
+            .toolbar .select-wrapper select { min-width: 0; width: 100%; }
+            .kpi-row {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.75rem;
+                margin-bottom: 1.5rem;
+            }
+            .kpi-card {
+                padding: 1rem;
+            }
+            .kpi-card .value { font-size: 1rem; }
+            .table-container {
+                border-radius: 12px;
+                overflow: hidden;
+                margin: 0 -1rem;
+            }
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .data-table { min-width: 800px; }
+            .data-table th, .data-table td {
+                padding: 0.75rem 0.6rem;
+                font-size: 0.82rem;
+            }
+            .pagination-footer {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+                text-align: center;
+            }
+        }
+        @media (max-width: 576px) {
+            header { padding: 0 0.75rem; }
+            .user-menu { gap: 12px; }
+            .kpi-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="full-page-container">
+        <header>
+            <div class="brand">
+                <div class="logo-container">
+                    <img src="imagens/logoMypharm.png" alt="MyPharm"
+                        onerror="this.onerror=null;this.src='https://placehold.co/150x50?text=MyPharm';">
+                </div>
+                <div class="brand-text-col">
+                    <span class="brand-title">Ranking de Prescritores</span>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span class="brand-subtitle">Gestão de Performance</span>
+                        <div id="dbUpdateBadge"
+                            style="font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; background: rgba(16, 185, 129, 0.1); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.2); display:none;">
+                            <i class="fas fa-database" style="margin-right:4px;"></i> Atualizado em: <span
+                                id="dbUpdateDate">...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="user-menu">
+                <div class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Alternar tema">
+                    <div class="theme-toggle-knob">
+                        <i class="fas fa-sun icon-sun"></i>
+                        <i class="fas fa-moon icon-moon"></i>
+                    </div>
+                </div>
+                <div class="user-profile">
+                    <div class="avatar" id="userAvatar">A</div>
+                    <div class="d-none-mobile">
+                        <div id="visName" style="font-weight:600; font-size:0.95rem;">Administrador</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Painel de Gestão</div>
+                    </div>
+                </div>
+                <button class="btn-logout" onclick="window.location.href='index.html'">
+                    <i class="fas fa-sign-out-alt"></i> <span class="d-none-mobile">Sair</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="content">
+            <div class="toolbar">
+                <div class="search-wrapper">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchTerm" placeholder="Pesquisar prescritor..." onkeyup="filterTable()">
+                </div>
+                <div class="select-wrapper">
+                    <select id="visitadorFilter" onchange="loadData()">
+                        <option value="">Todos os visitadores</option>
+                    </select>
+                </div>
+                <div class="select-wrapper">
+                    <select id="anoFilter" onchange="loadData()">
+                        <option value="">Todos os anos</option>
+                        <option value="2026" selected>2026</option>
+                        <option value="2025">2025</option>
+                        <option value="2024">2024</option>
+                    </select>
+                </div>
+                <div class="select-wrapper">
+                    <select id="mesFilter" onchange="loadData()">
+                        <option value="">Todos os meses</option>
+                        <option value="1">Janeiro</option>
+                        <option value="2">Fevereiro</option>
+                        <option value="3">Março</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Maio</option>
+                        <option value="6">Junho</option>
+                        <option value="7">Julho</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Setembro</option>
+                        <option value="10">Outubro</option>
+                        <option value="11">Novembro</option>
+                        <option value="12">Dezembro</option>
+                    </select>
+                </div>
+                <button type="button" id="btnAtualizarPrescritores" class="btn-premium" onclick="loadData()"
+                    style="padding: 0.75rem 1.25rem; border-radius: 8px; background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-sync-alt"></i> Atualizar
+                </button>
+            </div>
+
+            <div class="kpi-row" aria-label="Resumo dos prescritores">
+                <div class="kpi-card">
+                    <div class="icon-box icon-purple">
+                        <i class="fas fa-user-md"></i>
+                    </div>
+                    <div class="info">
+                        <div class="label">Total de prescritores</div>
+                        <div class="value" id="kpiTotalPrescritores">0</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="icon-box icon-green">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="info">
+                        <div class="label">Valor aprovado</div>
+                        <div class="value" id="kpiValorAprovado">R$ 0,00</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="icon-box icon-red">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="info">
+                        <div class="label">Valor recusado</div>
+                        <div class="value" id="kpiValorRecusado">R$ 0,00</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="icon-box icon-blue">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <div class="info">
+                        <div class="label">Total de pedidos</div>
+                        <div class="value" id="kpiTotalPedidos">0</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="icon-box icon-gold">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="info">
+                        <div class="label">Previsão de ganhos</div>
+                        <div class="value kpi-ganhos" id="kpiGanhosPrevistos">R$ 0,00</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-responsive">
+                    <table class="data-table" id="tableAllPrescritores">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th onclick="sortTable('prescritor')" style="cursor:pointer;">
+                                    <div class="th-sort">Prescritor <i class="fas fa-sort"></i></div>
+                                </th>
+                                <th onclick="sortTable('visitador')" style="cursor:pointer;">
+                                    <div class="th-sort">Visitador <i class="fas fa-sort"></i></div>
+                                </th>
+                                <th onclick="sortTable('valor_aprovado')" style="text-align:right; cursor:pointer;">
+                                    <div class="th-sort">Valor Aprovado <i class="fas fa-sort"></i></div>
+                                </th>
+                                <th onclick="sortTable('valor_recusado')" style="text-align:right; cursor:pointer;">
+                                    <div class="th-sort">Valor Recusado <i class="fas fa-sort"></i></div>
+                                </th>
+                                <th onclick="sortTable('total_pedidos')" style="text-align:center; cursor:pointer;">
+                                    <div class="th-sort">Pedidos <i class="fas fa-sort"></i></div>
+                                </th>
+                                <th onclick="sortTable('dias_sem_compra')" style="text-align:center; cursor:pointer;">
+                                    <div class="th-sort">Dias s/ Compra <i class="fas fa-sort"></i></div>
+                                </th>
+                                <th onclick="sortTable('dias_sem_visita')" style="text-align:center; cursor:pointer;">
+                                    <div class="th-sort">Dias s/ Visita <i class="fas fa-sort"></i></div>
+                                </th>
+                                <th style="text-align:center; width: 80px;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="prescritoresBody">
+                            <tr>
+                                <td colspan="9"
+                                    style="text-align:center; padding: 100px; color: var(--text-secondary);">
+                                    <i class="fas fa-circle-notch fa-spin fa-2x"></i><br><br>
+                                    Carregando prescritores...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="pagination-footer" id="paginationBar">
+                <div id="paginationInfo">Mostrando 0-0 de 0</div>
+                <div class="pagination-container">
+                    <button class="btn-page" id="btnPrev" onclick="changePage(-1)">
+                        <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                    <button class="btn-page" id="btnNext" onclick="changePage(1)">
+                        Próximo <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Transferência -->
+    <div id="modalTransfer"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:2000; justify-content:center; align-items:center; padding:20px;">
+        <div
+            style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:400px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div
+                style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0;">Transferir
+                    Prescritor</h3>
+                <button onclick="closeTransferModal()"
+                    style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:24px;">
+                <p style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:20px;">
+                    Mover o prescritor <strong id="transferPrescritorNome"
+                        style="color:var(--text-primary);">...</strong> para qual visitador?
+                </p>
+                <input type="hidden" id="transferPrescritorInput">
+                <div class="select-wrapper" style="margin-bottom:24px;">
+                    <select id="newVisitadorSelect"
+                        style="width:100%; padding: 12px; background: var(--bg-body); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px;">
+                        <!-- Dinamically filled -->
+                    </select>
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <button onclick="closeTransferModal()"
+                        style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-weight:600; cursor:pointer;">Cancelar</button>
+                    <button id="btnConfirmTransfer" onclick="confirmTransfer()"
+                        style="flex:1; padding:12px; border-radius:8px; background:var(--primary); color:white; border:none; font-weight:600; cursor:pointer;">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let __csrfToken = '';
+        (async function() {
+            try {
+                const r = await fetch('api.php?action=csrf_token');
+                const d = await r.json();
+                if (d.token) __csrfToken = d.token;
+            } catch(_) {}
+        })();
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+        }
+
+        function formatMoney(value) {
+            const num = parseFloat(value) || 0;
+            return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+        function formatNumber(value) {
+            const num = parseFloat(value) || 0;
+            return num.toLocaleString('pt-BR');
+        }
+        function getRankClass(index) {
+            if (index === 0) return 'rank-1';
+            if (index === 1) return 'rank-2';
+            if (index === 2) return 'rank-3';
+            return '';
+        }
+
+        let allData = [];
+        let totalFromServer = 0;
+        let currentSort = { column: 'valor_aprovado', direction: 'desc' };
+
+        let currentPage = 1;
+        const itemsPerPage = 200;
+
+        function setLoadingPrescritores(loading) {
+            const body = document.getElementById('prescritoresBody');
+            const btnAtualizar = document.getElementById('btnAtualizarPrescritores');
+            const selects = document.querySelectorAll('#visitadorFilter, #anoFilter, #mesFilter');
+            if (loading) {
+                body.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 80px 24px; color: var(--text-secondary);">
+                    <i class="fas fa-circle-notch fa-spin" style="font-size: 2.5rem; margin-bottom: 16px; display: block; color: var(--primary);"></i>
+                    <strong>Carregando prescritores...</strong><br>
+                    <span style="font-size: 0.85rem; opacity: 0.8;">Aguarde alguns segundos.</span>
+                </td></tr>`;
+                if (btnAtualizar) { btnAtualizar.disabled = true; btnAtualizar.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Carregando...'; }
+                selects.forEach(s => { if (s) s.disabled = true; });
+            } else {
+                if (btnAtualizar) { btnAtualizar.disabled = false; btnAtualizar.innerHTML = '<i class="fas fa-sync-alt"></i> Atualizar'; }
+                selects.forEach(s => { if (s) s.disabled = false; });
+            }
+        }
+
+        async function loadData(page) {
+            const body = document.getElementById('prescritoresBody');
+            const visitador = (document.getElementById('visitadorFilter') && document.getElementById('visitadorFilter').value) || '';
+            const ano = document.getElementById('anoFilter').value;
+            const mes = document.getElementById('mesFilter').value;
+            if (page !== undefined && page !== null) currentPage = Math.max(1, parseInt(page, 10) || 1);
+            else currentPage = 1;
+            const offset = (currentPage - 1) * itemsPerPage;
+
+            setLoadingPrescritores(true);
+
+            const url = `api.php?action=all_prescritores&ano=${ano}&mes=${mes}&visitador=${encodeURIComponent(visitador)}&limit=${itemsPerPage}&offset=${offset}`;
+            try {
+                const response = await fetch(url);
+
+                if (response.status === 401) {
+                    setLoadingPrescritores(false);
+                    localStorage.clear();
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    setLoadingPrescritores(false);
+                    body.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 100px; color: #EF476F;">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i><br><br>
+                        Erro do Sistema: ${data.error}
+                    </td></tr>`;
+                    document.getElementById('paginationBar').style.display = 'none';
+                    return;
+                }
+
+                const isPaginated = data && typeof data.total === 'number' && Array.isArray(data.data);
+                allData = isPaginated ? data.data : (Array.isArray(data) ? data : []);
+                totalFromServer = isPaginated ? data.total : allData.length;
+                if (!isPaginated) currentPage = 1;
+                setLoadingPrescritores(false);
+                updateSortIcons();
+                renderTableWithCurrentState();
+            } catch (err) {
+                console.error('Erro prescritores:', err);
+                setLoadingPrescritores(false);
+                body.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 100px; color: #EF476F;">
+                    <i class="fas fa-exclamation-triangle fa-2x"></i><br><br>
+                    Erro ao carregar os dados.<br>
+                    <small style="color: var(--text-secondary);">${err.message || 'Verifique a conexão.'}</small>
+                </td></tr>`;
+            }
+        }
+
+        function getDaysBadge(days, isVisit = false) {
+            if (days === null) {
+                return `<div class="days-badge danger"><div class="circle"><i class="fas fa-exclamation"></i></div> Sem registro</div>`;
+            }
+
+            let type = 'success';
+            let icon = '<i class="fas fa-calendar-check"></i>'; // Icon for low days
+
+            if (days > 15) {
+                type = 'danger';
+                icon = '<i class="fas fa-exclamation-triangle"></i>';
+            } else if (days > 7) {
+                type = 'warning';
+                icon = '<i class="fas fa-clock"></i>';
+            }
+
+            return `<div class="days-badge ${type}"><div class="circle">${icon}</div> ${days}d</div>`;
+        }
+
+        function changePage(delta) {
+            const totalPages = Math.ceil(totalFromServer / itemsPerPage) || 1;
+            currentPage = Math.max(1, Math.min(currentPage + delta, totalPages));
+            loadData(currentPage);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function renderTable(data) {
+            const body = document.getElementById('prescritoresBody');
+            const pagInfo = document.getElementById('paginationInfo');
+            const btnPrev = document.getElementById('btnPrev');
+            const btnNext = document.getElementById('btnNext');
+            const pagBar = document.getElementById('paginationBar');
+
+            if (!Array.isArray(data) || !data.length) {
+                const ano = document.getElementById('anoFilter').value || 'todos os anos';
+                const mes = document.getElementById('mesFilter').options[document.getElementById('mesFilter').selectedIndex].text;
+                body.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 100px; color: var(--text-secondary);">
+                    <i class="fas fa-search fa-2x"></i><br><br>
+                    Nenhum resultado encontrado para <b>${mes}</b> de <b>${ano}</b>.<br>
+                    Certifique-se de que os dados foram importados corretamente para este período.
+                </td></tr>`;
+                pagBar.style.display = 'none';
+                return;
+            }
+
+            pagBar.style.display = 'flex';
+            const totalItems = totalFromServer > 0 ? totalFromServer : data.length;
+            const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+            if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = Math.min(start + data.length, totalItems);
+            const paginatedData = data;
+
+            pagInfo.textContent = `Mostrando ${start + 1}-${end} de ${totalItems}`;
+            btnPrev.disabled = currentPage === 1;
+            btnNext.disabled = currentPage >= totalPages;
+
+            body.innerHTML = paginatedData.map((d, i) => {
+                const globalIndex = start + i;
+
+                return `
+                <tr>
+                    <td style="color: var(--text-secondary); font-size: 0.85rem;">${globalIndex + 1}</td>
+                    <td style="font-weight: 500;">${d.prescritor}</td>
+                    <td style="color: var(--text-secondary);">${d.visitador || 'My Pharm'}</td>
+                    <td class="val-approved" style="text-align:right;">${formatMoney(d.valor_aprovado)}</td>
+                    <td class="val-refused" style="text-align:right;">${formatMoney(d.valor_recusado)}</td>
+                    <td style="text-align:center; color: var(--text-secondary);">${formatNumber(d.total_pedidos)}</td>
+                    <td style="text-align:center;">
+                        ${getDaysBadge(d.dias_sem_compra)}
+                    </td>
+                    <td style="text-align:center;">
+                        ${getDaysBadge(d.dias_sem_visita, true)}
+                    </td>
+                    <td style="text-align:center;">
+                        <button onclick="openTransferModal('${d.prescritor.replace(/'/g, "\\'")}', '${(d.visitador || 'My Pharm').replace(/'/g, "\\'")}')" 
+                                style="background: var(--bg-body); border: 1px solid var(--border); color: var(--text-secondary); padding: 6px; border-radius: 6px; cursor: pointer; transition: all 0.2s;"
+                                title="Transferir Prescritor"
+                                onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';"
+                                onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"
+                        >
+                            <i class="fas fa-exchange-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        function filterTable() {
+            currentPage = 1; // Reset to first page
+            renderTableWithCurrentState();
+        }
+
+        function renderTableWithCurrentState() {
+            const term = document.getElementById('searchTerm').value.toLowerCase();
+            let data = term ? allData.filter(d => d.prescritor.toLowerCase().includes(term)) : [...allData];
+
+            // Apply sorting
+            const col = currentSort.column;
+            const dir = currentSort.direction;
+
+            data.sort((a, b) => {
+                let valA = a[col];
+                let valB = b[col];
+
+                if (col === 'prescritor') {
+                    valA = valA.toString().toLowerCase();
+                    valB = valB.toString().toLowerCase();
+                } else {
+                    valA = parseFloat(valA) || 0;
+                    valB = parseFloat(valB) || 0;
+                    // Handle nulls for days (sem registro = infinite)
+                    if ((col === 'dias_sem_compra' || col === 'dias_sem_visita') && a[col] === null) valA = 999999;
+                    if ((col === 'dias_sem_compra' || col === 'dias_sem_visita') && b[col] === null) valB = 999999;
+                }
+
+                if (valA < valB) return dir === 'asc' ? -1 : 1;
+                if (valA > valB) return dir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            updateSummaryCards(data);
+            renderTable(data);
+        }
+
+        function updateSummaryCards(data) {
+            const totalPrescritores = totalFromServer > 0 ? totalFromServer : data.length;
+            const valorAprovado = data.reduce((sum, d) => sum + (parseFloat(d.valor_aprovado) || 0), 0);
+            const valorRecusado = data.reduce((sum, d) => sum + (parseFloat(d.valor_recusado) || 0), 0);
+            const totalPedidos = data.reduce((sum, d) => sum + (parseInt(d.total_pedidos) || 0), 0);
+
+            const elTotalPresc = document.getElementById('kpiTotalPrescritores');
+            const elValAprov = document.getElementById('kpiValorAprovado');
+            const elValRec = document.getElementById('kpiValorRecusado');
+            const elTotPed = document.getElementById('kpiTotalPedidos');
+
+            if (elTotalPresc) elTotalPresc.textContent = formatNumber(totalPrescritores);
+            if (elValAprov) elValAprov.textContent = formatMoney(valorAprovado);
+            if (elValRec) elValRec.textContent = formatMoney(valorRecusado);
+            if (elTotPed) elTotPed.textContent = formatNumber(totalPedidos);
+        }
+
+        function sortTable(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = (column === 'prescritor') ? 'asc' : 'desc';
+            }
+
+            updateSortIcons();
+            currentPage = 1;
+            renderTableWithCurrentState();
+        }
+
+        function updateSortIcons() {
+            document.querySelectorAll('th .th-sort i').forEach(icon => {
+                icon.className = 'fas fa-sort';
+                icon.style.opacity = '0.3';
+            });
+
+            const headers = {
+                'prescritor': 1,
+                'visitador': 2,
+                'valor_aprovado': 3,
+                'valor_recusado': 4,
+                'total_pedidos': 5,
+                'dias_sem_compra': 6,
+                'dias_sem_visita': 7
+            };
+
+            const index = headers[currentSort.column];
+            if (index !== undefined) {
+                const icon = document.querySelector(`th:nth-child(${index + 1}) .th-sort i`);
+                if (icon) {
+                    icon.className = currentSort.direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+                    icon.style.opacity = '1';
+                }
+            }
+        }
+
+        // --- Transfer Modal Logic ---
+        function openTransferModal(prescritor, visitadorAtual) {
+            document.getElementById('transferPrescritorNome').textContent = prescritor;
+            document.getElementById('transferPrescritorInput').value = prescritor;
+
+            // Preencher select de visitadores (usando a mesma lista do filtro)
+            const select = document.getElementById('newVisitadorSelect');
+            const filter = document.getElementById('visitadorFilter');
+
+            select.innerHTML = '';
+            Array.from(filter.options).forEach(opt => {
+                if (opt.value !== "") { // Pular "Todos"
+                    const newOpt = document.createElement('option');
+                    newOpt.value = opt.value;
+                    newOpt.textContent = opt.textContent;
+                    if (opt.value === visitadorAtual) newOpt.selected = true;
+                    select.appendChild(newOpt);
+                }
+            });
+
+            document.getElementById('modalTransfer').style.display = 'flex';
+        }
+
+        function closeTransferModal() {
+            document.getElementById('modalTransfer').style.display = 'none';
+        }
+
+        async function confirmTransfer() {
+            const nome = document.getElementById('transferPrescritorInput').value;
+            const novo = document.getElementById('newVisitadorSelect').value;
+            const btn = document.getElementById('btnConfirmTransfer');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+
+            try {
+                const csrfH = {};
+                if (typeof __csrfToken !== 'undefined' && __csrfToken) csrfH['X-CSRF-Token'] = __csrfToken;
+                const response = await fetch('api.php?action=transfer_prescritor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...csrfH },
+                    body: JSON.stringify({
+                        nome_prescritor: nome,
+                        novo_visitador: novo
+                    })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    closeTransferModal();
+                    loadData(); // Recarregar tabela
+                } else {
+                    alert('Erro ao transferir: ' + result.error);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão ao transferir prescritor');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Confirmar Transferência';
+            }
+        }
+
+        async function loadYears() {
+            try {
+                const response = await fetch('api.php?action=anos');
+                const anos = await response.json();
+                const select = document.getElementById('anoFilter');
+
+                // Limpar excesso (manter o 2026 default fixo se quiser, ou reconstruir)
+                const existingYears = Array.from(select.options).map(opt => opt.value);
+                anos.sort((a, b) => b.ano - a.ano).forEach(item => {
+                    if (item.ano && !existingYears.includes(item.ano.toString())) {
+                        const opt = document.createElement('option');
+                        opt.value = item.ano;
+                        opt.textContent = item.ano;
+                        select.appendChild(opt);
+                    }
+                });
+
+            } catch (err) { console.error('Error loading years:', err); }
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        async function loadDbInfo() {
+            try {
+                const response = await fetch('api.php?action=db_info');
+                const info = await response.json();
+
+                if (info.last_update) {
+                    const date = new Date(info.last_update);
+                    document.getElementById('dbUpdateDate').textContent = date.toLocaleString('pt-BR');
+                    document.getElementById('dbUpdateBadge').style.display = 'block';
+                }
+
+                if (info.last_mes) {
+                    document.getElementById('mesFilter').value = info.last_mes;
+                }
+            } catch (err) { console.error('Error loading db info:', err); }
+        }
+
+        // Recuperar tema ao carregar
+        document.addEventListener('DOMContentLoaded', async () => {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.body.setAttribute('data-theme', savedTheme);
+
+            // Verificação básica de autenticação (persiste entre abas)
+            if (!localStorage.getItem('loggedIn')) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Visitador só pode acessar visitador.html - redirecionar
+            const setor = localStorage.getItem('userSetor') || '';
+            if (setor.toLowerCase() === 'visitador') {
+                window.location.href = 'visitador.html';
+                return;
+            }
+
+            const userName = localStorage.getItem('userName');
+            if (userName) {
+                document.getElementById('visName').textContent = userName;
+                document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
+            }
+
+            // Load essentials first
+            await loadYears();
+            await loadVisitadores();
+            await loadDbInfo(); // This will set the default month
+
+            // Finally load data
+            loadData();
+        });
+
+        async function loadVisitadores() {
+            try {
+                const response = await fetch('api.php?action=list_visitadores');
+                const data = await response.json();
+                const select = document.getElementById('visitadorFilter');
+                data.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v.visitador;
+                    opt.textContent = v.visitador;
+                    select.appendChild(opt);
+                });
+            } catch (err) { console.error('Error loading visitadores:', err); }
+        }
+    </script>
+</body>
+
+</html>

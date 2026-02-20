@@ -1,0 +1,2548 @@
+// =====================================================
+// MyPharm - Sistema de Gestão e Insights
+// Main Application JavaScript
+// =====================================================
+
+const API_URL = 'api.php';
+let charts = {};
+let currentYear = '';
+let currentPage = 'dashboard';
+let __csrfToken = '';
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// ============ Chart.js Global Config ============
+Chart.defaults.color = '#9CA3B8';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.padding = 16;
+Chart.defaults.responsive = true;
+Chart.defaults.maintainAspectRatio = false;
+
+const CHART_COLORS = [
+    '#E63946', '#06D6A0', '#118AB2', '#FFD166', '#7B68EE',
+    '#FF6B6B', '#48BFE3', '#F77F00', '#9B5DE5', '#00F5D4',
+    '#FEE440', '#F15BB5'
+];
+
+const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+// ============ Utility Functions ============
+function formatMoney(value) {
+    const num = parseFloat(value) || 0;
+    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function formatNumber(value) {
+    const num = parseFloat(value) || 0;
+    return num.toLocaleString('pt-BR');
+}
+
+function formatCompactMoney(value) {
+    const num = parseFloat(value) || 0;
+    if (num >= 1000000) return 'R$ ' + (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return 'R$ ' + (num / 1000).toFixed(1) + 'K';
+    return formatMoney(num);
+}
+
+function truncateText(text, maxLength = 25) {
+    if (!text) return '';
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+}
+
+function getRankClass(index) {
+    if (index === 0) return 'rank-1';
+    if (index === 1) return 'rank-2';
+    if (index === 2) return 'rank-3';
+    return 'rank-default';
+}
+
+// ============ API Calls ============
+async function apiGet(action, params = {}) {
+    const query = new URLSearchParams({ action, ...params });
+    const response = await fetch(`${API_URL}?${query}`);
+    if (response.status === 401) {
+        localStorage.clear();
+        window.location.href = 'index.html';
+        return;
+    }
+    return response.json();
+}
+
+async function apiPost(action, data = {}) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (__csrfToken) headers['X-CSRF-Token'] = __csrfToken;
+    const response = await fetch(`${API_URL}?action=${action}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data)
+    });
+    if (response.status === 401) {
+        localStorage.clear();
+        window.location.href = 'index.html';
+        return;
+    }
+    return response.json();
+}
+
+// ============ Login ============
+function initParticles() {
+    const container = document.getElementById('particles');
+    if (!container) return;
+    for (let i = 0; i < 15; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        const size = Math.random() * 300 + 50;
+        particle.style.width = size + 'px';
+        particle.style.height = size + 'px';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = Math.random() * 100 + '%';
+        particle.style.animationDelay = Math.random() * 10 + 's';
+        particle.style.animationDuration = (Math.random() * 15 + 15) + 's';
+        container.appendChild(particle);
+    }
+}
+
+async function doLogin(e) {
+    e.preventDefault();
+    const usuario = document.getElementById('loginUser').value;
+    const senha = document.getElementById('loginPass').value;
+    const errorEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+
+    btn.textContent = 'Entrando...';
+    btn.disabled = true;
+    errorEl.style.display = 'none';
+
+    try {
+        const result = await apiPost('login', { usuario, senha });
+        if (result.success) {
+            if (result.csrf_token) __csrfToken = result.csrf_token;
+            localStorage.setItem('loggedIn', 'true');
+            localStorage.setItem('userName', result.nome);
+            localStorage.setItem('userType', result.tipo);
+            localStorage.setItem('userSetor', result.setor);
+
+            if (result.setor === 'Visitador' || result.setor === 'visitador') {
+                window.location.href = 'visitador.html';
+            } else {
+                showApp(result.nome, result.tipo);
+            }
+        } else {
+            errorEl.textContent = result.error || 'Credenciais inválidas';
+            errorEl.style.display = 'block';
+        }
+    } catch (err) {
+        errorEl.textContent = 'Erro de conexão com o servidor';
+        errorEl.style.display = 'block';
+    }
+
+    btn.textContent = 'Entrar';
+    btn.disabled = false;
+    return false;
+}
+
+function showApp(nome, tipo) {
+    const setor = (localStorage.getItem('userSetor') || '').toLowerCase();
+    if (setor === 'visitador' && !window.location.pathname.includes('visitador.html')) {
+        window.location.href = 'visitador.html';
+        return;
+    }
+
+    // Se estivermos na página do visitador, não executamos o resto (layout diferente)
+    if (window.location.pathname.includes('visitador.html')) {
+        const lp = document.getElementById('loginPage');
+        if (lp) lp.style.display = 'none';
+        return;
+    }
+
+    const lp = document.getElementById('loginPage');
+    if (lp) lp.style.display = 'none';
+
+    const appLayout = document.getElementById('appLayout');
+    if (appLayout) appLayout.style.display = 'flex';
+
+    document.getElementById('userName').textContent = nome || 'Admin';
+    document.getElementById('userRole').textContent = tipo === 'admin' ? 'Administrador' : 'Usuário';
+    document.getElementById('userAvatar').textContent = (nome || 'A').charAt(0).toUpperCase();
+
+    // Show admin nav only for admin users
+    document.querySelectorAll('.admin-only-nav').forEach(el => {
+        el.style.display = tipo === 'admin' ? '' : 'none';
+    });
+
+    loadYears();
+    loadDashboard();
+}
+
+async function doLogout() {
+    await apiGet('logout');
+    localStorage.clear();
+    const appLayout = document.getElementById('appLayout');
+    if (appLayout) appLayout.style.display = 'none';
+    const loginPage = document.getElementById('loginPage');
+    if (loginPage) loginPage.style.display = 'flex';
+    const loginUser = document.getElementById('loginUser');
+    if (loginUser) loginUser.value = '';
+    const loginPass = document.getElementById('loginPass');
+    if (loginPass) loginPass.value = '';
+}
+
+// ============ Navigation ============
+function navigateTo(page) {
+    if (window.innerWidth <= 768) closeMobileSidebar();
+    currentPage = page;
+
+    document.querySelectorAll('.section-page').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+    const pageEl = document.getElementById('page-' + page);
+    if (pageEl) pageEl.classList.add('active');
+
+    const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
+    if (navItem) navItem.classList.add('active');
+
+    const titles = {
+        'dashboard': 'Dashboard',
+        'faturamento': 'Faturamento',
+        'prescritores': 'Prescritores',
+        'clientes': 'Clientes',
+        'produtos': 'Produtos',
+        'equipe': 'Equipe',
+        'insights': 'Insights Estratégicos',
+        'importar': 'Importar Dados',
+        'admin': 'Administração'
+    };
+    document.getElementById('pageTitle').textContent = titles[page] || page;
+
+    loadPageData(page);
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebarToggle');
+    if (window.innerWidth <= 768) return; // No mobile, usar toggleMobileSidebar
+    sidebar.classList.toggle('collapsed');
+    const icon = toggle.querySelector('i');
+    icon.className = sidebar.classList.contains('collapsed') ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+}
+
+function toggleMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const btn = document.getElementById('mobileMenuBtn');
+    if (!sidebar || !overlay || !btn) return;
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('visible', sidebar.classList.contains('open'));
+    const icon = btn.querySelector('i');
+    icon.className = sidebar.classList.contains('open') ? 'fas fa-times' : 'fas fa-bars';
+}
+
+function closeMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const btn = document.getElementById('mobileMenuBtn');
+    if (!sidebar || !overlay || !btn) return;
+    sidebar.classList.remove('open');
+    overlay.classList.remove('visible');
+    btn.querySelector('i').className = 'fas fa-bars';
+}
+
+async function loadYears() {
+    const data = await apiGet('anos');
+    const select = document.getElementById('anoFilter');
+    if (!select) return;
+    select.innerHTML = '<option value="">Todos os anos</option>';
+    data.forEach(item => {
+        select.innerHTML += `<option value="${item.ano}">${item.ano}</option>`;
+    });
+}
+
+function getFilterParams() {
+    const anoEl = document.getElementById('anoFilter');
+    const mesEl = document.getElementById('mesFilter');
+    return {
+        ano: anoEl?.value || '',
+        mes: mesEl?.value || ''
+    };
+}
+
+function onFilterChange() {
+    currentYear = document.getElementById('anoFilter')?.value || '';
+    loadPageData(currentPage);
+}
+
+function refreshData() {
+    loadPageData(currentPage);
+}
+
+// ============ Load Page Data ============
+async function loadPageData(page) {
+    showLoading();
+    try {
+        switch (page) {
+            case 'dashboard': await loadDashboard(); break;
+            case 'faturamento': await loadFaturamento(); break;
+            case 'prescritores': await loadPrescritores(); break;
+            case 'clientes': await loadClientes(); break;
+            case 'produtos': await loadProdutos(); break;
+            case 'equipe': await loadEquipe(); break;
+            case 'visitadores': await loadVisitadoresPage(); break;
+            case 'insights': await loadInsights(); break;
+            case 'admin': await loadAdmin(); break;
+        }
+    } catch (err) {
+        console.error('Erro ao carregar dados:', err);
+    }
+    hideLoading();
+}
+
+function showLoading() {
+    const el = document.getElementById('loadingOverlay');
+    if (el) el.style.display = 'flex';
+}
+
+function hideLoading() {
+    const el = document.getElementById('loadingOverlay');
+    if (el) el.style.display = 'none';
+}
+
+// ============ DASHBOARD ============
+async function loadDashboard() {
+    const fp = getFilterParams();
+    const params = { ano: fp.ano || currentYear };
+    if (fp.mes) params.mes = fp.mes;
+    if (fp.dia) params.dia = fp.dia;
+
+    // Primeiro buscar e renderizar KPIs para melhorar percepção de carga
+    try {
+        const kpis = await apiGet('kpis', params);
+        renderKPIs(kpis);
+    } catch (err) {
+        console.error('Erro ao carregar KPIs:', err);
+    }
+
+    // Esconder loading principal cedo (loadPageData também chama hideLoading após await)
+    // Carregar gráficos e dados pesados em segundo plano sem bloquear a UI
+    (async () => {
+        try {
+            const [mensal, formas, canais, statusData] = await Promise.all([
+                apiGet('faturamento_mensal', { ano: fp.ano || currentYear || new Date().getFullYear(), mes: fp.mes, dia: fp.dia }),
+                apiGet('top_formas', { ...params, limit: 8 }),
+                apiGet('canais', params),
+                apiGet('itens_status', params)
+            ]);
+
+            renderChartFaturamentoMensal(mensal);
+            renderChartFormas(formas);
+            renderChartCanais(canais);
+            renderChartStatus(statusData);
+        } catch (err) {
+            console.error('Erro ao carregar dados do dashboard:', err);
+        }
+    })();
+}
+
+function renderKPIs(kpis) {
+    const grid = document.getElementById('kpiGrid');
+    const pagos = kpis.status_financeiro?.find(s => s.status_financeiro === 'Pago');
+    const pendentes = kpis.status_financeiro?.find(s => s.status_financeiro === 'Pendente');
+
+    grid.innerHTML = `
+        <div class="kpi-card">
+            <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
+            <div class="kpi-label">Faturamento Líquido</div>
+            <div class="kpi-value">${formatCompactMoney(kpis.faturamento_total)}</div>
+            <div class="kpi-sub">Receita bruta: ${formatCompactMoney(kpis.receita_bruta)}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon"><i class="fas fa-hand-holding-usd"></i></div>
+            <div class="kpi-label">Lucro Bruto</div>
+            <div class="kpi-value">${formatCompactMoney(kpis.faturamento_total - kpis.custo_total)}</div>
+            <div class="kpi-sub">Margem: <span class="trend-up">${kpis.margem_lucro}%</span></div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon"><i class="fas fa-shopping-cart"></i></div>
+            <div class="kpi-label">Total de Pedidos</div>
+            <div class="kpi-value">${formatNumber(kpis.total_pedidos)}</div>
+            <div class="kpi-sub">Ticket médio: ${formatMoney(kpis.ticket_medio)}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon"><i class="fas fa-users"></i></div>
+            <div class="kpi-label">Clientes Únicos</div>
+            <div class="kpi-value">${formatNumber(kpis.total_clientes)}</div>
+            <div class="kpi-sub">Prescritores: ${formatNumber(kpis.total_prescritores)}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon"><i class="fas fa-check-circle"></i></div>
+            <div class="kpi-label">Pedidos Pagos</div>
+            <div class="kpi-value">${formatNumber(pagos?.total || 0)}</div>
+            <div class="kpi-sub"><span class="trend-up">Pagamentos recebidos</span></div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon"><i class="fas fa-clock"></i></div>
+            <div class="kpi-label">Pedidos Pendentes</div>
+            <div class="kpi-value">${formatNumber(pendentes?.total || 0)}</div>
+            <div class="kpi-sub"><span class="trend-down">Aguardando pagamento</span></div>
+        </div>
+    `;
+}
+
+function renderChartFaturamentoMensal(data) {
+    destroyChart('chartFaturamentoMensal');
+    const ctx = document.getElementById('chartFaturamentoMensal');
+
+    const labels = data.map(d => MONTH_NAMES[(d.mes || 1) - 1]);
+
+    charts['chartFaturamentoMensal'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Faturamento',
+                    data: data.map(d => parseFloat(d.faturamento) || 0),
+                    backgroundColor: 'rgba(230, 57, 70, 0.7)',
+                    borderColor: '#E63946',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barPercentage: 0.6,
+                },
+                {
+                    label: 'Custo',
+                    data: data.map(d => parseFloat(d.custo) || 0),
+                    backgroundColor: 'rgba(17, 138, 178, 0.5)',
+                    borderColor: '#118AB2',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barPercentage: 0.6,
+                }
+            ]
+        },
+        options: {
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${formatMoney(ctx.parsed.y)}`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    ticks: { callback: v => formatCompactMoney(v) },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+}
+
+function renderChartFormas(data) {
+    destroyChart('chartFormas');
+    const ctx = document.getElementById('chartFormas');
+
+    charts['chartFormas'] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: data.map(d => truncateText(d.forma_farmaceutica, 20)),
+            datasets: [{
+                data: data.map(d => parseFloat(d.faturamento) || 0),
+                backgroundColor: CHART_COLORS.slice(0, data.length),
+                borderWidth: 0,
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            cutout: '60%',
+            plugins: {
+                legend: { position: 'right', labels: { font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = ((ctx.parsed / total) * 100).toFixed(1);
+                            return `${ctx.label}: ${formatMoney(ctx.parsed)} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderChartCanais(data) {
+    destroyChart('chartCanais');
+    const ctx = document.getElementById('chartCanais');
+
+    charts['chartCanais'] = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: data.map(d => d.canal_atendimento || 'N/A'),
+            datasets: [{
+                data: data.map(d => parseInt(d.total) || 0),
+                backgroundColor: CHART_COLORS.slice(0, data.length),
+                borderWidth: 0,
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = ((ctx.parsed / total) * 100).toFixed(1);
+                            return `${ctx.label}: ${formatNumber(ctx.parsed)} pedidos (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderChartStatus(data) {
+    destroyChart('chartStatus');
+    const ctx = document.getElementById('chartStatus');
+
+    const statusColors = {
+        'Aprovado': '#06D6A0',
+        'Recusado': '#EF476F',
+        'No Carrinho': '#FFD166',
+        'Pendente': '#118AB2'
+    };
+
+    charts['chartStatus'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => d.status || 'N/A'),
+            datasets: [{
+                label: 'Quantidade',
+                data: data.map(d => parseInt(d.total) || 0),
+                backgroundColor: data.map(d => statusColors[d.status] || '#7B68EE'),
+                borderRadius: 8,
+                barPercentage: 0.5
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: ctx => `Valor: ${formatMoney(data[ctx.dataIndex]?.valor_total || 0)}`
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => formatNumber(v) } },
+                y: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+// ============ FATURAMENTO ============
+async function loadFaturamento() {
+    const fp = getFilterParams();
+    const params = fp.ano ? { ano: fp.ano } : {};
+    if (fp.mes) params.mes = fp.mes;
+    if (fp.dia) params.dia = fp.dia;
+    const comparativo = await apiGet('comparativo_anual', params);
+    renderFaturamentoAnual(comparativo);
+    renderChartComparativoAnual(comparativo);
+    renderChartMargemAnual(comparativo);
+    renderChartTicketAnual(comparativo);
+}
+
+function renderFaturamentoAnual(data) {
+    const container = document.getElementById('faturamentoAnual');
+    container.innerHTML = data.map(d => `
+        <div class="comparison-item">
+            <div class="comparison-year">${d.ano}</div>
+            <div class="comparison-value">${formatCompactMoney(d.faturamento)}</div>
+            <div class="comparison-detail">${formatNumber(d.total_pedidos)} pedidos &bull; ${formatNumber(d.total_clientes)} clientes</div>
+        </div>
+    `).join('');
+}
+
+function renderChartComparativoAnual(data) {
+    destroyChart('chartComparativoAnual');
+    const ctx = document.getElementById('chartComparativoAnual');
+
+    charts['chartComparativoAnual'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => d.ano),
+            datasets: [
+                {
+                    label: 'Faturamento',
+                    data: data.map(d => parseFloat(d.faturamento) || 0),
+                    backgroundColor: 'rgba(230, 57, 70, 0.7)',
+                    borderColor: '#E63946',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                },
+                {
+                    label: 'Custo',
+                    data: data.map(d => parseFloat(d.custo) || 0),
+                    backgroundColor: 'rgba(17, 138, 178, 0.5)',
+                    borderColor: '#118AB2',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                },
+                {
+                    label: 'Lucro Bruto',
+                    data: data.map(d => parseFloat(d.lucro_bruto) || 0),
+                    backgroundColor: 'rgba(6, 214, 160, 0.5)',
+                    borderColor: '#06D6A0',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                }
+            ]
+        },
+        options: {
+            plugins: {
+                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatMoney(ctx.parsed.y)}` } }
+            },
+            scales: {
+                y: { ticks: { callback: v => formatCompactMoney(v) }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+function renderChartMargemAnual(data) {
+    destroyChart('chartMargemAnual');
+    const ctx = document.getElementById('chartMargemAnual');
+
+    charts['chartMargemAnual'] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map(d => d.ano),
+            datasets: [{
+                label: 'Margem de Lucro (%)',
+                data: data.map(d => parseFloat(d.margem_pct) || 0),
+                borderColor: '#06D6A0',
+                backgroundColor: 'rgba(6, 214, 160, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                pointBackgroundColor: '#06D6A0',
+                pointBorderColor: '#0F1117',
+                pointBorderWidth: 3,
+            }]
+        },
+        options: {
+            plugins: {
+                tooltip: { callbacks: { label: ctx => `Margem: ${ctx.parsed.y.toFixed(1)}%` } }
+            },
+            scales: {
+                y: { ticks: { callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+function renderChartTicketAnual(data) {
+    destroyChart('chartTicketAnual');
+    const ctx = document.getElementById('chartTicketAnual');
+
+    charts['chartTicketAnual'] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map(d => d.ano),
+            datasets: [
+                {
+                    label: 'Ticket Médio (Líq)',
+                    data: data.map(d => parseFloat(d.ticket_medio) || 0),
+                    borderColor: '#FFD166',
+                    backgroundColor: 'rgba(255, 209, 102, 0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: '#FFD166',
+                    pointBorderColor: '#0F1117',
+                    pointBorderWidth: 3,
+                },
+                {
+                    label: 'Ticket Bruto',
+                    data: data.map(d => parseFloat(d.ticket_bruto) || 0),
+                    borderColor: '#EE6C4D',
+                    backgroundColor: 'rgba(238, 108, 77, 0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: '#EE6C4D',
+                    pointBorderColor: '#0F1117',
+                    pointBorderWidth: 3,
+                    borderDash: [5, 5]
+                }
+            ]
+        },
+        options: {
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${formatMoney(ctx.parsed.y)}`
+                    }
+                }
+            },
+            scales: {
+                y: { ticks: { callback: v => formatCompactMoney(v) }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+// ============ PRESCRITORES ============
+async function loadPrescritores() {
+    const fp = getFilterParams();
+    const params = fp.ano ? { ano: fp.ano } : {};
+    if (fp.mes) params.mes = fp.mes;
+    if (fp.dia) params.dia = fp.dia;
+    const [prescritores, profissoes, visitadores] = await Promise.all([
+        apiGet('top_prescritores', { ...params, limit: 10 }),
+        apiGet('profissoes', params),
+        apiGet('visitadores', params)
+    ]);
+
+    renderTablePrescritores(prescritores);
+    renderChartProfissoes(profissoes);
+    renderChartVisitadores(visitadores);
+}
+
+// ============ VISITADORES (NOVA PÁGINA) ============
+async function loadVisitadoresPage() {
+    const fp = getFilterParams();
+    const params = fp.ano ? { ano: fp.ano } : {};
+    if (fp.mes) params.mes = fp.mes;
+    if (fp.dia) params.dia = fp.dia;
+    const visitadores = await apiGet('visitadores', params);
+
+    // Sort by revenue descending
+    visitadores.sort((a, b) => parseFloat(b.total_valor_aprovado) - parseFloat(a.total_valor_aprovado));
+
+    renderKPIsVisitadores(visitadores);
+    renderChartVisitadoresRanking(visitadores);
+    renderTableVisitadoresPage(visitadores);
+}
+
+function renderKPIsVisitadores(data) {
+    const totalFat = data.reduce((sum, item) => sum + parseFloat(item.total_valor_aprovado || 0), 0);
+    const totalPrescritores = data.reduce((sum, item) => sum + parseInt(item.total_prescritores || 0), 0);
+    const totalAprovadosCount = data.reduce((sum, item) => sum + parseFloat(item.total_aprovados || 0), 0);
+
+    // Calculate average efficiency
+    let totalTentado = 0; // Aprovado + Recusado
+    let totalSucesso = 0; // Aprovado
+
+    data.forEach(d => {
+        const ap = parseFloat(d.total_valor_aprovado || 0);
+        const re = parseFloat(d.total_valor_recusado || 0);
+        totalTentado += (ap + re);
+        totalSucesso += ap;
+    });
+
+    const taxaEficiencia = totalTentado > 0 ? ((totalSucesso / totalTentado) * 100).toFixed(1) : 0;
+
+    const kpis = [
+        { title: 'Faturamento da Equipe', value: formatMoney(totalFat), icon: 'coins', color: 'positive' },
+        { title: 'Prescritores Visitados', value: formatNumber(totalPrescritores), icon: 'user-md', color: 'info' },
+        { title: 'Taxa de conversão (Valor)', value: taxaEficiencia + '%', icon: 'percentage', color: taxaEficiencia > 50 ? 'positive' : 'warning' },
+        { title: 'Total Pedidos Aprovados', value: formatNumber(totalAprovadosCount), icon: 'check-circle', color: 'bg-gradient-success' }
+    ];
+
+    document.getElementById('kpiGridVisitadores').innerHTML = kpis.map(k => `
+        <div class="kpi-card">
+            <div class="kpi-icon ${k.color}"><i class="fas fa-${k.icon}"></i></div>
+            <div class="kpi-info">
+                <h3>${k.value}</h3>
+                <p>${k.title}</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderChartVisitadoresRanking(data) {
+    destroyChart('chartVisitadoresRanking');
+    const ctx = document.getElementById('chartVisitadoresRanking');
+
+    // Filter out rows with 0 revenue or empty names
+    const filtered = data.filter(d => parseFloat(d.total_valor_aprovado) > 0 && d.visitador);
+    const isAdmin = localStorage.getItem('userType') === 'admin';
+
+    charts['chartVisitadoresRanking'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: filtered.map(d => truncateText(d.visitador, 20)),
+            datasets: [{
+                label: 'Valor Aprovado',
+                data: filtered.map(d => parseFloat(d.total_valor_aprovado)),
+                backgroundColor: 'rgba(6, 214, 160, 0.7)',
+                borderRadius: 4,
+                barPercentage: 0.6
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            onClick: (evt, elements, chart) => {
+                if (!isAdmin || !elements.length) return;
+                const idx = elements[0].index;
+                const visitador = filtered[idx] && filtered[idx].visitador;
+                if (visitador) {
+                    window.location.href = 'visitador.html?visitador=' + encodeURIComponent(visitador);
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => formatMoney(ctx.parsed.x),
+                        afterBody: isAdmin ? () => '\n(Clique para ver o painel do visitador)' : undefined
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { callback: v => formatCompactMoney(v) }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                y: { grid: { display: false } }
+            }
+        }
+    });
+
+    if (ctx) ctx.style.cursor = isAdmin ? 'pointer' : 'default';
+}
+
+function renderTableVisitadoresPage(data) {
+    const tbody = document.querySelector('#tableVisitadoresPage tbody');
+    tbody.innerHTML = data.map((d, i) => {
+        const aprovado = parseFloat(d.total_valor_aprovado || 0);
+        const recusado = parseFloat(d.total_valor_recusado || 0);
+        const total = aprovado + recusado;
+        const pct = total > 0 ? ((aprovado / total) * 100).toFixed(1) : 0;
+
+        return `
+        <tr>
+            <td><span class="rank-badge ${getRankClass(i)}">${i + 1}</span></td>
+            <td style="color: var(--text-primary); font-weight: 500;">${d.visitador || 'Não Identificado'}</td>
+            <td>${formatNumber(d.total_prescritores)}</td>
+            <td class="money-value" style="color:var(--success);">${formatMoney(aprovado)}</td>
+            <td class="money-value" style="color:var(--danger);">${formatMoney(recusado)}</td>
+            <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="flex:1;height:6px;background:var(--bg-card);border-radius:3px;overflow:hidden;">
+                        <div style="width:${pct}%;height:100%;background:var(--success);"></div>
+                    </div>
+                    <span style="font-size:0.8rem;min-width:40px;">${pct}%</span>
+                </div>
+            </td>
+        </tr>
+    `}).join('');
+}
+
+function renderTablePrescritores(data) {
+    const tbody = document.querySelector('#tablePrescritores tbody');
+    tbody.innerHTML = data.map((d, i) => `
+        <tr>
+            <td><span class="rank-badge ${getRankClass(i)}">${i + 1}</span></td>
+            <td style="color: var(--text-primary); font-weight: 500;">${truncateText(d.prescritor, 35)}</td>
+            <td>${formatNumber(d.total_pedidos)}</td>
+            <td class="money-value">${formatMoney(d.faturamento)}</td>
+            <td>${formatMoney(d.ticket_medio)}</td>
+            <td>${formatNumber(d.clientes_atendidos)}</td>
+        </tr>
+    `).join('');
+}
+
+function renderChartProfissoes(data) {
+    destroyChart('chartProfissoes');
+    const ctx = document.getElementById('chartProfissoes');
+
+    charts['chartProfissoes'] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: data.map(d => d.profissao),
+            datasets: [{
+                data: data.map(d => parseFloat(d.valor_total) || 0),
+                backgroundColor: CHART_COLORS.slice(0, data.length),
+                borderWidth: 0,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            cutout: '55%',
+            plugins: {
+                legend: { position: 'right', labels: { font: { size: 10 } } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.label}: ${formatMoney(ctx.parsed)} (${data[ctx.dataIndex].total} prescritores)`
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderChartVisitadores(data) {
+    destroyChart('chartVisitadores');
+    const ctx = document.getElementById('chartVisitadores');
+
+    charts['chartVisitadores'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => truncateText(d.visitador, 15)),
+            datasets: [
+                {
+                    label: 'Aprovado',
+                    data: data.map(d => parseFloat(d.total_valor_aprovado) || 0),
+                    backgroundColor: 'rgba(6, 214, 160, 0.7)',
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Recusado',
+                    data: data.map(d => parseFloat(d.total_valor_recusado) || 0),
+                    backgroundColor: 'rgba(239, 71, 111, 0.6)',
+                    borderRadius: 4,
+                },
+                {
+                    label: 'No Carrinho',
+                    data: data.map(d => parseFloat(d.total_valor_carrinho) || 0),
+                    backgroundColor: 'rgba(255, 209, 102, 0.6)',
+                    borderRadius: 4,
+                }
+            ]
+        },
+        options: {
+            plugins: {
+                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatMoney(ctx.parsed.y)}` } }
+            },
+            scales: {
+                y: { stacked: true, ticks: { callback: v => formatCompactMoney(v) }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                x: { stacked: true, grid: { display: false } }
+            }
+        }
+    });
+}
+
+// ============ CLIENTES ============
+async function loadClientes() {
+    const fp = getFilterParams();
+    const params = fp.ano ? { ano: fp.ano } : {};
+    if (fp.mes) params.mes = fp.mes;
+    if (fp.dia) params.dia = fp.dia;
+    const clientes = await apiGet('top_clientes', { ...params, limit: 15 });
+    renderTableClientes(clientes);
+    renderChartTopClientes(clientes.slice(0, 10));
+}
+
+function renderTableClientes(data) {
+    const tbody = document.querySelector('#tableClientes tbody');
+    tbody.innerHTML = data.map((d, i) => `
+        <tr>
+            <td><span class="rank-badge ${getRankClass(i)}">${i + 1}</span></td>
+            <td style="color: var(--text-primary); font-weight: 500;">${truncateText(d.cliente, 40)}</td>
+            <td>${formatNumber(d.total_pedidos)}</td>
+            <td class="money-value">${formatMoney(d.faturamento)}</td>
+            <td>${formatMoney(d.ticket_medio)}</td>
+            <td>${d.ultima_compra ? new Date(d.ultima_compra).toLocaleDateString('pt-BR') : '-'}</td>
+        </tr>
+    `).join('');
+}
+
+function renderChartTopClientes(data) {
+    destroyChart('chartTopClientes');
+    const ctx = document.getElementById('chartTopClientes');
+
+    charts['chartTopClientes'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => truncateText(d.cliente, 20)),
+            datasets: [{
+                label: 'Faturamento',
+                data: data.map(d => parseFloat(d.faturamento) || 0),
+                backgroundColor: CHART_COLORS.map(c => c + 'B3'),
+                borderColor: CHART_COLORS,
+                borderWidth: 1,
+                borderRadius: 6,
+                barPercentage: 0.6
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => formatMoney(ctx.parsed.x) } }
+            },
+            scales: {
+                x: { ticks: { callback: v => formatCompactMoney(v) }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                y: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+// ============ PRODUTOS ============
+async function loadProdutos() {
+    const fp = getFilterParams();
+    const params = fp.ano ? { ano: fp.ano } : {};
+    if (fp.mes) params.mes = fp.mes;
+    if (fp.dia) params.dia = fp.dia;
+    const formas = await apiGet('top_formas', { ...params, limit: 15 });
+    renderTableFormas(formas);
+    renderChartProdutosFat(formas.slice(0, 10));
+}
+
+function renderTableFormas(data) {
+    const tbody = document.querySelector('#tableFormas tbody');
+    tbody.innerHTML = data.map((d, i) => {
+        const margem = parseFloat(d.faturamento) > 0
+            ? (((parseFloat(d.faturamento) - parseFloat(d.custo)) / parseFloat(d.faturamento)) * 100).toFixed(1)
+            : 0;
+        return `
+        <tr>
+            <td><span class="rank-badge ${getRankClass(i)}">${i + 1}</span></td>
+            <td style="color: var(--text-primary); font-weight: 500;">${d.forma_farmaceutica}</td>
+            <td>${formatNumber(d.quantidade)}</td>
+            <td class="money-value">${formatMoney(d.faturamento)}</td>
+            <td>${formatMoney(d.custo)}</td>
+            <td><span class="status-badge ${parseFloat(margem) > 80 ? 'status-aprovado' : parseFloat(margem) > 60 ? 'status-pendente' : 'status-recusado'}">${margem}%</span></td>
+            <td>${formatMoney(d.ticket_medio)}</td>
+        </tr>
+    `}).join('');
+}
+
+function renderChartProdutosFat(data) {
+    destroyChart('chartProdutosFat');
+    const ctx = document.getElementById('chartProdutosFat');
+
+    charts['chartProdutosFat'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => truncateText(d.forma_farmaceutica, 20)),
+            datasets: [
+                {
+                    label: 'Faturamento',
+                    data: data.map(d => parseFloat(d.faturamento) || 0),
+                    backgroundColor: 'rgba(230, 57, 70, 0.7)',
+                    borderRadius: 6,
+                    barPercentage: 0.5,
+                },
+                {
+                    label: 'Custo',
+                    data: data.map(d => parseFloat(d.custo) || 0),
+                    backgroundColor: 'rgba(17, 138, 178, 0.5)',
+                    borderRadius: 6,
+                    barPercentage: 0.5,
+                }
+            ]
+        },
+        options: {
+            plugins: {
+                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatMoney(ctx.parsed.y)}` } }
+            },
+            scales: {
+                y: { ticks: { callback: v => formatCompactMoney(v) }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+// ============ EQUIPE ============
+async function loadEquipe() {
+    const fp = getFilterParams();
+    const params = fp.ano ? { ano: fp.ano } : {};
+    if (fp.mes) params.mes = fp.mes;
+    if (fp.dia) params.dia = fp.dia;
+    const atendentes = await apiGet('top_atendentes', params);
+    renderTableAtendentes(atendentes);
+    renderChartAtendentes(atendentes);
+}
+
+function renderTableAtendentes(data) {
+    const tbody = document.querySelector('#tableAtendentes tbody');
+    tbody.innerHTML = data.map((d, i) => `
+        <tr>
+            <td><span class="rank-badge ${getRankClass(i)}">${i + 1}</span></td>
+            <td style="color: var(--text-primary); font-weight: 500;">${d.atendente}</td>
+            <td>${formatNumber(d.total_pedidos)}</td>
+            <td class="money-value">${formatMoney(d.faturamento)}</td>
+            <td>${formatNumber(d.clientes_atendidos)}</td>
+            <td>${formatMoney(d.ticket_medio)}</td>
+        </tr>
+    `).join('');
+}
+
+function renderChartAtendentes(data) {
+    destroyChart('chartAtendentes');
+    const ctx = document.getElementById('chartAtendentes');
+
+    charts['chartAtendentes'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => truncateText(d.atendente, 15)),
+            datasets: [{
+                label: 'Faturamento',
+                data: data.map(d => parseFloat(d.faturamento) || 0),
+                backgroundColor: CHART_COLORS.map(c => c + 'B3'),
+                borderColor: CHART_COLORS,
+                borderWidth: 1,
+                borderRadius: 6,
+                barPercentage: 0.5
+            }]
+        },
+        options: {
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `Faturamento: ${formatMoney(ctx.parsed.y)}`,
+                        afterLabel: ctx => `Pedidos: ${formatNumber(data[ctx.dataIndex].total_pedidos)}\nClientes: ${formatNumber(data[ctx.dataIndex].clientes_atendidos)}`
+                    }
+                }
+            },
+            scales: {
+                y: { ticks: { callback: v => formatCompactMoney(v) }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+// ============ INSIGHTS ============
+async function loadInsights() {
+    const fp = getFilterParams();
+    const params = fp.ano ? { ano: fp.ano } : {};
+    if (fp.mes) params.mes = fp.mes;
+    if (fp.dia) params.dia = fp.dia;
+
+    const [kpis, comparativo, formas, atendentes, visitadores, canais] = await Promise.all([
+        apiGet('kpis', params),
+        apiGet('comparativo_anual', params),
+        apiGet('top_formas', { ...params, limit: 5 }),
+        apiGet('top_atendentes', params),
+        apiGet('visitadores', params),
+        apiGet('canais', params)
+    ]);
+
+    const insights = [];
+
+    // Insight 1: Margem de lucro
+    const margem = parseFloat(kpis.margem_lucro) || 0;
+    insights.push({
+        icon: '💰',
+        title: 'Margem de Lucro',
+        text: margem > 80
+            ? `Excelente margem de ${margem}%. A operação está saudável com forte controle de custos.`
+            : margem > 60
+                ? `Margem de ${margem}% está boa, mas há espaço para otimização de custos.`
+                : `Margem de ${margem}% está abaixo do ideal. Revise custos e precificação.`,
+        type: margem > 80 ? 'positive' : margem > 60 ? 'warning' : 'negative',
+        metric: margem + '%',
+        metricClass: margem > 80 ? 'positive' : margem > 60 ? 'warning' : 'negative'
+    });
+
+    // Insight 2: Crescimento
+    if (comparativo.length >= 2) {
+        const ultimo = parseFloat(comparativo[comparativo.length - 1]?.faturamento) || 0;
+        const penultimo = parseFloat(comparativo[comparativo.length - 2]?.faturamento) || 0;
+        const crescimento = penultimo > 0 ? ((ultimo - penultimo) / penultimo * 100).toFixed(1) : 0;
+        const anoAtual = comparativo[comparativo.length - 1]?.ano;
+        const anoAnterior = comparativo[comparativo.length - 2]?.ano;
+
+        insights.push({
+            icon: crescimento > 0 ? '📈' : '📉',
+            title: `Crescimento ${anoAnterior} → ${anoAtual}`,
+            text: crescimento > 0
+                ? `Crescimento de ${crescimento}% no faturamento. A farmácia está expandindo bem.`
+                : `Queda de ${Math.abs(crescimento)}% no faturamento. Atenção: ${anoAtual} pode estar incompleto (ano em andamento).`,
+            type: crescimento > 0 ? 'positive' : 'warning',
+            metric: (crescimento > 0 ? '+' : '') + crescimento + '%',
+            metricClass: crescimento > 0 ? 'positive' : 'negative'
+        });
+    }
+
+    // Insight 3: Produto estrela
+    if (formas.length > 0) {
+        const topForma = formas[0];
+        const totalFat = formas.reduce((s, f) => s + (parseFloat(f.faturamento) || 0), 0);
+        const pct = totalFat > 0 ? ((parseFloat(topForma.faturamento) / totalFat) * 100).toFixed(1) : 0;
+
+        insights.push({
+            icon: '⭐',
+            title: 'Produto Estrela',
+            text: `${topForma.forma_farmaceutica} representa ${pct}% do faturamento com ${formatNumber(topForma.quantidade)} pedidos e ticket médio de ${formatMoney(topForma.ticket_medio)}.`,
+            type: 'info',
+            metric: formatCompactMoney(topForma.faturamento),
+            metricClass: 'positive'
+        });
+    }
+
+    // Insight 4: Top atendente
+    if (atendentes.length > 0) {
+        const top = atendentes[0];
+        insights.push({
+            icon: '🏆',
+            title: 'Melhor Atendente',
+            text: `${top.atendente} lidera com ${formatNumber(top.total_pedidos)} pedidos, atendendo ${formatNumber(top.clientes_atendidos)} clientes e gerando ${formatMoney(top.faturamento)} em faturamento.`,
+            type: 'positive',
+            metric: formatCompactMoney(top.faturamento),
+            metricClass: 'positive'
+        });
+    }
+
+    // Insight 5: Visitadores
+    if (visitadores.length > 0) {
+        const topVisit = visitadores[0];
+        insights.push({
+            icon: '🎯',
+            title: 'Melhor Visitador',
+            text: `${topVisit.visitador} trouxe ${formatNumber(topVisit.total_prescritores)} prescritores com ${formatMoney(topVisit.total_valor_aprovado)} aprovados. Taxa de aprovação indica bom trabalho de prospecção.`,
+            type: 'positive',
+            metric: formatCompactMoney(topVisit.total_valor_aprovado),
+            metricClass: 'positive'
+        });
+    }
+
+    // Insight 6: Canal dominante
+    if (canais.length > 0) {
+        const totalCanal = canais.reduce((s, c) => s + parseInt(c.total), 0);
+        const topCanal = canais[0];
+        const pctCanal = ((parseInt(topCanal.total) / totalCanal) * 100).toFixed(1);
+
+        insights.push({
+            icon: '📱',
+            title: 'Canal Dominante',
+            text: `${topCanal.canal_atendimento} responde por ${pctCanal}% dos pedidos (${formatNumber(topCanal.total)} pedidos) com faturamento de ${formatMoney(topCanal.faturamento)}.`,
+            type: pctCanal > 80 ? 'warning' : 'info',
+            metric: pctCanal + '%',
+            metricClass: pctCanal > 80 ? 'warning' : 'positive'
+        });
+
+        if (pctCanal > 80) {
+            insights.push({
+                icon: '⚠️',
+                title: 'Concentração de Canal',
+                text: `A farmácia tem alta dependência do canal "${topCanal.canal_atendimento}". Considere diversificar os canais de atendimento (online, WhatsApp, delivery) para reduzir riscos.`,
+                type: 'warning',
+                metric: 'Alto Risco',
+                metricClass: 'warning'
+            });
+        }
+    }
+
+    // Insight: Ticket médio
+    const ticketMedio = parseFloat(kpis.ticket_medio) || 0;
+    insights.push({
+        icon: '🎟️',
+        title: 'Ticket Médio',
+        text: ticketMedio > 100
+            ? `Ticket médio de ${formatMoney(ticketMedio)} demonstra boa valorização dos produtos. Estratégias de upsell podem aumentar ainda mais.`
+            : `Ticket médio de ${formatMoney(ticketMedio)} está baixo. Considere estratégias de cross-sell e kits de produtos para elevar o valor por pedido.`,
+        type: ticketMedio > 100 ? 'positive' : 'warning',
+        metric: formatMoney(ticketMedio),
+        metricClass: ticketMedio > 100 ? 'positive' : 'warning'
+    });
+
+    renderInsights(insights);
+}
+
+// ============ VISITADOR DASHBOARD (Página Dedicada) ============
+async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesSelecionado = null, diaSelecionado = null) {
+    showLoading();
+    try {
+        const anoSelect = document.getElementById('anoSelect');
+        const mesSelect = document.getElementById('mesSelect');
+        const ano = anoSelecionado !== null ? anoSelecionado : (anoSelect ? anoSelect.value : '');
+        const mes = mesSelecionado !== null ? mesSelecionado : (mesSelect ? mesSelect.value : '');
+
+        // Atualiza o select se não for o valor atual (ex: carga inicial)
+        if (anoSelect && ano !== null && anoSelect.value != ano) anoSelect.value = ano;
+        if (mesSelect && mes !== null && mesSelect.value != mes) mesSelect.value = mes;
+
+        const dia = null; // Removed dia filter logic
+
+        const params = { nome: nomeVisitador, ano };
+        if (mes) params.mes = mes;
+        if (dia) params.dia = dia;
+        const data = await apiGet('visitador_dashboard', params);
+
+        if (data.error) {
+            console.error(data.error);
+            alert('Erro ao carregar dados: ' + data.error);
+            hideLoading();
+            return;
+        }
+
+        // Na primeira carga, definir o mês padrão como o último mês com dados
+        if (!mesSelect.getAttribute('data-default-set') && data.kpis?.ultimo_mes_com_dados) {
+            mesSelect.setAttribute('data-default-set', 'true');
+            const ultimoMes = data.kpis.ultimo_mes_com_dados.toString();
+            mesSelect.value = ultimoMes;
+            // Recarregar com o mês correto
+            loadVisitadorDashboard(nomeVisitador, ano, ultimoMes);
+            return;
+        }
+
+        // Add listeners if not added yet
+        if (anoSelect && !anoSelect.getAttribute('data-listener')) {
+            anoSelect.setAttribute('data-listener', 'true');
+            anoSelect.addEventListener('change', () => {
+                loadVisitadorDashboard(nomeVisitador, anoSelect.value, mesSelect ? mesSelect.value : null);
+            });
+        }
+        if (mesSelect && !mesSelect.getAttribute('data-listener')) {
+            mesSelect.setAttribute('data-listener', 'true');
+            mesSelect.addEventListener('change', () => {
+                loadVisitadorDashboard(nomeVisitador, anoSelect ? anoSelect.value : null, mesSelect.value);
+            });
+        }
+
+        // Salvar prescritores para modal
+        if (typeof allPrescritores !== 'undefined') {
+            allPrescritores = data.top_prescritores || [];
+        } else {
+            window.allPrescritores = data.top_prescritores || [];
+        }
+
+        // 1. KPIs
+        // 1. KPIs
+        const totalAprovadoAnual = parseFloat(data.kpis?.total_aprovado_anual || 0);
+        const totalAprovadoMensal = parseFloat(data.kpis?.total_aprovado_mensal || 0);
+
+        // Calcular Total de Pedidos somando dos top prescritores
+        const totalPedidos = (data.top_prescritores || []).reduce((acc, p) => acc + parseFloat(p.qtd_aprovados || 0), 0);
+
+        // Metas
+        const metaMensal = parseFloat(data.kpis?.meta_mensal || 50000);
+        const metaAnual = parseFloat(data.kpis?.meta_anual || 600000);
+
+        const pctMetaMensal = metaMensal > 0 ? ((totalAprovadoMensal / metaMensal) * 100).toFixed(1) : 0;
+        const pctMetaAnual = metaAnual > 0 ? ((totalAprovadoAnual / metaAnual) * 100).toFixed(1) : 0;
+
+        // KPI Cards Principais - segue filtro de mês
+        const totalVendidoExibir = mes ? totalAprovadoMensal : totalAprovadoAnual;
+        document.getElementById('kpiTotalVendido').textContent = formatMoney(totalVendidoExibir);
+        const totalPendentes = parseInt(data.kpis?.total_recusados || 0) + parseInt(data.kpis?.total_no_carrinho || 0);
+        document.getElementById('kpiTotalPendentes').textContent = totalPendentes;
+        document.getElementById('kpiTotalCarteira').textContent = data.kpis?.total_prescritores || 0;
+
+        // Atualizar Barras de Progresso
+        const updateBar = (barId, labelId, valorId, alvoId, atual, meta, pct) => {
+            const bar = document.getElementById(barId);
+            const label = document.getElementById(labelId);
+            const valor = document.getElementById(valorId);
+            const alvo = document.getElementById(alvoId);
+
+            if (bar) bar.style.width = Math.min(pct, 100) + '%';
+            if (label) label.textContent = pct + '%';
+            if (valor) valor.textContent = formatMoney(atual);
+            if (alvo) alvo.textContent = 'Meta: ' + formatMoney(meta);
+        };
+
+        updateBar('barMetaMensal', 'labelMetaMensal', 'valorMetaMensal', 'alvoMetaMensal', totalAprovadoMensal, metaMensal, pctMetaMensal);
+        updateBar('barMetaAnual', 'labelMetaAnual', 'valorMetaAnual', 'alvoMetaAnual', totalAprovadoAnual, metaAnual, pctMetaAnual);
+
+        // Comissão - segue o filtro de mês
+        const comissaoPct = parseFloat(data.kpis?.comissao || 1);
+        const baseComissao = mes ? totalAprovadoMensal : totalAprovadoAnual;
+        const comissaoAtual = baseComissao * (comissaoPct / 100);
+        const elComissaoAtual = document.getElementById('comissaoAtual');
+        const elComissaoPct = document.getElementById('labelComissaoPct');
+        if (elComissaoAtual) elComissaoAtual.textContent = formatMoney(comissaoAtual);
+        if (elComissaoPct) elComissaoPct.textContent = comissaoPct + '%';
+
+        // Lógica de Premiação: se bateu todas as metas, somar ao valor da comissão
+        let comissaoComPremio = comissaoAtual;
+        if (data.kpis_visitas && data.kpis_visitas.premio.conquistado) {
+            comissaoComPremio += data.kpis_visitas.premio.valor;
+            if (elComissaoAtual) {
+                elComissaoAtual.innerHTML = `${formatMoney(comissaoComPremio)} <br><small style="font-size:0.65rem; color:#10B981; font-weight:normal;">(Previsão de ganhos + Prêmio)</small>`;
+            }
+        }
+
+        // KPIs Visitas e Premiação
+        if (data.kpis_visitas) {
+            const v = data.kpis_visitas;
+            // Semana: x / 30 (x = quantidade de visitas na semana atual)
+            const labelMetaSemana = document.getElementById('labelMetaVisitaSemana');
+            const pctMetaSemana = document.getElementById('pctMetaVisitaSemana');
+            const barMetaSemana = document.getElementById('barMetaVisitaSemana');
+            if (labelMetaSemana) labelMetaSemana.textContent = `${v.semanal.atual} / ${v.semanal.meta}`;
+            if (pctMetaSemana) pctMetaSemana.textContent = v.semanal.pct + '%';
+            if (barMetaSemana) barMetaSemana.style.width = v.semanal.pct + '%';
+
+            // Métrica analítica: semanas/blocos (e destacar em verde quando bateu)
+            const visitasPorSemanaEl = document.getElementById('visitasPorSemanaLabel');
+            if (visitasPorSemanaEl && Array.isArray(v.visitas_por_semana) && v.visitas_por_semana.length) {
+                const txt = v.visitas_por_semana
+                    .map(s => {
+                        const d = String(s.label || '').replace(/^Sem\s*/i, '').trim();
+                        const piece = `${d} ${s.total}`;
+                        // cores: verde = bateu; vermelho = não bateu e já está válido; cinza = ainda não chegou (future)
+                        const hasStatus = s && typeof s.status === 'string';
+                        const isFuture = hasStatus && s.status === 'future';
+                        const bateu = s && s.bateu === true;
+
+                        let color = '#94A3B8';
+                        let bg = 'rgba(148,163,184,0.10)';
+                        let border = 'rgba(148,163,184,0.25)';
+                        let weight = 600;
+
+                        if (bateu) {
+                            color = '#10B981';
+                            bg = 'rgba(16,185,129,0.12)';
+                            border = 'rgba(16,185,129,0.30)';
+                            weight = 700;
+                        } else if (hasStatus && !isFuture) {
+                            color = '#EF4444';
+                            bg = 'rgba(239,68,68,0.12)';
+                            border = 'rgba(239,68,68,0.28)';
+                            weight = 700;
+                        } else {
+                            // future: mais apagado/cinza
+                            weight = 600;
+                        }
+
+                        return `<span style="
+                            display:inline-flex;
+                            align-items:center;
+                            padding:2px 8px;
+                            border-radius:999px;
+                            border:1px solid ${border};
+                            background:${bg};
+                            color:${color};
+                            font-weight:${weight};
+                            line-height:1.2;
+                        ">${piece}</span>`;
+                    })
+                    .join(' ');
+                visitasPorSemanaEl.innerHTML = `${v.visitas_por_semana.length} sem.: ` + txt;
+                visitasPorSemanaEl.style.display = 'block';
+            } else if (visitasPorSemanaEl) visitasPorSemanaEl.style.display = 'none';
+
+            // Mes
+            const labelMetaMes = document.getElementById('labelMetaVisitaMes');
+            const pctMetaMes = document.getElementById('pctMetaVisitaMes');
+            const barMetaMes = document.getElementById('barMetaVisitaMes');
+            if (labelMetaMes) labelMetaMes.textContent = `${v.mes.atual} / ${v.mes.meta}`;
+            if (pctMetaMes) pctMetaMes.textContent = v.mes.pct + '%';
+            if (barMetaMes) barMetaMes.style.width = v.mes.pct + '%';
+
+            // Premio
+            const valorPremio = document.getElementById('valorPremioVisita');
+            const statusPremio = document.getElementById('statusPremioVisita');
+            const cardPremio = document.getElementById('cardPremioVisita');
+
+            if (valorPremio && statusPremio && cardPremio) {
+                valorPremio.textContent = formatMoney(v.premio.valor);
+                if (v.premio.conquistado) {
+                    valorPremio.style.color = '#10B981'; // Verde sucesso
+                    statusPremio.innerHTML = '<i class="fas fa-check-circle" style="color:#10B981"></i> Metas Batidas!';
+                    statusPremio.style.color = '#10B981';
+                    statusPremio.style.fontWeight = '600';
+                    cardPremio.style.borderColor = '#10B981';
+                    cardPremio.style.background = 'rgba(16,185,129,0.05)';
+                } else {
+                    valorPremio.style.color = 'var(--text-primary)';
+                    let missing = [];
+                    if (!v.premio.batouVendas) missing.push('Vendas');
+                    if (!v.premio.batouVisitasMes) missing.push('Visitas (Mês)');
+                    if (!v.premio.batouVisitasSemana) missing.push('Visitas (Semana)');
+
+                    statusPremio.textContent = missing.length > 0 ? `Falta: ${missing.join(', ')}` : 'Meta de Visitas';
+                    statusPremio.style.color = 'var(--text-secondary)';
+                    statusPremio.style.fontWeight = '400';
+                    cardPremio.style.borderColor = 'transparent';
+                    cardPremio.style.background = 'var(--bg-card)';
+                }
+            }
+        }
+
+        // Última atualização
+        const elUltimaAtt = document.getElementById('ultimaAtualizacao');
+        if (elUltimaAtt && data.kpis?.ultima_atualizacao) {
+            const dt = new Date(data.kpis.ultima_atualizacao);
+            const dataFormatada = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            elUltimaAtt.innerHTML = '<i class="fas fa-clock" style="margin-right:4px;"></i>Última atualização: ' + dataFormatada;
+        }
+
+        // Atualizar Gauge lateral - Meta Mensal
+        if (document.getElementById('metaMensalPercent')) {
+            document.getElementById('metaMensalPercent').textContent = Math.min(pctMetaMensal, 100) + '%';
+        }
+        // Atualizar Gauge lateral - Meta Anual
+        if (document.getElementById('metaPercent')) {
+            document.getElementById('metaPercent').textContent = Math.min(pctMetaAnual, 100) + '%';
+        }
+
+        // Gauge Chart - Meta MENSAL
+        const ctxGaugeMensal = document.getElementById('chartMetaMensalGauge');
+        const chartMensalStatus = Chart.getChart("chartMetaMensalGauge");
+        if (chartMensalStatus != undefined) { chartMensalStatus.destroy(); }
+
+        if (ctxGaugeMensal) {
+            new Chart(ctxGaugeMensal, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Realizado', 'Faltante'],
+                    datasets: [{
+                        data: [totalAprovadoMensal, Math.max(0, metaMensal - totalAprovadoMensal)],
+                        backgroundColor: ['#2563EB', '#E2E8F0'],
+                        borderWidth: 0,
+                        cutout: '80%',
+                        rotation: -90,
+                        circumference: 180
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    aspectRatio: 1.6,
+                    responsive: true
+                }
+            });
+        }
+
+        // Gauge Chart - Meta ANUAL
+        const ctxGauge = document.getElementById('chartMetaGauge');
+        const chartStatus = Chart.getChart("chartMetaGauge");
+        if (chartStatus != undefined) { chartStatus.destroy(); }
+
+        if (ctxGauge) {
+            new Chart(ctxGauge, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Realizado', 'Faltante'],
+                    datasets: [{
+                        data: [totalAprovadoAnual, Math.max(0, metaAnual - totalAprovadoAnual)],
+                        backgroundColor: ['#10B981', '#E2E8F0'],
+                        borderWidth: 0,
+                        cutout: '80%',
+                        rotation: -90,
+                        circumference: 180
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    aspectRatio: 1.6,
+                    responsive: true
+                }
+            });
+        }
+
+        // 2. Chart Evolução Mensal
+        const ctxEvo = document.getElementById('chartEvolucaoMENSAL');
+        if (ctxEvo) {
+            const chartEvoStatus = Chart.getChart("chartEvolucaoMENSAL");
+            if (chartEvoStatus != undefined) { chartEvoStatus.destroy(); }
+
+            const valoresMensais = new Array(12).fill(0);
+            if (data.evolucao && Array.isArray(data.evolucao)) {
+                data.evolucao.forEach(item => {
+                    const m = parseInt(item.mes) - 1;
+                    if (m >= 0 && m < 12) valoresMensais[m] = parseFloat(item.total);
+                });
+            }
+
+            new Chart(ctxEvo, {
+                type: 'bar',
+                data: {
+                    labels: MONTH_NAMES,
+                    datasets: [{
+                        label: 'Vendas Aprovadas',
+                        data: valoresMensais,
+                        backgroundColor: 'rgba(37, 99, 235, 0.8)',
+                        borderRadius: 6,
+                        hoverBackgroundColor: 'rgba(37, 99, 235, 1)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1E293B',
+                            padding: 12,
+                            callbacks: { label: ctx => formatMoney(ctx.parsed.y) }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { borderDash: [5, 5], color: '#E2E8F0' },
+                            ticks: {
+                                font: { family: 'Inter' },
+                                callback: v => formatCompactMoney(v)
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Inter' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 3. Chart Top Produtos (Doughnut)
+        const ctxProd = document.getElementById('chartProdutos');
+        if (ctxProd) {
+            const chartProdStatus = Chart.getChart("chartProdutos");
+            if (chartProdStatus != undefined) { chartProdStatus.destroy(); }
+
+            const topProdutos = data.top_produtos || [];
+            const totalTop = topProdutos.reduce((acc, curr) => acc + parseFloat(curr.total), 0);
+
+            new Chart(ctxProd, {
+                type: 'doughnut',
+                data: {
+                    labels: topProdutos.map(p => truncateText(p.familia || 'Outros', 15)),
+                    datasets: [{
+                        data: topProdutos.map(p => parseFloat(p.total)),
+                        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#64748B'],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 10,
+                                usePointStyle: true,
+                                font: { size: 11, family: 'Inter' }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1E293B',
+                            padding: 12,
+                            callbacks: {
+                                label: ctx => {
+                                    const val = ctx.parsed;
+                                    const pct = totalTop > 0 ? ((val / totalTop) * 100).toFixed(1) + '%' : '0%';
+                                    return ` ${formatMoney(val)} (${pct})`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        // Global variable update for modal use
+        if (typeof allPrescritores !== 'undefined') {
+            allPrescritores = data.top_prescritores || [];
+        }
+
+        // 4. Tabela Prescritores
+        const elTable = document.getElementById('tableMeusPrescritores');
+        const tbody = elTable ? elTable.querySelector('tbody') : null;
+        if (tbody) {
+            tbody.innerHTML = (data.top_prescritores || []).map(p => {
+                let dataFormatada = '-';
+                if (p.ultima_compra) {
+                    const d = new Date(p.ultima_compra);
+                    if (!isNaN(d.getTime())) {
+                        dataFormatada = d.toLocaleDateString('pt-BR');
+                    }
+                }
+
+                let diasCompraHTML = '<span style="color:#CBD5E1">-</span>';
+                const dias = parseInt(p.dias_sem_compra);
+
+                if (!isNaN(dias)) {
+                    if (dias <= 15) {
+                        diasCompraHTML = `<span class="status-badge active" style="background:#DCFCE7; color:#166534;">${dias} dias</span>`;
+                    } else if (dias <= 30) {
+                        diasCompraHTML = `<span class="status-badge warning" style="background:#FEF3C7; color:#92400E;">${dias} dias</span>`;
+                    } else if (dias <= 60) {
+                        diasCompraHTML = `<span class="status-badge inactive" style="background:#FEE2E2; color:#B91C1C;">${dias} dias</span>`;
+                    } else {
+                        diasCompraHTML = `<span class="status-badge inactive" style="background:#991B1B; color:#FEF2F2; font-weight:700; border:1px solid #7F1D1D;"><i class="fas fa-exclamation-circle"></i> ${dias} dias</span>`;
+                    }
+                }
+
+                return `
+                <tr>
+                    <td style="font-weight:500;">${truncateText(p.prescritor, 40)}</td>
+                    <td style="color:#10B981; font-weight:600;">${formatMoney(p.total_aprovado)}</td>
+                    <td style="text-align:center;">${p.qtd_aprovados || 0}</td>
+                    <td style="color:var(--text-secondary); font-size:0.9rem;">${dataFormatada}</td>
+                    <td>${diasCompraHTML}</td>
+                    <td><span class="status-badge active"><i class="fas fa-check"></i> Ativo</span></td>
+                </tr>
+            `}).join('');
+        }
+
+        // 4. Alertas Inteligentes (Prescritores com potencial inativos)
+        const alertasContainer = document.getElementById('alertasContainer');
+        const alertasCountEl = document.getElementById('alertasCount');
+        if (alertasContainer) {
+            const alertas = data.alertas || [];
+            if (alertasCountEl) alertasCountEl.textContent = alertas.length;
+
+            if (alertas.length > 0) {
+                alertasContainer.innerHTML = alertas.map((a, idx) => {
+                    const diasCompra = parseInt(a.dias_sem_compra) || 0;
+                    const diasVisita = a.dias_sem_visita != null ? parseInt(a.dias_sem_visita) : null;
+                    const valor = parseFloat(a.valor_total_aprovado) || 0;
+                    const score = parseFloat(a.score) || 0;
+                    const pedidos = parseInt(a.total_pedidos) || 0;
+
+                    const severidade = score >= 60 ? 'critico' : score >= 35 ? 'alto' : 'medio';
+                    const sevCfg = {
+                        'critico': { color: '#EF4444', bg: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.25)', icon: 'fa-circle-exclamation', label: 'Crítico' },
+                        'alto':    { color: '#F59E0B', bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.25)', icon: 'fa-triangle-exclamation', label: 'Alto' },
+                        'medio':   { color: '#3B82F6', bg: 'rgba(37,99,235,0.10)',  border: 'rgba(37,99,235,0.25)',  icon: 'fa-info-circle', label: 'Médio' }
+                    };
+                    const s = sevCfg[severidade];
+
+                    const compraTag = diasCompra >= 60
+                        ? `<span style="color:#EF4444; font-weight:700;">${diasCompra}d</span>`
+                        : diasCompra >= 30
+                        ? `<span style="color:#F59E0B; font-weight:700;">${diasCompra}d</span>`
+                        : `<span style="color:var(--text-secondary);">${diasCompra}d</span>`;
+
+                    const visitaTag = diasVisita === null
+                        ? `<span style="color:#EF4444; font-weight:700;">Nunca</span>`
+                        : diasVisita >= 30
+                        ? `<span style="color:#EF4444; font-weight:700;">${diasVisita}d</span>`
+                        : diasVisita >= 15
+                        ? `<span style="color:#F59E0B; font-weight:700;">${diasVisita}d</span>`
+                        : `<span style="color:var(--text-secondary);">${diasVisita}d</span>`;
+
+                    return `
+                        <div style="display:flex; gap:10px; padding:10px 0; ${idx < alertas.length - 1 ? 'border-bottom:1px solid var(--border);' : ''}">
+                            <div style="flex-shrink:0; width:32px; height:32px; border-radius:8px; background:${s.bg}; border:1px solid ${s.border}; display:flex; align-items:center; justify-content:center;">
+                                <i class="fas ${s.icon}" style="color:${s.color}; font-size:0.75rem;"></i>
+                            </div>
+                            <div style="flex:1; min-width:0;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                                    <span style="font-weight:700; font-size:0.82rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${truncateText(a.prescritor, 22)}</span>
+                                    <span style="font-size:0.6rem; font-weight:800; padding:1px 6px; border-radius:4px; background:${s.bg}; color:${s.color}; border:1px solid ${s.border}; white-space:nowrap;">${s.label}</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.7rem; flex-wrap:wrap;">
+                                    <span style="display:inline-flex; align-items:center; gap:3px; color:var(--text-secondary);"><i class="fas fa-money-bill-wave" style="font-size:0.55rem; color:#10B981;"></i>${formatMoney(valor)}</span>
+                                    <span style="color:var(--border);">|</span>
+                                    <span style="display:inline-flex; align-items:center; gap:3px;"><i class="fas fa-shopping-cart" style="font-size:0.55rem; color:var(--text-secondary);"></i>s/compra: ${compraTag}</span>
+                                    <span style="color:var(--border);">|</span>
+                                    <span style="display:inline-flex; align-items:center; gap:3px;"><i class="fas fa-route" style="font-size:0.55rem; color:var(--text-secondary);"></i>s/visita: ${visitaTag}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                alertasContainer.innerHTML = `
+                    <div style="text-align:center; padding:28px 0;">
+                        <div style="width:44px; height:44px; border-radius:12px; background:rgba(16,185,129,0.08); display:inline-flex; align-items:center; justify-content:center; margin-bottom:8px;">
+                            <i class="fas fa-check-circle" style="color:#10B981; font-size:1.1rem;"></i>
+                        </div>
+                        <div style="font-size:0.88rem; font-weight:700; color:#10B981;">Tudo certo!</div>
+                        <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">Sua carteira está ativa e sem prescritores inativos.</div>
+                    </div>`;
+            }
+        }
+
+        // 5. Relatório de Visitas (Semana) — cards premium
+        window.__visitasSemanaData = data.relatorio_visitas_semana || [];
+        const vsBody = document.getElementById('visitasSemanaBody');
+        const vsCount = document.getElementById('visitasSemanaCount');
+        if (vsBody) {
+            const rows = window.__visitasSemanaData;
+            if (vsCount) vsCount.textContent = rows.length;
+            if (Array.isArray(rows) && rows.length) {
+                vsBody.innerHTML = rows.map((r, idx) => {
+                    const dt = r.data_visita ? new Date(r.data_visita) : null;
+                    const dataFmt = dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }) : (r.data_visita || '-');
+                    const hora = r.horario ? String(r.horario).slice(0, 5) : '';
+                    const status = r.status_visita || '-';
+                    const statusLower = status.toLowerCase();
+                    const resumo = r.resumo_visita || '';
+                    const local = r.local_visita || '';
+
+                    const statusCfg = {
+                        'realizada':     { icon: 'fa-check-circle',      color: '#10B981', bg: 'rgba(16,185,129,0.10)',  border: 'rgba(16,185,129,0.25)' },
+                        'remarcada':     { icon: 'fa-calendar-alt',      color: '#F59E0B', bg: 'rgba(245,158,11,0.10)',  border: 'rgba(245,158,11,0.25)' },
+                        'cancelada':     { icon: 'fa-times-circle',      color: '#EF4444', bg: 'rgba(239,68,68,0.10)',   border: 'rgba(239,68,68,0.25)' },
+                        'não encontrado':{ icon: 'fa-question-circle',   color: '#94A3B8', bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.25)' }
+                    };
+                    const sc = statusCfg[statusLower] || statusCfg['realizada'];
+
+                    const localHtml = local ? `<span style="display:inline-flex; align-items:center; gap:3px; font-size:0.72rem; color:var(--text-secondary); opacity:0.85;"><i class="fas fa-map-pin" style="font-size:0.6rem;"></i>${truncateText(local, 20)}</span>` : '';
+                    const resumoHtml = resumo ? `<div style="margin-top:6px; font-size:0.78rem; color:var(--text-secondary); line-height:1.45; padding:6px 10px; background:var(--bg-body); border-radius:8px; border:1px solid var(--border);">${truncateText(resumo, 80)}</div>` : '';
+
+                    return `
+                        <div style="display:flex; gap:12px; padding:12px 0; ${idx < rows.length - 1 ? 'border-bottom:1px solid var(--border);' : ''} cursor:pointer; border-radius:8px; transition:background 0.15s;" onmouseover="this.style.background='var(--bg-body)'" onmouseout="this.style.background='transparent'" onclick="if(typeof openDetalheVisitaModal==='function') openDetalheVisitaModal(window.__visitasSemanaData[${idx}])">
+                            <div style="flex-shrink:0; width:38px; height:38px; border-radius:10px; background:${sc.bg}; border:1px solid ${sc.border}; display:flex; align-items:center; justify-content:center;">
+                                <i class="fas ${sc.icon}" style="color:${sc.color}; font-size:0.85rem;"></i>
+                            </div>
+                            <div style="flex:1; min-width:0;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+                                    <span style="font-weight:700; font-size:0.88rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${truncateText(r.prescritor || '-', 30)}</span>
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        <span style="display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; background:${sc.bg}; border:1px solid ${sc.border}; font-size:0.68rem; font-weight:700; color:${sc.color}; white-space:nowrap;">
+                                            <i class="fas ${sc.icon}" style="font-size:0.55rem;"></i>${status}
+                                        </span>
+                                        <span style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:6px; background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); font-size:0.6rem;" title="Ver detalhes">
+                                            <i class="fas fa-expand"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px; margin-top:3px; flex-wrap:wrap;">
+                                    <span style="display:inline-flex; align-items:center; gap:3px; font-size:0.72rem; color:var(--text-secondary);"><i class="far fa-clock" style="font-size:0.6rem;"></i>${dataFmt}${hora ? ' · ' + hora : ''}</span>
+                                    ${localHtml}
+                                </div>
+                                ${resumoHtml}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                vsBody.innerHTML = `
+                    <div style="text-align:center; padding:36px 0;">
+                        <div style="width:48px; height:48px; border-radius:12px; background:rgba(148,163,184,0.08); display:inline-flex; align-items:center; justify-content:center; margin-bottom:10px;">
+                            <i class="fas fa-clipboard-list" style="color:var(--text-secondary); font-size:1.1rem; opacity:0.5;"></i>
+                        </div>
+                        <div style="font-size:0.85rem; color:var(--text-secondary);">Nenhuma visita registrada esta semana</div>
+                    </div>`;
+            }
+        }
+
+        // 6. Visitas Agendadas (próximas) — cards premium
+        const vaBody = document.getElementById('visitasAgendadasBody');
+        const vaCount = document.getElementById('visitasAgendadasCount');
+        if (vaBody) {
+            const rows = data.visitas_agendadas || [];
+            if (vaCount) vaCount.textContent = rows.length;
+            if (Array.isArray(rows) && rows.length) {
+                const hoje = new Date(); hoje.setHours(0,0,0,0);
+                vaBody.innerHTML = rows.map((r, idx) => {
+                    const dt = r.data_agendada ? new Date(r.data_agendada) : null;
+                    const dataFmt = dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }) : (r.data_agendada || '-');
+                    const hora = r.hora ? String(r.hora).slice(0, 5) : '';
+                    const diaSemana = dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString('pt-BR', { weekday:'short' }) : '';
+
+                    const isHoje = dt && !isNaN(dt.getTime()) && dt.toDateString() === hoje.toDateString();
+                    const isAmanha = dt && !isNaN(dt.getTime()) && (() => { const t = new Date(hoje); t.setDate(t.getDate()+1); return dt.toDateString() === t.toDateString(); })();
+                    const diffDias = dt && !isNaN(dt.getTime()) ? Math.ceil((dt - hoje) / 86400000) : null;
+
+                    let timeBadge = '';
+                    if (isHoje) timeBadge = `<span style="font-size:0.62rem; font-weight:800; padding:1px 6px; border-radius:4px; background:#10B981; color:white;">HOJE</span>`;
+                    else if (isAmanha) timeBadge = `<span style="font-size:0.62rem; font-weight:800; padding:1px 6px; border-radius:4px; background:#F59E0B; color:white;">AMANHÃ</span>`;
+                    else if (diffDias !== null && diffDias <= 7) timeBadge = `<span style="font-size:0.62rem; font-weight:700; padding:1px 6px; border-radius:4px; background:rgba(37,99,235,0.12); color:#3B82F6;">em ${diffDias}d</span>`;
+
+                    const borderLeft = isHoje ? '3px solid #10B981' : isAmanha ? '3px solid #F59E0B' : '3px solid rgba(37,99,235,0.3)';
+
+                    return `
+                        <div style="display:flex; gap:12px; padding:12px 0 12px 12px; border-left:${borderLeft}; margin-bottom:${idx < rows.length - 1 ? '8' : '0'}px; border-radius:0 8px 8px 0; background:var(--bg-body); border-top:1px solid var(--border); border-right:1px solid var(--border); border-bottom:1px solid var(--border);">
+                            <div style="flex-shrink:0; text-align:center; min-width:44px;">
+                                <div style="font-size:1.15rem; font-weight:900; color:var(--text-primary); line-height:1;">${dt && !isNaN(dt.getTime()) ? String(dt.getDate()).padStart(2,'0') : '-'}</div>
+                                <div style="font-size:0.62rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">${dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString('pt-BR', { month:'short' }).replace('.','') : ''}</div>
+                                <div style="font-size:0.58rem; color:var(--text-secondary); text-transform:uppercase; margin-top:1px;">${diaSemana.replace('.','')}</div>
+                            </div>
+                            <div style="flex:1; min-width:0;">
+                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    <span style="font-weight:700; font-size:0.88rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${truncateText(r.prescritor || '-', 28)}</span>
+                                    ${timeBadge}
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+                                    ${hora ? `<span style="display:inline-flex; align-items:center; gap:3px; font-size:0.72rem; color:var(--text-secondary);"><i class="far fa-clock" style="font-size:0.6rem;"></i>${hora}</span>` : ''}
+                                    <span style="display:inline-flex; align-items:center; gap:3px; font-size:0.72rem; color:var(--text-secondary);"><i class="far fa-calendar" style="font-size:0.6rem;"></i>${dataFmt}</span>
+                                </div>
+                            </div>
+                            <div style="flex-shrink:0; display:flex; align-items:center; padding-right:10px;">
+                                <div style="width:8px; height:8px; border-radius:50%; background:${isHoje ? '#10B981' : '#3B82F6'}; box-shadow:0 0 6px ${isHoje ? 'rgba(16,185,129,0.5)' : 'rgba(59,130,246,0.3)'};"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                vaBody.innerHTML = `
+                    <div style="text-align:center; padding:36px 0;">
+                        <div style="width:48px; height:48px; border-radius:12px; background:rgba(148,163,184,0.08); display:inline-flex; align-items:center; justify-content:center; margin-bottom:10px;">
+                            <i class="fas fa-calendar-check" style="color:var(--text-secondary); font-size:1.1rem; opacity:0.5;"></i>
+                        </div>
+                        <div style="font-size:0.85rem; color:var(--text-secondary);">Nenhuma visita agendada</div>
+                    </div>`;
+            }
+        }
+
+        // 7. Mapa de Visitas (GPS)
+        try {
+            renderDashboardMapaVisitas(data.visitas_mapa || [], data.visitas_mapa_resumo || null, { ano, mes });
+        } catch (e) {
+            // não quebrar o dashboard se o mapa falhar
+        }
+
+    } catch (err) {
+        console.error(err);
+    }
+    hideLoading();
+}
+
+// =========================
+// MAPA DE VISITAS (DASHBOARD)
+// =========================
+let __dashVisitasMap = null;
+let __dashVisitasLayer = null;
+let __dashVisitasLine = null;
+let __dashVisitasDataCache = { visitas: [], resumo: null, contexto: null };
+
+function renderDashboardMapaVisitas(visitas, resumo, contexto) {
+    const mapEl = document.getElementById('dashboardVisitasMap');
+    const emptyEl = document.getElementById('visitasMapaEmpty');
+    const resumoEl = document.getElementById('visitasMapaResumo');
+    if (!mapEl) return; // não é a página do visitador
+
+    const safeVisitas = Array.isArray(visitas) ? visitas : [];
+    __dashVisitasDataCache = { visitas: safeVisitas, resumo: resumo || null, contexto: contexto || null };
+
+    const totalGPS = safeVisitas.length;
+    const totalVisitas = resumo && typeof resumo.total_visitas_periodo === 'number' ? resumo.total_visitas_periodo : null;
+    const totalRealizadas = resumo && typeof resumo.total_visitas_realizadas === 'number' ? resumo.total_visitas_realizadas : null;
+
+    if (resumoEl) {
+        const parts = [];
+        if (totalVisitas !== null) parts.push(`<strong>${totalVisitas}</strong> visitas no período`);
+        if (totalRealizadas !== null) parts.push(`<strong>${totalRealizadas}</strong> realizadas`);
+        parts.push(`<strong>${totalGPS}</strong> com GPS`);
+        resumoEl.innerHTML = parts.join(' • ');
+    }
+
+    if (emptyEl) emptyEl.style.display = totalGPS ? 'none' : 'block';
+    mapEl.style.display = totalGPS ? 'block' : 'none';
+    if (!totalGPS) return;
+
+    if (typeof L === 'undefined') {
+        if (resumoEl) resumoEl.innerHTML = 'Mapa indisponível (Leaflet não carregou).';
+        return;
+    }
+
+    // Inicializar mapa 1x
+    if (!__dashVisitasMap) {
+        __dashVisitasMap = L.map(mapEl, { zoomControl: true, attributionControl: false });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(__dashVisitasMap);
+    }
+
+    // Limpar layers anteriores
+    if (__dashVisitasLayer) __dashVisitasLayer.remove();
+    if (__dashVisitasLine) __dashVisitasLine.remove();
+    __dashVisitasLayer = L.layerGroup().addTo(__dashVisitasMap);
+
+    const points = [];
+    safeVisitas.forEach((v) => {
+        const lat = parseFloat(v.lat);
+        const lng = parseFloat(v.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        points.push([lat, lng]);
+
+        const dataTxt = v.data_visita ? (() => {
+            const dt = new Date(v.data_visita);
+            return !isNaN(dt.getTime()) ? dt.toLocaleDateString('pt-BR') : String(v.data_visita);
+        })() : '-';
+        const hora = v.horario ? String(v.horario).slice(0, 5) : '';
+        const prescritor = v.prescritor ? truncateText(String(v.prescritor), 40) : '-';
+        const status = v.status_visita ? truncateText(String(v.status_visita), 16) : '-';
+        const acc = v.accuracy_m != null ? `±${Math.round(parseFloat(v.accuracy_m))}m` : '';
+
+        const popup = `
+            <div style="min-width:220px;">
+                <div style="font-weight:900; margin-bottom:6px;">${prescritor}</div>
+                <div style="font-size:0.82rem; color:#334155;">${dataTxt}${hora ? ' ' + hora : ''} • ${status}</div>
+                <div style="font-size:0.78rem; color:#64748B; margin-top:6px;">${lat.toFixed(6)}, ${lng.toFixed(6)} ${acc}</div>
+            </div>
+        `;
+
+        const marker = L.circleMarker([lat, lng], {
+            radius: 6,
+            color: '#2563EB',
+            weight: 2,
+            fillColor: '#60A5FA',
+            fillOpacity: 0.8
+        }).bindPopup(popup);
+        marker.addTo(__dashVisitasLayer);
+    });
+
+    if (points.length >= 2) {
+        __dashVisitasLine = L.polyline(points, { color: '#10B981', weight: 3, opacity: 0.6 }).addTo(__dashVisitasMap);
+    }
+
+    const bounds = L.latLngBounds(points);
+    __dashVisitasMap.fitBounds(bounds.pad(0.18));
+    setTimeout(() => __dashVisitasMap.invalidateSize(), 120);
+}
+
+function openMapaVisitasStatsModal() {
+    const modal = document.getElementById('modalMapaVisitasStats');
+    if (!modal) return;
+    modal.style.display = 'flex';
+
+    const sub = document.getElementById('mapaStatsSubtitulo');
+    const totalEl = document.getElementById('mapaStatTotalVisitas');
+    const realizadasEl = document.getElementById('mapaStatRealizadas');
+    const gpsEl = document.getElementById('mapaStatComGPS');
+    const distEl = document.getElementById('mapaStatDistanciaKm');
+    const tbody = document.getElementById('mapaStatsTrechosBody');
+
+    const visitas = (__dashVisitasDataCache && Array.isArray(__dashVisitasDataCache.visitas)) ? __dashVisitasDataCache.visitas : [];
+    const resumo = __dashVisitasDataCache ? __dashVisitasDataCache.resumo : null;
+    const ctx = __dashVisitasDataCache ? __dashVisitasDataCache.contexto : null;
+
+    const anoTxt = ctx && ctx.ano ? String(ctx.ano) : '';
+    const mesTxt = ctx && ctx.mes ? `/${String(ctx.mes).padStart(2, '0')}` : '';
+    if (sub) sub.innerHTML = `Período: <strong>${anoTxt}${mesTxt || ''}</strong> • cálculo por GPS (somente onde existe ponto)`;
+
+    const totalVisitas = resumo && typeof resumo.total_visitas_periodo === 'number' ? resumo.total_visitas_periodo : null;
+    const totalRealizadas = resumo && typeof resumo.total_visitas_realizadas === 'number' ? resumo.total_visitas_realizadas : null;
+
+    if (totalEl) totalEl.textContent = (totalVisitas !== null) ? String(totalVisitas) : '-';
+    if (realizadasEl) realizadasEl.textContent = (totalRealizadas !== null) ? String(totalRealizadas) : '-';
+    if (gpsEl) gpsEl.textContent = String(visitas.length);
+
+    const stats = calcDistanciaPorTrechos(visitas);
+    if (distEl) distEl.textContent = stats.distanciaKm.toFixed(2);
+
+    if (tbody) {
+        if (stats.trechos.length) {
+            tbody.innerHTML = stats.trechos.map(t => `
+                <tr>
+                    <td style="color:var(--text-secondary); font-size:0.85rem;">${t.data}</td>
+                    <td style="color:var(--text-primary); font-weight:600;">${truncateText(t.de, 28)} → ${truncateText(t.para, 28)}</td>
+                    <td style="text-align:right; font-weight:800; color:var(--warning);">${t.km.toFixed(2)} km</td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:26px; color:var(--text-secondary);">Sem GPS suficiente para calcular distância (precisa de 2+ pontos).</td></tr>`;
+        }
+    }
+}
+
+function closeMapaVisitasStatsModal() {
+    const modal = document.getElementById('modalMapaVisitasStats');
+    if (modal) modal.style.display = 'none';
+}
+
+function calcDistanciaPorTrechos(visitas) {
+    const pts = (Array.isArray(visitas) ? visitas : [])
+        .map(v => ({
+            lat: parseFloat(v.lat),
+            lng: parseFloat(v.lng),
+            data_visita: v.data_visita || null,
+            horario: v.horario || null,
+            prescritor: v.prescritor || '-'
+        }))
+        .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+
+    let totalKm = 0;
+    const trechos = [];
+    for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1];
+        const b = pts[i];
+        const km = haversineKm(a.lat, a.lng, b.lat, b.lng);
+        if (Number.isFinite(km)) {
+            totalKm += km;
+            const dt = b.data_visita ? (() => {
+                const d = new Date(b.data_visita);
+                return !isNaN(d.getTime()) ? d.toLocaleDateString('pt-BR') : String(b.data_visita);
+            })() : '-';
+            trechos.push({
+                data: dt,
+                de: String(a.prescritor || '-'),
+                para: String(b.prescritor || '-'),
+                km
+            });
+        }
+    }
+    return { distanciaKm: totalKm, trechos };
+}
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+    const toRad = (d) => (d * Math.PI) / 180;
+    const R = 6371; // km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+function renderInsights(insights) {
+    const grid = document.getElementById('insightsGrid');
+    grid.innerHTML = insights.map(ins => `
+        <div class="insight-card ${ins.type}">
+            <div class="insight-icon">${ins.icon}</div>
+            <div class="insight-title">${ins.title}</div>
+            <div class="insight-text">${ins.text}</div>
+            <div class="insight-metric ${ins.metricClass}">${ins.metric}</div>
+        </div>
+    `).join('');
+}
+
+// ============ IMPORT ============
+async function importarDados() {
+    const btn = document.getElementById('importBtn');
+    const progress = document.getElementById('importProgress');
+    const progressFill = document.getElementById('progressFill');
+    const statusEl = document.getElementById('importStatus');
+    const resultsEl = document.getElementById('importResults');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importando...';
+    progress.style.display = 'block';
+    resultsEl.innerHTML = '';
+
+    let pct = 0;
+    const interval = setInterval(() => {
+        pct = Math.min(pct + Math.random() * 15, 90);
+        progressFill.style.width = pct + '%';
+    }, 500);
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 600000);
+        const response = await fetch('scripts/importar_dados.php', {
+            credentials: 'same-origin',
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        const data = await response.json();
+
+        clearInterval(interval);
+        progressFill.style.width = '100%';
+
+        if (data.success) {
+            statusEl.textContent = '✅ ' + data.message;
+            statusEl.style.color = 'var(--success)';
+
+            resultsEl.innerHTML = Object.entries(data.registros_importados).map(([table, count]) => `
+                <div class="import-result-item">
+                    <span class="label">${table.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
+                    <span class="value">${formatNumber(count)} registros</span>
+                </div>
+            `).join('');
+
+            // Refresh data
+            await loadYears();
+        } else {
+            statusEl.textContent = '❌ Erro: ' + (data.error || 'Falha na importação');
+            statusEl.style.color = 'var(--danger)';
+        }
+    } catch (err) {
+        clearInterval(interval);
+        statusEl.textContent = '❌ Erro de conexão: ' + err.message;
+        statusEl.style.color = 'var(--danger)';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-upload"></i> Importar Novamente';
+}
+
+// ============ ADMIN - User Management ============
+async function loadAdmin() {
+    try {
+        const result = await apiGet('list_users');
+        if (!result.success) {
+            console.error('Erro:', result.error);
+            return;
+        }
+        const users = result.users || [];
+
+        // Render stats
+        const totalUsers = users.length;
+        const activeUsers = users.filter(u => u.ativo == 1).length;
+        const adminUsers = users.filter(u => u.tipo === 'admin').length;
+        const regularUsers = users.filter(u => u.tipo === 'usuario').length;
+
+        document.getElementById('adminStats').innerHTML = `
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">${totalUsers}</div>
+                <div class="admin-stat-label">Total de Usuários</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number" style="color: var(--success);">${activeUsers}</div>
+                <div class="admin-stat-label">Ativos</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number" style="color: #7B68EE;">${adminUsers}</div>
+                <div class="admin-stat-label">Administradores</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number" style="color: var(--info);">${regularUsers}</div>
+                <div class="admin-stat-label">Usuários Comuns</div>
+            </div>
+        `;
+
+        // Render table
+        const tbody = document.querySelector('#tableUsers tbody');
+        tbody.innerHTML = users.map(u => {
+            const setorIcons = { Visitador: 'walking', Vendedor: 'cash-register', Gerente: 'user-tie', Caixa: 'money-bill-wave', Atendente: 'headset' };
+            const setorIcon = setorIcons[u.setor] || 'briefcase';
+            const safeNome = (u.nome || '').replace(/'/g, '&#39;');
+            const safeUsuario = (u.usuario || '').replace(/'/g, '&#39;');
+            const safeSetor = (u.setor || '').replace(/'/g, '&#39;');
+            const safeWhatsapp = (u.whatsapp || '').replace(/'/g, '&#39;');
+            const whatsappNum = (u.whatsapp || '').replace(/\D/g, '');
+            const whatsappLink = whatsappNum ? `https://wa.me/55${whatsappNum}` : '';
+            return `
+            <tr>
+                <td><span style="color:var(--text-muted);font-weight:600;">#${u.id}</span></td>
+                <td style="color:var(--text-primary);font-weight:500;">${u.nome}</td>
+                <td><code style="background:var(--bg-input);padding:2px 8px;border-radius:4px;font-size:0.82rem;">${u.usuario}</code></td>
+                <td>
+                    ${u.setor ? `<span class="user-setor-badge"><i class="fas fa-${setorIcon}"></i> ${u.setor}</span>` : '<span style="color:var(--text-muted);">\u2014</span>'}
+                </td>
+                <td>
+                    ${u.whatsapp ? `<a href="${whatsappLink}" target="_blank" style="color:#25D366;text-decoration:none;font-weight:500;display:inline-flex;align-items:center;gap:4px;" title="Abrir no WhatsApp"><i class="fab fa-whatsapp"></i> ${u.whatsapp}</a>` : '<span style="color:var(--text-muted);">\u2014</span>'}
+                </td>
+                <td>
+                    <span class="user-type-badge ${u.tipo}">
+                        <i class="fas fa-${u.tipo === 'admin' ? 'shield-alt' : 'user'}"></i>
+                        ${u.tipo === 'admin' ? 'Admin' : 'Usu\u00e1rio'}
+                    </span>
+                </td>
+                <td>
+                    <span class="user-status-badge ${u.ativo == 1 ? 'active' : 'inactive'}">
+                        <i class="fas fa-circle" style="font-size:6px;"></i>
+                        ${u.ativo == 1 ? 'Ativo' : 'Inativo'}
+                    </span>
+                </td>
+                <td style="font-size:0.82rem;color:var(--text-secondary);">${u.criado_em || '\u2014'}</td>
+                <td style="font-size:0.82rem;color:var(--text-secondary);">${u.ultimo_acesso || 'Nunca'}</td>
+                <td>
+                    <div class="action-btns">
+                        <button class="btn-action edit" onclick="openMetasModal(${u.id}, '${safeNome}', ${u.meta_mensal || 0}, ${u.meta_anual || 0}, ${u.comissao_percentual || 0}, ${u.meta_visitas_semana || 0}, ${u.meta_visitas_mes || 0}, ${u.premio_visitas || 0})" title="Definir Metas">
+                            <i class="fas fa-bullseye" style="color:var(--warning);"></i>
+                        </button>
+                        <button class="btn-action edit" onclick="openEditUserModal(${u.id}, '${safeNome}', '${safeUsuario}', '${u.tipo}', '${safeSetor}', '${safeWhatsapp}')" title="Editar">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="btn-action toggle" onclick="toggleUserStatus(${u.id})" title="${u.ativo == 1 ? 'Desativar' : 'Ativar'}">
+                            <i class="fas fa-${u.ativo == 1 ? 'toggle-on' : 'toggle-off'}"></i>
+                        </button>
+                        <button class="btn-action delete" onclick="deleteUser(${u.id}, '${safeNome}')" title="Excluir">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `}).join('');
+
+    } catch (err) {
+        console.error('Erro ao carregar admin:', err);
+    }
+}
+
+// ---- Modal helpers ----
+function openAddUserModal() {
+    document.getElementById('formAddUser').reset();
+    document.getElementById('addUserError').style.display = 'none';
+    document.getElementById('modalAddUser').style.display = 'flex';
+}
+
+function openEditUserModal(id, nome, usuario, tipo, setor, whatsapp) {
+    document.getElementById('editId').value = id;
+    document.getElementById('editNome').value = nome.replace(/&#39;/g, "'");
+    document.getElementById('editUsuario').value = usuario.replace(/&#39;/g, "'");
+    document.getElementById('editTipo').value = tipo;
+    document.getElementById('editSetor').value = setor || '';
+    document.getElementById('editWhatsapp').value = (whatsapp || '').replace(/&#39;/g, "'");
+    document.getElementById('editSenha').value = '';
+    document.getElementById('editUserError').style.display = 'none';
+    document.getElementById('modalEditUser').style.display = 'flex';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+// ---- Edit Metas ----
+function openMetasModal(id, nome, mensal, anual, comissao, visitasSemana, visitasMes, premio) {
+    document.getElementById('metasUserId').value = id;
+    document.getElementById('metasUserName').textContent = 'Usuário: ' + nome.replace(/&#39;/g, "'");
+    document.getElementById('metasMensal').value = parseFloat(mensal).toFixed(2);
+    document.getElementById('metasAnual').value = parseFloat(anual).toFixed(2);
+    document.getElementById('metasComissao').value = parseFloat(comissao).toFixed(2);
+    document.getElementById('metasVisitasSemana').value = parseInt(visitasSemana || 0);
+    document.getElementById('metasVisitasMes').value = parseInt(visitasMes || 0);
+    document.getElementById('metasPremio').value = parseFloat(premio || 0).toFixed(2);
+    document.getElementById('metasError').style.display = 'none';
+    document.getElementById('modalEditMetas').style.display = 'flex';
+}
+
+async function submitMetas(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSaveMetas');
+    const errorEl = document.getElementById('metasError');
+    errorEl.style.display = 'none';
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+
+    try {
+        const result = await apiPost('edit_user_metas', {
+            id: parseInt(document.getElementById('metasUserId').value),
+            meta_mensal: parseFloat(document.getElementById('metasMensal').value),
+            meta_anual: parseFloat(document.getElementById('metasAnual').value),
+            comissao_percentual: parseFloat(document.getElementById('metasComissao').value),
+            meta_visitas_semana: parseInt(document.getElementById('metasVisitasSemana').value),
+            meta_visitas_mes: parseInt(document.getElementById('metasVisitasMes').value),
+            premio_visitas: parseFloat(document.getElementById('metasPremio').value)
+        });
+
+        if (result.success) {
+            closeModal('modalEditMetas');
+            showToast('success', result.message);
+            await loadAdmin();
+        } else {
+            errorEl.textContent = result.error;
+            errorEl.style.display = 'block';
+        }
+    } catch (err) {
+        errorEl.textContent = 'Erro de conexão';
+        errorEl.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save"></i> Salvar Metas';
+    return false;
+}
+
+// ---- Add User ----
+async function submitAddUser(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnAddUser');
+    const errorEl = document.getElementById('addUserError');
+    errorEl.style.display = 'none';
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...';
+
+    try {
+        const result = await apiPost('add_user', {
+            nome: document.getElementById('addNome').value,
+            usuario: document.getElementById('addUsuario').value,
+            senha: document.getElementById('addSenha').value,
+            tipo: document.getElementById('addTipo').value,
+            setor: document.getElementById('addSetor').value,
+            whatsapp: document.getElementById('addWhatsapp').value
+        });
+
+        if (result.success) {
+            closeModal('modalAddUser');
+            showToast('success', result.message);
+            await loadAdmin();
+        } else {
+            errorEl.textContent = result.error;
+            errorEl.style.display = 'block';
+        }
+    } catch (err) {
+        errorEl.textContent = 'Erro de conexão';
+        errorEl.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check"></i> Criar Usuário';
+    return false;
+}
+
+// ---- Edit User ----
+async function submitEditUser(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnEditUser');
+    const errorEl = document.getElementById('editUserError');
+    errorEl.style.display = 'none';
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+
+    try {
+        const result = await apiPost('edit_user', {
+            id: parseInt(document.getElementById('editId').value),
+            nome: document.getElementById('editNome').value,
+            usuario: document.getElementById('editUsuario').value,
+            senha: document.getElementById('editSenha').value,
+            tipo: document.getElementById('editTipo').value,
+            setor: document.getElementById('editSetor').value,
+            whatsapp: document.getElementById('editWhatsapp').value
+        });
+
+        if (result.success) {
+            closeModal('modalEditUser');
+            showToast('success', result.message);
+            await loadAdmin();
+        } else {
+            errorEl.textContent = result.error;
+            errorEl.style.display = 'block';
+        }
+    } catch (err) {
+        errorEl.textContent = 'Erro de conexão';
+        errorEl.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+    return false;
+}
+
+// ---- Toggle User Status ----
+async function toggleUserStatus(id) {
+    try {
+        const result = await apiPost('toggle_user', { id });
+        if (result.success) {
+            showToast('success', result.message);
+            await loadAdmin();
+        } else {
+            showToast('error', result.error);
+        }
+    } catch (err) {
+        showToast('error', 'Erro de conexão');
+    }
+}
+
+// ---- Delete User ----
+async function deleteUser(id, nome) {
+    if (!confirm(`Tem certeza que deseja EXCLUIR o usuário "${nome}"?\n\nEsta ação não pode ser desfeita.`)) {
+        return;
+    }
+
+    try {
+        const result = await apiPost('delete_user', { id });
+        if (result.success) {
+            showToast('success', result.message);
+            await loadAdmin();
+        } else {
+            showToast('error', result.error);
+        }
+    } catch (err) {
+        showToast('error', 'Erro de conexão');
+    }
+}
+
+// ---- Toast Notification ----
+function showToast(type, message) {
+    const existing = document.querySelector('.toast-notification');
+    if (existing) existing.remove();
+
+    const icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    toast.innerHTML = `<i class="fas fa-${icon}"></i> ${message}`;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100px)';
+        toast.style.transition = '0.4s ease';
+        setTimeout(() => toast.remove(), 400);
+    }, 3000);
+}
+
+// ============ Chart Helpers ============
+function destroyChart(name) {
+    if (charts[name]) {
+        charts[name].destroy();
+        delete charts[name];
+    }
+}
+
+// ============ Theme Toggle ============
+function toggleTheme() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('mypharm_theme', newTheme);
+    applyChartTheme(newTheme);
+}
+
+function applyChartTheme(theme) {
+    if (theme === 'light') {
+        Chart.defaults.color = '#5A6178';
+        Chart.defaults.borderColor = 'rgba(0,0,0,0.06)';
+    } else {
+        Chart.defaults.color = '#9CA3B8';
+        Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+    }
+
+    const gridColor = theme === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)';
+    const pointBorderColor = theme === 'light' ? '#FFFFFF' : '#0F1117';
+
+    // Update existing charts
+    Object.values(charts).forEach(chart => {
+        if (chart.options?.scales?.y?.grid) {
+            chart.options.scales.y.grid.color = gridColor;
+        }
+        if (chart.options?.scales?.x?.grid) {
+            chart.options.scales.x.grid.color = gridColor;
+        }
+
+        // Update point border colors for line charts
+        chart.data.datasets.forEach(dataset => {
+            if (dataset.pointBorderColor) {
+                dataset.pointBorderColor = pointBorderColor;
+            }
+        });
+
+        chart.update('none');
+    });
+}
+
+function loadSavedTheme() {
+    const saved = localStorage.getItem('mypharm_theme');
+    if (saved) {
+        document.documentElement.setAttribute('data-theme', saved);
+        applyChartTheme(saved);
+    }
+}
+
+async function fetchCsrfToken() {
+    try {
+        const resp = await fetch(`${API_URL}?action=csrf_token`);
+        const data = await resp.json();
+        if (data.token) __csrfToken = data.token;
+    } catch (_) {}
+}
+
+// ============ Init ============
+document.addEventListener('DOMContentLoaded', async () => {
+    loadSavedTheme();
+    initParticles();
+
+    await fetchCsrfToken();
+
+    if (localStorage.getItem('loggedIn')) {
+        showApp(
+            localStorage.getItem('userName'),
+            localStorage.getItem('userType')
+        );
+    }
+});
