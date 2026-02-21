@@ -1,3 +1,355 @@
+# MyPharm - Sistema de Gestao Comercial e Visitas
+
+Sistema web para gestao de farmacia de manipulacao com foco em:
+- indicadores de faturamento e performance,
+- carteira de prescritores,
+- operacao de visitadores em campo,
+- rotas com GPS e historico de visitas,
+- importacao de dados via CSV/CLI.
+
+---
+
+## Sumario
+
+1. [Visao geral](#visao-geral)
+2. [Funcionalidades principais](#funcionalidades-principais)
+3. [Arquitetura e stack](#arquitetura-e-stack)
+4. [Estrutura do projeto](#estrutura-do-projeto)
+5. [Instalacao local](#instalacao-local)
+6. [Configuracao de ambiente](#configuracao-de-ambiente)
+7. [Banco de dados](#banco-de-dados)
+8. [Fluxo de visitas e rotas](#fluxo-de-visitas-e-rotas)
+9. [Importacao de dados](#importacao-de-dados)
+10. [API (resumo por dominios)](#api-resumo-por-dominios)
+11. [Seguranca](#seguranca)
+12. [Deploy em producao (Hostinger)](#deploy-em-producao-hostinger)
+13. [Operacao e troubleshooting](#operacao-e-troubleshooting)
+14. [Roadmap curto](#roadmap-curto)
+
+---
+
+## Visao geral
+
+O MyPharm centraliza informacoes de vendas, prescritores e visitas comerciais em uma unica aplicacao.
+
+O sistema possui dois contextos principais:
+
+- **Painel Admin (`index.html`)**
+  - dashboards de faturamento, prescritores, visitadores e visitas;
+  - filtros por ano/mes;
+  - relatorio de rotas e mapa consolidado com pontos de atendimento;
+  - gerenciamento de usuarios e metas.
+
+- **Painel Visitador (`visitador.html`)**
+  - controle da rota do dia (iniciar, pausar, retomar, finalizar);
+  - iniciar/encerrar visita com coleta de GPS;
+  - agenda e relatorio semanal com detalhes da visita;
+  - modal detalhado com inicio, fim, duracao e proximo agendamento.
+
+---
+
+## Funcionalidades principais
+
+### 1) Dashboards administrativos
+- KPIs por periodo (visitas, faturamento, produtividade).
+- Graficos com Chart.js e filtros por ano/mes.
+- Tabelas de detalhamento por visitador, prescritor e rotas.
+
+### 2) Gestao de visitas
+- Abertura e encerramento de visita por prescritor.
+- Registro de status, local, resumo, itens entregues e reagendamento.
+- Captura de geolocalizacao no encerramento.
+
+### 3) Rota do dia (visitador)
+- Estado da rota: `idle`, `em_andamento`, `pausada`.
+- Gravacao periodica de pontos GPS.
+- Calculo de km percorrido por rota.
+
+### 4) Mapa de rotas e atendimentos
+- Exibicao de trilhas por visitador.
+- Marcacao de pontos de atendimento com popup do prescritor.
+- Filtro por visitador no mapa.
+
+### 5) Relatorio de visitas (admin)
+- totais do periodo e semana atual;
+- visitas por visitador;
+- detalhes das rotas (inicio/fim/status/km/pontos);
+- visitas realizadas com inicio, fim, duracao e proximo agendamento.
+
+### 6) Importacao de base historica
+- suporte a importacao por CSV e scripts CLI;
+- carga por ano (incluindo 2026) e reprocessamento quando necessario.
+
+---
+
+## Arquitetura e stack
+
+### Backend
+- PHP 8+
+- API unica em `api.php`
+- PDO com MySQL
+
+### Frontend
+- HTML + CSS + JavaScript (vanilla)
+- Chart.js (graficos)
+- Leaflet + OpenStreetMap (mapas)
+- Font Awesome (icones)
+
+### Persistencia
+- MySQL (Hostinger/XAMPP)
+- Sessao PHP + dados auxiliares em `localStorage` (ex.: tema por usuario)
+
+---
+
+## Estrutura do projeto
+
+```text
+mypharm/
+├── api.php
+├── config.php
+├── index.html
+├── visitador.html
+├── prescritores.html
+├── .htaccess
+├── .env
+├── css/
+│   ├── styles.css
+│   ├── visitador.css
+│   └── login.css
+├── js/
+│   └── app.js
+├── scripts/
+│   ├── importar_dados.php
+│   ├── importar_itens_cli.php
+│   ├── importar_tudo_cli.php
+│   └── analisar_banco.php
+├── Dados/
+├── imagens/
+├── manifest.json
+└── robots.txt
+```
+
+---
+
+## Instalacao local
+
+### Requisitos
+- PHP 8.0+
+- MySQL 8+ (ou compativel)
+- Apache (XAMPP recomendado local)
+
+### Passos
+1. Copie o projeto para:
+   - `C:\xampp\htdocs\mypharm`
+2. Crie/ajuste o arquivo `.env` com as credenciais locais.
+3. Garanta que Apache e MySQL estejam ativos no XAMPP.
+4. Acesse:
+   - `http://localhost/mypharm/index.html`
+
+---
+
+## Configuracao de ambiente
+
+Exemplo de `.env`:
+
+```ini
+DB_HOST=127.0.0.1
+DB_NAME=mypharm
+DB_USER=root
+DB_PASS=
+DB_CHARSET=utf8mb4
+APP_ENV=local
+```
+
+Notas:
+- `config.php` ja aplica configuracoes de conexao e seguranca de sessao.
+- Timezone operacional de dados foi padronizado para Porto Velho (`-04:00` / `America/Porto_Velho` no frontend).
+
+---
+
+## Banco de dados
+
+Tabelas centrais utilizadas pelo sistema:
+
+- `historico_visitas`
+- `visitas_geolocalizacao`
+- `rotas_diarias`
+- `rotas_pontos`
+- `prescritores_cadastro`
+- `prescritor_resumido`
+- `itens_orcamentos_pedidos`
+- `gestao_pedidos`
+- `usuarios`
+- `metas_visitadores`
+
+Observacoes:
+- algumas estruturas sao criadas sob demanda na API (ex.: tabelas de GPS/agendamento).
+- campos de visita incluem suporte a `inicio_visita`, `horario` (fim), `status_visita`, `reagendado_para` e dados de localizacao.
+
+---
+
+## Fluxo de visitas e rotas
+
+### Visita (visitador)
+1. Inicia visita para um prescritor.
+2. Finaliza visita preenchendo:
+   - status,
+   - local,
+   - resumo,
+   - itens (amostra/brinde/artigo),
+   - proximo agendamento (opcional).
+3. Sistema grava horario de inicio/fim, duracao e ponto GPS.
+
+### Rota do dia
+1. Iniciar rota.
+2. Capturar pontos GPS periodicos.
+3. Pausar/retomar quando necessario.
+4. Finalizar rota ao encerrar o dia.
+
+### Consolidacao no admin
+- mapa mostra trilhas da rota e pontos de atendimento;
+- popup do ponto de atendimento exibe dados do prescritor.
+
+---
+
+## Importacao de dados
+
+### Via painel (web)
+- `scripts/importar_dados.php`
+- uso para cargas administradas por usuario logado.
+
+### Via CLI
+- `scripts/importar_itens_cli.php`
+- `scripts/importar_tudo_cli.php`
+
+Exemplo CLI:
+
+```bash
+cd C:\xampp\htdocs\mypharm
+php scripts/importar_tudo_cli.php
+```
+
+### Ferramenta de apoio
+- `scripts/analisar_banco.php` para diagnostico/analise de base.
+
+---
+
+## API (resumo por dominios)
+
+### Autenticacao e sessao
+- `login`
+- `logout`
+- `csrf_token`
+
+### Dashboard/admin
+- `dashboard`
+- `anos`
+- `admin_visitas`
+- `admin_visitas_relatorio`
+
+### Visitador
+- `visitador_dashboard`
+- `visita_ativa`
+- `iniciar_visita`
+- `encerrar_visita`
+- `rota_ativa`
+- `start_rota`
+- `pause_rota`
+- `resume_rota`
+- `stop_rota`
+- `save_rota_ponto`
+
+### Usuarios
+- `list_users`
+- `add_user`
+- `edit_user`
+- `toggle_user`
+- `delete_user`
+- `edit_user_metas`
+
+---
+
+## Seguranca
+
+Controles aplicados:
+- CSRF token em requisicoes POST;
+- sessao com flags de seguranca;
+- prepared statements em toda camada SQL;
+- CORS com validacao;
+- bloqueios via `.htaccess` para arquivos sensiveis (`.env`, `config.php`, `Dados/`, etc.);
+- validacao de perfil para acoes administrativas.
+
+---
+
+## Deploy em producao (Hostinger)
+
+Voce pode publicar de duas formas:
+
+### Opcao A - Git
+1. Commit/push para o repositorio remoto.
+2. No painel da Hostinger, execute pull/deploy do branch alvo.
+
+### Opcao B - FTP/File Manager
+1. Envie os arquivos para `public_html/mypharm/`.
+2. Configure `.env` de producao.
+3. Verifique `.htaccess` ativo.
+
+Exemplo de `.env` de producao:
+
+```ini
+DB_HOST=srv1845.hstgr.io
+DB_NAME=uXXXXXXXXX_my_pharm
+DB_USER=uXXXXXXXXX_my_pharm
+DB_PASS=SUA_SENHA
+DB_CHARSET=utf8mb4
+APP_ENV=production
+```
+
+Checklist rapido:
+- [ ] arquivos atualizados no servidor
+- [ ] `.env` correto
+- [ ] HTTPS funcionando
+- [ ] login e filtros testados
+- [ ] fluxo visita/rota testado
+- [ ] mapa de visitas carregando
+
+---
+
+## Operacao e troubleshooting
+
+### Tema claro/escuro
+- o tema fica salvo por usuario no `localStorage`:
+  - `mypharm_theme_<usuario>`
+
+### Mapa sem pontos
+- confirme se houve encerramento de visita com GPS;
+- valide permissao de geolocalizacao no navegador;
+- confira periodo/visitador selecionados.
+
+### API lenta
+- revisar indices das tabelas de visitas e pedidos;
+- conferir latencia entre PHP e MySQL;
+- habilitar opcache em producao.
+
+### Erro 403
+- validar regras de CORS/CSRF;
+- revisar permissao por tipo/setor do usuario.
+
+---
+
+## Roadmap curto
+
+- clusterizacao de marcadores no mapa para bases grandes;
+- filtros adicionais no relatorio de visitas;
+- exportacao CSV/PDF dos relatorios;
+- limpeza de codigo legado no painel do visitador.
+
+---
+
+## Licenca e uso
+
+Projeto interno MyPharm (uso privado da operacao).
+
 # MyPharm - Sistema de Gestao e Performance
 
 Sistema web para gestao de farmacia de manipulacao, com dashboards de performance, controle de visitas, prescritores e equipe comercial.

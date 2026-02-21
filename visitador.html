@@ -373,7 +373,9 @@
 
                 <!-- Dados dos 3 cards (Relatório Semanal, Agenda, Mapa) ficam em elementos ocultos para uso na página Relatório de visitas -->
                 <div id="dashboardRelatoriosVisitasFonte" style="display:none;">
+                    <span id="visitasDiaCount">0</span>
                     <span id="visitasSemanaCount">0</span>
+                    <span id="visitasMesCount">0</span>
                     <div id="visitasSemanaBody"></div>
                     <span id="visitasAgendadasCount">0</span>
                     <div id="visitasAgendadasBody"></div>
@@ -445,6 +447,27 @@
                 </h2>
             </div>
 
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:20px;">
+                <div class="card" style="padding:14px 16px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
+                        <i class="fas fa-calendar-day" style="margin-right:6px; color:#0EA5E9;"></i>Visitas no dia
+                    </div>
+                    <div id="relatorioKpiDiaCount" style="font-size:1.6rem; line-height:1; font-weight:800; color:var(--text-primary);">0</div>
+                </div>
+                <div class="card" style="padding:14px 16px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
+                        <i class="fas fa-calendar-week" style="margin-right:6px; color:#10B981;"></i>Visitas na semana
+                    </div>
+                    <div id="relatorioKpiSemanaCount" style="font-size:1.6rem; line-height:1; font-weight:800; color:var(--text-primary);">0</div>
+                </div>
+                <div class="card" style="padding:14px 16px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
+                        <i class="fas fa-calendar-alt" style="margin-right:6px; color:#F59E0B;"></i>Visitas no mês
+                    </div>
+                    <div id="relatorioKpiMesCount" style="font-size:1.6rem; line-height:1; font-weight:800; color:var(--text-primary);">0</div>
+                </div>
+            </div>
+
             <div class="relatorios-visitas-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
                 <div class="card" style="display:flex; flex-direction:column;">
                     <div class="card-header" style="flex-shrink:0;">
@@ -500,44 +523,6 @@
                 </div>
             </div>
 
-            <!-- Relação de prescritores (mesmo layout do modal Todos os Prescritores) -->
-            <div class="card">
-                <div class="card-header">
-                    <div>
-                        <div class="card-title">Relação de prescritores</div>
-                        <div class="card-subtitle" id="relatorioPrescritorSubtitle">Carteira do visitador</div>
-                    </div>
-                    <input type="text" id="searchRelatorioPrescritor" placeholder="Buscar prescritor..."
-                        oninput="filterRelatorioPrescritores()"
-                        style="width:100%; max-width:280px; padding:10px 16px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; outline:none;"
-                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
-                </div>
-                <div style="overflow-x:auto; overflow-y:auto; max-height:420px;" class="table-responsive">
-                    <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-                        <thead style="position:sticky; top:0; background:var(--bg-card); z-index:1;">
-                            <tr style="border-bottom:2px solid var(--border);">
-                                <th style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">#</th>
-                                <th style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Prescritor</th>
-                                <th style="padding:12px 16px; text-align:right; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Valor Aprovado</th>
-                                <th style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Pedidos</th>
-                                <th style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Dias s/ Compra</th>
-                                <th style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Dias s/ Visita</th>
-                                <th style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Visita</th>
-                            </tr>
-                        </thead>
-                        <tbody id="relatorioPrescritoresBody">
-                            <tr><td colspan="7" style="text-align:center; padding:40px; color:var(--text-secondary);">Carregando prescritores...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div id="relatorioPagination" style="padding:12px 24px; border-top:1px solid var(--border); background:var(--bg-card); display:flex; justify-content:space-between; align-items:center; font-size:0.85rem;">
-                    <div style="color:var(--text-secondary);" id="relatorioPaginationInfo">Mostrando 0-0 de 0</div>
-                    <div style="display:flex; gap:8px;">
-                        <button type="button" id="relatorioPrevPage" onclick="relatorioChangePage(-1)" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer;">Anterior</button>
-                        <button type="button" id="relatorioNextPage" onclick="relatorioChangePage(1)" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer;">Próximo</button>
-                    </div>
-                </div>
-            </div>
         </div>
     </main>
 
@@ -903,9 +888,14 @@
 
     <script src="js/app.js"></script>
     <script>
-        // Aplicar tema salvo imediatamente (mesmo sistema do index.html/app.js)
+        function getThemeStorageKeyVisitador() {
+            const userName = (localStorage.getItem('userName') || '').trim().toLowerCase();
+            return userName ? `mypharm_theme_${userName}` : 'mypharm_theme';
+        }
+
+        // Aplicar tema salvo imediatamente (por usuario, com fallback legado)
         (function () {
-            const savedTheme = localStorage.getItem('mypharm_theme');
+            const savedTheme = localStorage.getItem(getThemeStorageKeyVisitador()) || localStorage.getItem('mypharm_theme');
             if (savedTheme) {
                 document.documentElement.setAttribute('data-theme', savedTheme);
             }
@@ -916,6 +906,8 @@
             const currentTheme = html.getAttribute('data-theme');
             const newTheme = currentTheme === 'light' ? 'dark' : 'light';
             html.setAttribute('data-theme', newTheme);
+            localStorage.setItem(getThemeStorageKeyVisitador(), newTheme);
+            // Mantem chave legada para compatibilidade
             localStorage.setItem('mypharm_theme', newTheme);
         }
 
@@ -1004,10 +996,6 @@
         document.addEventListener('click', function (e) {
             const btn = e.target.closest('.btn-iniciar-visita');
             if (btn && typeof iniciarVisita === 'function') {
-                if (rotaState === 'idle') {
-                    alert('Inicie a rota do dia antes de iniciar uma visita.');
-                    return;
-                }
                 const nome = btn.getAttribute('data-prescritor');
                 if (nome) iniciarVisita(nome);
                 return;
@@ -1528,6 +1516,8 @@
                     activeVisit = av && av.active ? av.active : null;
                     if (subtitle) subtitle.textContent = 'Visita iniciada. Para finalizar, clique em “Encerrar”.';
                     renderModalPrescritores(filteredPrescritores);
+                    var modalPrescritores = document.getElementById('modalPrescritores');
+                    if (modalPrescritores) modalPrescritores.style.display = 'flex';
                     var relEl = document.getElementById('paginaRelatorioVisitas');
                     if (relEl && relEl.style.display !== 'none') {
                         var q = (document.getElementById('searchRelatorioPrescritor') || {}).value || '';
@@ -1792,18 +1782,26 @@
         const relatorioItemsPerPage = 50;
 
         function copyDashboardToRelatorio() {
+            const vDiaCount = document.getElementById('visitasDiaCount');
             const vsBody = document.getElementById('visitasSemanaBody');
             const vsCount = document.getElementById('visitasSemanaCount');
+            const vMesCount = document.getElementById('visitasMesCount');
             const vaBody = document.getElementById('visitasAgendadasBody');
             const vaCount = document.getElementById('visitasAgendadasCount');
             const mapaResumo = document.getElementById('visitasMapaResumo');
             const mapaEmpty = document.getElementById('visitasMapaEmpty');
+            const rDiaCount = document.getElementById('relatorioKpiDiaCount');
+            const rKpiSemanaCount = document.getElementById('relatorioKpiSemanaCount');
+            const rMesCount = document.getElementById('relatorioKpiMesCount');
             const rSemana = document.getElementById('relatorioSemanaBody');
             const rSemanaCount = document.getElementById('relatorioSemanaCount');
             const rAgenda = document.getElementById('relatorioAgendadasBody');
             const rAgendaCount = document.getElementById('relatorioAgendadasCount');
             const rMapaResumo = document.getElementById('relatorioMapaResumo');
             const rMapaEmpty = document.getElementById('relatorioMapaEmpty');
+            if (vDiaCount && rDiaCount) rDiaCount.textContent = vDiaCount.textContent || '0';
+            if (vsCount && rKpiSemanaCount) rKpiSemanaCount.textContent = vsCount.textContent || '0';
+            if (vMesCount && rMesCount) rMesCount.textContent = vMesCount.textContent || '0';
             if (vsBody && rSemana) rSemana.innerHTML = vsBody.innerHTML;
             if (vsCount && rSemanaCount) rSemanaCount.textContent = vsCount ? vsCount.textContent : '0';
             if (vaBody && rAgenda) rAgenda.innerHTML = vaBody.innerHTML;
@@ -2017,8 +2015,14 @@
                         updateRotaButton();
                         startRotaWatch();
                         renderModalPrescritores(filteredPrescritores);
+                        if (typeof loadVisitadorDashboard === 'function') {
+                            var anoEl = document.getElementById('anoSelect');
+                            var mesEl = document.getElementById('mesSelect');
+                            await loadVisitadorDashboard(currentVisitadorName, anoEl ? anoEl.value : null, mesEl && mesEl.value ? mesEl.value : null);
+                        }
                         var relEl = document.getElementById('paginaRelatorioVisitas');
                         if (relEl && relEl.style.display !== 'none') {
+                            if (typeof copyDashboardToRelatorio === 'function') copyDashboardToRelatorio();
                             var q = (document.getElementById('searchRelatorioPrescritor') || {}).value || '';
                             var term = q.toLowerCase().trim();
                             var data = term ? relatorioPrescritoresFiltered.filter(function(p) { return (p.prescritor || '').toLowerCase().includes(term); }) : relatorioPrescritoresFiltered;
@@ -2049,8 +2053,14 @@
                         updateRotaButton();
                         startRotaWatch();
                         renderModalPrescritores(filteredPrescritores);
+                        if (typeof loadVisitadorDashboard === 'function') {
+                            var anoEl = document.getElementById('anoSelect');
+                            var mesEl = document.getElementById('mesSelect');
+                            await loadVisitadorDashboard(currentVisitadorName, anoEl ? anoEl.value : null, mesEl && mesEl.value ? mesEl.value : null);
+                        }
                         var relEl = document.getElementById('paginaRelatorioVisitas');
                         if (relEl && relEl.style.display !== 'none') {
+                            if (typeof copyDashboardToRelatorio === 'function') copyDashboardToRelatorio();
                             var q = (document.getElementById('searchRelatorioPrescritor') || {}).value || '';
                             var term = q.toLowerCase().trim();
                             var data = term ? relatorioPrescritoresFiltered.filter(function(p) { return (p.prescritor || '').toLowerCase().includes(term); }) : relatorioPrescritoresFiltered;
@@ -2118,11 +2128,13 @@
             window.location.href = 'index.html';
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             if (!localStorage.getItem('loggedIn')) {
                 window.location.href = 'index.html';
                 return;
             }
+            // Garantir token CSRF antes de qualquer POST (evita 403 em save_rota_ponto, start_rota, etc.)
+            if (typeof fetchCsrfToken === 'function') await fetchCsrfToken();
 
             const userName = localStorage.getItem('userName');
             const userType = localStorage.getItem('userType') || '';

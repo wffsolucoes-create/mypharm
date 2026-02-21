@@ -38,7 +38,7 @@ header("Referrer-Policy: strict-origin-when-cross-origin");
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $csrfHeader = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
     $action = $_GET['action'] ?? '';
-    $csrfExempt = ['login'];
+    $csrfExempt = ['login', 'save_rota_ponto'];
     if (!in_array($action, $csrfExempt) && !validateCsrfToken($csrfHeader)) {
         http_response_code(403);
         echo json_encode(['error' => 'Token CSRF inválido. Recarregue a página.'], JSON_UNESCAPED_UNICODE);
@@ -1205,10 +1205,60 @@ try {
             $stmt->execute($qHv);
             $visitas_mapa = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+            // Distância padrão do período: rotas do dia (GPS contínuo em rotas_pontos)
+            $km_rotas_periodo = 0.0;
+            try {
+                $whereRotaVis = "WHERE YEAR(rd.data_inicio) = :ano_r AND TRIM(COALESCE(rd.visitador_nome, '')) = TRIM(:nome_r)";
+                $paramsRotaVis = ['ano_r' => (int)$ano, 'nome_r' => $nome];
+                if ($mes) {
+                    $whereRotaVis .= " AND MONTH(rd.data_inicio) = :mes_r";
+                    $paramsRotaVis['mes_r'] = (int)$mes;
+                }
+
+                $stmtRotas = $pdo->prepare("
+                    SELECT rd.id
+                    FROM rotas_diarias rd
+                    $whereRotaVis
+                    ORDER BY rd.data_inicio DESC
+                    LIMIT 800
+                ");
+                $stmtRotas->execute($paramsRotaVis);
+                $rotasIds = $stmtRotas->fetchAll(PDO::FETCH_COLUMN);
+
+                $haversine = function ($lat1, $lon1, $lat2, $lon2) {
+                    $lat1 = (float)$lat1; $lon1 = (float)$lon1; $lat2 = (float)$lat2; $lon2 = (float)$lon2;
+                    $R = 6371;
+                    $dLat = deg2rad($lat2 - $lat1);
+                    $dLon = deg2rad($lon2 - $lon1);
+                    $a = sin($dLat / 2) * sin($dLat / 2)
+                        + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) * sin($dLon / 2);
+                    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+                    return $R * $c;
+                };
+
+                foreach ($rotasIds as $ridRaw) {
+                    $rid = (int)$ridRaw;
+                    if ($rid <= 0) continue;
+                    $stmtP = $pdo->prepare("SELECT lat, lng FROM rotas_pontos WHERE rota_id = :rid ORDER BY criado_em ASC");
+                    $stmtP->execute(['rid' => $rid]);
+                    $pts = $stmtP->fetchAll(PDO::FETCH_ASSOC);
+                    $n = count($pts);
+                    for ($i = 1; $i < $n; $i++) {
+                        $km_rotas_periodo += $haversine(
+                            $pts[$i - 1]['lat'], $pts[$i - 1]['lng'],
+                            $pts[$i]['lat'], $pts[$i]['lng']
+                        );
+                    }
+                }
+            } catch (Exception $e) {
+                // fallback silencioso: se não conseguir calcular por rota, mantém 0 e frontend usa GPS de visitas
+            }
+
             $visitas_mapa_resumo = [
                 'total_visitas_periodo' => $totalVisitasPeriodo,
                 'total_visitas_realizadas' => $totalVisitasRealizadas,
-                'total_pontos_gps' => is_array($visitas_mapa) ? count($visitas_mapa) : 0
+                'total_pontos_gps' => is_array($visitas_mapa) ? count($visitas_mapa) : 0,
+                'km_rotas_periodo' => round($km_rotas_periodo, 2)
             ];
 
             $meta = 50000;
@@ -1417,11 +1467,44 @@ try {
                 }
             }
 
+            // Pontos de atendimento (visitas com GPS) para marcar no mapa
+            $pontos_atendimento = [];
+            try {
+                $whereGeo = "WHERE hv.data_visita IS NOT NULL AND YEAR(hv.data_visita) = :ano";
+                $paramsGeo = ['ano' => $anoR];
+                if ($mesR !== null) {
+                    $whereGeo .= " AND MONTH(hv.data_visita) = :mes";
+                    $paramsGeo['mes'] = $mesR;
+                }
+                if ($visitadorFiltroR !== null) {
+                    $whereGeo .= " AND TRIM(COALESCE(hv.visitador, '')) = TRIM(:visitador)";
+                    $paramsGeo['visitador'] = $visitadorFiltroR;
+                }
+                $stmt = $pdo->prepare("
+                    SELECT 
+                        vg.lat, vg.lng,
+                        hv.prescritor, hv.visitador as visitador_nome, hv.data_visita,
+                        DATE_FORMAT(hv.horario, '%H:%i') as horario,
+                        hv.local_visita, hv.status_visita
+                    FROM visitas_geolocalizacao vg
+                    INNER JOIN historico_visitas hv ON hv.id = vg.historico_id
+                    $whereGeo
+                      AND vg.lat IS NOT NULL AND vg.lng IS NOT NULL
+                    ORDER BY hv.data_visita DESC, hv.horario DESC
+                    LIMIT 500
+                ");
+                $stmt->execute($paramsGeo);
+                $pontos_atendimento = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Exception $e) {
+                // Tabela visitas_geolocalizacao pode não existir ainda
+            }
+
             echo json_encode([
                 'totais' => $totais,
                 'por_visitador' => $por_visitador,
                 'rotas' => $rotas_com_km,
-                'pontos_rotas' => $pontos_rotas
+                'pontos_rotas' => $pontos_rotas,
+                'pontos_atendimento' => $pontos_atendimento
             ], JSON_UNESCAPED_UNICODE);
             break;
 

@@ -96,6 +96,18 @@ async function apiPost(action, data = {}) {
     return response.json();
 }
 
+// Delegação de clique para botão Iniciar visita (Agenda) — fallback para visitador.html
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-iniciar-visita');
+    if (!btn || typeof window.iniciarVisita !== 'function') return;
+    const nome = btn.getAttribute('data-prescritor');
+    if (nome) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        window.iniciarVisita(nome);
+    }
+}, true);
+
 // ============ Login ============
 function initParticles() {
     const container = document.getElementById('particles');
@@ -133,6 +145,7 @@ async function doLogin(e) {
             localStorage.setItem('userName', result.nome);
             localStorage.setItem('userType', result.tipo);
             localStorage.setItem('userSetor', result.setor);
+            loadSavedTheme();
 
             if (result.setor === 'Visitador' || result.setor === 'visitador') {
                 window.location.href = 'visitador.html';
@@ -775,18 +788,19 @@ async function loadVisitasPage() {
         const por_visitador = rel.por_visitador || [];
         const rotas = rel.rotas || [];
         const pontos_rotas = rel.pontos_rotas || [];
+        const pontos_atendimento = rel.pontos_atendimento || [];
         const totalKm = por_visitador.reduce((s, p) => s + parseFloat(p.total_km_rotas || 0), 0);
         renderVisitasKPIs(totais, totalKm);
         renderVisitasPorVisitador(por_visitador);
         renderRotasDetalhes(rotas);
         renderVisitasMapaVisitadorOptions(por_visitador);
-        renderMapaRotas(pontos_rotas, '');
+        renderMapaRotas(pontos_rotas, '', pontos_atendimento);
     } catch (e) {
         console.error('Erro ao carregar relatório visitas', e);
         renderVisitasKPIs({}, 0);
         renderVisitasPorVisitador([]);
         renderRotasDetalhes([]);
-        renderMapaRotas([], '');
+        renderMapaRotas([], '', []);
     }
 }
 
@@ -858,12 +872,13 @@ function renderMapaRotasFromStore() {
     const visitador = sel ? sel.value || '' : '';
     const rel = __visitasRelatorioCache;
     const pontos_rotas = rel && rel.pontos_rotas ? rel.pontos_rotas : [];
-    renderMapaRotas(pontos_rotas, visitador);
+    const pontos_atendimento = rel && rel.pontos_atendimento ? rel.pontos_atendimento : [];
+    renderMapaRotas(pontos_rotas, visitador, pontos_atendimento);
 }
 
 let __mapaRotasVisitasInstance = null;
 
-function renderMapaRotas(pontos_rotas, visitadorSelecionado) {
+function renderMapaRotas(pontos_rotas, visitadorSelecionado, pontos_atendimento) {
     const container = document.getElementById('mapaRotasVisitas');
     const emptyEl = document.getElementById('mapaRotasEmpty');
     if (!container) return;
@@ -871,7 +886,13 @@ function renderMapaRotas(pontos_rotas, visitadorSelecionado) {
     const filtered = visitadorSelecionado
         ? (pontos_rotas || []).filter(pr => (pr.visitador_nome || '') === visitadorSelecionado)
         : (pontos_rotas || []);
-    if (filtered.length === 0 || filtered.every(pr => !(pr.pontos && pr.pontos.length))) {
+    const temRotas = filtered.length > 0 && filtered.some(pr => (pr.pontos || []).length >= 2);
+    const atendimento = (pontos_atendimento || []).filter(pa =>
+        Number.isFinite(parseFloat(pa.lat)) && Number.isFinite(parseFloat(pa.lng)) &&
+        (!visitadorSelecionado || (pa.visitador_nome || '') === visitadorSelecionado)
+    );
+    const temAtendimento = atendimento.length > 0;
+    if (!temRotas && !temAtendimento) {
         if (__mapaRotasVisitasInstance) {
             __mapaRotasVisitasInstance.remove();
             __mapaRotasVisitasInstance = null;
@@ -902,7 +923,37 @@ function renderMapaRotas(pontos_rotas, visitadorSelecionado) {
         if (!bounds) bounds = L.latLngBounds(latlngs);
         else bounds.extend(latlngs);
     });
-    if (bounds) map.fitBounds(bounds.pad(0.1));
+    const iconAtendimento = L.divIcon({
+        className: '',
+        html: '<div style="font-size:30px; line-height:1; color:#E63946; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));"><i class="fas fa-location-dot"></i></div>',
+        iconSize: [30, 36],
+        iconAnchor: [15, 34],
+        popupAnchor: [0, -30]
+    });
+    atendimento.forEach(pa => {
+        const lat = parseFloat(pa.lat);
+        const lng = parseFloat(pa.lng);
+        const dataFmt = pa.data_visita ? new Date(pa.data_visita + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+        const horario = (pa.horario || '').slice(0, 5) || '—';
+        const local = (pa.local_visita || '').trim() || '—';
+        const prescritor = (pa.prescritor || '—').trim();
+        const visitadorNome = (pa.visitador_nome || '').trim();
+        const status = (pa.status_visita || '').trim();
+        const popupHtml = `<div style="min-width:200px;font-family:inherit;">
+            <strong style="font-size:0.95rem;">${escapeHtml(prescritor)}</strong>
+            <div style="margin-top:6px;font-size:0.8rem;color:#555;">
+                <div><i class="far fa-calendar" style="width:14px;"></i> ${dataFmt} ${horario !== '—' ? ' · ' + horario : ''}</div>
+                ${visitadorNome ? `<div><i class="fas fa-user" style="width:14px;"></i> ${escapeHtml(visitadorNome)}</div>` : ''}
+                ${local !== '—' ? `<div><i class="fas fa-map-pin" style="width:14px;"></i> ${escapeHtml(local)}</div>` : ''}
+                ${status ? `<div><span style="background:#e8f5e9;color:#2e7d32;padding:2px 6px;border-radius:4px;font-size:0.75rem;">${escapeHtml(status)}</span></div>` : ''}
+            </div>
+        </div>`;
+        const marker = L.marker([lat, lng], { icon: iconAtendimento }).addTo(map);
+        marker.bindPopup(popupHtml, { maxWidth: 320 });
+        if (!bounds) bounds = L.latLngBounds([lat, lng]);
+        else bounds.extend([lat, lng]);
+    });
+    if (bounds) map.fitBounds(bounds.pad(0.15));
     setTimeout(() => map.invalidateSize(), 150);
 }
 
@@ -2019,9 +2070,20 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
         window.__visitasSemanaData = data.relatorio_visitas_semana || [];
         const vsBody = document.getElementById('visitasSemanaBody');
         const vsCount = document.getElementById('visitasSemanaCount');
+        const vDiaCount = document.getElementById('visitasDiaCount');
+        const vMesCount = document.getElementById('visitasMesCount');
         if (vsBody) {
             const rows = window.__visitasSemanaData;
             if (vsCount) vsCount.textContent = rows.length;
+            if (vMesCount) vMesCount.textContent = (data.kpis_visitas && data.kpis_visitas.mes && Number.isFinite(parseInt(data.kpis_visitas.mes.atual, 10)))
+                ? String(parseInt(data.kpis_visitas.mes.atual, 10))
+                : '0';
+            if (vDiaCount) {
+                const nowPV = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Porto_Velho' }));
+                const todayIso = `${nowPV.getFullYear()}-${String(nowPV.getMonth() + 1).padStart(2, '0')}-${String(nowPV.getDate()).padStart(2, '0')}`;
+                const diaCount = Array.isArray(rows) ? rows.filter(r => (r && r.data_visita) === todayIso).length : 0;
+                vDiaCount.textContent = String(diaCount);
+            }
             if (Array.isArray(rows) && rows.length) {
                 const tzPortoVelho = 'America/Porto_Velho';
                 vsBody.innerHTML = rows.map((r, idx) => {
@@ -2094,11 +2156,30 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
             if (vaCount) vaCount.textContent = rows.length;
             if (Array.isArray(rows) && rows.length) {
                 const hoje = new Date(); hoje.setHours(0,0,0,0);
+                const parseDateOnly = (s) => {
+                    if (!s) return null;
+                    const str = String(s).trim();
+                    const m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                    if (m) {
+                        const y = parseInt(m[1], 10);
+                        const mo = parseInt(m[2], 10) - 1;
+                        const d = parseInt(m[3], 10);
+                        const dtLocal = new Date(y, mo, d);
+                        dtLocal.setHours(0, 0, 0, 0);
+                        return dtLocal;
+                    }
+                    const fallback = new Date(str);
+                    if (isNaN(fallback.getTime())) return null;
+                    fallback.setHours(0, 0, 0, 0);
+                    return fallback;
+                };
                 vaBody.innerHTML = rows.map((r, idx) => {
-                    const dt = r.data_agendada ? new Date(r.data_agendada) : null;
+                    const dt = parseDateOnly(r.data_agendada);
                     const dataFmt = dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }) : (r.data_agendada || '-');
                     const hora = r.hora ? String(r.hora).slice(0, 5) : '';
                     const diaSemana = dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString('pt-BR', { weekday:'short' }) : '';
+                    const prescritor = (r.prescritor || '-');
+                    const prescritorAttr = escapeHtml(prescritor);
 
                     const isHoje = dt && !isNaN(dt.getTime()) && dt.toDateString() === hoje.toDateString();
                     const isAmanha = dt && !isNaN(dt.getTime()) && (() => { const t = new Date(hoje); t.setDate(t.getDate()+1); return dt.toDateString() === t.toDateString(); })();
@@ -2110,6 +2191,24 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
                     else if (diffDias !== null && diffDias <= 7) timeBadge = `<span style="font-size:0.62rem; font-weight:700; padding:1px 6px; border-radius:4px; background:rgba(37,99,235,0.12); color:#3B82F6;">em ${diffDias}d</span>`;
 
                     const borderLeft = isHoje ? '3px solid #10B981' : isAmanha ? '3px solid #F59E0B' : '3px solid rgba(37,99,235,0.3)';
+                    const canManage = (typeof canManageVisits !== 'undefined') ? !!canManageVisits : false;
+                    const rotaIdle = (typeof rotaState !== 'undefined') ? (rotaState === 'idle') : true;
+                    const hasActiveVisit = (typeof activeVisit !== 'undefined') && activeVisit && activeVisit.prescritor;
+                    const isActiveSame = hasActiveVisit && activeVisit.prescritor === prescritor;
+
+                    let rightAction = `<div style="width:8px; height:8px; border-radius:50%; background:${isHoje ? '#10B981' : '#3B82F6'}; box-shadow:0 0 6px ${isHoje ? 'rgba(16,185,129,0.5)' : 'rgba(59,130,246,0.3)'};"></div>`;
+                    if (isHoje && canManage) {
+                        if (isActiveSame) {
+                            rightAction = `<button type="button" class="btn-encerrar-visita" data-prescritor="${prescritorAttr}"
+                                style="padding:6px 10px; border-radius:8px; border:none; background:#EF4444; color:#fff; cursor:pointer; font-weight:700; font-size:0.72rem;">Encerrar</button>`;
+                        } else if (rotaIdle) {
+                            rightAction = `<button type="button" disabled title="Inicie a rota para começar a visita."
+                                style="padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-secondary); cursor:not-allowed; font-weight:700; font-size:0.72rem; opacity:0.85;">Inicie a rota</button>`;
+                        } else {
+                            rightAction = `<button type="button" class="btn-iniciar-visita" data-prescritor="${prescritorAttr}"
+                                style="padding:6px 10px; border-radius:8px; border:none; background:var(--success); color:#fff; cursor:pointer; font-weight:700; font-size:0.72rem;">Iniciar</button>`;
+                        }
+                    }
 
                     return `
                         <div style="display:flex; gap:12px; padding:12px 0 12px 12px; border-left:${borderLeft}; margin-bottom:${idx < rows.length - 1 ? '8' : '0'}px; border-radius:0 8px 8px 0; background:var(--bg-body); border-top:1px solid var(--border); border-right:1px solid var(--border); border-bottom:1px solid var(--border);">
@@ -2120,7 +2219,7 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
                             </div>
                             <div style="flex:1; min-width:0;">
                                 <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                    <span style="font-weight:700; font-size:0.88rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${truncateText(r.prescritor || '-', 28)}</span>
+                                    <span style="font-weight:700; font-size:0.88rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${truncateText(prescritor, 28)}</span>
                                     ${timeBadge}
                                 </div>
                                 <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
@@ -2129,7 +2228,7 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
                                 </div>
                             </div>
                             <div style="flex-shrink:0; display:flex; align-items:center; padding-right:10px;">
-                                <div style="width:8px; height:8px; border-radius:50%; background:${isHoje ? '#10B981' : '#3B82F6'}; box-shadow:0 0 6px ${isHoje ? 'rgba(16,185,129,0.5)' : 'rgba(59,130,246,0.3)'};"></div>
+                                ${rightAction}
                             </div>
                         </div>
                     `;
@@ -2268,7 +2367,12 @@ function openMapaVisitasStatsModal() {
 
     const anoTxt = ctx && ctx.ano ? String(ctx.ano) : '';
     const mesTxt = ctx && ctx.mes ? `/${String(ctx.mes).padStart(2, '0')}` : '';
-    if (sub) sub.innerHTML = `Período: <strong>${anoTxt}${mesTxt || ''}</strong> • cálculo por GPS (somente onde existe ponto)`;
+    const kmRotasPadrao = resumo && typeof resumo.km_rotas_periodo === 'number' ? resumo.km_rotas_periodo : null;
+    if (sub) {
+        sub.innerHTML = kmRotasPadrao !== null
+            ? `Período: <strong>${anoTxt}${mesTxt || ''}</strong> • distância padrão por rota do dia (GPS contínuo)`
+            : `Período: <strong>${anoTxt}${mesTxt || ''}</strong> • cálculo por GPS (somente onde existe ponto)`;
+    }
 
     const totalVisitas = resumo && typeof resumo.total_visitas_periodo === 'number' ? resumo.total_visitas_periodo : null;
     const totalRealizadas = resumo && typeof resumo.total_visitas_realizadas === 'number' ? resumo.total_visitas_realizadas : null;
@@ -2278,7 +2382,8 @@ function openMapaVisitasStatsModal() {
     if (gpsEl) gpsEl.textContent = String(visitas.length);
 
     const stats = calcDistanciaPorTrechos(visitas);
-    if (distEl) distEl.textContent = stats.distanciaKm.toFixed(2);
+    const distanciaExibir = kmRotasPadrao !== null ? kmRotasPadrao : stats.distanciaKm;
+    if (distEl) distEl.textContent = Number(distanciaExibir).toFixed(2);
 
     if (tbody) {
         if (stats.trechos.length) {
@@ -2727,11 +2832,23 @@ function destroyChart(name) {
 }
 
 // ============ Theme Toggle ============
+function getThemeStorageKey() {
+    const userName = (localStorage.getItem('userName') || '').trim().toLowerCase();
+    return userName ? `mypharm_theme_${userName}` : 'mypharm_theme';
+}
+
+function getSavedThemeForCurrentUser() {
+    const userKey = getThemeStorageKey();
+    return localStorage.getItem(userKey) || localStorage.getItem('mypharm_theme');
+}
+
 function toggleTheme() {
     const html = document.documentElement;
     const currentTheme = html.getAttribute('data-theme');
     const newTheme = currentTheme === 'light' ? 'dark' : 'light';
     html.setAttribute('data-theme', newTheme);
+    localStorage.setItem(getThemeStorageKey(), newTheme);
+    // Mantem chave legada para telas sem usuario identificado
     localStorage.setItem('mypharm_theme', newTheme);
     applyChartTheme(newTheme);
 }
@@ -2769,7 +2886,7 @@ function applyChartTheme(theme) {
 }
 
 function loadSavedTheme() {
-    const saved = localStorage.getItem('mypharm_theme');
+    const saved = getSavedThemeForCurrentUser();
     if (saved) {
         document.documentElement.setAttribute('data-theme', saved);
         applyChartTheme(saved);
