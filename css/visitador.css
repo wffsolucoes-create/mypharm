@@ -443,6 +443,7 @@ tr:last-child td {
 /* --- Notificações (sino) --- */
 .notifications-wrap {
     position: relative;
+    flex-shrink: 0;
 }
 .btn-notifications {
     width: 44px;
@@ -452,24 +453,28 @@ tr:last-child td {
     background: var(--bg-body);
     color: var(--text-primary);
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     position: relative;
     transition: all 0.2s;
+    flex-shrink: 0;
 }
 .btn-notifications:hover {
     background: rgba(59, 130, 246, 0.12);
     border-color: rgba(59, 130, 246, 0.3);
     color: #3B82F6;
 }
+.btn-notifications:active {
+    transform: scale(0.96);
+}
 .btn-notifications i {
     font-size: 1.15rem;
 }
 .notifications-badge {
     position: absolute;
-    top: 4px;
-    right: 4px;
+    top: 2px;
+    right: 2px;
     min-width: 18px;
     height: 18px;
     padding: 0 5px;
@@ -481,6 +486,8 @@ tr:last-child td {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    pointer-events: none;
+    box-shadow: 0 0 0 2px var(--bg-card);
 }
 .notifications-panel {
     display: none;
@@ -501,6 +508,84 @@ tr:last-child td {
 .notifications-panel.open {
     display: flex;
 }
+.notifications-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1099;
+    backdrop-filter: blur(2px);
+}
+.notifications-backdrop.open {
+    display: block;
+}
+.notifications-panel-close {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, background 0.2s;
+}
+.notifications-panel-close:hover {
+    color: var(--text-primary);
+    background: rgba(255,255,255,0.08);
+}
+
+/* Tablet e celular: modal de mensagens no centro da tela */
+@media (max-width: 1024px) {
+    .notifications-panel {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        right: auto;
+        transform: translate(-50%, -50%);
+        width: 90vw;
+        max-width: 400px;
+        max-height: 85vh;
+        margin: 0;
+    }
+    .notifications-panel.open {
+        display: flex;
+    }
+}
+@media (max-width: 768px) {
+    .notifications-wrap {
+        display: inline-flex;
+        align-items: center;
+    }
+    .btn-notifications {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+        flex-shrink: 0;
+    }
+    .notifications-badge {
+        top: 0;
+        right: 0;
+        min-width: 20px;
+        height: 20px;
+        font-size: 0.75rem;
+    }
+    .notifications-panel {
+        width: calc(100vw - 2rem);
+        max-width: 360px;
+        max-height: 80vh;
+    }
+}
 .notifications-panel-header {
     padding: 14px 16px;
     border-bottom: 1px solid var(--border);
@@ -509,9 +594,10 @@ tr:last-child td {
     color: var(--text-primary);
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
 }
-.notifications-panel-header i {
+.notifications-panel-header i.fa-bell {
     color: #3B82F6;
 }
 .notifications-tabs {
