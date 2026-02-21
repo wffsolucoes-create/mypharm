@@ -119,7 +119,9 @@
             </div>
             <div class="notifications-wrap">
                 <button type="button" class="btn-notifications" id="btnNotifications" onclick="toggleNotificationsPanel(event)" title="Mensagens e notificações" aria-label="Notificações">
-                    <i class="fas fa-bell"></i>
+                    <span class="btn-notifications-icon" aria-hidden="true">
+                        <i class="fas fa-bell"></i>
+                    </span>
                     <span class="notifications-badge" id="notificationsBadge" style="display:none;">0</span>
                 </button>
                 <div class="notifications-backdrop" id="notificationsBackdrop" onclick="closeNotificationsPanel()" aria-hidden="true"></div>

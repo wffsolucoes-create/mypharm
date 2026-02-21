@@ -448,6 +448,8 @@ tr:last-child td {
 .btn-notifications {
     width: 44px;
     height: 44px;
+    min-width: 44px;
+    min-height: 44px;
     border-radius: 12px;
     border: 1px solid var(--border);
     background: var(--bg-body);
@@ -459,6 +461,15 @@ tr:last-child td {
     position: relative;
     transition: all 0.2s;
     flex-shrink: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+}
+.btn-notifications::-moz-focus-inner {
+    border: 0;
+    padding: 0;
 }
 .btn-notifications:hover {
     background: rgba(59, 130, 246, 0.12);
@@ -468,8 +479,25 @@ tr:last-child td {
 .btn-notifications:active {
     transform: scale(0.96);
 }
-.btn-notifications i {
-    font-size: 1.15rem;
+.btn-notifications-icon {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+.btn-notifications i,
+.btn-notifications .fa-bell {
+    font-size: 1.15rem !important;
+    display: block !important;
+    line-height: 1 !important;
+    width: 1em;
+    height: 1em;
+    text-align: center;
+    font-style: normal !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 .notifications-badge {
     position: absolute;
