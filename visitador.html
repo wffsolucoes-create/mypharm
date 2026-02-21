@@ -2461,21 +2461,19 @@
             document.getElementById('inputFotoPerfilModal').onchange = function () {
                 var file = this.files && this.files[0];
                 if (!file || !file.type.match(/^image\//)) return;
-                if (file.size > 1024 * 1024) {
-                    alert('Escolha uma foto de até 1 MB para evitar erro no servidor.');
+                if (file.size > 3 * 1024 * 1024) {
+                    alert('Escolha uma foto de até 3 MB.');
                     document.getElementById('inputFotoPerfilModal').value = '';
                     return;
                 }
-                var reader = new FileReader();
-                reader.onload = async function () {
-                    var apiUrl = (typeof API_URL !== 'undefined' ? API_URL : 'api.php');
+                var apiUrl = (typeof API_URL !== 'undefined' ? API_URL : 'api.php');
+                var formData = new FormData();
+                formData.append('foto', file);
+                (async function () {
                     try {
-                        var headers = { 'Content-Type': 'application/json' };
-                        if (typeof __csrfToken !== 'undefined' && __csrfToken) headers['X-CSRF-Token'] = __csrfToken;
                         var response = await fetch(apiUrl + '?action=upload_foto_perfil', {
                             method: 'POST',
-                            headers: headers,
-                            body: JSON.stringify({ image: reader.result }),
+                            body: formData,
                             credentials: 'include'
                         });
                         var text = await response.text();
@@ -2491,15 +2489,14 @@
                             img.style.display = 'block';
                             if (av) av.style.display = 'none';
                         } else {
-                            var msg = (res && res.error) ? res.error : (!response.ok ? 'Erro do servidor (' + response.status + '). Tente uma foto menor (máx. 1 MB) ou verifique a pasta uploads/avatars no servidor.' : 'Não foi possível alterar a foto.');
+                            var msg = (res && res.error) ? res.error : (!response.ok ? 'Erro do servidor (' + response.status + '). Verifique a pasta uploads/avatars no servidor.' : 'Não foi possível alterar a foto.');
                             alert(msg);
                         }
                     } catch (err) {
-                        alert('Erro ao enviar a foto. Verifique a conexão ou tente uma foto menor (máx. 1 MB).');
+                        alert('Erro ao enviar a foto. Verifique a conexão.');
                     }
                     document.getElementById('inputFotoPerfilModal').value = '';
-                };
-                reader.readAsDataURL(file);
+                })();
             };
         }
 

@@ -38,7 +38,7 @@ header("Referrer-Policy: strict-origin-when-cross-origin");
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $csrfHeader = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
     $action = $_GET['action'] ?? '';
-    $csrfExempt = ['login', 'save_rota_ponto'];
+    $csrfExempt = ['login', 'save_rota_ponto', 'upload_foto_perfil'];
     if (!in_array($action, $csrfExempt) && !validateCsrfToken($csrfHeader)) {
         http_response_code(403);
         echo json_encode(['error' => 'Token CSRF inválido. Recarregue a página.'], JSON_UNESCAPED_UNICODE);
@@ -1974,23 +1974,6 @@ try {
             try {
                 $pdo->exec("ALTER TABLE usuarios ADD COLUMN foto_perfil VARCHAR(255) NULL DEFAULT NULL");
             } catch (Throwable $e) {}
-            $rawInput = file_get_contents('php://input');
-            if ($rawInput === false || $rawInput === '') {
-                echo json_encode(['success' => false, 'error' => 'Dados não recebidos. Tente uma foto menor (máx. 1 MB) ou verifique a conexão.'], JSON_UNESCAPED_UNICODE);
-                break;
-            }
-            $input = json_decode($rawInput, true) ?: [];
-            $dataUrl = $input['image'] ?? '';
-            if (!preg_match('/^data:image\/(jpeg|png|gif|webp);base64,(.+)$/s', $dataUrl, $m)) {
-                echo json_encode(['success' => false, 'error' => 'Imagem inválida. Use JPEG, PNG, GIF ou WebP.'], JSON_UNESCAPED_UNICODE);
-                break;
-            }
-            $ext = $m[1] === 'jpeg' ? 'jpg' : $m[1];
-            $bin = base64_decode($m[2], true);
-            if ($bin === false || strlen($bin) > 3 * 1024 * 1024) {
-                echo json_encode(['success' => false, 'error' => 'Arquivo inválido ou muito grande (máx. 3 MB).'], JSON_UNESCAPED_UNICODE);
-                break;
-            }
             $baseDir = __DIR__ . DIRECTORY_SEPARATOR . 'uploads';
             $dir = $baseDir . DIRECTORY_SEPARATOR . 'avatars';
             if (!is_dir($baseDir)) {
@@ -2009,6 +1992,49 @@ try {
                 echo json_encode(['success' => false, 'error' => 'Servidor: pasta uploads/avatars sem permissão de escrita. Ajuste para 755 ou 775.'], JSON_UNESCAPED_UNICODE);
                 break;
             }
+            $maxSize = 3 * 1024 * 1024;
+            $bin = null;
+            $ext = 'jpg';
+
+            // Upload multipart (evita 403 do WAF/ModSecurity na Hostinger)
+            if (!empty($_FILES['foto']['tmp_name']) && $_FILES['foto']['error'] === UPLOAD_ERR_OK) {
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mime = finfo_file($finfo, $_FILES['foto']['tmp_name']);
+                finfo_close($finfo);
+                $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
+                if (!isset($allowed[$mime])) {
+                    echo json_encode(['success' => false, 'error' => 'Imagem inválida. Use JPEG, PNG, GIF ou WebP.'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+                $ext = $allowed[$mime];
+                if ($_FILES['foto']['size'] > $maxSize) {
+                    echo json_encode(['success' => false, 'error' => 'Arquivo muito grande (máx. 3 MB).'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+                $bin = file_get_contents($_FILES['foto']['tmp_name']);
+            }
+
+            // Fallback: JSON com base64 (localhost etc.)
+            if ($bin === null) {
+                $rawInput = file_get_contents('php://input');
+                if ($rawInput === false || $rawInput === '') {
+                    echo json_encode(['success' => false, 'error' => 'Dados não recebidos. Envie a foto pelo botão Alterar foto.'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+                $input = json_decode($rawInput, true) ?: [];
+                $dataUrl = $input['image'] ?? '';
+                if (!preg_match('/^data:image\/(jpeg|png|gif|webp);base64,(.+)$/s', $dataUrl, $m)) {
+                    echo json_encode(['success' => false, 'error' => 'Imagem inválida. Use JPEG, PNG, GIF ou WebP.'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+                $ext = $m[1] === 'jpeg' ? 'jpg' : $m[1];
+                $bin = base64_decode($m[2], true);
+                if ($bin === false || strlen($bin) > $maxSize) {
+                    echo json_encode(['success' => false, 'error' => 'Arquivo inválido ou muito grande (máx. 3 MB).'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+            }
+
             $filename = $userId . '.' . $ext;
             $path = $dir . DIRECTORY_SEPARATOR . $filename;
             if (file_put_contents($path, $bin) === false) {
