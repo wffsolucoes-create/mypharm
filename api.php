@@ -1974,7 +1974,12 @@ try {
             try {
                 $pdo->exec("ALTER TABLE usuarios ADD COLUMN foto_perfil VARCHAR(255) NULL DEFAULT NULL");
             } catch (Throwable $e) {}
-            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $rawInput = file_get_contents('php://input');
+            if ($rawInput === false || $rawInput === '') {
+                echo json_encode(['success' => false, 'error' => 'Dados não recebidos. Tente uma foto menor (máx. 1 MB) ou verifique a conexão.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $input = json_decode($rawInput, true) ?: [];
             $dataUrl = $input['image'] ?? '';
             if (!preg_match('/^data:image\/(jpeg|png|gif|webp);base64,(.+)$/s', $dataUrl, $m)) {
                 echo json_encode(['success' => false, 'error' => 'Imagem inválida. Use JPEG, PNG, GIF ou WebP.'], JSON_UNESCAPED_UNICODE);
@@ -1986,14 +1991,28 @@ try {
                 echo json_encode(['success' => false, 'error' => 'Arquivo inválido ou muito grande (máx. 3 MB).'], JSON_UNESCAPED_UNICODE);
                 break;
             }
-            $dir = __DIR__ . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'avatars';
+            $baseDir = __DIR__ . DIRECTORY_SEPARATOR . 'uploads';
+            $dir = $baseDir . DIRECTORY_SEPARATOR . 'avatars';
+            if (!is_dir($baseDir)) {
+                if (!@mkdir($baseDir, 0755, true)) {
+                    echo json_encode(['success' => false, 'error' => 'Servidor: não foi possível criar a pasta uploads. Verifique permissões (755).'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+            }
             if (!is_dir($dir)) {
-                mkdir($dir, 0755, true);
+                if (!@mkdir($dir, 0755, true)) {
+                    echo json_encode(['success' => false, 'error' => 'Servidor: não foi possível criar a pasta uploads/avatars. Verifique permissões (755).'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+            }
+            if (!is_writable($dir)) {
+                echo json_encode(['success' => false, 'error' => 'Servidor: pasta uploads/avatars sem permissão de escrita. Ajuste para 755 ou 775.'], JSON_UNESCAPED_UNICODE);
+                break;
             }
             $filename = $userId . '.' . $ext;
             $path = $dir . DIRECTORY_SEPARATOR . $filename;
             if (file_put_contents($path, $bin) === false) {
-                echo json_encode(['success' => false, 'error' => 'Erro ao salvar a foto.'], JSON_UNESCAPED_UNICODE);
+                echo json_encode(['success' => false, 'error' => 'Erro ao salvar a foto no servidor. Verifique permissões da pasta uploads/avatars.'], JSON_UNESCAPED_UNICODE);
                 break;
             }
             $relative = 'avatars/' . $filename;

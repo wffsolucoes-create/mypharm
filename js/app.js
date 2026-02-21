@@ -245,19 +245,35 @@ function setupAvatarUploadAdmin() {
     input.onchange = async function () {
         const file = input.files && input.files[0];
         if (!file || !file.type.match(/^image\//)) return;
+        if (file.size > 1024 * 1024) {
+            alert('Escolha uma foto de até 1 MB para evitar erro no servidor.');
+            input.value = '';
+            return;
+        }
         const reader = new FileReader();
         reader.onload = async function () {
             try {
-                const res = await apiPost('upload_foto_perfil', { image: reader.result });
+                const headers = { 'Content-Type': 'application/json' };
+                if (__csrfToken) headers['X-CSRF-Token'] = __csrfToken;
+                const response = await fetch(`${API_URL}?action=upload_foto_perfil`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ image: reader.result }),
+                    credentials: 'include'
+                });
+                const text = await response.text();
+                let res = null;
+                try { res = text ? JSON.parse(text) : null; } catch (_) {}
                 if (res && res.success && res.foto_perfil) {
                     localStorage.setItem('foto_perfil', res.foto_perfil);
                     const nome = document.getElementById('userName')?.textContent || 'A';
                     applyAvatarAdmin(nome.charAt(0), res.foto_perfil);
                 } else {
-                    alert(res && res.error ? res.error : 'Não foi possível alterar a foto.');
+                    const msg = (res && res.error) ? res.error : (!response.ok ? 'Erro do servidor (' + response.status + '). Tente uma foto menor (máx. 1 MB) ou verifique a pasta uploads/avatars no servidor.' : 'Não foi possível alterar a foto.');
+                    alert(msg);
                 }
             } catch (e) {
-                alert('Erro ao enviar a foto.');
+                alert('Erro ao enviar a foto. Verifique a conexão ou tente uma foto menor (máx. 1 MB).');
             }
             input.value = '';
         };

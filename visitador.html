@@ -2381,10 +2381,19 @@
                 var url = (typeof API_URL !== 'undefined' ? API_URL : 'api.php') + '?action=get_foto_perfil&t=' + Date.now();
                 img.src = url;
                 img.alt = 'Foto de perfil';
+                img.setAttribute('width', '42');
+                img.setAttribute('height', '42');
                 img.style.display = 'block';
+                img.style.width = '42px';
+                img.style.height = '42px';
+                img.style.maxWidth = '42px';
+                img.style.maxHeight = '42px';
                 av.style.display = 'none';
                 img.onerror = function () {
                     img.style.display = 'none';
+                    img.removeAttribute('width');
+                    img.removeAttribute('height');
+                    img.style.width = img.style.height = img.style.maxWidth = img.style.maxHeight = '';
                     av.style.display = 'flex';
                     av.textContent = (initial || 'V').charAt(0).toUpperCase();
                     img.src = '';
@@ -2394,6 +2403,9 @@
                 img.src = '';
                 img.onerror = null;
                 img.style.display = 'none';
+                img.removeAttribute('width');
+                img.removeAttribute('height');
+                img.style.width = img.style.height = img.style.maxWidth = img.style.maxHeight = '';
                 av.style.display = 'flex';
                 av.textContent = (initial || 'V').charAt(0).toUpperCase();
             }
@@ -2449,24 +2461,41 @@
             document.getElementById('inputFotoPerfilModal').onchange = function () {
                 var file = this.files && this.files[0];
                 if (!file || !file.type.match(/^image\//)) return;
+                if (file.size > 1024 * 1024) {
+                    alert('Escolha uma foto de até 1 MB para evitar erro no servidor.');
+                    document.getElementById('inputFotoPerfilModal').value = '';
+                    return;
+                }
                 var reader = new FileReader();
                 reader.onload = async function () {
+                    var apiUrl = (typeof API_URL !== 'undefined' ? API_URL : 'api.php');
                     try {
-                        var res = await apiPost('upload_foto_perfil', { image: reader.result });
+                        var headers = { 'Content-Type': 'application/json' };
+                        if (typeof __csrfToken !== 'undefined' && __csrfToken) headers['X-CSRF-Token'] = __csrfToken;
+                        var response = await fetch(apiUrl + '?action=upload_foto_perfil', {
+                            method: 'POST',
+                            headers: headers,
+                            body: JSON.stringify({ image: reader.result }),
+                            credentials: 'include'
+                        });
+                        var text = await response.text();
+                        var res = null;
+                        try { res = text ? JSON.parse(text) : null; } catch (_) {}
                         if (res && res.success && res.foto_perfil) {
                             localStorage.setItem('foto_perfil', res.foto_perfil);
                             var nome = document.getElementById('perfilNome').value || 'V';
                             applyAvatarInHeader(nome.charAt(0), res.foto_perfil);
                             var img = document.getElementById('perfilFotoImg');
                             var av = document.getElementById('perfilAvatarInicial');
-                            img.src = (typeof API_URL !== 'undefined' ? API_URL : 'api.php') + '?action=get_foto_perfil&t=' + Date.now();
-                            img.style.display = '';
-                            av.style.display = 'none';
+                            img.src = apiUrl + '?action=get_foto_perfil&t=' + Date.now();
+                            img.style.display = 'block';
+                            if (av) av.style.display = 'none';
                         } else {
-                            alert(res && res.error ? res.error : 'Não foi possível alterar a foto.');
+                            var msg = (res && res.error) ? res.error : (!response.ok ? 'Erro do servidor (' + response.status + '). Tente uma foto menor (máx. 1 MB) ou verifique a pasta uploads/avatars no servidor.' : 'Não foi possível alterar a foto.');
+                            alert(msg);
                         }
                     } catch (err) {
-                        alert('Erro ao enviar a foto.');
+                        alert('Erro ao enviar a foto. Verifique a conexão ou tente uma foto menor (máx. 1 MB).');
                     }
                     document.getElementById('inputFotoPerfilModal').value = '';
                 };
