@@ -109,7 +109,10 @@ try {
         'resume_rota',
         'finish_rota',
         'save_rota_ponto',
-        'config'
+        'config',
+        'upload_foto_perfil',
+        'get_meu_perfil',
+        'update_meu_perfil'
     ];
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
     if ($userSetor === 'visitador' && !in_array($action, $publicActions) && !in_array($action, $visitadorAllowed)) {
@@ -1877,11 +1880,16 @@ try {
                 $pdo->prepare("UPDATE usuarios SET ultimo_acesso = NOW() WHERE id = :id")
                     ->execute(['id' => $user['id']]);
 
+                $fotoPerfil = null;
+                if (!empty($user['foto_perfil'])) {
+                    $fotoPerfil = 'uploads/avatars/' . basename($user['foto_perfil']);
+                }
                 echo json_encode([
                     'success' => true,
                     'nome' => $user['nome'],
                     'tipo' => $user['tipo'],
                     'setor' => $user['setor'],
+                    'foto_perfil' => $fotoPerfil,
                     'csrf_token' => getCsrfToken()
                 ]);
             } else {
@@ -1896,15 +1904,139 @@ try {
             }
             break;
 
-        case 'check_session':
+        case 'check_session': {
+            $fotoPerfil = null;
+            if (isset($_SESSION['user_id'])) {
+                try {
+                    $pdo->exec("ALTER TABLE usuarios ADD COLUMN foto_perfil VARCHAR(255) NULL DEFAULT NULL");
+                } catch (Throwable $e) {
+                    // coluna já existe
+                }
+                $stmt = $pdo->prepare("SELECT foto_perfil FROM usuarios WHERE id = :id LIMIT 1");
+                $stmt->execute(['id' => $_SESSION['user_id']]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!empty($row['foto_perfil'])) {
+                    $fotoPerfil = 'uploads/avatars/' . basename($row['foto_perfil']);
+                }
+            }
             echo json_encode([
                 'logged_in' => isset($_SESSION['user_id']),
                 'nome' => $_SESSION['user_nome'] ?? null,
                 'tipo' => $_SESSION['user_tipo'] ?? null,
                 'setor' => $_SESSION['user_setor'] ?? null,
+                'foto_perfil' => $fotoPerfil,
                 'csrf_token' => getCsrfToken()
             ]);
             break;
+        }
+
+        case 'upload_foto_perfil': {
+            $userId = (int)($_SESSION['user_id'] ?? 0);
+            if ($userId <= 0) {
+                echo json_encode(['success' => false, 'error' => 'Não autenticado'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            try {
+                $pdo->exec("ALTER TABLE usuarios ADD COLUMN foto_perfil VARCHAR(255) NULL DEFAULT NULL");
+            } catch (Throwable $e) {}
+            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $dataUrl = $input['image'] ?? '';
+            if (!preg_match('/^data:image\/(jpeg|png|gif|webp);base64,(.+)$/s', $dataUrl, $m)) {
+                echo json_encode(['success' => false, 'error' => 'Imagem inválida. Use JPEG, PNG, GIF ou WebP.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $ext = $m[1] === 'jpeg' ? 'jpg' : $m[1];
+            $bin = base64_decode($m[2], true);
+            if ($bin === false || strlen($bin) > 3 * 1024 * 1024) {
+                echo json_encode(['success' => false, 'error' => 'Arquivo inválido ou muito grande (máx. 3 MB).'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $dir = __DIR__ . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'avatars';
+            if (!is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            $filename = $userId . '.' . $ext;
+            $path = $dir . DIRECTORY_SEPARATOR . $filename;
+            if (file_put_contents($path, $bin) === false) {
+                echo json_encode(['success' => false, 'error' => 'Erro ao salvar a foto.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $relative = 'avatars/' . $filename;
+            $stmt = $pdo->prepare("UPDATE usuarios SET foto_perfil = :foto WHERE id = :id");
+            $stmt->execute(['foto' => $relative, 'id' => $userId]);
+            echo json_encode([
+                'success' => true,
+                'foto_perfil' => 'uploads/avatars/' . $filename
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        case 'get_meu_perfil': {
+            $userId = (int)($_SESSION['user_id'] ?? 0);
+            if ($userId <= 0) {
+                echo json_encode(['success' => false, 'error' => 'Não autenticado'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            try {
+                $pdo->exec("ALTER TABLE usuarios ADD COLUMN foto_perfil VARCHAR(255) NULL DEFAULT NULL");
+            } catch (Throwable $e) {}
+            $stmt = $pdo->prepare("SELECT nome, usuario, setor, tipo, whatsapp, foto_perfil FROM usuarios WHERE id = :id LIMIT 1");
+            $stmt->execute(['id' => $userId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                echo json_encode(['success' => false, 'error' => 'Usuário não encontrado'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $foto = !empty($row['foto_perfil']) ? 'uploads/avatars/' . basename($row['foto_perfil']) : null;
+            echo json_encode([
+                'success' => true,
+                'nome' => $row['nome'],
+                'usuario' => $row['usuario'],
+                'setor' => $row['setor'],
+                'tipo' => $row['tipo'],
+                'whatsapp' => $row['whatsapp'] ?? '',
+                'foto_perfil' => $foto
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        case 'update_meu_perfil': {
+            $userId = (int)($_SESSION['user_id'] ?? 0);
+            if ($userId <= 0) {
+                echo json_encode(['success' => false, 'error' => 'Não autenticado'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $nome = trim($input['nome'] ?? '');
+            $whatsapp = trim($input['whatsapp'] ?? '');
+            $senhaAtual = $input['senha_atual'] ?? '';
+            $senhaNova = $input['senha_nova'] ?? '';
+            if ($nome === '') {
+                echo json_encode(['success' => false, 'error' => 'Nome é obrigatório.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $updates = ['nome' => $nome, 'whatsapp' => $whatsapp];
+            if ($senhaNova !== '') {
+                if (strlen($senhaNova) < 6) {
+                    echo json_encode(['success' => false, 'error' => 'A nova senha deve ter no mínimo 6 caracteres.'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+                $stmt = $pdo->prepare("SELECT senha FROM usuarios WHERE id = :id LIMIT 1");
+                $stmt->execute(['id' => $userId]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$user || !password_verify($senhaAtual, $user['senha'])) {
+                    echo json_encode(['success' => false, 'error' => 'Senha atual incorreta.'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+                $updates['senha'] = password_hash($senhaNova, PASSWORD_BCRYPT);
+            }
+            $set = implode(', ', array_map(function ($k) { return "`$k` = :$k"; }, array_keys($updates)));
+            $stmt = $pdo->prepare("UPDATE usuarios SET $set WHERE id = :id");
+            $stmt->execute(array_merge($updates, ['id' => $userId]));
+            $_SESSION['user_nome'] = $nome;
+            echo json_encode(['success' => true, 'nome' => $nome], JSON_UNESCAPED_UNICODE);
+            break;
+        }
 
         case 'logout':
             // Limpar todas as variáveis de sessão
@@ -2588,7 +2720,8 @@ try {
                 break;
             }
             $input = json_decode(file_get_contents('php://input'), true) ?: [];
-            $visitadorNome = trim($input['visitador_nome'] ?? $_SESSION['user_nome'] ?? '');
+            $sessionNome = trim($_SESSION['user_nome'] ?? '');
+            $visitadorNome = ($userSetor === 'visitador') ? $sessionNome : trim($input['visitador_nome'] ?? $sessionNome);
             $stmt = $pdo->prepare("
                 UPDATE rotas_diarias
                 SET pausado_em = NOW(), status = 'pausada'
@@ -2605,7 +2738,8 @@ try {
                 break;
             }
             $input = json_decode(file_get_contents('php://input'), true) ?: [];
-            $visitadorNome = trim($input['visitador_nome'] ?? $_SESSION['user_nome'] ?? '');
+            $sessionNome = trim($_SESSION['user_nome'] ?? '');
+            $visitadorNome = ($userSetor === 'visitador') ? $sessionNome : trim($input['visitador_nome'] ?? $sessionNome);
             $stmt = $pdo->prepare("
                 UPDATE rotas_diarias
                 SET pausado_em = NULL, status = 'em_andamento'
@@ -2622,7 +2756,9 @@ try {
                 break;
             }
             $input = json_decode(file_get_contents('php://input'), true) ?: [];
-            $visitadorNome = trim($input['visitador_nome'] ?? $_SESSION['user_nome'] ?? '');
+            $sessionNome = trim($_SESSION['user_nome'] ?? '');
+            // Visitador: sempre pela rota do usuário logado (permite finalizar em qualquer dispositivo)
+            $visitadorNome = ($userSetor === 'visitador') ? $sessionNome : trim($input['visitador_nome'] ?? $sessionNome);
             $stmt = $pdo->prepare("
                 UPDATE rotas_diarias
                 SET data_fim = NOW(), pausado_em = NULL, status = 'finalizada'

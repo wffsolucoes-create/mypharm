@@ -96,15 +96,21 @@ async function apiPost(action, data = {}) {
     return response.json();
 }
 
-// Delegação de clique para botão Iniciar visita (Agenda) — fallback para visitador.html
+// Delegação de clique para botão Iniciar visita: no modal → iniciarVisita; na Agenda → abrir modal com prescritor filtrado
 document.addEventListener('click', function (e) {
     const btn = e.target.closest('.btn-iniciar-visita');
-    if (!btn || typeof window.iniciarVisita !== 'function') return;
+    if (!btn) return;
     const nome = btn.getAttribute('data-prescritor');
-    if (nome) {
+    if (!nome) return;
+    const dentroDoModal = e.target.closest('#modalPrescritores');
+    if (dentroDoModal && typeof window.iniciarVisita === 'function') {
         e.preventDefault();
         e.stopImmediatePropagation();
         window.iniciarVisita(nome);
+    } else if (typeof window.openPrescritoresModal === 'function') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        window.openPrescritoresModal(nome);
     }
 }, true);
 
@@ -145,12 +151,13 @@ async function doLogin(e) {
             localStorage.setItem('userName', result.nome);
             localStorage.setItem('userType', result.tipo);
             localStorage.setItem('userSetor', result.setor);
+            if (result.foto_perfil) localStorage.setItem('foto_perfil', result.foto_perfil); else localStorage.removeItem('foto_perfil');
             loadSavedTheme();
 
             if (result.setor === 'Visitador' || result.setor === 'visitador') {
                 window.location.href = 'visitador.html';
             } else {
-                showApp(result.nome, result.tipo);
+                showApp(result.nome, result.tipo, result.foto_perfil || null);
             }
         } else {
             errorEl.textContent = result.error || 'Credenciais inválidas';
@@ -166,7 +173,7 @@ async function doLogin(e) {
     return false;
 }
 
-function showApp(nome, tipo) {
+function showApp(nome, tipo, fotoPerfil) {
     const setor = (localStorage.getItem('userSetor') || '').toLowerCase();
     if (setor === 'visitador' && !window.location.pathname.includes('visitador.html')) {
         window.location.href = 'visitador.html';
@@ -188,7 +195,8 @@ function showApp(nome, tipo) {
 
     document.getElementById('userName').textContent = nome || 'Admin';
     document.getElementById('userRole').textContent = tipo === 'admin' ? 'Administrador' : 'Usuário';
-    document.getElementById('userAvatar').textContent = (nome || 'A').charAt(0).toUpperCase();
+    applyAvatarAdmin((nome || 'A').charAt(0).toUpperCase(), fotoPerfil || localStorage.getItem('foto_perfil') || null);
+    setupAvatarUploadAdmin();
 
     // Show admin nav only for admin users
     document.querySelectorAll('.admin-only-nav').forEach(el => {
@@ -197,6 +205,64 @@ function showApp(nome, tipo) {
 
     loadYears();
     loadDashboard();
+}
+
+function applyAvatarAdmin(initial, fotoUrl) {
+    const av = document.getElementById('userAvatar');
+    const img = document.getElementById('userAvatarImg');
+    if (!av) return;
+    if (img) {
+        if (fotoUrl) {
+            var url = fotoUrl.indexOf('?') >= 0 ? fotoUrl : fotoUrl + '?t=' + Date.now();
+            img.src = url;
+            img.alt = 'Foto de perfil';
+            img.style.display = '';
+            av.style.display = 'none';
+            img.onerror = function () {
+                img.style.display = 'none';
+                av.style.display = '';
+                av.textContent = (initial || 'A').charAt(0).toUpperCase();
+                img.src = '';
+                localStorage.removeItem('foto_perfil');
+            };
+        } else {
+            img.src = '';
+            img.onerror = null;
+            img.style.display = 'none';
+            av.style.display = '';
+            av.textContent = (initial || 'A').charAt(0).toUpperCase();
+        }
+    } else {
+        av.textContent = (initial || 'A').charAt(0).toUpperCase();
+    }
+}
+
+function setupAvatarUploadAdmin() {
+    const wrap = document.getElementById('avatarWrap');
+    const input = document.getElementById('inputFotoPerfil');
+    if (!wrap || !input) return;
+    wrap.onclick = function () { input.click(); };
+    input.onchange = async function () {
+        const file = input.files && input.files[0];
+        if (!file || !file.type.match(/^image\//)) return;
+        const reader = new FileReader();
+        reader.onload = async function () {
+            try {
+                const res = await apiPost('upload_foto_perfil', { image: reader.result });
+                if (res && res.success && res.foto_perfil) {
+                    localStorage.setItem('foto_perfil', res.foto_perfil);
+                    const nome = document.getElementById('userName')?.textContent || 'A';
+                    applyAvatarAdmin(nome.charAt(0), res.foto_perfil);
+                } else {
+                    alert(res && res.error ? res.error : 'Não foi possível alterar a foto.');
+                }
+            } catch (e) {
+                alert('Erro ao enviar a foto.');
+            }
+            input.value = '';
+        };
+        reader.readAsDataURL(file);
+    };
 }
 
 async function doLogout() {
@@ -2192,7 +2258,6 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
 
                     const borderLeft = isHoje ? '3px solid #10B981' : isAmanha ? '3px solid #F59E0B' : '3px solid rgba(37,99,235,0.3)';
                     const canManage = (typeof canManageVisits !== 'undefined') ? !!canManageVisits : false;
-                    const rotaIdle = (typeof rotaState !== 'undefined') ? (rotaState === 'idle') : true;
                     const hasActiveVisit = (typeof activeVisit !== 'undefined') && activeVisit && activeVisit.prescritor;
                     const isActiveSame = hasActiveVisit && activeVisit.prescritor === prescritor;
 
@@ -2201,12 +2266,9 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
                         if (isActiveSame) {
                             rightAction = `<button type="button" class="btn-encerrar-visita" data-prescritor="${prescritorAttr}"
                                 style="padding:6px 10px; border-radius:8px; border:none; background:#EF4444; color:#fff; cursor:pointer; font-weight:700; font-size:0.72rem;">Encerrar</button>`;
-                        } else if (rotaIdle) {
-                            rightAction = `<button type="button" disabled title="Inicie a rota para começar a visita."
-                                style="padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-secondary); cursor:not-allowed; font-weight:700; font-size:0.72rem; opacity:0.85;">Inicie a rota</button>`;
                         } else {
-                            rightAction = `<button type="button" class="btn-iniciar-visita" data-prescritor="${prescritorAttr}"
-                                style="padding:6px 10px; border-radius:8px; border:none; background:var(--success); color:#fff; cursor:pointer; font-weight:700; font-size:0.72rem;">Iniciar</button>`;
+                            rightAction = `<button type="button" class="btn-iniciar-visita" data-prescritor="${prescritorAttr}" title="Abrir prescritor no modal para iniciar visita."
+                                style="padding:6px 10px; border-radius:8px; border:none; background:var(--success); color:#fff; cursor:pointer; font-weight:700; font-size:0.72rem;">Atender</button>`;
                         }
                     }
 
@@ -2233,6 +2295,18 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
                         </div>
                     `;
                 }).join('');
+                const todayVisits = rows.filter(function (r) {
+                    const dt = parseDateOnly(r.data_agendada);
+                    return dt && !isNaN(dt.getTime()) && dt.toDateString() === hoje.toDateString();
+                }).map(function (r) {
+                    return {
+                        id: ((r.prescritor || '').trim() + '|' + (r.data_agendada || '') + '|' + (r.hora ? String(r.hora).slice(0, 5) : '')),
+                        prescritor: r.prescritor || '-',
+                        data_agendada: r.data_agendada,
+                        hora: r.hora ? String(r.hora).slice(0, 5) : ''
+                    };
+                });
+                window.__todayAgendaVisits = todayVisits;
             } else {
                 vaBody.innerHTML = `
                     <div style="text-align:center; padding:36px 0;">
@@ -2241,7 +2315,9 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
                         </div>
                         <div style="font-size:0.85rem; color:var(--text-secondary);">Nenhuma visita agendada</div>
                     </div>`;
+                window.__todayAgendaVisits = [];
             }
+            if (typeof window.updateNotificationsFromAgenda === 'function') window.updateNotificationsFromAgenda();
         }
 
         // 7. Mapa de Visitas (GPS)
@@ -2911,7 +2987,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (localStorage.getItem('loggedIn')) {
         showApp(
             localStorage.getItem('userName'),
-            localStorage.getItem('userType')
+            localStorage.getItem('userType'),
+            localStorage.getItem('foto_perfil')
         );
+        if (!window.location.pathname.includes('visitador.html')) {
+            apiGet('check_session').then(function (s) {
+                if (s && s.foto_perfil) {
+                    localStorage.setItem('foto_perfil', s.foto_perfil);
+                    var nome = document.getElementById('userName') && document.getElementById('userName').textContent;
+                    applyAvatarAdmin((nome || 'A').charAt(0), s.foto_perfil);
+                }
+            }).catch(function () {});
+        }
     }
 });
