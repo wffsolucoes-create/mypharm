@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#E63946">
     <title>Painel do Visitador | MyPharm</title>
     <link rel="manifest" href="manifest.json">
@@ -548,6 +548,10 @@
 
         </div>
     </main>
+
+    <footer class="app-footer visitador-footer">
+        Sistema para Gestão e Tomada de Decisões • © 2026 MyPharm - Todos os direitos reservados
+    </footer>
 
     <!-- Modal Meu perfil -->
     <div id="modalMeuPerfil"
@@ -2374,14 +2378,14 @@
             var img = document.getElementById('userAvatarImg');
             if (!av || !img) return;
             if (fotoUrl) {
-                var url = fotoUrl.indexOf('?') >= 0 ? fotoUrl : fotoUrl + '?t=' + Date.now();
+                var url = (typeof API_URL !== 'undefined' ? API_URL : 'api.php') + '?action=get_foto_perfil&t=' + Date.now();
                 img.src = url;
                 img.alt = 'Foto de perfil';
-                img.style.display = '';
+                img.style.display = 'block';
                 av.style.display = 'none';
                 img.onerror = function () {
                     img.style.display = 'none';
-                    av.style.display = '';
+                    av.style.display = 'flex';
                     av.textContent = (initial || 'V').charAt(0).toUpperCase();
                     img.src = '';
                     localStorage.removeItem('foto_perfil');
@@ -2390,7 +2394,7 @@
                 img.src = '';
                 img.onerror = null;
                 img.style.display = 'none';
-                av.style.display = '';
+                av.style.display = 'flex';
                 av.textContent = (initial || 'V').charAt(0).toUpperCase();
             }
         }
@@ -2423,10 +2427,16 @@
                     var img = document.getElementById('perfilFotoImg');
                     var av = document.getElementById('perfilAvatarInicial');
                     if (r.foto_perfil) {
-                        img.src = r.foto_perfil + '?t=' + Date.now();
+                        img.onerror = function () {
+                            img.style.display = 'none';
+                            av.style.display = '';
+                            av.textContent = initial;
+                        };
+                        img.src = (typeof API_URL !== 'undefined' ? API_URL : 'api.php') + '?action=get_foto_perfil&t=' + Date.now();
                         img.style.display = '';
                         av.style.display = 'none';
                     } else {
+                        img.onerror = null;
                         img.src = '';
                         img.style.display = 'none';
                         av.style.display = '';
@@ -2449,7 +2459,7 @@
                             applyAvatarInHeader(nome.charAt(0), res.foto_perfil);
                             var img = document.getElementById('perfilFotoImg');
                             var av = document.getElementById('perfilAvatarInicial');
-                            img.src = res.foto_perfil + '?t=' + Date.now();
+                            img.src = (typeof API_URL !== 'undefined' ? API_URL : 'api.php') + '?action=get_foto_perfil&t=' + Date.now();
                             img.style.display = '';
                             av.style.display = 'none';
                         } else {

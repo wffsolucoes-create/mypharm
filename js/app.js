@@ -213,7 +213,7 @@ function applyAvatarAdmin(initial, fotoUrl) {
     if (!av) return;
     if (img) {
         if (fotoUrl) {
-            var url = fotoUrl.indexOf('?') >= 0 ? fotoUrl : fotoUrl + '?t=' + Date.now();
+            var url = API_URL + '?action=get_foto_perfil&t=' + Date.now();
             img.src = url;
             img.alt = 'Foto de perfil';
             img.style.display = '';

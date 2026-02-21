@@ -112,9 +112,44 @@ try {
         'config',
         'upload_foto_perfil',
         'get_meu_perfil',
-        'update_meu_perfil'
+        'update_meu_perfil',
+        'get_foto_perfil'
     ];
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
+
+    // Servir foto de perfil como imagem (não JSON)
+    if ($action === 'get_foto_perfil') {
+        $userId = (int)($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0) {
+            http_response_code(401);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['error' => 'Não autenticado'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        try {
+            $pdo->exec("ALTER TABLE usuarios ADD COLUMN foto_perfil VARCHAR(255) NULL DEFAULT NULL");
+        } catch (Throwable $e) {}
+        $stmt = $pdo->prepare("SELECT foto_perfil FROM usuarios WHERE id = :id LIMIT 1");
+        $stmt->execute(['id' => $userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $path = null;
+        if (!empty($row['foto_perfil'])) {
+            $f = basename($row['foto_perfil']);
+            $path = __DIR__ . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'avatars' . DIRECTORY_SEPARATOR . $f;
+        }
+        if (!$path || !is_file($path)) {
+            http_response_code(404);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['error' => 'Foto não encontrada'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mimes = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp'];
+        header('Content-Type: ' . ($mimes[$ext] ?? 'image/jpeg'));
+        header('Cache-Control: private, max-age=3600');
+        readfile($path);
+        exit;
+    }
     if ($userSetor === 'visitador' && !in_array($action, $publicActions) && !in_array($action, $visitadorAllowed)) {
         http_response_code(403);
         echo json_encode(['error' => 'Acesso restrito. Usuários do setor Visitador só podem acessar o painel do visitador.'], JSON_UNESCAPED_UNICODE);

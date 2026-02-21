@@ -225,6 +225,18 @@ main {
     width: 100%;
 }
 
+/* --- Rodapé --- */
+.app-footer.visitador-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    background: var(--bg-body);
+}
+
 .welcome-section {
     display: flex;
     justify-content: space-between;
@@ -617,8 +629,8 @@ tr:last-child td {
     transform: rotate(-90deg);
 }
 
-/* ================= RESPONSIVIDADE (MOBILE) ================= */
-/* MacBook Pro 14" / Laptop padrão */
+/* ================= RESPONSIVIDADE: TABLET E CELULAR ================= */
+/* Laptop / tela média */
 @media (max-width: 1280px) {
     main { padding: 1.5rem; }
     .kpi-row {
@@ -628,7 +640,7 @@ tr:last-child td {
     .dashboard-grid { gap: 20px; }
     .welcome-text h1 { font-size: 1.75rem; }
 }
-/* MacBook Air 13" / telas menores */
+
 @media (max-width: 1152px) {
     header { padding: 0 1.5rem; }
     main { padding: 1.25rem; }
@@ -639,34 +651,59 @@ tr:last-child td {
     .kpi-card-mini { padding: 1.5rem; }
     .kpi-card-mini h3 { font-size: 1.15rem; }
 }
-/* Tablet */
+
+/* TABLET (768px – 1024px): 2 colunas, bom uso do espaço */
 @media (max-width: 1024px) {
     .dashboard-grid {
         grid-template-columns: 1fr;
     }
     .kpi-row {
         grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
+        gap: 18px;
+        margin-bottom: 28px;
     }
     .card-header {
-        flex-direction: column;
-        align-items: flex-start;
+        flex-direction: row;
+        align-items: center;
+    }
+    .meta-grid {
+        gap: 18px;
+    }
+    .card {
+        padding: 1.25rem;
     }
 }
 
-/* Tablet portrait / Phone */
+@media (min-width: 769px) and (max-width: 1024px) {
+    header {
+        padding: 0 1.25rem;
+        height: 72px;
+        flex-direction: row;
+    }
+    .brand { width: auto; }
+    .user-menu { width: auto; border-top: none; padding-top: 0; }
+    main { padding: 1.25rem; }
+    .welcome-text h1 { font-size: 1.6rem; }
+    .welcome-section > div:first-child {
+        flex-wrap: wrap;
+    }
+    .welcome-section .card { min-width: auto; }
+}
+
+/* CELULAR (até 768px): header empilhado, 2 colunas de KPIs, depois 1 coluna */
 @media (max-width: 768px) {
     header {
-        padding: 0 1rem;
+        padding: 0.75rem 1rem;
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
         height: auto;
         min-height: 70px;
-        padding: 1rem;
         flex-direction: column;
-        gap: 12px;
+        gap: 10px;
     }
     .brand {
         width: 100%;
-        justify-content: center;
+        justify-content: space-between;
     }
     .brand img {
         height: 36px;
@@ -675,71 +712,128 @@ tr:last-child td {
         width: 100%;
         justify-content: space-between;
         border-top: 1px solid var(--border);
-        padding-top: 12px;
+        padding-top: 10px;
     }
-    .theme-toggle {
-        margin-right: 0;
+    .theme-toggle { margin-right: 0; }
+    .btn-notifications {
+        min-width: 44px;
+        min-height: 44px;
+    }
+    .btn-logout {
+        min-height: 44px;
+        padding: 10px 14px;
     }
     main {
         padding: 1rem;
+        padding-left: max(0.75rem, env(safe-area-inset-left));
+        padding-right: max(0.75rem, env(safe-area-inset-right));
     }
     .welcome-section {
         flex-direction: column;
-        align-items: flex-start;
-        gap: 16px;
+        align-items: stretch;
+        gap: 14px;
     }
-    .welcome-section .card {
-        width: 100%;
-        min-width: auto;
+    .welcome-section > div:first-child {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
     }
     .welcome-text h1 {
-        font-size: 1.5rem;
+        font-size: 1.4rem;
+        line-height: 1.25;
+    }
+    .welcome-section .card { width: 100%; min-width: auto; }
+    .welcome-section p {
+        font-size: 0.9rem;
+    }
+    .welcome-section button {
+        min-height: 44px;
+        padding: 12px 18px;
+        font-size: 0.9rem;
     }
     .kpi-row {
         grid-template-columns: repeat(2, 1fr);
         gap: 12px;
-        margin-bottom: 24px;
+        margin-bottom: 20px;
     }
     .kpi-card-mini {
-        padding: 1.25rem;
+        padding: 1rem 1.1rem;
     }
     .kpi-card-mini h3 {
-        font-size: 1.1rem;
+        font-size: 1.05rem;
+    }
+    .kpi-icon-box {
+        width: 48px;
+        height: 48px;
+        font-size: 1.25rem;
     }
     .card {
-        padding: 1.25rem;
+        padding: 1.1rem;
+        margin-bottom: 16px;
     }
-    .dashboard-grid {
-        gap: 16px;
-    }
-    .d-none-mobile {
-        display: none !important;
-    }
+    .dashboard-grid { gap: 16px; }
+    .d-none-mobile { display: none !important; }
     .table-responsive {
         width: 100%;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
     }
-    table {
-        min-width: 600px;
-    }
-    th, td {
-        padding: 12px;
-        font-size: 0.85rem;
-    }
+    table { min-width: 560px; }
+    th, td { padding: 10px 8px; font-size: 0.82rem; }
 }
 
-/* Celular pequeno */
+/* CELULAR PEQUENO (até 576px): 1 coluna, mais compacto */
 @media (max-width: 576px) {
     main {
         padding: 0.75rem;
+        padding-left: max(0.5rem, env(safe-area-inset-left));
+        padding-right: max(0.5rem, env(safe-area-inset-right));
+    }
+    .welcome-text h1 {
+        font-size: 1.25rem;
+    }
+    .welcome-section button {
+        width: 100%;
+        justify-content: center;
+    }
+    .meta-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .meta-grid .card {
+        padding: 12px 16px;
     }
     .kpi-row {
         grid-template-columns: 1fr;
+        gap: 10px;
+        margin-bottom: 18px;
     }
+    .kpi-card-mini {
+        padding: 1rem;
+        flex-direction: row;
+        align-items: center;
+    }
+    .kpi-card-mini h3 { font-size: 1rem; }
     .card {
         padding: 1rem;
+        margin-bottom: 12px;
     }
+    .card-title { font-size: 1.05rem; }
+    .card-subtitle { font-size: 0.8rem; }
+}
+
+/* CELULAR MUITO PEQUENO (até 380px) */
+@media (max-width: 380px) {
+    .brand-title { font-size: 1rem; }
+    .brand-subtitle { font-size: 0.65rem; }
+    .welcome-text h1 { font-size: 1.15rem; }
+    .kpi-icon-box {
+        width: 42px;
+        height: 42px;
+        font-size: 1.1rem;
+    }
+    .meta-grid .card,
+    .card { padding: 10px 14px; }
 }
 
 /* Componentes de Status e Alertas */
@@ -820,11 +914,13 @@ tr:last-child td {
 @media (max-width: 1024px) {
     .meta-grid {
         grid-template-columns: repeat(2, 1fr);
+        gap: 18px;
     }
 }
 
 @media (max-width: 640px) {
     .meta-grid {
         grid-template-columns: 1fr;
+        gap: 12px;
     }
 }
