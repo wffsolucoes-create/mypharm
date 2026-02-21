@@ -1,8 +1,11 @@
 <?php
 /**
- * Importa apenas os 5 CSVs "Relatório de Itens de Orçamentos e Pedidos" (2022-2026)
- * e atualiza prescritores_cadastro + prescritor_resumido.
- * Uso: php scripts/importar_itens_cli.php   (na pasta mypharm)
+ * Importa os CSVs "Relatório de Itens de Orçamentos e Pedidos" e atualiza
+ * prescritores_cadastro + prescritor_resumido.
+ *
+ * Uso (na pasta mypharm):
+ *   php scripts/importar_itens_cli.php        → importa 2022 a 2026 (primeira vez)
+ *   php scripts/importar_itens_cli.php 2026    → importa só 2026 (atualizações)
  *
  * REGRA: Prescritores e visitadores são gerenciados pelo SISTEMA. Na importação
  * só adicionamos prescritores que ainda NÃO estão no banco (ex.: nome novo no relatório).
@@ -77,12 +80,31 @@ function readCsvHeader($path, $delim = ';') {
     return [$h, $header];
 }
 
+/** INSERT em massa: várias linhas por query (muito mais rápido que 1 execute por linha). */
+const BULK_INSERT_CHUNK = 500;
+
 function importBatch($pdo, $sql, $rows) {
     if (empty($rows)) return;
-    $pdo->beginTransaction();
-    $st = $pdo->prepare($sql);
-    foreach ($rows as $r) $st->execute($r);
-    $pdo->commit();
+    if (!preg_match('/^INSERT\s+INTO\s+(\S+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i', $sql, $m)) {
+        $pdo->beginTransaction();
+        $st = $pdo->prepare($sql);
+        foreach ($rows as $r) $st->execute($r);
+        $pdo->commit();
+        return;
+    }
+    $table = $m[1];
+    $cols = $m[2];
+    $numPlaceholders = count(explode(',', trim($m[3])));
+    $chunks = array_chunk($rows, BULK_INSERT_CHUNK);
+    foreach ($chunks as $chunk) {
+        $placeholders = implode(',', array_fill(0, count($chunk), '(' . implode(',', array_fill(0, $numPlaceholders, '?')) . ')'));
+        $multiSql = "INSERT INTO {$table} ({$cols}) VALUES {$placeholders}";
+        $flat = [];
+        foreach ($chunk as $row) {
+            foreach ($row as $v) $flat[] = $v;
+        }
+        $pdo->prepare($multiSql)->execute($flat);
+    }
 }
 
 // Garantir tabelas
@@ -119,14 +141,31 @@ $stmtNew = $pdo->prepare("INSERT IGNORE INTO prescritores_cadastro (nome, visita
 
 $sql = "INSERT INTO itens_orcamentos_pedidos (filial, numero, serie, data, canal, forma_farmaceutica, descricao, quantidade, unidade, valor_bruto, valor_liquido, preco_custo, fator, status, usuario_inclusao, usuario_aprovador, paciente, prescritor, status_financeiro, ano_referencia) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
+// Sem argumento: importa 2022 a 2026. Com ano: php importar_itens_cli.php 2026 → só 2026
+$anos = isset($argv[1]) && preg_match('/^20\d{2}$/', $argv[1]) ? [(int)$argv[1]] : range(2022, 2026);
+echo "Anos a importar: " . implode(', ', $anos) . "\n";
+
+function deleteInBatches($pdo, $table, $column, $value, $batchSize = 500) {
+    $deleted = 0;
+    do {
+        $stmt = $pdo->prepare("DELETE FROM {$table} WHERE {$column} = ? LIMIT {$batchSize}");
+        $stmt->execute([$value]);
+        $rows = $stmt->rowCount();
+        $deleted += $rows;
+    } while ($rows > 0);
+    return $deleted;
+}
+
 $total = 0;
-foreach (range(2022, 2026) as $ano) {
+foreach ($anos as $ano) {
     $file = dirname(__DIR__) . "/Dados/Relatório de Itens de Orçamentos e Pedidos {$ano}.csv";
     if (!file_exists($file)) {
         echo "Arquivo não encontrado: {$ano}\n";
         continue;
     }
-    $pdo->exec("DELETE FROM itens_orcamentos_pedidos WHERE ano_referencia = " . (int)$ano);
+    echo "Limpando itens {$ano}...";
+    $del = deleteInBatches($pdo, 'itens_orcamentos_pedidos', 'ano_referencia', $ano);
+    echo " {$del} removidos.\n";
     list($handle, $header) = readCsvHeader($file);
     if (!$handle || !$header) {
         echo "Erro ao ler CSV {$ano}\n";
@@ -173,7 +212,7 @@ foreach (range(2022, 2026) as $ano) {
             $ano
         ];
         $count++;
-        if (count($batch) >= 1000) {
+        if (count($batch) >= 2000) {
             importBatch($pdo, $sql, $batch);
             $batch = [];
         }
@@ -184,9 +223,9 @@ foreach (range(2022, 2026) as $ano) {
     echo "{$ano}: {$count} itens\n";
 }
 
-// Atualizar prescritor_resumido a partir dos itens
-foreach (range(2022, 2026) as $anoRef) {
-    $pdo->exec("DELETE FROM prescritor_resumido WHERE ano_referencia = " . (int)$anoRef);
+// Atualizar prescritor_resumido a partir dos itens (só os anos que foram importados)
+foreach ($anos as $anoRef) {
+    deleteInBatches($pdo, 'prescritor_resumido', 'ano_referencia', $anoRef);
     $pdo->exec("
         INSERT INTO prescritor_resumido (visitador, nome, aprovados, valor_aprovado, recusados, valor_recusado, no_carrinho, valor_no_carrinho, ano_referencia)
         SELECT COALESCE(pc.visitador, 'My Pharm'), COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm'),
@@ -200,6 +239,6 @@ foreach (range(2022, 2026) as $anoRef) {
         GROUP BY COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm'), COALESCE(pc.visitador, 'My Pharm')
     ");
 }
-echo "prescritor_resumido atualizado (2022-2026).\n";
+echo "prescritor_resumido atualizado (" . implode(', ', $anos) . ").\n";
 echo "Total de itens importados: {$total}\n";
 echo "Concluído.\n";

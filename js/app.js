@@ -70,7 +70,7 @@ function getRankClass(index) {
 // ============ API Calls ============
 async function apiGet(action, params = {}) {
     const query = new URLSearchParams({ action, ...params });
-    const response = await fetch(`${API_URL}?${query}`);
+    const response = await fetch(`${API_URL}?${query}`, { credentials: 'include' });
     if (response.status === 401) {
         localStorage.clear();
         window.location.href = 'index.html';
@@ -85,7 +85,8 @@ async function apiPost(action, data = {}) {
     const response = await fetch(`${API_URL}?action=${action}`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
+        credentials: 'include'
     });
     if (response.status === 401) {
         localStorage.clear();
@@ -216,6 +217,8 @@ function navigateTo(page) {
         'dashboard': 'Dashboard',
         'faturamento': 'Faturamento',
         'prescritores': 'Prescritores',
+        'visitadores': 'Visitadores',
+        'visitas': 'Visitas',
         'clientes': 'Clientes',
         'produtos': 'Produtos',
         'equipe': 'Equipe',
@@ -298,6 +301,7 @@ async function loadPageData(page) {
             case 'produtos': await loadProdutos(); break;
             case 'equipe': await loadEquipe(); break;
             case 'visitadores': await loadVisitadoresPage(); break;
+            case 'visitas': await loadVisitasPage(); break;
             case 'insights': await loadInsights(); break;
             case 'admin': await loadAdmin(); break;
         }
@@ -735,7 +739,8 @@ async function loadPrescritores() {
 // ============ VISITADORES (NOVA PÁGINA) ============
 async function loadVisitadoresPage() {
     const fp = getFilterParams();
-    const params = fp.ano ? { ano: fp.ano } : {};
+    const ano = fp.ano || currentYear || new Date().getFullYear();
+    const params = { ano: ano };
     if (fp.mes) params.mes = fp.mes;
     if (fp.dia) params.dia = fp.dia;
     const visitadores = await apiGet('visitadores', params);
@@ -746,6 +751,222 @@ async function loadVisitadoresPage() {
     renderKPIsVisitadores(visitadores);
     renderChartVisitadoresRanking(visitadores);
     renderTableVisitadoresPage(visitadores);
+}
+
+// ============ VISITAS (PÁGINA ADMIN) ============
+let __visitasRelatorioCache = null; // para mapa (dropdown visitador)
+
+async function loadVisitasPage() {
+    const fp = getFilterParams();
+    const params = { ano: fp.ano || currentYear || new Date().getFullYear() };
+    if (fp.mes) params.mes = fp.mes;
+    let lista = [];
+    try {
+        lista = await apiGet('admin_visitas', params) || [];
+    } catch (e) {
+        console.error('Erro ao carregar visitas', e);
+    }
+    renderTableVisitasPage(lista);
+
+    try {
+        const rel = await apiGet('admin_visitas_relatorio', params) || {};
+        __visitasRelatorioCache = rel;
+        const totais = rel.totais || {};
+        const por_visitador = rel.por_visitador || [];
+        const rotas = rel.rotas || [];
+        const pontos_rotas = rel.pontos_rotas || [];
+        const totalKm = por_visitador.reduce((s, p) => s + parseFloat(p.total_km_rotas || 0), 0);
+        renderVisitasKPIs(totais, totalKm);
+        renderVisitasPorVisitador(por_visitador);
+        renderRotasDetalhes(rotas);
+        renderVisitasMapaVisitadorOptions(por_visitador);
+        renderMapaRotas(pontos_rotas, '');
+    } catch (e) {
+        console.error('Erro ao carregar relatório visitas', e);
+        renderVisitasKPIs({}, 0);
+        renderVisitasPorVisitador([]);
+        renderRotasDetalhes([]);
+        renderMapaRotas([], '');
+    }
+}
+
+function renderVisitasKPIs(totais, totalKm) {
+    const elPeriodo = document.getElementById('visitasKpiPeriodo');
+    const elSemana = document.getElementById('visitasKpiSemana');
+    const elKm = document.getElementById('visitasKpiKm');
+    if (elPeriodo) elPeriodo.textContent = formatNumber(totais.total_visitas_periodo ?? 0);
+    if (elSemana) elSemana.textContent = formatNumber(totais.total_visitas_semana_atual ?? 0);
+    if (elKm) elKm.textContent = (totalKm > 0 ? totalKm.toFixed(1) : '0');
+}
+
+function renderVisitasPorVisitador(por_visitador) {
+    const tbody = document.querySelector('#tableVisitasPorVisitador tbody');
+    const emptyEl = document.getElementById('visitasPorVisitadorEmpty');
+    if (!tbody) return;
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (!Array.isArray(por_visitador) || por_visitador.length === 0) {
+        tbody.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+    }
+    tbody.innerHTML = por_visitador.map(p => `
+        <tr>
+            <td>${escapeHtml(p.visitador_nome || '—')}</td>
+            <td>${formatNumber(p.total_visitas ?? 0)}</td>
+            <td>${(p.total_km_rotas ?? 0).toFixed(1)} km</td>
+        </tr>
+    `).join('');
+}
+
+function renderRotasDetalhes(rotas) {
+    const tbody = document.querySelector('#tableRotasDetalhes tbody');
+    const emptyEl = document.getElementById('rotasDetalhesEmpty');
+    if (!tbody) return;
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (!Array.isArray(rotas) || rotas.length === 0) {
+        tbody.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+    }
+    const fmtDt = (d) => {
+        if (!d) return '—';
+        const dt = new Date(d);
+        return isNaN(dt.getTime()) ? d : dt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+    };
+    tbody.innerHTML = rotas.map(r => `
+        <tr>
+            <td>${escapeHtml(r.visitador_nome || '—')}</td>
+            <td>${fmtDt(r.data_inicio)}</td>
+            <td>${fmtDt(r.data_fim)}</td>
+            <td>${escapeHtml(r.status || '—')}</td>
+            <td>${(r.km ?? 0).toFixed(1)} km</td>
+            <td>${formatNumber(r.qtd_pontos ?? 0)}</td>
+        </tr>
+    `).join('');
+}
+
+function renderVisitasMapaVisitadorOptions(por_visitador) {
+    const sel = document.getElementById('visitasMapaVisitador');
+    if (!sel) return;
+    const names = [...new Set((por_visitador || []).map(p => p.visitador_nome).filter(Boolean))].sort();
+    sel.innerHTML = '<option value="">Todos os visitadores</option>' +
+        names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+}
+
+function renderMapaRotasFromStore() {
+    const sel = document.getElementById('visitasMapaVisitador');
+    const visitador = sel ? sel.value || '' : '';
+    const rel = __visitasRelatorioCache;
+    const pontos_rotas = rel && rel.pontos_rotas ? rel.pontos_rotas : [];
+    renderMapaRotas(pontos_rotas, visitador);
+}
+
+let __mapaRotasVisitasInstance = null;
+
+function renderMapaRotas(pontos_rotas, visitadorSelecionado) {
+    const container = document.getElementById('mapaRotasVisitas');
+    const emptyEl = document.getElementById('mapaRotasEmpty');
+    if (!container) return;
+    if (emptyEl) emptyEl.style.display = 'none';
+    const filtered = visitadorSelecionado
+        ? (pontos_rotas || []).filter(pr => (pr.visitador_nome || '') === visitadorSelecionado)
+        : (pontos_rotas || []);
+    if (filtered.length === 0 || filtered.every(pr => !(pr.pontos && pr.pontos.length))) {
+        if (__mapaRotasVisitasInstance) {
+            __mapaRotasVisitasInstance.remove();
+            __mapaRotasVisitasInstance = null;
+        }
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+    }
+    if (typeof L === 'undefined') {
+        if (emptyEl) emptyEl.textContent = 'Mapa indisponível.'; emptyEl.style.display = 'block';
+        return;
+    }
+    if (__mapaRotasVisitasInstance) {
+        __mapaRotasVisitasInstance.remove();
+        __mapaRotasVisitasInstance = null;
+    }
+    const colors = ['#2563EB', '#059669', '#D97706', '#DC2626', '#7C3AED', '#DB2777'];
+    const map = L.map(container, { zoomControl: true }).setView([-8.76, -63.90], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    __mapaRotasVisitasInstance = map;
+    let bounds = null;
+    filtered.forEach((pr, idx) => {
+        const pts = (pr.pontos || []).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+        if (pts.length < 2) return;
+        const latlngs = pts.map(p => [p.lat, p.lng]);
+        const color = colors[idx % colors.length];
+        const polyline = L.polyline(latlngs, { color, weight: 4, opacity: 0.8 }).addTo(map);
+        polyline.bindTooltip(pr.visitador_nome || 'Rota ' + (pr.rota_id || ''), { permanent: false });
+        if (!bounds) bounds = L.latLngBounds(latlngs);
+        else bounds.extend(latlngs);
+    });
+    if (bounds) map.fitBounds(bounds.pad(0.1));
+    setTimeout(() => map.invalidateSize(), 150);
+}
+
+function renderTableVisitasPage(lista) {
+    const tbody = document.querySelector('#tableVisitasPage tbody');
+    const emptyEl = document.getElementById('visitasPageEmpty');
+    if (!tbody) return;
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (!Array.isArray(lista) || lista.length === 0) {
+        tbody.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+    }
+    const formatDate = (d) => {
+        if (!d) return '—';
+        const dt = new Date(d);
+        return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('pt-BR');
+    };
+    const formatTime = (h) => h ? String(h).slice(0, 5) : '—';
+    const formatInicio = (iv) => {
+        if (!iv) return '—';
+        const s = String(iv).trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(s) && s.length >= 16) return s.slice(11, 16);
+        if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(11, 16);
+        return s.slice(0, 5) || '—';
+    };
+    const formatDuracao = (min) => {
+        if (min == null || min === '' || isNaN(parseInt(min, 10))) return '—';
+        const m = parseInt(min, 10);
+        if (m < 60) return m + ' min';
+        const h = Math.floor(m / 60);
+        const rest = m % 60;
+        return rest ? h + 'h ' + rest + 'min' : h + 'h';
+    };
+    const formatReagend = (r) => {
+        if (!r || !String(r).trim()) return '—';
+        const s = String(r).trim();
+        const match = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{1,2}):(\d{2})?)?/);
+        if (match) {
+            const [, y, mo, d, h, mi] = match;
+            const dt = new Date(parseInt(y, 10), parseInt(mo, 10) - 1, parseInt(d, 10), h ? parseInt(h, 10) : 0, mi ? parseInt(mi, 10) : 0);
+            return isNaN(dt.getTime()) ? s : dt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: h ? 'short' : undefined });
+        }
+        return s;
+    };
+    const truncate = (str, max) => {
+        const s = (str || '').trim();
+        if (!s) return '—';
+        return s.length <= max ? s : s.slice(0, max) + '…';
+    };
+    tbody.innerHTML = lista.map((v, i) => `
+        <tr>
+            <td>${i + 1}</td>
+            <td>${(v.visitador || '—').trim()}</td>
+            <td>${(v.prescritor || '—').trim()}</td>
+            <td>${formatDate(v.data_visita)}</td>
+            <td>${formatInicio(v.inicio_visita)}</td>
+            <td>${formatTime(v.horario)}</td>
+            <td>${formatDuracao(v.duracao_minutos)}</td>
+            <td>${(v.status_visita || '—').trim()}</td>
+            <td title="${(v.local_visita || '').replace(/"/g, '&quot;')}">${truncate(v.local_visita, 35)}</td>
+            <td>${formatReagend(v.reagendado_para)}</td>
+        </tr>
+    `).join('');
 }
 
 function renderKPIsVisitadores(data) {
@@ -1605,22 +1826,22 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
             });
         }
 
-        // 3. Chart Top Produtos (Doughnut)
+        // 3. Chart Especialidades da carteira (Doughnut) — prescritores por especialidade
         const ctxProd = document.getElementById('chartProdutos');
         if (ctxProd) {
             const chartProdStatus = Chart.getChart("chartProdutos");
             if (chartProdStatus != undefined) { chartProdStatus.destroy(); }
 
-            const topProdutos = data.top_produtos || [];
-            const totalTop = topProdutos.reduce((acc, curr) => acc + parseFloat(curr.total), 0);
+            const topEspecialidades = data.top_especialidades || [];
+            const totalEsp = topEspecialidades.reduce((acc, curr) => acc + parseInt(curr.total, 10), 0);
 
             new Chart(ctxProd, {
                 type: 'doughnut',
                 data: {
-                    labels: topProdutos.map(p => truncateText(p.familia || 'Outros', 15)),
+                    labels: topEspecialidades.map(e => truncateText(e.familia || 'Outros', 18)),
                     datasets: [{
-                        data: topProdutos.map(p => parseFloat(p.total)),
-                        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#64748B'],
+                        data: topEspecialidades.map(e => parseInt(e.total, 10)),
+                        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#64748B', '#EC4899', '#14B8A6', '#F97316', '#6366F1'],
                         borderWidth: 0,
                         hoverOffset: 10
                     }]
@@ -1643,8 +1864,8 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
                             callbacks: {
                                 label: ctx => {
                                     const val = ctx.parsed;
-                                    const pct = totalTop > 0 ? ((val / totalTop) * 100).toFixed(1) + '%' : '0%';
-                                    return ` ${formatMoney(val)} (${pct})`;
+                                    const pct = totalEsp > 0 ? ((val / totalEsp) * 100).toFixed(1) + '%' : '0%';
+                                    return ` ${val} prescritor(es) (${pct})`;
                                 }
                             }
                         }
@@ -1713,6 +1934,9 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
                     const valor = parseFloat(a.valor_total_aprovado) || 0;
                     const score = parseFloat(a.score) || 0;
                     const pedidos = parseInt(a.total_pedidos) || 0;
+                    const mediaAnoAnt = parseFloat(a.media_mensal_ano_anterior) || 0;
+                    const abaixoDaMedia = !!a.abaixo_da_media;
+                    const anoRef = a.ano_anterior_ref || new Date().getFullYear() - 1;
 
                     const severidade = score >= 60 ? 'critico' : score >= 35 ? 'alto' : 'medio';
                     const sevCfg = {
@@ -1736,6 +1960,14 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
                         ? `<span style="color:#F59E0B; font-weight:700;">${diasVisita}d</span>`
                         : `<span style="color:var(--text-secondary);">${diasVisita}d</span>`;
 
+                    const mediaVal = mediaAnoAnt > 0 ? formatMoney(mediaAnoAnt) + '/mês' : '—';
+                    const mediaAnoAtual = parseFloat(a.media_mensal_ano_atual) || 0;
+                    const anoAtualRef = a.ano_atual_ref || new Date().getFullYear();
+                    const media2026Val = mediaAnoAtual > 0 ? formatMoney(mediaAnoAtual) + '/mês' : '—';
+                    const abaixoBadge = abaixoDaMedia
+                        ? `<span style="font-size:0.6rem; font-weight:800; padding:1px 6px; border-radius:4px; background:rgba(239,68,68,0.12); color:#EF4444; border:1px solid rgba(239,68,68,0.3); white-space:nowrap;">Abaixo da média</span>`
+                        : '';
+
                     return `
                         <div style="display:flex; gap:10px; padding:10px 0; ${idx < alertas.length - 1 ? 'border-bottom:1px solid var(--border);' : ''}">
                             <div style="flex-shrink:0; width:32px; height:32px; border-radius:8px; background:${s.bg}; border:1px solid ${s.border}; display:flex; align-items:center; justify-content:center;">
@@ -1744,14 +1976,28 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
                             <div style="flex:1; min-width:0;">
                                 <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
                                     <span style="font-weight:700; font-size:0.82rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${truncateText(a.prescritor, 22)}</span>
-                                    <span style="font-size:0.6rem; font-weight:800; padding:1px 6px; border-radius:4px; background:${s.bg}; color:${s.color}; border:1px solid ${s.border}; white-space:nowrap;">${s.label}</span>
+                                    <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
+                                        ${abaixoBadge}
+                                        <span style="font-size:0.6rem; font-weight:800; padding:1px 6px; border-radius:4px; background:${s.bg}; color:${s.color}; border:1px solid ${s.border}; white-space:nowrap;">${s.label}</span>
+                                    </div>
                                 </div>
-                                <div style="display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.7rem; flex-wrap:wrap;">
-                                    <span style="display:inline-flex; align-items:center; gap:3px; color:var(--text-secondary);"><i class="fas fa-money-bill-wave" style="font-size:0.55rem; color:#10B981;"></i>${formatMoney(valor)}</span>
-                                    <span style="color:var(--border);">|</span>
-                                    <span style="display:inline-flex; align-items:center; gap:3px;"><i class="fas fa-shopping-cart" style="font-size:0.55rem; color:var(--text-secondary);"></i>s/compra: ${compraTag}</span>
-                                    <span style="color:var(--border);">|</span>
-                                    <span style="display:inline-flex; align-items:center; gap:3px;"><i class="fas fa-route" style="font-size:0.55rem; color:var(--text-secondary);"></i>s/visita: ${visitaTag}</span>
+                                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:8px 12px; margin-top:8px; font-size:0.7rem;">
+                                    <div style="display:flex; flex-direction:column; gap:1px;">
+                                        <span style="color:var(--text-secondary); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.3px;">s/compra</span>
+                                        <span style="font-weight:700;">${compraTag}</span>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:1px;">
+                                        <span style="color:var(--text-secondary); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.3px;">s/visita</span>
+                                        <span style="font-weight:700;">${visitaTag}</span>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:1px;">
+                                        <span style="color:var(--text-secondary); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.3px;">Média ${anoRef}</span>
+                                        <span style="font-weight:600; color:var(--text-primary);">${mediaVal}</span>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:1px;">
+                                        <span style="color:var(--text-secondary); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.3px;">Média ${anoAtualRef}</span>
+                                        <span style="font-weight:600; color:var(--text-primary);">${media2026Val}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1777,10 +2023,16 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
             const rows = window.__visitasSemanaData;
             if (vsCount) vsCount.textContent = rows.length;
             if (Array.isArray(rows) && rows.length) {
+                const tzPortoVelho = 'America/Porto_Velho';
                 vsBody.innerHTML = rows.map((r, idx) => {
-                    const dt = r.data_visita ? new Date(r.data_visita) : null;
-                    const dataFmt = dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }) : (r.data_visita || '-');
+                    const isoPV = r.data_visita && r.horario ? (r.data_visita + 'T' + String(r.horario).slice(0, 5) + ':00-04:00') : (r.data_visita ? r.data_visita + 'T12:00:00-04:00' : null);
+                    const dt = isoPV ? new Date(isoPV) : null;
+                    const dataFmt = dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'short', timeZone: tzPortoVelho }) : (r.data_visita || '-');
                     const hora = r.horario ? String(r.horario).slice(0, 5) : '';
+                    const mins = r.duracao_minutos != null && r.duracao_minutos !== '' ? parseInt(r.duracao_minutos, 10) : null;
+                    const duracaoTxt = mins != null && !isNaN(mins) && mins >= 0
+                        ? (mins >= 60 ? (Math.floor(mins / 60) + 'h ' + (mins % 60 ? mins % 60 + ' min' : '').trim()) : mins + ' min')
+                        : '';
                     const status = r.status_visita || '-';
                     const statusLower = status.toLowerCase();
                     const resumo = r.resumo_visita || '';
@@ -1815,7 +2067,7 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
                                     </div>
                                 </div>
                                 <div style="display:flex; align-items:center; gap:8px; margin-top:3px; flex-wrap:wrap;">
-                                    <span style="display:inline-flex; align-items:center; gap:3px; font-size:0.72rem; color:var(--text-secondary);"><i class="far fa-clock" style="font-size:0.6rem;"></i>${dataFmt}${hora ? ' · ' + hora : ''}</span>
+                                    <span style="display:inline-flex; align-items:center; gap:3px; font-size:0.72rem; color:var(--text-secondary);"><i class="far fa-clock" style="font-size:0.6rem;"></i>${dataFmt}${hora ? ' · ' + hora : ''}${duracaoTxt ? ' · ' + duracaoTxt : ''}</span>
                                     ${localHtml}
                                 </div>
                                 ${resumoHtml}
@@ -1962,10 +2214,10 @@ function renderDashboardMapaVisitas(visitas, resumo, contexto) {
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
         points.push([lat, lng]);
 
-        const dataTxt = v.data_visita ? (() => {
-            const dt = new Date(v.data_visita);
-            return !isNaN(dt.getTime()) ? dt.toLocaleDateString('pt-BR') : String(v.data_visita);
-        })() : '-';
+        const tzPV = 'America/Porto_Velho';
+        const isoPV = v.data_visita && v.horario ? (v.data_visita + 'T' + String(v.horario).slice(0, 5) + ':00-04:00') : (v.data_visita ? v.data_visita + 'T12:00:00-04:00' : null);
+        const dtVisita = isoPV ? new Date(isoPV) : null;
+        const dataTxt = dtVisita && !isNaN(dtVisita.getTime()) ? dtVisita.toLocaleDateString('pt-BR', { timeZone: tzPV }) : (v.data_visita ? String(v.data_visita) : '-');
         const hora = v.horario ? String(v.horario).slice(0, 5) : '';
         const prescritor = v.prescritor ? truncateText(String(v.prescritor), 40) : '-';
         const status = v.status_visita ? truncateText(String(v.status_visita), 16) : '-';
@@ -2526,7 +2778,7 @@ function loadSavedTheme() {
 
 async function fetchCsrfToken() {
     try {
-        const resp = await fetch(`${API_URL}?action=csrf_token`);
+        const resp = await fetch(`${API_URL}?action=csrf_token`, { credentials: 'include' });
         const data = await resp.json();
         if (data.token) __csrfToken = data.token;
     } catch (_) {}

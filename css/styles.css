@@ -538,6 +538,8 @@ body {
 .app-layout {
     display: flex;
     min-height: 100vh;
+    max-width: 100vw;
+    overflow-x: hidden;
 }
 
 /* ============ SIDEBAR ============ */
@@ -764,6 +766,7 @@ body {
     flex: 1;
     transition: margin-left var(--transition);
     min-height: 100vh;
+    min-width: 0;
 }
 
 .sidebar.collapsed~.main-content {
@@ -1743,10 +1746,47 @@ body {
 /* ============ Page Sections ============ */
 .section-page {
     display: none;
+    min-width: 0;
 }
 
 .section-page.active {
     display: block;
+}
+
+#page-visitas .page-content {
+    min-width: 0;
+    max-width: 100%;
+}
+
+#page-visitas .kpi-grid,
+#page-visitas .chart-card,
+#page-visitas .table-card {
+    min-width: 0;
+}
+
+#page-visitas .chart-header {
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+#page-visitas .table-responsive {
+    min-width: 0;
+}
+
+#page-visitas #mapaRotasVisitas {
+    min-width: 0;
+}
+
+#page-visitas .kpi-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+}
+
+#page-visitas .chart-card.full-width {
+    margin-bottom: 32px;
+}
+
+#page-visitas .chart-card.full-width + .table-card {
+    margin-top: 0;
 }
 
 /* ============ TOOLTIP ============ */

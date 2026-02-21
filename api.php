@@ -10,7 +10,7 @@ $allowedOrigins = [
     'http://127.0.0.1',
     'https://127.0.0.1',
     // Adicione seu domínio da Hostinger abaixo:
-    // 'https://seudominio.com.br',
+    // 'https://rede-mypharm.com.br',
 ];
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -19,8 +19,14 @@ if ($origin && in_array($origin, $allowedOrigins)) {
     header('Access-Control-Allow-Credentials: true');
 }
 // Se não há header Origin, é requisição same-origin — CORS não se aplica
-header('Access-Control-Allow-Methods: GET, POST');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
+
+// Preflight OPTIONS: responder 200 para o navegador enviar o POST com X-CSRF-Token
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
 // Headers de segurança adicionais
 header('X-Content-Type-Options: nosniff');
@@ -86,6 +92,7 @@ try {
     }
 
     // Visitador só pode acessar ações permitidas (evita bypass pela API)
+    // Ações públicas (login, csrf_token) não entram nessa restrição
     $visitadorAllowed = [
         'logout',
         'check_session',
@@ -93,14 +100,19 @@ try {
         'all_prescritores',
         'get_prescritor_contatos',
         'save_prescritor_whatsapp',
-        // fluxo de visitas (novo)
         'visita_ativa',
         'iniciar_visita',
         'encerrar_visita',
+        'rota_ativa',
+        'start_rota',
+        'pause_rota',
+        'resume_rota',
+        'finish_rota',
+        'save_rota_ponto',
         'config'
     ];
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
-    if ($userSetor === 'visitador' && $action !== 'login' && !in_array($action, $visitadorAllowed)) {
+    if ($userSetor === 'visitador' && !in_array($action, $publicActions) && !in_array($action, $visitadorAllowed)) {
         http_response_code(403);
         echo json_encode(['error' => 'Acesso restrito. Usuários do setor Visitador só podem acessar o painel do visitador.'], JSON_UNESCAPED_UNICODE);
         exit;
@@ -348,31 +360,58 @@ try {
 
         // ============================================
         // VISITADORES - PERFORMANCE
+        // Quando mes é informado: usa gestao_pedidos (filtro por mês). Senão: prescritor_resumido (ano).
         // ============================================
         case 'visitadores':
             $ano = $_GET['ano'] ?? null;
-            $whereAno = $ano ? "WHERE ano_referencia = :ano" : "";
+            $mes = isset($_GET['mes']) && $_GET['mes'] !== '' ? (int)$_GET['mes'] : null;
 
-            $stmt = $pdo->prepare("
-                SELECT 
-                    visitador,
-                    SUM(aprovados) as total_aprovados,
-                    SUM(valor_aprovado) as total_valor_aprovado,
-                    SUM(recusados) as total_recusados,
-                    SUM(valor_recusado) as total_valor_recusado,
-                    SUM(no_carrinho) as total_no_carrinho,
-                    SUM(valor_no_carrinho) as total_valor_carrinho,
-                    COUNT(DISTINCT nome) as total_prescritores_ano
-                FROM prescritor_resumido 
-                $whereAno
-                GROUP BY visitador
-                HAVING visitador != '' AND visitador IS NOT NULL
-                ORDER BY total_valor_aprovado DESC
-            ");
-            if ($ano)
-                $stmt->bindParam(':ano', $ano, PDO::PARAM_INT);
-            $stmt->execute();
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if ($mes !== null) {
+                // Filtro por mês: dados de gestao_pedidos (data_aprovacao) + vínculo prescritor→visitador
+                $anoVis = $ano ? (int)$ano : (int)date('Y');
+                $sqlVis = "
+                    SELECT 
+                        COALESCE(NULLIF(TRIM(pc.visitador), ''), 'My Pharm') AS visitador,
+                        SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END) AS total_valor_aprovado,
+                        SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN 1 ELSE 0 END) AS total_aprovados,
+                        SUM(CASE WHEN gp.status_financeiro = 'Recusado' THEN gp.preco_liquido ELSE 0 END) AS total_valor_recusado,
+                        SUM(CASE WHEN gp.status_financeiro = 'Recusado' THEN 1 ELSE 0 END) AS total_recusados,
+                        0 AS total_no_carrinho,
+                        0 AS total_valor_carrinho,
+                        COUNT(DISTINCT TRIM(COALESCE(gp.prescritor, ''))) AS total_prescritores_ano
+                    FROM gestao_pedidos gp
+                    LEFT JOIN prescritores_cadastro pc ON UPPER(TRIM(COALESCE(gp.prescritor, ''))) = UPPER(TRIM(pc.nome))
+                    WHERE gp.ano_referencia = :anoVis AND MONTH(gp.data_aprovacao) = :mesVis
+                    GROUP BY visitador
+                    HAVING visitador IS NOT NULL AND visitador != ''
+                    ORDER BY total_valor_aprovado DESC
+                ";
+                $stmt = $pdo->prepare($sqlVis);
+                $stmt->execute(['anoVis' => $anoVis, 'mesVis' => $mes]);
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } else {
+                $whereAno = $ano ? "WHERE ano_referencia = :ano" : "";
+                $stmt = $pdo->prepare("
+                    SELECT 
+                        visitador,
+                        SUM(aprovados) as total_aprovados,
+                        SUM(valor_aprovado) as total_valor_aprovado,
+                        SUM(recusados) as total_recusados,
+                        SUM(valor_recusado) as total_valor_recusado,
+                        SUM(no_carrinho) as total_no_carrinho,
+                        SUM(valor_no_carrinho) as total_valor_carrinho,
+                        COUNT(DISTINCT nome) as total_prescritores_ano
+                    FROM prescritor_resumido 
+                    $whereAno
+                    GROUP BY visitador
+                    HAVING visitador != '' AND visitador IS NOT NULL
+                    ORDER BY total_valor_aprovado DESC
+                ");
+                if ($ano)
+                    $stmt->bindParam(':ano', $ano, PDO::PARAM_INT);
+                $stmt->execute();
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
 
             // Prescritores na carteira = cadastro único (prescritores_cadastro), não por ano
             $stmtCarteira = $pdo->query("
@@ -660,9 +699,28 @@ try {
             $stmt->execute($paramsProd);
             $top_produtos = $stmt->fetchAll();
 
-            // Alertas inteligentes: prescritores com potencial (valor aprovado) mas inativos (sem compra e/ou sem visita há muito tempo)
-            // Cruza gestao_pedidos (vendas de todos os anos) + historico_visitas (última visita)
-            // Score = (valor_total_aprovado_normalizado * 0.4) + (dias_sem_compra * 0.35) + (dias_sem_visita * 0.25)
+            // Especialidades dos prescritores da carteira (profissão) — para o gráfico no painel do visitador
+            $sqlEsp = "
+                SELECT 
+                    COALESCE(NULLIF(TRIM(pr.profissao), ''), 'Não informada') as familia,
+                    COUNT(*) as total
+                FROM prescritor_resumido pr
+                WHERE pr.ano_referencia = :ano
+            ";
+            if ($isMyPharm) {
+                $sqlEsp .= " AND (pr.visitador IS NULL OR TRIM(pr.visitador) = '' OR LOWER(TRIM(pr.visitador)) = 'my pharm')";
+            } else {
+                $sqlEsp .= " AND TRIM(COALESCE(pr.visitador, '')) = TRIM(:nome)";
+            }
+            $sqlEsp .= " GROUP BY COALESCE(NULLIF(TRIM(pr.profissao), ''), 'Não informada') ORDER BY total DESC LIMIT 10";
+            $stmtEsp = $pdo->prepare($sqlEsp);
+            $stmtEsp->execute($isMyPharm ? ['ano' => $ano] : ['ano' => $ano, 'nome' => $nome]);
+            $top_especialidades = $stmtEsp->fetchAll(PDO::FETCH_ASSOC);
+
+            // Alertas inteligentes: prescritores com potencial (valor aprovado) mas inativos OU abaixo da média do ano anterior
+            // Média ano anterior = total comprado no ano anterior / 12. "Abaixo" = YTD atual < média * meses decorridos
+            $ano_anterior = (int)$ano - 1;
+            $mes_ytd = $mes ? (int)$mes : (int)date('n');
             $sqlAlerts = "
                 SELECT 
                     sub.prescritor,
@@ -672,6 +730,8 @@ try {
                     sub.ultima_visita,
                     sub.dias_sem_visita,
                     sub.total_pedidos,
+                    sub.total_ano_anterior,
+                    sub.total_ano_atual_ytd,
                     ROUND(
                         (LEAST(sub.valor_total_aprovado, 100000) / 100000) * 40
                         + LEAST(sub.dias_sem_compra, 365) / 365 * 35
@@ -694,7 +754,9 @@ try {
                             FROM historico_visitas hv2 
                             WHERE hv2.prescritor = COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')
                               AND hv2.data_visita IS NOT NULL
-                        )) as dias_sem_visita
+                        )) as dias_sem_visita,
+                        SUM(CASE WHEN gp.ano_referencia = :ano_ant AND gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') AND gp.preco_liquido > 0 THEN gp.preco_liquido ELSE 0 END) as total_ano_anterior,
+                        SUM(CASE WHEN gp.ano_referencia = :ano_ytd AND MONTH(gp.data_aprovacao) <= :mes_ytd AND gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') AND gp.preco_liquido > 0 THEN gp.preco_liquido ELSE 0 END) as total_ano_atual_ytd
                     FROM gestao_pedidos gp
                     LEFT JOIN prescritor_resumido pr 
                         ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pr.nome 
@@ -709,7 +771,13 @@ try {
             }
             $sqlAlerts .= "
                     GROUP BY COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')
-                    HAVING dias_sem_compra >= 15 OR dias_sem_visita >= 15 OR dias_sem_visita IS NULL
+                    HAVING (
+                        (
+                            (dias_sem_compra >= 15 OR dias_sem_visita >= 15 OR dias_sem_visita IS NULL)
+                            AND dias_sem_compra >= 7
+                        )
+                        OR (total_ano_anterior >= 1000 AND total_ano_atual_ytd * 12 < total_ano_anterior * :mes_ytd2)
+                    )
                 ) sub
                 WHERE sub.valor_total_aprovado >= 100
                 ORDER BY ROUND(
@@ -720,10 +788,24 @@ try {
                 LIMIT 12
             ";
             $stmt = $pdo->prepare($sqlAlerts);
-            $qAlerts = ['ano1' => $ano];
+            $qAlerts = ['ano1' => $ano, 'ano_ant' => $ano_anterior, 'ano_ytd' => $ano, 'mes_ytd' => $mes_ytd, 'mes_ytd2' => $mes_ytd];
             if (!$isMyPharm) $qAlerts['nome'] = $nome;
             $stmt->execute($qAlerts);
-            $alertas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $alertasRaw = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Enriquecer cada alerta com média mensal ano anterior, média 2026 (YTD) e flag "abaixo_da_media"
+            $alertas = [];
+            foreach ($alertasRaw as $a) {
+                $totAnt = (float)($a['total_ano_anterior'] ?? 0);
+                $totYtd = (float)($a['total_ano_atual_ytd'] ?? 0);
+                $mediaMensalAnoAnt = $totAnt > 0 ? $totAnt / 12 : 0;
+                $esperadoYtd = $mediaMensalAnoAnt * $mes_ytd;
+                $a['media_mensal_ano_anterior'] = round($mediaMensalAnoAnt, 2);
+                $a['media_mensal_ano_atual'] = $mes_ytd > 0 ? round($totYtd / $mes_ytd, 2) : 0;
+                $a['abaixo_da_media'] = $totAnt >= 1000 && $totYtd < $esperadoYtd;
+                $a['ano_anterior_ref'] = $ano_anterior;
+                $a['ano_atual_ref'] = (int)$ano;
+                $alertas[] = $a;
+            }
 
             // Metas de Visitas e Premiação (Usando valores reais do banco)
             $metaVisitaSemana = $metaVisitaSemanaActual;
@@ -920,13 +1002,21 @@ try {
             // =========================
             // RELATÓRIOS (Semanal + Agendadas)
             // =========================
-            // Visitas realizadas na semana atual (seg–dom)
+            // Garantir coluna inicio_visita para duração (se ainda não existir)
+            try {
+                $pdo->exec("ALTER TABLE historico_visitas ADD COLUMN inicio_visita DATETIME NULL");
+            } catch (Exception $e) {
+                // Coluna já existe
+            }
+            // Visitas realizadas na semana atual (seg–dom) + duração quando houver inicio_visita
             $stmt = $pdo->prepare("
                 SELECT 
                     hv.id,
                     hv.prescritor,
                     hv.data_visita,
                     hv.horario,
+                    hv.inicio_visita,
+                    TIMESTAMPDIFF(MINUTE, hv.inicio_visita, CONCAT(hv.data_visita, ' ', COALESCE(hv.horario, '00:00:00'))) as duracao_minutos,
                     hv.status_visita,
                     hv.local_visita,
                     hv.resumo_visita,
@@ -1133,8 +1223,205 @@ try {
                 'top_prescritores' => $top_prescritores,
                 'evolucao' => $evolucao,
                 'top_produtos' => $top_produtos,
+                'top_especialidades' => $top_especialidades,
                 'alertas' => $alertas,
                 'meta' => $meta
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+
+        // ============================================
+        // ADMIN: LISTAGEM DE VISITAS (painel principal)
+        // ============================================
+        case 'admin_visitas':
+            if ($userSetor === 'visitador') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Acesso negado.']); exit;
+            }
+            $anoV = $_GET['ano'] ?? date('Y');
+            $mesV = $_GET['mes'] ?? '';
+            $visitadorFiltro = isset($_GET['visitador']) ? trim((string)$_GET['visitador']) : null;
+            if ($visitadorFiltro === '') $visitadorFiltro = null;
+
+            $whereHV = "WHERE hv.data_visita IS NOT NULL AND YEAR(hv.data_visita) = :ano";
+            $paramsHV = ['ano' => (int)$anoV];
+            if ($mesV !== '') {
+                $whereHV .= " AND MONTH(hv.data_visita) = :mes";
+                $paramsHV['mes'] = (int)$mesV;
+            }
+            if ($visitadorFiltro !== null) {
+                $whereHV .= " AND TRIM(COALESCE(hv.visitador, '')) = TRIM(:visitador)";
+                $paramsHV['visitador'] = $visitadorFiltro;
+            }
+
+            $stmt = $pdo->prepare("
+                SELECT hv.id, hv.visitador, hv.prescritor, hv.data_visita, hv.horario, hv.inicio_visita,
+                    hv.status_visita, hv.local_visita, hv.resumo_visita, hv.reagendado_para,
+                    TIMESTAMPDIFF(MINUTE, hv.inicio_visita, CONCAT(hv.data_visita, ' ', COALESCE(hv.horario, '00:00:00'))) as duracao_minutos
+                FROM historico_visitas hv
+                $whereHV
+                ORDER BY hv.data_visita DESC, hv.horario DESC
+                LIMIT 300
+            ");
+            $stmt->execute($paramsHV);
+            $lista = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode($lista, JSON_UNESCAPED_UNICODE);
+            break;
+
+        // ============================================
+        // ADMIN: RELATÓRIO VISITAS (totais, por visitador, rotas, km, mapa)
+        // ============================================
+        case 'admin_visitas_relatorio':
+            if ($userSetor === 'visitador') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Acesso negado.']); exit;
+            }
+            $anoR = (int)($_GET['ano'] ?? date('Y'));
+            $mesR = isset($_GET['mes']) && $_GET['mes'] !== '' ? (int)$_GET['mes'] : null;
+            $visitadorFiltroR = isset($_GET['visitador']) ? trim((string)$_GET['visitador']) : null;
+            if ($visitadorFiltroR === '') $visitadorFiltroR = null;
+
+            $whereH = "WHERE data_visita IS NOT NULL AND YEAR(data_visita) = :ano";
+            $paramsH = ['ano' => $anoR];
+            if ($mesR !== null) {
+                $whereH .= " AND MONTH(data_visita) = :mes";
+                $paramsH['mes'] = $mesR;
+            }
+            if ($visitadorFiltroR !== null) {
+                $whereH .= " AND TRIM(COALESCE(visitador, '')) = TRIM(:visitador)";
+                $paramsH['visitador'] = $visitadorFiltroR;
+            }
+
+            // Totais: período e semana atual
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM historico_visitas $whereH");
+            $stmt->execute($paramsH);
+            $total_visitas_periodo = (int)$stmt->fetchColumn();
+
+            if ($visitadorFiltroR !== null) {
+                $stmt = $pdo->prepare("
+                    SELECT COUNT(*) FROM historico_visitas
+                    WHERE data_visita IS NOT NULL AND YEARWEEK(data_visita, 1) = YEARWEEK(CURDATE(), 1)
+                    AND TRIM(COALESCE(visitador, '')) = TRIM(:visitador)
+                ");
+                $stmt->execute(['visitador' => $visitadorFiltroR]);
+            } else {
+                $stmt = $pdo->prepare("
+                    SELECT COUNT(*) FROM historico_visitas
+                    WHERE data_visita IS NOT NULL AND YEARWEEK(data_visita, 1) = YEARWEEK(CURDATE(), 1)
+                ");
+                $stmt->execute([]);
+            }
+            $total_visitas_semana_atual = (int)$stmt->fetchColumn();
+
+            $totais = [
+                'total_visitas_periodo' => $total_visitas_periodo,
+                'total_visitas_semana_atual' => $total_visitas_semana_atual
+            ];
+
+            // Por visitador: total visitas + km (rotas)
+            $stmt = $pdo->prepare("
+                SELECT visitador as visitador_nome, COUNT(*) as total_visitas
+                FROM historico_visitas
+                $whereH
+                GROUP BY visitador
+                ORDER BY total_visitas DESC
+            ");
+            $stmt->execute($paramsH);
+            $por_visitador_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Rotas no período (rotas_diarias: filtrar por data_inicio no ano/mês)
+            $whereR = "WHERE YEAR(rd.data_inicio) = :ano";
+            $paramsR = ['ano' => $anoR];
+            if ($mesR !== null) {
+                $whereR .= " AND MONTH(rd.data_inicio) = :mes";
+                $paramsR['mes'] = $mesR;
+            }
+            if ($visitadorFiltroR !== null) {
+                $whereR .= " AND TRIM(COALESCE(rd.visitador_nome, '')) = TRIM(:visitador)";
+                $paramsR['visitador'] = $visitadorFiltroR;
+            }
+            $stmt = $pdo->prepare("
+                SELECT rd.id, rd.visitador_nome, rd.data_inicio, rd.data_fim, rd.status
+                FROM rotas_diarias rd
+                $whereR
+                ORDER BY rd.data_inicio DESC
+                LIMIT 500
+            ");
+            $stmt->execute($paramsR);
+            $rotas_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Haversine em PHP (km)
+            $haversineKm = function ($lat1, $lon1, $lat2, $lon2) {
+                $lat1 = (float)$lat1; $lon1 = (float)$lon1; $lat2 = (float)$lat2; $lon2 = (float)$lon2;
+                $R = 6371;
+                $dLat = deg2rad($lat2 - $lat1);
+                $dLon = deg2rad($lon2 - $lon1);
+                $a = sin($dLat/2)*sin($dLat/2) + cos(deg2rad($lat1))*cos(deg2rad($lat2))*sin($dLon/2)*sin($dLon/2);
+                $c = 2*atan2(sqrt($a), sqrt(1-$a));
+                return $R*$c;
+            };
+
+            $km_por_visitador = [];
+            $pontos_rotas = [];
+            $rotas_com_km = [];
+
+            foreach ($rotas_list as $rota) {
+                $rid = (int)$rota['id'];
+                $stmtP = $pdo->prepare("SELECT lat, lng FROM rotas_pontos WHERE rota_id = :rid ORDER BY criado_em ASC");
+                $stmtP->execute(['rid' => $rid]);
+                $pontos = $stmtP->fetchAll(PDO::FETCH_ASSOC);
+                $qtd_pontos = count($pontos);
+                $km_rota = 0;
+                for ($i = 1; $i < $qtd_pontos; $i++) {
+                    $km_rota += $haversineKm(
+                        $pontos[$i-1]['lat'], $pontos[$i-1]['lng'],
+                        $pontos[$i]['lat'], $pontos[$i]['lng']
+                    );
+                }
+                $vn = $rota['visitador_nome'];
+                if (!isset($km_por_visitador[$vn])) $km_por_visitador[$vn] = 0;
+                $km_por_visitador[$vn] += $km_rota;
+
+                $rotas_com_km[] = [
+                    'id' => $rid,
+                    'visitador_nome' => $vn,
+                    'data_inicio' => $rota['data_inicio'],
+                    'data_fim' => $rota['data_fim'],
+                    'status' => $rota['status'],
+                    'km' => round($km_rota, 2),
+                    'qtd_pontos' => $qtd_pontos
+                ];
+
+                $pontos_rotas[] = [
+                    'visitador_nome' => $vn,
+                    'rota_id' => $rid,
+                    'pontos' => array_map(function ($p) { return ['lat' => (float)$p['lat'], 'lng' => (float)$p['lng']]; }, $pontos)
+                ];
+            }
+
+            $por_visitador = [];
+            foreach ($por_visitador_raw as $row) {
+                $nome = $row['visitador_nome'] ?? '';
+                $por_visitador[] = [
+                    'visitador_nome' => $nome,
+                    'total_visitas' => (int)$row['total_visitas'],
+                    'total_km_rotas' => round($km_por_visitador[$nome] ?? 0, 2)
+                ];
+            }
+            // Incluir visitadores que têm rotas mas zero visitas no período
+            foreach (array_keys($km_por_visitador) as $vn) {
+                if (!$vn) continue;
+                $existe = false;
+                foreach ($por_visitador as $pv) { if ($pv['visitador_nome'] === $vn) { $existe = true; break; } }
+                if (!$existe) {
+                    $por_visitador[] = ['visitador_nome' => $vn, 'total_visitas' => 0, 'total_km_rotas' => round($km_por_visitador[$vn], 2)];
+                }
+            }
+
+            echo json_encode([
+                'totais' => $totais,
+                'por_visitador' => $por_visitador,
+                'rotas' => $rotas_com_km,
+                'pontos_rotas' => $pontos_rotas
             ], JSON_UNESCAPED_UNICODE);
             break;
 
@@ -1940,16 +2227,24 @@ try {
             $stmt = $pdo->prepare("UPDATE visitas_em_andamento SET fim = NOW(), status = 'encerrada' WHERE id = :id AND visitador = :v");
             $stmt->execute(['id' => $id, 'v' => $visitadorNome]);
 
-            // Registrar no histórico de visitas
+            // Garantir coluna inicio_visita no histórico (para exibir duração no relatório)
+            try {
+                $pdo->exec("ALTER TABLE historico_visitas ADD COLUMN inicio_visita DATETIME NULL");
+            } catch (Exception $e) {
+                // Coluna já existe
+            }
+
+            // Registrar no histórico de visitas (com início para cálculo de duração)
             $stmt = $pdo->prepare("
                 INSERT INTO historico_visitas
-                    (visitador, prescritor, profissao, uf, registro, data_visita, horario, status_visita, local_visita, amostra, brinde, artigo, resumo_visita, reagendado_para, ano_referencia)
+                    (visitador, prescritor, profissao, uf, registro, data_visita, horario, inicio_visita, status_visita, local_visita, amostra, brinde, artigo, resumo_visita, reagendado_para, ano_referencia)
                 VALUES
-                    (:visitador, :prescritor, '', '', '', CURDATE(), DATE_FORMAT(NOW(), '%H:%i'), :status_visita, :local_visita, :amostra, :brinde, :artigo, :resumo_visita, :reagendado_para, YEAR(CURDATE()))
+                    (:visitador, :prescritor, '', '', '', CURDATE(), DATE_FORMAT(NOW(), '%H:%i'), :inicio_visita, :status_visita, :local_visita, :amostra, :brinde, :artigo, :resumo_visita, :reagendado_para, YEAR(CURDATE()))
             ");
             $stmt->execute([
                 'visitador' => $visitadorNome,
                 'prescritor' => $active['prescritor'],
+                'inicio_visita' => $active['inicio'] ?? null,
                 'status_visita' => $status_visita,
                 'local_visita' => $local_visita,
                 'amostra' => $amostra,
@@ -2113,6 +2408,177 @@ try {
             }
 
             echo json_encode(['success' => true, 'historico_id' => $historicoId], JSON_UNESCAPED_UNICODE);
+            break;
+
+        // ========== ROTA DO DIA (GPS percurso) ==========
+        case 'rota_ativa':
+            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS rotas_diarias (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    visitador_nome VARCHAR(255) NOT NULL,
+                    data_inicio DATETIME NOT NULL,
+                    data_fim DATETIME NULL,
+                    pausado_em DATETIME NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'em_andamento',
+                    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_visitador_status (visitador_nome, status)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            $visitadorNome = trim($_GET['visitador_nome'] ?? $_SESSION['user_nome'] ?? '');
+            if ($visitadorNome === '') {
+                echo json_encode(['active' => null], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $stmt = $pdo->prepare("
+                SELECT id, visitador_nome, data_inicio, data_fim, pausado_em, status
+                FROM rotas_diarias
+                WHERE visitador_nome = :v AND status IN ('em_andamento', 'pausada')
+                ORDER BY data_inicio DESC
+                LIMIT 1
+            ");
+            $stmt->execute(['v' => $visitadorNome]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            echo json_encode(['active' => $row ?: null], JSON_UNESCAPED_UNICODE);
+            break;
+
+        case 'start_rota':
+            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS rotas_diarias (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    visitador_nome VARCHAR(255) NOT NULL,
+                    data_inicio DATETIME NOT NULL,
+                    data_fim DATETIME NULL,
+                    pausado_em DATETIME NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'em_andamento',
+                    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_visitador_status (visitador_nome, status)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS rotas_pontos (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    rota_id INT NOT NULL,
+                    lat DECIMAL(10,7) NOT NULL,
+                    lng DECIMAL(10,7) NOT NULL,
+                    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_rota (rota_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $visitadorNome = trim($input['visitador_nome'] ?? $_SESSION['user_nome'] ?? '');
+            if ($visitadorNome === '') {
+                echo json_encode(['success' => false, 'error' => 'Visitador não informado.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $stmt = $pdo->prepare("
+                SELECT id FROM rotas_diarias
+                WHERE visitador_nome = :v AND status IN ('em_andamento', 'pausada')
+                LIMIT 1
+            ");
+            $stmt->execute(['v' => $visitadorNome]);
+            if ($stmt->fetch()) {
+                echo json_encode(['success' => false, 'error' => 'Já existe uma rota ativa. Pause ou finalize antes de iniciar outra.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $stmt = $pdo->prepare("
+                INSERT INTO rotas_diarias (visitador_nome, data_inicio, status)
+                VALUES (:v, NOW(), 'em_andamento')
+            ");
+            $stmt->execute(['v' => $visitadorNome]);
+            echo json_encode(['success' => true, 'rota_id' => (int)$pdo->lastInsertId()], JSON_UNESCAPED_UNICODE);
+            break;
+
+        case 'pause_rota':
+            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $visitadorNome = trim($input['visitador_nome'] ?? $_SESSION['user_nome'] ?? '');
+            $stmt = $pdo->prepare("
+                UPDATE rotas_diarias
+                SET pausado_em = NOW(), status = 'pausada'
+                WHERE visitador_nome = :v AND status = 'em_andamento'
+            ");
+            $stmt->execute(['v' => $visitadorNome]);
+            echo json_encode(['success' => true, 'paused' => $stmt->rowCount() > 0], JSON_UNESCAPED_UNICODE);
+            break;
+
+        case 'resume_rota':
+            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $visitadorNome = trim($input['visitador_nome'] ?? $_SESSION['user_nome'] ?? '');
+            $stmt = $pdo->prepare("
+                UPDATE rotas_diarias
+                SET pausado_em = NULL, status = 'em_andamento'
+                WHERE visitador_nome = :v AND status = 'pausada'
+            ");
+            $stmt->execute(['v' => $visitadorNome]);
+            echo json_encode(['success' => true, 'resumed' => $stmt->rowCount() > 0], JSON_UNESCAPED_UNICODE);
+            break;
+
+        case 'finish_rota':
+            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $visitadorNome = trim($input['visitador_nome'] ?? $_SESSION['user_nome'] ?? '');
+            $stmt = $pdo->prepare("
+                UPDATE rotas_diarias
+                SET data_fim = NOW(), pausado_em = NULL, status = 'finalizada'
+                WHERE visitador_nome = :v AND status IN ('em_andamento', 'pausada')
+            ");
+            $stmt->execute(['v' => $visitadorNome]);
+            echo json_encode(['success' => true, 'finished' => $stmt->rowCount() > 0], JSON_UNESCAPED_UNICODE);
+            break;
+
+        case 'save_rota_ponto':
+            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $visitadorNome = trim($input['visitador_nome'] ?? $_SESSION['user_nome'] ?? '');
+            $lat = isset($input['lat']) ? (float)$input['lat'] : null;
+            $lng = isset($input['lng']) ? (float)$input['lng'] : null;
+            if ($visitadorNome === '' || $lat === null || $lng === null || $lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+                echo json_encode(['success' => false, 'error' => 'Dados inválidos.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $stmt = $pdo->prepare("
+                SELECT id FROM rotas_diarias
+                WHERE visitador_nome = :v AND status = 'em_andamento'
+                LIMIT 1
+            ");
+            $stmt->execute(['v' => $visitadorNome]);
+            $rota = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$rota) {
+                echo json_encode(['success' => false, 'error' => 'Nenhuma rota em andamento.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $stmt = $pdo->prepare("
+                INSERT INTO rotas_pontos (rota_id, lat, lng) VALUES (:rid, :lat, :lng)
+            ");
+            $stmt->execute(['rid' => $rota['id'], 'lat' => $lat, 'lng' => $lng]);
+            echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
             break;
 
         case 'db_info':

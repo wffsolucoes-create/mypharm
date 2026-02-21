@@ -131,14 +131,35 @@
     </header>
 
     <main>
+        <div id="dashboardContent">
         <div class="welcome-section" style="display: block;">
-            <div style="margin-bottom: 24px;">
-                <h1 id="greeting">Olá, Visitador!</h1>
-                <p>Acompanhe suas metas e o desempenho da sua carteira.</p>
-                <p id="ultimaAtualizacao"
-                    style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; opacity:0.7;">
-                    <i class="fas fa-clock" style="margin-right:4px;"></i>Última atualização: --
-                </p>
+            <div style="margin-bottom: 24px; display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:16px;">
+                <div>
+                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                        <h1 id="greeting" style="margin:0;">Olá, Visitador!</h1>
+                        <div style="display:flex; gap:10px; flex-shrink:0; align-items:center; flex-wrap:wrap;">
+                            <button type="button" id="btnIniciarRota" onclick="toggleRota()"
+                                style="padding:12px 22px; border-radius:12px; border:none; background:#DC2626; color:white; font-weight:700; font-size:0.95rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s;"
+                                title="Iniciar rota do dia: ativa GPS e registra o percurso. Pause para almoço e finalize ao fechar o dia.">
+                                <i class="fas fa-route" id="iconIniciarRota" style="font-size:1rem;"></i>
+                                <span id="labelIniciarRota">Iniciar Rota</span>
+                            </button>
+                            <button type="button" id="btnFinalizarRota" onclick="finishRotaFromUI()" style="display:none; padding:8px 14px; border-radius:10px; border:none; background:#DC2626; color:white; font-size:0.85rem; cursor:pointer; font-weight:600;"
+                                title="Encerrar a rota do dia (todos os pontos já registrados serão mantidos).">Finalizar rota</button>
+                            <button type="button" id="btnRelatorioVisitas" onclick="openPaginaRelatorioVisitas()"
+                                style="padding:12px 22px; border-radius:12px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; font-size:0.95rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s;"
+                                title="Abrir relatório de visitas com agenda, mapa e relação de prescritores.">
+                                <i class="fas fa-clipboard-list" style="font-size:1rem;"></i>
+                                Relatório de visitas
+                            </button>
+                        </div>
+                    </div>
+                    <p style="margin:8px 0 0 0;">Acompanhe suas metas e o desempenho da sua carteira.</p>
+                    <p id="ultimaAtualizacao"
+                        style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; opacity:0.7;">
+                        <i class="fas fa-clock" style="margin-right:4px;"></i>Última atualização: --
+                    </p>
+                </div>
             </div>
             <div class="meta-grid">
                 <!-- LINHA 1: METAS DE VISITAS E PREMIAÇÃO -->
@@ -328,81 +349,38 @@
                     </div>
                 </div>
 
-                <!-- Relatórios de Visitas (Premium) -->
-                <div class="relatorios-visitas-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
-
-                    <!-- Relatório Semana -->
-                    <div class="card" style="display:flex; flex-direction:column;">
-                        <div class="card-header" style="flex-shrink:0;">
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <div style="width:36px; height:36px; border-radius:10px; background:rgba(16,185,129,0.12); display:flex; align-items:center; justify-content:center;">
-                                    <i class="fas fa-clipboard-list" style="color:#10B981; font-size:0.95rem;"></i>
-                                </div>
-                                <div>
-                                    <div class="card-title" style="font-size:0.95rem;">Relatório Semanal</div>
-                                    <div class="card-subtitle" style="font-size:0.72rem;">Visitas realizadas esta semana</div>
-                                </div>
+                <!-- Atenção Especial: prescritores com potencial porém inativos -->
+                <div class="card" style="display:flex; flex-direction:column;">
+                    <div class="card-header" style="flex-shrink:0;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:36px; height:36px; border-radius:10px; background:rgba(239,68,68,0.12); display:flex; align-items:center; justify-content:center;">
+                                <i class="fas fa-triangle-exclamation" style="color:#EF4444; font-size:0.95rem;"></i>
                             </div>
-                            <span id="visitasSemanaCount" style="font-size:0.7rem; padding:3px 10px; border-radius:999px; background:rgba(16,185,129,0.12); color:#10B981; font-weight:800;">0</span>
-                        </div>
-                        <div id="visitasSemanaBody" style="flex:1; overflow-y:auto; max-height:420px; padding:4px 16px 16px 16px;">
-                            <div style="text-align:center; padding:36px 0; color:var(--text-secondary); font-size:0.85rem;">
-                                <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Carregando...
+                            <div>
+                                <div class="card-title" style="font-size:0.95rem;">Atenção Especial</div>
+                                <div class="card-subtitle" style="font-size:0.68rem;">Prescritores com potencial inativos</div>
                             </div>
                         </div>
+                        <span id="alertasCount" style="font-size:0.7rem; padding:3px 10px; border-radius:999px; background:rgba(239,68,68,0.12); color:#EF4444; font-weight:800;">0</span>
                     </div>
-
-                    <!-- Agendadas -->
-                    <div class="card" style="display:flex; flex-direction:column;">
-                        <div class="card-header" style="flex-shrink:0;">
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <div style="width:36px; height:36px; border-radius:10px; background:rgba(37,99,235,0.12); display:flex; align-items:center; justify-content:center;">
-                                    <i class="fas fa-calendar-check" style="color:#3B82F6; font-size:0.95rem;"></i>
-                                </div>
-                                <div>
-                                    <div class="card-title" style="font-size:0.95rem;">Agenda de Visitas</div>
-                                    <div class="card-subtitle" style="font-size:0.72rem;">Próximas visitas agendadas</div>
-                                </div>
-                            </div>
-                            <span id="visitasAgendadasCount" style="font-size:0.7rem; padding:3px 10px; border-radius:999px; background:rgba(37,99,235,0.12); color:#3B82F6; font-weight:800;">0</span>
+                    <div id="alertasContainer"
+                        style="flex:1; overflow-y:auto; max-height:380px; padding:4px 16px 16px 16px;">
+                        <div style="text-align:center; padding:20px 0; color:var(--text-secondary); font-size:0.85rem;">
+                            <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Analisando carteira...
                         </div>
-                        <div id="visitasAgendadasBody" style="flex:1; overflow-y:auto; max-height:420px; padding:4px 16px 16px 16px;">
-                            <div style="text-align:center; padding:36px 0; color:var(--text-secondary); font-size:0.85rem;">
-                                <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Carregando...
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Mapa de Visitas (GPS) -->
-                <div class="card" id="cardMapaVisitas">
-                    <div class="card-header">
-                        <div>
-                            <div class="card-title">Mapa de Visitas</div>
-                            <div class="card-subtitle">Visitas efetuadas com confirmação de GPS</div>
-                        </div>
-                        <div style="display:flex; gap:8px; align-items:center;">
-                            <button type="button" onclick="openMapaVisitasStatsModal()"
-                                style="padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-weight:800;">
-                                <i class="fas fa-chart-simple"></i> Estatísticas
-                            </button>
-                        </div>
-                    </div>
-                    <div id="visitasMapaResumo"
-                        style="padding:0 18px 12px 18px; font-size:0.82rem; color:var(--text-secondary);">
-                        Carregando mapa...
-                    </div>
-                    <div style="padding:0 18px 18px 18px;">
-                        <div id="visitasMapaEmpty"
-                            style="display:none; padding:18px; border:1px dashed var(--border); border-radius:12px; text-align:center; color:var(--text-secondary);">
-                            Nenhuma visita com GPS encontrada no período.
-                        </div>
-                        <div id="dashboardVisitasMap"
-                            style="height:360px; width:100%; border:1px solid var(--border); border-radius:12px; overflow:hidden;"></div>
                     </div>
                 </div>
 
+                <!-- Dados dos 3 cards (Relatório Semanal, Agenda, Mapa) ficam em elementos ocultos para uso na página Relatório de visitas -->
+                <div id="dashboardRelatoriosVisitasFonte" style="display:none;">
+                    <span id="visitasSemanaCount">0</span>
+                    <div id="visitasSemanaBody"></div>
+                    <span id="visitasAgendadasCount">0</span>
+                    <div id="visitasAgendadasBody"></div>
+                    <div id="visitasMapaResumo"></div>
+                    <div id="visitasMapaEmpty" style="display:none;"></div>
+                    <div id="dashboardVisitasMap" style="height:360px; width:100%;"></div>
+                </div>
 
             </div>
 
@@ -442,8 +420,8 @@
                 <div class="card">
                     <div class="card-header">
                         <div>
-                            <div class="card-title">Distribuição por Produtos</div>
-                            <div class="card-subtitle">Volume de vendas por família</div>
+                            <div class="card-title">Distribuição por Especialidade</div>
+                            <div class="card-subtitle">Prescritores da carteira por especialidade</div>
                         </div>
                     </div>
                     <div style="height: 220px;">
@@ -451,28 +429,114 @@
                     </div>
                 </div>
 
-                <!-- Atenção Especial: prescritores com potencial porém inativos -->
+            </div>
+        </div>
+        </div><!-- fim dashboardContent -->
+
+        <!-- Página Relatório de Visitas (oculta por padrão) -->
+        <div id="paginaRelatorioVisitas" style="display:none; padding:0 24px 24px;">
+            <div style="margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                <button type="button" onclick="closePaginaRelatorioVisitas()"
+                    style="padding:8px 14px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; font-size:0.85rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                    <i class="fas fa-arrow-left"></i> Voltar ao painel
+                </button>
+                <h2 style="margin:0; font-size:1.25rem; font-weight:700; color:var(--text-primary);">
+                    <i class="fas fa-clipboard-list" style="margin-right:8px; color:var(--primary);"></i>Relatório de visitas
+                </h2>
+            </div>
+
+            <div class="relatorios-visitas-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
                 <div class="card" style="display:flex; flex-direction:column;">
                     <div class="card-header" style="flex-shrink:0;">
                         <div style="display:flex; align-items:center; gap:10px;">
-                            <div style="width:36px; height:36px; border-radius:10px; background:rgba(239,68,68,0.12); display:flex; align-items:center; justify-content:center;">
-                                <i class="fas fa-triangle-exclamation" style="color:#EF4444; font-size:0.95rem;"></i>
+                            <div style="width:36px; height:36px; border-radius:10px; background:rgba(16,185,129,0.12); display:flex; align-items:center; justify-content:center;">
+                                <i class="fas fa-clipboard-list" style="color:#10B981; font-size:0.95rem;"></i>
                             </div>
                             <div>
-                                <div class="card-title" style="font-size:0.95rem;">Atenção Especial</div>
-                                <div class="card-subtitle" style="font-size:0.68rem;">Prescritores com potencial inativos</div>
+                                <div class="card-title" style="font-size:0.95rem;">Relatório Semanal</div>
+                                <div class="card-subtitle" style="font-size:0.72rem;">Visitas realizadas esta semana</div>
                             </div>
                         </div>
-                        <span id="alertasCount" style="font-size:0.7rem; padding:3px 10px; border-radius:999px; background:rgba(239,68,68,0.12); color:#EF4444; font-weight:800;">0</span>
+                        <span id="relatorioSemanaCount" style="font-size:0.7rem; padding:3px 10px; border-radius:999px; background:rgba(16,185,129,0.12); color:#10B981; font-weight:800;">0</span>
                     </div>
-                    <div id="alertasContainer"
-                        style="flex:1; overflow-y:auto; max-height:380px; padding:4px 16px 16px 16px;">
-                        <div style="text-align:center; padding:20px 0; color:var(--text-secondary); font-size:0.85rem;">
-                            <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Analisando carteira...
-                        </div>
+                    <div id="relatorioSemanaBody" style="flex:1; overflow-y:auto; max-height:320px; padding:4px 16px 16px 16px;">
+                        <div style="text-align:center; padding:24px 0; color:var(--text-secondary); font-size:0.85rem;">Carregando...</div>
                     </div>
                 </div>
+                <div class="card" style="display:flex; flex-direction:column;">
+                    <div class="card-header" style="flex-shrink:0;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:36px; height:36px; border-radius:10px; background:rgba(37,99,235,0.12); display:flex; align-items:center; justify-content:center;">
+                                <i class="fas fa-calendar-check" style="color:#3B82F6; font-size:0.95rem;"></i>
+                            </div>
+                            <div>
+                                <div class="card-title" style="font-size:0.95rem;">Agenda de Visitas</div>
+                                <div class="card-subtitle" style="font-size:0.72rem;">Próximas visitas agendadas</div>
+                            </div>
+                        </div>
+                        <span id="relatorioAgendadasCount" style="font-size:0.7rem; padding:3px 10px; border-radius:999px; background:rgba(37,99,235,0.12); color:#3B82F6; font-weight:800;">0</span>
+                    </div>
+                    <div id="relatorioAgendadasBody" style="flex:1; overflow-y:auto; max-height:320px; padding:4px 16px 16px 16px;">
+                        <div style="text-align:center; padding:24px 0; color:var(--text-secondary); font-size:0.85rem;">Carregando...</div>
+                    </div>
+                </div>
+            </div>
 
+            <div class="card" style="margin-bottom:24px;">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Mapa de Visitas</div>
+                        <div class="card-subtitle">Visitas efetuadas com confirmação de GPS</div>
+                    </div>
+                    <button type="button" onclick="openMapaVisitasStatsModal()"
+                        style="padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-weight:800;">
+                        <i class="fas fa-chart-simple"></i> Estatísticas
+                    </button>
+                </div>
+                <div id="relatorioMapaResumo" style="padding:0 18px 12px 18px; font-size:0.82rem; color:var(--text-secondary);">—</div>
+                <div style="padding:0 18px 18px 18px;">
+                    <div id="relatorioMapaEmpty" style="display:none; padding:18px; border:1px dashed var(--border); border-radius:12px; text-align:center; color:var(--text-secondary);">Nenhuma visita com GPS no período.</div>
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin:0 18px 12px;">O mapa completo está no painel principal.</p>
+                </div>
+            </div>
+
+            <!-- Relação de prescritores (mesmo layout do modal Todos os Prescritores) -->
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Relação de prescritores</div>
+                        <div class="card-subtitle" id="relatorioPrescritorSubtitle">Carteira do visitador</div>
+                    </div>
+                    <input type="text" id="searchRelatorioPrescritor" placeholder="Buscar prescritor..."
+                        oninput="filterRelatorioPrescritores()"
+                        style="width:100%; max-width:280px; padding:10px 16px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; outline:none;"
+                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                </div>
+                <div style="overflow-x:auto; overflow-y:auto; max-height:420px;" class="table-responsive">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                        <thead style="position:sticky; top:0; background:var(--bg-card); z-index:1;">
+                            <tr style="border-bottom:2px solid var(--border);">
+                                <th style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">#</th>
+                                <th style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Prescritor</th>
+                                <th style="padding:12px 16px; text-align:right; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Valor Aprovado</th>
+                                <th style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Pedidos</th>
+                                <th style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Dias s/ Compra</th>
+                                <th style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Dias s/ Visita</th>
+                                <th style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Visita</th>
+                            </tr>
+                        </thead>
+                        <tbody id="relatorioPrescritoresBody">
+                            <tr><td colspan="7" style="text-align:center; padding:40px; color:var(--text-secondary);">Carregando prescritores...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="relatorioPagination" style="padding:12px 24px; border-top:1px solid var(--border); background:var(--bg-card); display:flex; justify-content:space-between; align-items:center; font-size:0.85rem;">
+                    <div style="color:var(--text-secondary);" id="relatorioPaginationInfo">Mostrando 0-0 de 0</div>
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" id="relatorioPrevPage" onclick="relatorioChangePage(-1)" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer;">Anterior</button>
+                        <button type="button" id="relatorioNextPage" onclick="relatorioChangePage(1)" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer;">Próximo</button>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
@@ -514,9 +578,6 @@
                             <th onclick="sortTable('total_aprovado')"
                                 style="padding:12px 16px; text-align:right; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
                                 Valor Aprovado <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
-                            <th onclick="sortTable('total_recusado')"
-                                style="padding:12px 16px; text-align:right; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
-                                Valor Recusado <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
                             <th onclick="sortTable('qtd_aprovados')"
                                 style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
                                 Pedidos <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
@@ -526,10 +587,6 @@
                             <th onclick="sortTable('ultima_visita')"
                                 style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
                                 Dias s/ Visita <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
-                            <th
-                                style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">
-                                <i class="fab fa-whatsapp" style="color:#25D366;"></i> WhatsApp
-                            </th>
                             <th id="thVisita"
                                 style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">
                                 Visita
@@ -538,7 +595,7 @@
                     </thead>
                     <tbody id="modalPrescritoresBody">
                         <tr>
-                            <td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);">
+                            <td colspan="7" style="text-align:center; padding:40px; color:var(--text-secondary);">
                                 Carregando...</td>
                         </tr>
                     </tbody>
@@ -704,21 +761,21 @@
 
     <!-- Modal: Detalhes da Visita -->
     <div id="modalDetalheVisita"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:3700; justify-content:center; align-items:center; padding:20px;">
-        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:620px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden; max-height:90vh; display:flex; flex-direction:column;">
-            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <div id="dvIconBox" style="width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center;">
-                        <i id="dvIcon" class="fas fa-check-circle" style="font-size:1rem;"></i>
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:3700; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:12px; width:100%; max-width:560px; box-shadow:0 20px 60px rgba(0,0,0,0.25); border:1px solid var(--border); overflow:hidden; max-height:90vh; display:flex; flex-direction:column;">
+            <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; background:var(--bg-body);">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div id="dvIconBox" style="width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <i id="dvIcon" class="fas fa-check-circle" style="font-size:1.1rem;"></i>
                     </div>
-                    <div>
-                        <h3 style="margin:0; font-size:1.05rem; font-weight:900; color:var(--text-primary);">Detalhes da Visita</h3>
-                        <div id="dvSubtitulo" style="font-size:0.75rem; color:var(--text-secondary);">—</div>
+                    <div style="min-width:0;">
+                        <h3 style="margin:0; font-size:1.1rem; font-weight:800; color:var(--text-primary); letter-spacing:-0.02em;">Detalhes da Visita</h3>
+                        <div id="dvSubtitulo" style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">—</div>
                     </div>
                 </div>
-                <button onclick="closeDetalheVisitaModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+                <button onclick="closeDetalheVisitaModal()" style="background:var(--bg-body); border:1px solid var(--border); width:36px; height:36px; border-radius:10px; font-size:1.25rem; color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;">&times;</button>
             </div>
-            <div style="overflow-y:auto; padding:18px 22px; flex:1;">
+            <div style="overflow-y:auto; padding:20px 24px; flex:1;">
 
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
                     <div style="flex:1;">
@@ -730,36 +787,49 @@
 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
                     <div style="padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body);">
-                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; margin-bottom:4px;"><i class="far fa-calendar" style="margin-right:4px;"></i>Data</div>
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="far fa-calendar" style="margin-right:4px;"></i>Data</div>
                         <div id="dvData" style="font-size:0.92rem; font-weight:700; color:var(--text-primary);">—</div>
                     </div>
-                    <div style="padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body);">
-                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; margin-bottom:4px;"><i class="far fa-clock" style="margin-right:4px;"></i>Horário</div>
-                        <div id="dvHorario" style="font-size:0.92rem; font-weight:700; color:var(--text-primary);">—</div>
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body); grid-column:1/-1;">
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px;"><i class="fas fa-stopwatch" style="margin-right:4px;"></i>Duração da visita</div>
+                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;">
+                            <div>
+                                <div style="font-size:0.65rem; color:var(--text-muted); margin-bottom:2px;">Início</div>
+                                <div id="dvHorarioInicio" style="font-size:0.88rem; font-weight:700; color:var(--text-primary);">—</div>
+                            </div>
+                            <div>
+                                <div style="font-size:0.65rem; color:var(--text-muted); margin-bottom:2px;">Fim</div>
+                                <div id="dvHorarioFim" style="font-size:0.88rem; font-weight:700; color:var(--text-primary);">—</div>
+                            </div>
+                            <div>
+                                <div style="font-size:0.65rem; color:var(--text-muted); margin-bottom:2px;">Duração</div>
+                                <div id="dvDuracao" style="font-size:0.88rem; font-weight:700; color:var(--primary);">—</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div id="dvLocalRow" style="display:none; margin-bottom:16px;">
                     <div style="padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body);">
-                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; margin-bottom:4px;"><i class="fas fa-map-pin" style="margin-right:4px;"></i>Local</div>
-                        <div id="dvLocal" style="font-size:0.88rem; font-weight:600; color:var(--text-primary);">—</div>
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="fas fa-map-pin" style="margin-right:4px;"></i>Local</div>
+                        <div id="dvLocal" style="font-size:0.88rem; font-weight:600; color:var(--text-primary); line-height:1.4;">—</div>
                     </div>
                 </div>
 
                 <div id="dvResumoRow" style="display:none; margin-bottom:16px;">
-                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;"><i class="fas fa-align-left" style="margin-right:4px;"></i>Resumo</div>
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;"><i class="fas fa-align-left" style="margin-right:4px;"></i>Resumo</div>
                     <div id="dvResumo" style="font-size:0.85rem; color:var(--text-primary); line-height:1.6; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body);">—</div>
                 </div>
 
                 <div id="dvItensRow" style="display:none; margin-bottom:16px;">
-                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;"><i class="fas fa-box-open" style="margin-right:4px;"></i>Itens entregues</div>
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px;"><i class="fas fa-box-open" style="margin-right:4px;"></i>Itens entregues</div>
                     <div id="dvItens" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
                 </div>
 
                 <div id="dvReagendRow" style="display:none; margin-bottom:16px;">
-                    <div style="padding:12px; border:1px solid rgba(37,99,235,0.25); border-radius:12px; background:rgba(37,99,235,0.06);">
-                        <div style="font-size:0.68rem; color:#3B82F6; font-weight:700; margin-bottom:4px;"><i class="fas fa-calendar-plus" style="margin-right:4px;"></i>Próxima visita agendada</div>
-                        <div id="dvReagend" style="font-size:0.88rem; font-weight:700; color:var(--text-primary);">—</div>
+                    <div style="padding:14px 16px; border:1px solid rgba(37,99,235,0.3); border-radius:12px; background:rgba(37,99,235,0.08);">
+                        <div style="font-size:0.68rem; color:#2563EB; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;"><i class="fas fa-calendar-plus" style="margin-right:6px;"></i>Próxima visita agendada</div>
+                        <div id="dvReagend" style="font-size:0.95rem; font-weight:700; color:var(--text-primary);">—</div>
                     </div>
                 </div>
 
@@ -930,6 +1000,31 @@
         document.getElementById('modalWhatsApp').addEventListener('click', function (e) {
             if (e.target === this) closeWhatsAppModal();
         });
+        // Delegação de clique para botões Iniciar/Encerrar visita e WhatsApp (modal e tabela Relatório de visitas)
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-iniciar-visita');
+            if (btn && typeof iniciarVisita === 'function') {
+                if (rotaState === 'idle') {
+                    alert('Inicie a rota do dia antes de iniciar uma visita.');
+                    return;
+                }
+                const nome = btn.getAttribute('data-prescritor');
+                if (nome) iniciarVisita(nome);
+                return;
+            }
+            const btnEncerrar = e.target.closest('.btn-encerrar-visita');
+            if (btnEncerrar && typeof openEncerrarVisitaModal === 'function') {
+                const nome = btnEncerrar.getAttribute('data-prescritor');
+                if (nome) openEncerrarVisitaModal(nome);
+                return;
+            }
+            const btnWhats = e.target.closest('.btn-whatsapp-open');
+            if (btnWhats && typeof openWhatsAppModal === 'function') {
+                const nome = btnWhats.getAttribute('data-prescritor');
+                const numero = btnWhats.getAttribute('data-numero') || '';
+                if (nome !== null) openWhatsAppModal(nome, numero);
+            }
+        });
         document.getElementById('modalEncerrarVisita').addEventListener('click', function (e) {
             if (e.target === this) closeEncerrarVisitaModal();
         });
@@ -961,7 +1056,7 @@
                 currentSort.column = column;
                 currentSort.direction = 'asc';
                 // Ajuste para colunas numéricas onde DESC faz mais sentido inicialmente
-                if (['total_aprovado', 'total_recusado', 'qtd_aprovados', 'dias_sem_compra', 'ultima_visita'].includes(column)) {
+                if (['total_aprovado', 'qtd_aprovados', 'dias_sem_compra', 'ultima_visita'].includes(column)) {
                     currentSort.direction = 'desc';
                 }
             }
@@ -1046,10 +1141,9 @@
             let targetHeader;
             if (column === 'prescritor') targetHeader = headers[1];
             if (column === 'total_aprovado') targetHeader = headers[2];
-            if (column === 'total_recusado') targetHeader = headers[3];
-            if (column === 'qtd_aprovados') targetHeader = headers[4];
-            if (column === 'dias_sem_compra') targetHeader = headers[5];
-            if (column === 'ultima_visita') targetHeader = headers[6];
+            if (column === 'qtd_aprovados') targetHeader = headers[3];
+            if (column === 'dias_sem_compra') targetHeader = headers[4];
+            if (column === 'ultima_visita') targetHeader = headers[5];
 
             if (targetHeader) {
                 const icon = targetHeader.querySelector('i');
@@ -1061,7 +1155,7 @@
         }
 
         let modalCurrentPage = 1;
-        const itemsPerPage = 100;
+        const itemsPerPage = 50;
 
         function changePage(delta) {
             modalCurrentPage += delta;
@@ -1078,7 +1172,7 @@
                 : `${data.length} prescritor(es) encontrado(s)`;
 
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);"><i class="fas fa-search" style="font-size:1.5rem; margin-bottom:8px; display:block; opacity:0.3;"></i>Nenhum prescritor encontrado</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px; color:var(--text-secondary);"><i class="fas fa-search" style="font-size:1.5rem; margin-bottom:8px; display:block; opacity:0.3;"></i>Nenhum prescritor encontrado</td></tr>';
                 document.getElementById('paginationContainer').style.display = 'none';
                 return;
             }
@@ -1136,39 +1230,14 @@
                     }
                 }
 
-                // WhatsApp
-                const whats = prescritorContatos[p.prescritor] || '';
-                const safeName = p.prescritor.replace(/'/g, "\\'");
-                let whatsHTML;
-                if (whats) {
-                    const whatsNum = whats.replace(/\D/g, '');
-                    const whatsLink = `https://wa.me/55${whatsNum}`;
-                    whatsHTML = `
-                        <div style="display:flex; gap:4px; justify-content:center; align-items:center;">
-                            <a href="${whatsLink}" target="_blank" style="background:#25D366; color:white; padding:4px 10px; border-radius:6px; font-size:0.75rem; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:500; transition:all 0.2s;" onmouseover="this.style.background='#128C7E'" onmouseout="this.style.background='#25D366'">
-                                <i class="fab fa-whatsapp"></i> ${whats}
-                            </a>
-                            <button onclick="openWhatsAppModal('${safeName}', '${whats}')" style="background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:0.7rem; padding:2px;" title="Editar número">
-                                <i class="fas fa-pen"></i>
-                            </button>
-                        </div>`;
-                } else {
-                    whatsHTML = `
-                        <button onclick="openWhatsAppModal('${safeName}', '')" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.2s;" onmouseover="this.style.borderColor='#25D366';this.style.color='#25D366'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
-                            <i class="fas fa-plus"></i> Adicionar
-                        </button>`;
-                }
-
                 return `
                     <tr style="border-bottom:1px solid var(--border); transition:background 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.03)'" onmouseout="this.style.background='transparent'">
                         <td style="padding:10px 16px; color:var(--text-secondary); font-weight:600;">${globalIndex}</td>
                         <td style="padding:10px 16px; font-weight:500; color:var(--text-primary); text-transform: capitalize;">${p.prescritor.toLowerCase()}</td>
                         <td class="val-approved" style="padding:10px 16px; text-align:right;">${formatMoney(p.total_aprovado)}</td>
-                        <td class="val-refused" style="padding:10px 16px; text-align:right;">${formatMoney(p.total_recusado)}</td>
                         <td style="padding:10px 16px; text-align:center;">${p.qtd_aprovados || 0}</td>
                         <td style="padding:10px 16px; text-align:center;">${diasCompraHTML}</td>
                         <td style="padding:10px 16px; text-align:center;">${diasVisitaHTML}</td>
-                        <td style="padding:10px 16px; text-align:center;">${whatsHTML}</td>
                         <td style="padding:10px 16px; text-align:center;">
                             ${renderVisitaActionCell(p.prescritor)}
                         </td>
@@ -1177,31 +1246,43 @@
             }).join('');
         }
 
+        function escapeAttr(str) {
+            return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
         function renderVisitaActionCell(prescritorNome) {
             if (!canManageVisits) return '<span style="color:var(--text-secondary);">-</span>';
-            const safe = (prescritorNome || '').replace(/'/g, "\\'");
+            const safeAttr = escapeAttr(prescritorNome);
 
             // Se existe visita ativa
             if (activeVisit && activeVisit.prescritor) {
                 if (activeVisit.prescritor === prescritorNome) {
                     return `
-                        <button onclick="openEncerrarVisitaModal('${safe}')" 
+                        <button type="button" class="btn-encerrar-visita" data-prescritor="${safeAttr}"
                             style="padding:6px 10px; border-radius:8px; border:none; background:#EF4444; color:white; cursor:pointer; font-weight:700; font-size:0.75rem;">
                             Encerrar
                         </button>
                     `;
                 }
                 return `
-                    <button disabled
+                    <button type="button" disabled
                         style="padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-secondary); cursor:not-allowed; font-weight:700; font-size:0.75rem; opacity:0.75;">
                         Em visita
                     </button>
                 `;
             }
 
-            // Sem visita ativa
+            // Sem visita ativa: só pode iniciar visita se a rota do dia estiver ativa
+            if (rotaState === 'idle') {
+                return `
+                    <button type="button" disabled title="Inicie a rota do dia para poder iniciar visitas."
+                        style="padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-secondary); cursor:not-allowed; font-weight:700; font-size:0.75rem; opacity:0.8;">
+                        Inicie a rota
+                    </button>
+                `;
+            }
             return `
-                <button onclick="iniciarVisita('${safe}')"
+                <button type="button" class="btn-iniciar-visita" data-prescritor="${safeAttr}"
                     style="padding:6px 10px; border-radius:8px; border:none; background:var(--success); color:white; cursor:pointer; font-weight:700; font-size:0.75rem;">
                     Iniciar
                 </button>
@@ -1319,11 +1400,32 @@
                 badge.style.border = `1px solid ${sc.border}`;
             }
 
-            const dt = visita.data_visita ? new Date(visita.data_visita) : null;
+            const tzPV = 'America/Porto_Velho';
+            const isoPV = visita.data_visita && visita.horario ? (visita.data_visita + 'T' + String(visita.horario).slice(0, 5) + ':00-04:00') : (visita.data_visita ? visita.data_visita + 'T12:00:00-04:00' : null);
+            const dt = isoPV ? new Date(isoPV) : null;
             document.getElementById('dvData').textContent = dt && !isNaN(dt.getTime())
-                ? dt.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+                ? dt.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', timeZone: tzPV })
                 : (visita.data_visita || '—');
-            document.getElementById('dvHorario').textContent = visita.horario ? String(visita.horario).slice(0, 5) : '—';
+            const horarioInicioEl = document.getElementById('dvHorarioInicio');
+            const horarioFimEl = document.getElementById('dvHorarioFim');
+            const duracaoEl = document.getElementById('dvDuracao');
+            if (horarioInicioEl) {
+                const iv = visita.inicio_visita;
+                if (iv) {
+                    const s = String(iv).trim();
+                    const iso = s.match(/^\d{4}-\d{2}-\d{2}/) ? (s.length >= 16 ? s.slice(0, 16).replace(' ', 'T') + '-04:00' : s + 'T12:00:00-04:00') : null;
+                    const d = iso ? new Date(iso) : null;
+                    horarioInicioEl.textContent = d && !isNaN(d.getTime()) ? d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tzPV }) : (s.length >= 5 ? s.slice(11, 16) || s.slice(0, 5) : s || '—');
+                } else horarioInicioEl.textContent = '—';
+            }
+            if (horarioFimEl) horarioFimEl.textContent = visita.horario ? String(visita.horario).slice(0, 5) : '—';
+            if (duracaoEl) {
+                const min = visita.duracao_minutos;
+                if (min != null && min !== '' && !isNaN(parseInt(min, 10))) {
+                    const m = parseInt(min, 10);
+                    duracaoEl.textContent = m < 60 ? m + ' min' : (Math.floor(m / 60) + 'h ' + (m % 60 ? (m % 60) + ' min' : ''));
+                } else duracaoEl.textContent = '—';
+            }
 
             const localRow = document.getElementById('dvLocalRow');
             if (visita.local_visita) {
@@ -1355,9 +1457,16 @@
             } else { itensRow.style.display = 'none'; }
 
             const reagendRow = document.getElementById('dvReagendRow');
-            if (visita.reagendado_para) {
+            const reagendEl = document.getElementById('dvReagend');
+            if (visita.reagendado_para && reagendEl) {
                 reagendRow.style.display = 'block';
-                document.getElementById('dvReagend').textContent = visita.reagendado_para;
+                const s = String(visita.reagendado_para).trim();
+                const match = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{1,2}):(\d{2})?)?/);
+                if (match) {
+                    const [, y, mo, d, h, mi] = match;
+                    const dt = new Date(parseInt(y, 10), parseInt(mo, 10) - 1, parseInt(d, 10), h ? parseInt(h, 10) : 0, mi ? parseInt(mi, 10) : 0);
+                    reagendEl.textContent = isNaN(dt.getTime()) ? s : dt.toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: h ? 'short' : undefined });
+                } else reagendEl.textContent = s;
             } else { reagendRow.style.display = 'none'; }
 
             const geoRow = document.getElementById('dvGeoRow');
@@ -1405,6 +1514,10 @@
 
         async function iniciarVisita(prescritor) {
             if (!canManageVisits) return;
+            if (rotaState === 'idle') {
+                alert('Inicie a rota do dia antes de iniciar uma visita.');
+                return;
+            }
             const subtitle = document.getElementById('modalPrescritorSubtitle');
             const old = subtitle ? subtitle.textContent : '';
             if (subtitle) subtitle.textContent = 'Iniciando visita...';
@@ -1415,6 +1528,13 @@
                     activeVisit = av && av.active ? av.active : null;
                     if (subtitle) subtitle.textContent = 'Visita iniciada. Para finalizar, clique em “Encerrar”.';
                     renderModalPrescritores(filteredPrescritores);
+                    var relEl = document.getElementById('paginaRelatorioVisitas');
+                    if (relEl && relEl.style.display !== 'none') {
+                        var q = (document.getElementById('searchRelatorioPrescritor') || {}).value || '';
+                        var term = q.toLowerCase().trim();
+                        var data = term ? relatorioPrescritoresFiltered.filter(function(p) { return (p.prescritor || '').toLowerCase().includes(term); }) : relatorioPrescritoresFiltered;
+                        renderRelatorioPrescritoresTable(data);
+                    }
                 } else {
                     if (subtitle) subtitle.textContent = (res && res.error) ? res.error : 'Não foi possível iniciar a visita.';
                 }
@@ -1435,7 +1555,11 @@
 
             encerrarVisitId = activeVisit.id;
             document.getElementById('encerrarVisitaPrescritor').textContent = prescritor;
-            const inicioTxt = activeVisit.inicio ? `Início: ${new Date(activeVisit.inicio).toLocaleString('pt-BR')}` : '';
+            const inicioTxt = activeVisit.inicio ? (() => {
+                const s = String(activeVisit.inicio).trim().replace(' ', 'T');
+                const d = new Date(s.indexOf('Z') !== -1 || s.match(/[+-]\d{2}:?\d{2}$/) ? s : s + '-04:00');
+                return 'Início: ' + (isNaN(d.getTime()) ? activeVisit.inicio : d.toLocaleString('pt-BR', { timeZone: 'America/Porto_Velho' }));
+            })() : '';
             document.getElementById('encerrarVisitaInicio').textContent = inicioTxt;
 
             // limpar campos
@@ -1502,11 +1626,26 @@
                 });
                 if (res && res.success) {
                     if (msg) { msg.textContent = 'Visita encerrada e registrada.'; msg.style.color = 'var(--success)'; msg.style.display = 'block'; }
+                    // Atualizar "Dias s/ Visita" na hora: marcar ultima_visita como agora para o prescritor encerrado
+                    var prescritorEncerrado = (activeVisit && activeVisit.prescritor) ? activeVisit.prescritor : ((document.getElementById('encerrarVisitaPrescritor') && document.getElementById('encerrarVisitaPrescritor').textContent) || '').trim();
+                    var nowIso = new Date().toISOString();
+                    if (prescritorEncerrado) {
+                        relatorioPrescritoresFiltered.forEach(function(p) { if ((p.prescritor || '').trim() === prescritorEncerrado) { p.ultima_visita = nowIso; } });
+                        allPrescritores.forEach(function(p) { if ((p.prescritor || '').trim() === prescritorEncerrado) { p.ultima_visita = nowIso; } });
+                        filteredPrescritores.forEach(function(p) { if ((p.prescritor || '').trim() === prescritorEncerrado) { p.ultima_visita = nowIso; } });
+                    }
                     // atualizar visita ativa
                     const av = await apiGet('visita_ativa', { visitador_nome: currentVisitadorName });
                     activeVisit = av && av.active ? av.active : null;
                     // atualizar tabela do modal
                     renderModalPrescritores(filteredPrescritores);
+                    var relEl = document.getElementById('paginaRelatorioVisitas');
+                    if (relEl && relEl.style.display !== 'none') {
+                        var q = (document.getElementById('searchRelatorioPrescritor') || {}).value || '';
+                        var term = q.toLowerCase().trim();
+                        var data = term ? relatorioPrescritoresFiltered.filter(function(p) { return (p.prescritor || '').toLowerCase().includes(term); }) : relatorioPrescritoresFiltered;
+                        renderRelatorioPrescritoresTable(data);
+                    }
                     // recarregar dados do painel automaticamente (KPIs, gráficos e relatórios)
                     try {
                         const anoEl = document.getElementById('anoSelect');
@@ -1516,6 +1655,11 @@
                         const vis = currentVisitadorName || localStorage.getItem('userName') || '';
                         // manter filtros atuais; mês vazio vira null
                         await loadVisitadorDashboard(vis, ano, mes || null);
+                        // se estiver na página Relatório de visitas, atualizar os cards (Semanal, Agenda, Mapa)
+                        var relEl = document.getElementById('paginaRelatorioVisitas');
+                        if (relEl && relEl.style.display !== 'none' && typeof copyDashboardToRelatorio === 'function') {
+                            copyDashboardToRelatorio();
+                        }
                     } catch (e) {
                         // se falhar o refresh do painel, não bloquear o fechamento
                     }
@@ -1578,27 +1722,43 @@
             setBtnLoading(true);
             setStatusCapturing();
 
-            const pos = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 });
-            });
+            // Em modo auto: aceitar posição em cache de até 45s para resposta mais rápida
+            const maximumAge = (mode === 'auto' || mode === 'silent') ? 45000 : 0;
+            const effectiveTimeout = (mode === 'auto' || mode === 'silent') ? Math.max(timeoutMs, 12000) : timeoutMs;
 
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            const acc = pos.coords.accuracy;
-            visitaGeo = { lat, lng, accuracy: acc };
+            try {
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: effectiveTimeout,
+                        maximumAge: maximumAge
+                    });
+                });
 
-            const accTxt = acc ? `±${Math.round(acc)}m` : '';
-            if (status) status.textContent = 'GPS capturado automaticamente.';
-            if (info) {
-                info.style.display = 'block';
-                info.textContent = `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)} ${accTxt}`;
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const acc = pos.coords.accuracy;
+                visitaGeo = { lat, lng, accuracy: acc };
+
+                const accTxt = acc ? `±${Math.round(acc)}m` : '';
+                if (status) status.textContent = 'GPS capturado automaticamente.';
+                if (info) {
+                    info.style.display = 'block';
+                    info.textContent = `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)} ${accTxt}`;
+                }
+
+                const extUrl = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(lat)}&mlon=${encodeURIComponent(lng)}#map=18/${encodeURIComponent(lat)}/${encodeURIComponent(lng)}`;
+                if (btnMap) { btnMap.href = extUrl; btnMap.style.display = 'inline-flex'; }
+
+                if (mapWrap) mapWrap.style.display = 'block';
+                renderLeafletMap(lat, lng, acc);
+            } catch (err) {
+                if (status) {
+                    status.textContent = mode === 'silent'
+                        ? 'GPS não capturado (salvando visita sem local).'
+                        : 'Não foi possível obter o GPS. Clique em "Capturar GPS" para tentar novamente.';
+                }
             }
-
-            const extUrl = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(lat)}&mlon=${encodeURIComponent(lng)}#map=18/${encodeURIComponent(lat)}/${encodeURIComponent(lng)}`;
-            if (btnMap) { btnMap.href = extUrl; btnMap.style.display = 'inline-flex'; }
-
-            if (mapWrap) mapWrap.style.display = 'block';
-            renderLeafletMap(lat, lng, acc);
 
             setBtnLoading(false);
         }
@@ -1624,6 +1784,333 @@
                 leafletCircle = L.circle([lat, lng], { radius: accuracy, color: '#2563EB', fillColor: '#2563EB', fillOpacity: 0.15 }).addTo(leafletMap);
             }
             setTimeout(() => leafletMap.invalidateSize(), 150);
+        }
+
+        // ========== PÁGINA RELATÓRIO DE VISITAS ==========
+        let relatorioPrescritoresFiltered = [];
+        let relatorioCurrentPage = 1;
+        const relatorioItemsPerPage = 50;
+
+        function copyDashboardToRelatorio() {
+            const vsBody = document.getElementById('visitasSemanaBody');
+            const vsCount = document.getElementById('visitasSemanaCount');
+            const vaBody = document.getElementById('visitasAgendadasBody');
+            const vaCount = document.getElementById('visitasAgendadasCount');
+            const mapaResumo = document.getElementById('visitasMapaResumo');
+            const mapaEmpty = document.getElementById('visitasMapaEmpty');
+            const rSemana = document.getElementById('relatorioSemanaBody');
+            const rSemanaCount = document.getElementById('relatorioSemanaCount');
+            const rAgenda = document.getElementById('relatorioAgendadasBody');
+            const rAgendaCount = document.getElementById('relatorioAgendadasCount');
+            const rMapaResumo = document.getElementById('relatorioMapaResumo');
+            const rMapaEmpty = document.getElementById('relatorioMapaEmpty');
+            if (vsBody && rSemana) rSemana.innerHTML = vsBody.innerHTML;
+            if (vsCount && rSemanaCount) rSemanaCount.textContent = vsCount ? vsCount.textContent : '0';
+            if (vaBody && rAgenda) rAgenda.innerHTML = vaBody.innerHTML;
+            if (vaCount && rAgendaCount) rAgendaCount.textContent = vaCount ? vaCount.textContent : '0';
+            if (mapaResumo && rMapaResumo) rMapaResumo.innerHTML = mapaResumo.innerHTML;
+            if (mapaEmpty && rMapaEmpty) { rMapaEmpty.style.display = mapaEmpty.style.display; }
+        }
+
+        async function openPaginaRelatorioVisitas() {
+            document.getElementById('dashboardContent').style.display = 'none';
+            document.getElementById('paginaRelatorioVisitas').style.display = 'block';
+            if (typeof loadVisitadorDashboard === 'function') {
+                const anoEl = document.getElementById('anoSelect');
+                const mesEl = document.getElementById('mesSelect');
+                const ano = anoEl ? anoEl.value : null;
+                const mes = mesEl && mesEl.value ? mesEl.value : null;
+                await loadVisitadorDashboard(currentVisitadorName, ano, mes);
+            }
+            copyDashboardToRelatorio();
+            await loadAndRenderRelatorioPrescritores();
+        }
+
+        function closePaginaRelatorioVisitas() {
+            document.getElementById('paginaRelatorioVisitas').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'block';
+        }
+
+        async function loadAndRenderRelatorioPrescritores() {
+            const tbody = document.getElementById('relatorioPrescritoresBody');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px;"><i class="fas fa-spinner fa-spin"></i> Carregando...</td></tr>';
+            const anoEl = document.getElementById('anoSelect');
+            const mesEl = document.getElementById('mesSelect');
+            const ano = anoEl ? anoEl.value : (new Date().getFullYear());
+            const mes = mesEl && mesEl.value ? mesEl.value : '';
+            const params = { visitador: currentVisitadorName || '', ano };
+            if (mes) params.mes = mes;
+            let list = [];
+            try {
+                list = await apiGet('all_prescritores', params) || [];
+            } catch (e) {
+                console.error('Erro ao carregar prescritores para relatório', e);
+            }
+            const normalized = list.map(p => ({
+                ...p,
+                total_aprovado: p.valor_aprovado ?? p.total_aprovado ?? 0,
+                total_recusado: p.valor_recusado ?? p.total_recusado ?? 0,
+                qtd_aprovados: p.total_pedidos ?? p.qtd_aprovados ?? 0
+            }));
+            relatorioPrescritoresFiltered = normalized;
+            renderRelatorioPrescritoresTable(relatorioPrescritoresFiltered);
+        }
+
+        function filterRelatorioPrescritores() {
+            const q = (document.getElementById('searchRelatorioPrescritor') || {}).value || '';
+            const term = q.toLowerCase().trim();
+            relatorioCurrentPage = 1;
+            if (!term) {
+                renderRelatorioPrescritoresTable(relatorioPrescritoresFiltered);
+                return;
+            }
+            const filtered = relatorioPrescritoresFiltered.filter(p => (p.prescritor || '').toLowerCase().includes(term));
+            renderRelatorioPrescritoresTable(filtered);
+        }
+
+        function relatorioChangePage(delta) {
+            relatorioCurrentPage += delta;
+            const q = (document.getElementById('searchRelatorioPrescritor') || {}).value || '';
+            const term = q.toLowerCase().trim();
+            const data = term ? relatorioPrescritoresFiltered.filter(p => (p.prescritor || '').toLowerCase().includes(term)) : relatorioPrescritoresFiltered;
+            renderRelatorioPrescritoresTable(data);
+        }
+
+        function relatorioDiasBadge(days, emptyText) {
+            if (days === null || isNaN(days) || days === 999999) {
+                return '<div class="days-badge danger"><div class="circle"><i class="fas fa-exclamation"></i></div> ' + emptyText + '</div>';
+            }
+            let type = 'success';
+            let icon = '<i class="fas fa-check"></i>';
+            let label = ' ' + days + 'd';
+            if (days > 15) {
+                type = 'danger';
+                icon = '<i class="fas fa-exclamation"></i>';
+            } else if (days > 7) {
+                type = 'warning';
+                icon = '<i class="fas fa-exclamation-triangle"></i>';
+            }
+            return '<div class="days-badge ' + type + '"><div class="circle">' + icon + '</div>' + label + '</div>';
+        }
+
+        function renderRelatorioPrescritoresTable(data) {
+            const tbody = document.getElementById('relatorioPrescritoresBody');
+            const pagInfo = document.getElementById('relatorioPaginationInfo');
+            const prevBtn = document.getElementById('relatorioPrevPage');
+            const nextBtn = document.getElementById('relatorioNextPage');
+            const subtitle = document.getElementById('relatorioPrescritorSubtitle');
+            if (!tbody) return;
+            if (subtitle) subtitle.textContent = currentVisitadorName ? 'Carteira: ' + currentVisitadorName + ' — ' + data.length + ' prescritor(es)' : data.length + ' prescritor(es)';
+            if (!Array.isArray(data) || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);"><i class="fas fa-search" style="font-size:1.5rem; margin-bottom:8px; display:block; opacity:0.3;"></i>Nenhum prescritor encontrado</td></tr>';
+                if (pagInfo) pagInfo.textContent = 'Mostrando 0-0 de 0';
+                if (prevBtn) prevBtn.disabled = true;
+                if (nextBtn) nextBtn.disabled = true;
+                return;
+            }
+            const totalPages = Math.ceil(data.length / relatorioItemsPerPage);
+            if (relatorioCurrentPage < 1) relatorioCurrentPage = 1;
+            if (relatorioCurrentPage > totalPages) relatorioCurrentPage = totalPages;
+            const startIdx = (relatorioCurrentPage - 1) * relatorioItemsPerPage;
+            const endIdx = Math.min(startIdx + relatorioItemsPerPage, data.length);
+            const pageData = data.slice(startIdx, endIdx);
+
+            if (pagInfo) pagInfo.textContent = 'Mostrando ' + (startIdx + 1) + '-' + endIdx + ' de ' + data.length;
+            if (prevBtn) { prevBtn.disabled = relatorioCurrentPage === 1; prevBtn.style.opacity = relatorioCurrentPage === 1 ? '0.5' : '1'; }
+            if (nextBtn) { nextBtn.disabled = relatorioCurrentPage >= totalPages; nextBtn.style.opacity = relatorioCurrentPage >= totalPages ? '0.5' : '1'; }
+
+            tbody.innerHTML = pageData.map((p, i) => {
+                const globalIndex = startIdx + i + 1;
+                const diasCompra = p.dias_sem_compra !== null ? parseInt(p.dias_sem_compra) : null;
+                const diasCompraHTML = relatorioDiasBadge(diasCompra, 'Sem compras');
+                let diasVisitaHTML = relatorioDiasBadge(null, 'Sem visita');
+                if (p.ultima_visita) {
+                    const dv = new Date(p.ultima_visita);
+                    if (!isNaN(dv.getTime())) {
+                        const diasVisita = Math.floor((new Date() - dv) / (1000 * 60 * 60 * 24));
+                        diasVisitaHTML = relatorioDiasBadge(diasVisita, 'Sem visita');
+                    }
+                }
+                const valorAprovado = typeof formatMoney === 'function' ? formatMoney(p.total_aprovado || 0) : (p.total_aprovado || 0);
+                return '<tr style="border-bottom:1px solid var(--border); transition:background 0.15s;" onmouseover="this.style.background=\'rgba(37,99,235,0.03)\'" onmouseout="this.style.background=\'transparent\'">' +
+                    '<td style="padding:10px 16px; color:var(--text-secondary); font-weight:600;">' + globalIndex + '</td>' +
+                    '<td style="padding:10px 16px; font-weight:500; color:var(--text-primary);">' + (p.prescritor || '').trim() + '</td>' +
+                    '<td class="val-approved" style="padding:10px 16px; text-align:right;">' + valorAprovado + '</td>' +
+                    '<td style="padding:10px 16px; text-align:center;">' + (p.qtd_aprovados || 0) + '</td>' +
+                    '<td style="padding:10px 16px; text-align:center;">' + diasCompraHTML + '</td>' +
+                    '<td style="padding:10px 16px; text-align:center;">' + diasVisitaHTML + '</td>' +
+                    '<td style="padding:10px 16px; text-align:center;">' + renderVisitaActionCell(p.prescritor) + '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        // ========== ROTA DO DIA (Iniciar / Pausar / Finalizar + GPS) ==========
+        let rotaState = 'idle'; // idle | em_andamento | pausada
+        let rotaWatchId = null;
+        const ROTA_PONTO_INTERVAL_MS = 15000;
+
+        function updateRotaButton() {
+            const btn = document.getElementById('btnIniciarRota');
+            const label = document.getElementById('labelIniciarRota');
+            const icon = document.getElementById('iconIniciarRota');
+            const btnFinalizar = document.getElementById('btnFinalizarRota');
+            if (!btn || !label) return;
+            if (rotaState === 'em_andamento') {
+                btn.title = 'Pausar a rota (ex.: almoço). O GPS deixa de registrar até retomar.';
+                label.textContent = 'Pausar Rota';
+                if (icon) { icon.className = 'fas fa-pause'; }
+                btn.style.background = '#B45309';
+                if (btnFinalizar) btnFinalizar.style.display = 'inline-flex';
+            } else if (rotaState === 'pausada') {
+                btn.title = 'Retomar a rota para continuar registrando o percurso.';
+                label.textContent = 'Retomar Rota';
+                if (icon) { icon.className = 'fas fa-play'; }
+                btn.style.background = '#059669';
+                if (btnFinalizar) { btnFinalizar.style.display = 'inline-flex'; }
+            } else {
+                btn.title = 'Iniciar rota do dia: ativa GPS e registra o percurso. Pause para almoço e finalize ao fechar o dia.';
+                label.textContent = 'Iniciar Rota';
+                if (icon) { icon.className = 'fas fa-route'; }
+                btn.style.background = '#DC2626';
+                if (btnFinalizar) btnFinalizar.style.display = 'none';
+            }
+        }
+
+        function stopRotaWatch() {
+            if (rotaWatchId != null && navigator.geolocation) {
+                navigator.geolocation.clearWatch(rotaWatchId);
+                rotaWatchId = null;
+            }
+        }
+
+        function sendRotaPonto(lat, lng) {
+            if (!currentVisitadorName) return;
+            if (typeof apiPost !== 'function') return;
+            apiPost('save_rota_ponto', { visitador_nome: currentVisitadorName, lat, lng }).catch(() => {});
+        }
+
+        function startRotaWatch() {
+            if (!navigator.geolocation || rotaState !== 'em_andamento') return;
+            let lastSent = 0;
+            rotaWatchId = navigator.geolocation.watchPosition(
+                function (pos) {
+                    if (rotaState !== 'em_andamento') return;
+                    const now = Date.now();
+                    if (now - lastSent >= ROTA_PONTO_INTERVAL_MS) {
+                        lastSent = now;
+                        sendRotaPonto(pos.coords.latitude, pos.coords.longitude);
+                    }
+                },
+                function () { },
+                { enableHighAccuracy: true, maximumAge: 10000 }
+            );
+        }
+
+        async function toggleRota() {
+            if (!currentVisitadorName) return;
+            try {
+                if (rotaState === 'idle') {
+                    const res = await apiPost('start_rota', { visitador_nome: currentVisitadorName });
+                    if (res && res.success) {
+                        rotaState = 'em_andamento';
+                        updateRotaButton();
+                        startRotaWatch();
+                        renderModalPrescritores(filteredPrescritores);
+                        var relEl = document.getElementById('paginaRelatorioVisitas');
+                        if (relEl && relEl.style.display !== 'none') {
+                            var q = (document.getElementById('searchRelatorioPrescritor') || {}).value || '';
+                            var term = q.toLowerCase().trim();
+                            var data = term ? relatorioPrescritoresFiltered.filter(function(p) { return (p.prescritor || '').toLowerCase().includes(term); }) : relatorioPrescritoresFiltered;
+                            renderRelatorioPrescritoresTable(data);
+                        }
+                    } else {
+                        alert(res && res.error ? res.error : 'Não foi possível iniciar a rota.');
+                    }
+                } else if (rotaState === 'em_andamento') {
+                    const res = await apiPost('pause_rota', { visitador_nome: currentVisitadorName });
+                    if (res && res.success) {
+                        stopRotaWatch();
+                        rotaState = 'pausada';
+                        updateRotaButton();
+                        renderModalPrescritores(filteredPrescritores);
+                        var relEl = document.getElementById('paginaRelatorioVisitas');
+                        if (relEl && relEl.style.display !== 'none') {
+                            var q = (document.getElementById('searchRelatorioPrescritor') || {}).value || '';
+                            var term = q.toLowerCase().trim();
+                            var data = term ? relatorioPrescritoresFiltered.filter(function(p) { return (p.prescritor || '').toLowerCase().includes(term); }) : relatorioPrescritoresFiltered;
+                            renderRelatorioPrescritoresTable(data);
+                        }
+                    }
+                } else if (rotaState === 'pausada') {
+                    const res = await apiPost('resume_rota', { visitador_nome: currentVisitadorName });
+                    if (res && res.success) {
+                        rotaState = 'em_andamento';
+                        updateRotaButton();
+                        startRotaWatch();
+                        renderModalPrescritores(filteredPrescritores);
+                        var relEl = document.getElementById('paginaRelatorioVisitas');
+                        if (relEl && relEl.style.display !== 'none') {
+                            var q = (document.getElementById('searchRelatorioPrescritor') || {}).value || '';
+                            var term = q.toLowerCase().trim();
+                            var data = term ? relatorioPrescritoresFiltered.filter(function(p) { return (p.prescritor || '').toLowerCase().includes(term); }) : relatorioPrescritoresFiltered;
+                            renderRelatorioPrescritoresTable(data);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Rota', e);
+                alert('Erro de conexão.');
+            }
+        }
+
+        async function finishRotaFromUI() {
+            if (!currentVisitadorName || (rotaState !== 'em_andamento' && rotaState !== 'pausada')) return;
+            if (!confirm('Finalizar a rota do dia? O percurso registrado será mantido.')) return;
+            try {
+                const res = await apiPost('finish_rota', { visitador_nome: currentVisitadorName });
+                if (res && res.success) {
+                    stopRotaWatch();
+                    rotaState = 'idle';
+                    updateRotaButton();
+                    renderModalPrescritores(filteredPrescritores);
+                    var relEl = document.getElementById('paginaRelatorioVisitas');
+                    if (relEl && relEl.style.display !== 'none') {
+                        var q = (document.getElementById('searchRelatorioPrescritor') || {}).value || '';
+                        var term = q.toLowerCase().trim();
+                        var data = term ? relatorioPrescritoresFiltered.filter(function(p) { return (p.prescritor || '').toLowerCase().includes(term); }) : relatorioPrescritoresFiltered;
+                        renderRelatorioPrescritoresTable(data);
+                    }
+                }
+            } catch (e) {
+                console.error('Finalizar rota', e);
+            }
+        }
+
+        async function syncRotaState() {
+            try {
+                const r = await apiGet('rota_ativa', { visitador_nome: currentVisitadorName });
+                const active = r && r.active ? r.active : null;
+                if (active) {
+                    rotaState = (active.status === 'pausada') ? 'pausada' : 'em_andamento';
+                    if (rotaState === 'em_andamento') startRotaWatch();
+                } else {
+                    rotaState = 'idle';
+                    stopRotaWatch();
+                }
+                updateRotaButton();
+                renderModalPrescritores(filteredPrescritores);
+                var relEl = document.getElementById('paginaRelatorioVisitas');
+                if (relEl && relEl.style.display !== 'none') {
+                    var q = (document.getElementById('searchRelatorioPrescritor') || {}).value || '';
+                    var term = q.toLowerCase().trim();
+                    var data = term ? relatorioPrescritoresFiltered.filter(function(p) { return (p.prescritor || '').toLowerCase().includes(term); }) : relatorioPrescritoresFiltered;
+                    renderRelatorioPrescritoresTable(data);
+                }
+            } catch (e) {
+                rotaState = 'idle';
+                updateRotaButton();
+            }
         }
 
         async function doLogout() {
@@ -1665,6 +2152,7 @@
             // Visitador logado pode gerenciar suas visitas; admin também pode ao visualizar outro visitador
             canManageVisits = (userSetor === 'visitador') || (userType === 'admin');
             loadVisitadorDashboard(visitadorToLoad);
+            syncRotaState();
         });
     </script>
 </body>

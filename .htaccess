@@ -64,8 +64,8 @@ Options -Indexes
     RewriteRule (^\.|/\.) - [F,L]
 </IfModule>
 
-# ----- Limitar métodos HTTP permitidos -----
+# ----- Limitar métodos HTTP permitidos (OPTIONS permitido para CORS preflight) -----
 <IfModule mod_rewrite.c>
-    RewriteCond %{REQUEST_METHOD} !^(GET|POST|HEAD) [NC]
+    RewriteCond %{REQUEST_METHOD} !^(GET|POST|HEAD|OPTIONS) [NC]
     RewriteRule .* - [F,L]
 </IfModule>

@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         .btn-see-all:hover {
             filter: brightness(1.1);
@@ -328,6 +330,10 @@
                     <i class="fas fa-user-tie"></i>
                     <span>Visitadores</span>
                 </a>
+                <a class="nav-item" data-page="visitas" onclick="navigateTo('visitas')">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Visitas</span>
+                </a>
 
                 <div class="nav-section-title">Análises</div>
                 <a class="nav-item" data-page="clientes" onclick="navigateTo('clientes')">
@@ -508,6 +514,130 @@
                                 <tbody></tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== VISITAS PAGE ==================== -->
+            <div id="page-visitas" class="section-page">
+                <div class="page-content">
+                    <!-- KPIs -->
+                    <div class="kpi-grid stagger" id="visitasKpiGrid">
+                        <div class="kpi-card">
+                            <div class="kpi-icon"><i class="fas fa-clipboard-check"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-value" id="visitasKpiPeriodo">0</span>
+                                <p class="kpi-label">Total de visitas (período)</p>
+                            </div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-icon"><i class="fas fa-calendar-week"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-value" id="visitasKpiSemana">0</span>
+                                <p class="kpi-label">Visitas esta semana</p>
+                            </div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-icon"><i class="fas fa-route"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-value" id="visitasKpiKm">0</span>
+                                <p class="kpi-label">Km percorridos (rotas)</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Visitas por visitador -->
+                    <div class="table-card">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Visitas por visitador</div>
+                                <div class="chart-subtitle">Total de visitas e km de rotas por visitador no período</div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="tableVisitasPorVisitador">
+                                <thead>
+                                    <tr>
+                                        <th>Visitador</th>
+                                        <th>Total visitas</th>
+                                        <th>Km rotas</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div id="visitasPorVisitadorEmpty" class="empty-state" style="display:none; text-align:center; padding:1.5rem; color:var(--text-secondary);">Nenhum dado no período.</div>
+                    </div>
+                    <!-- Detalhes das rotas -->
+                    <div class="table-card">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Detalhes das rotas</div>
+                                <div class="chart-subtitle">Rotas do dia registradas no período</div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="tableRotasDetalhes">
+                                <thead>
+                                    <tr>
+                                        <th>Visitador</th>
+                                        <th>Data início</th>
+                                        <th>Data fim</th>
+                                        <th>Status</th>
+                                        <th>Km</th>
+                                        <th>Pontos GPS</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div id="rotasDetalhesEmpty" class="empty-state" style="display:none; text-align:center; padding:1.5rem; color:var(--text-secondary);">Nenhuma rota no período.</div>
+                    </div>
+                    <!-- Mapa de rotas -->
+                    <div class="chart-card full-width" style="margin-bottom:32px;">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Mapa de rotas</div>
+                                <div class="chart-subtitle">Trajetos por visitador (use os filtros Ano/Mês no topo)</div>
+                            </div>
+                            <div>
+                                <select class="filter-select" id="visitasMapaVisitador" onchange="renderMapaRotasFromStore()" title="Filtrar por visitador" style="min-width:180px;">
+                                    <option value="">Todos os visitadores</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-body" style="height:400px; position:relative;">
+                            <div id="mapaRotasVisitas" style="width:100%; height:100%; min-height:300px; border-radius:8px;"></div>
+                            <div id="mapaRotasEmpty" class="empty-state" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; color:var(--text-secondary);">Nenhum trajeto no período.</div>
+                        </div>
+                    </div>
+                    <!-- Tabela Visitas realizadas (existente) -->
+                    <div class="table-card">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Visitas realizadas</div>
+                                <div class="chart-subtitle">Histórico de visitas da equipe (use os filtros Ano/Mês no topo)</div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="tableVisitasPage">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Visitador</th>
+                                        <th>Prescritor</th>
+                                        <th>Data</th>
+                                        <th>Início</th>
+                                        <th>Fim</th>
+                                        <th>Duração</th>
+                                        <th>Status</th>
+                                        <th>Local</th>
+                                        <th>Próx. agend.</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div id="visitasPageEmpty" class="empty-state" style="display:none; text-align:center; padding:2rem; color:var(--text-secondary);">Nenhuma visita encontrada no período.</div>
                     </div>
                 </div>
             </div>

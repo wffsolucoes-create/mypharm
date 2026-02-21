@@ -73,7 +73,7 @@ function importBatch($pdo, $sql, $rows)
         $cols = $m[2];
         $numPlaceholders = count(explode(',', $m[3]));
 
-        $chunks = array_chunk($rows, 200);
+        $chunks = array_chunk($rows, 500);
         foreach ($chunks as $chunk) {
             $placeholderRow = '(' . implode(',', array_fill(0, $numPlaceholders, '?')) . ')';
             $allPlaceholders = implode(',', array_fill(0, count($chunk), $placeholderRow));
@@ -267,7 +267,7 @@ try {
                 $ano
             ];
             $count++;
-            if (count($batch) >= 500) {
+            if (count($batch) >= 1000) {
                 importBatch($pdo, $sql, $batch);
                 $batch = [];
             }
@@ -396,7 +396,7 @@ try {
                 $anoItem
             ];
             $count++;
-            if (count($batch) >= 1000) {
+            if (count($batch) >= 2000) {
                 importBatch($pdo, $sql, $batch);
                 $batch = [];
             }
@@ -527,7 +527,7 @@ try {
                 $anoVisitas
             ];
             $countVisitas++;
-            if (count($batchVisitas) >= 500) {
+            if (count($batchVisitas) >= 1000) {
                 importBatch($pdo, $sqlVisitas, $batchVisitas);
                 $batchVisitas = [];
             }

@@ -25,11 +25,11 @@
     --primary: #2563EB;
     --primary-dark: #1E40AF;
     --secondary: #64748B;
-    --bg-body: #F1F5F9;
+    --bg-body: #EFF6FF;
     --bg-card: #FFFFFF;
     --text-primary: #0F172A;
-    --text-secondary: #64748B;
-    --border: #E2E8F0;
+    --text-secondary: #475569;
+    --border: #BFDBFE;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
