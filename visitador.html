@@ -81,16 +81,232 @@
             }
         }
 
+        /* Agenda – itens de visita (hover) */
+        .agenda-visita-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
         .val-refused {
             color: #EF4444;
             font-weight: 600;
         }
+
+        /* Página Prescritores – layout profissional */
+        #paginaPrescritores .prescritores-page-header {
+            margin-bottom: 24px;
+        }
+        #paginaPrescritores .prescritores-page-header h2 {
+            margin: 0 0 6px 0;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #paginaPrescritores .prescritores-page-header h2 .prescritores-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.08));
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+        #paginaPrescritores .prescritores-page-header p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        #paginaPrescritores .prescritores-search-wrap {
+            position: relative;
+            max-width: 380px;
+            margin-bottom: 20px;
+        }
+        #paginaPrescritores .prescritores-search-wrap input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        #paginaPrescritores .prescritores-search-wrap input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+        #paginaPrescritores .prescritores-search-wrap .prescritores-search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            pointer-events: none;
+        }
+        #paginaPrescritores .prescritores-table-card {
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        #paginaPrescritores .prescritores-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        #paginaPrescritores .prescritores-table thead th {
+            padding: 14px 20px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            background: var(--bg-body);
+            border-bottom: 1px solid var(--border);
+        }
+        #paginaPrescritores .prescritores-table thead th:last-child {
+            text-align: center;
+        }
+        #paginaPrescritores .prescritores-table tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s ease;
+        }
+        #paginaPrescritores .prescritores-table tbody tr:last-child {
+            border-bottom: none;
+        }
+        #paginaPrescritores .prescritores-table tbody tr:hover {
+            background: rgba(59, 130, 246, 0.04);
+        }
+        #paginaPrescritores .prescritores-table tbody td {
+            padding: 14px 20px;
+            color: var(--text-primary);
+            vertical-align: middle;
+        }
+        #paginaPrescritores .prescritores-table tbody td:last-child {
+            text-align: center;
+        }
+        #paginaPrescritores .prescritores-table tbody td:first-child {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        #paginaPrescritores .prescritores-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #paginaPrescritores .prescritores-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        #paginaPrescritores .prescritores-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        }
+        #paginaPrescritores .prescritores-btn-editar {
+            background: var(--primary);
+            color: white;
+        }
+        #paginaPrescritores .prescritores-btn-aprovados {
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        #paginaPrescritores .prescritores-btn-relatorio {
+            background: rgba(14, 165, 233, 0.15);
+            color: #0ea5e9;
+        }
+        #paginaPrescritores .prescritores-btn-recusados {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+        .btn-sugestao-proxima {
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--primary);
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s;
+        }
+        .btn-sugestao-proxima:hover {
+            background: rgba(37, 99, 235, 0.18);
+            transform: translateY(-1px);
+        }
+        #paginaPrescritores .prescritores-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: var(--bg-body);
+        }
+        #paginaPrescritores .prescritores-pagination .prescritores-pag-btns {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #paginaPrescritores .prescritores-pagination button {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        #paginaPrescritores .prescritores-pagination button:hover:not(:disabled) {
+            background: var(--bg-body);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        #paginaPrescritores .prescritores-pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #paginaPrescritores .prescritores-table a[href^="https://wa.me"] {
+            color: #25D366;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: opacity 0.2s;
+        }
+        #paginaPrescritores .prescritores-table a[href^="https://wa.me"]:hover {
+            opacity: 0.9;
+            text-decoration: underline;
+        }
     </style>
     <link rel="stylesheet" href="css/visitador.css">
+    <style>body{visibility:hidden;}</style>
 </head>
 
 <body>
-
+    <script>!(function(){if(!localStorage.getItem('loggedIn')){window.location.replace('index.html');return;}document.body.style.visibility='visible';})();</script>
     <!-- Loading -->
     <div class="loading-overlay" id="loadingOverlay" style="display:none;">
         <div class="loading-spinner"></div>
@@ -108,6 +324,44 @@
                 <span class="brand-title">Portal do Visitador</span>
                 <span class="brand-subtitle">Gestão de Performance</span>
             </div>
+        </div>
+        <button type="button" class="visitador-nav-hamburger" id="visitadorNavHamburger" onclick="toggleVisitadorNavDrawer()" aria-label="Abrir menu" title="Menu">
+            <span class="hamburger-bar"></span>
+            <span class="hamburger-bar"></span>
+            <span class="hamburger-bar"></span>
+        </button>
+        <nav class="visitador-nav" id="visitadorNav" aria-label="Menu principal">
+            <a href="#" class="visitador-nav-link active" data-page="dashboard" onclick="return goVisitadorPage('dashboard', event)">
+                <i class="fas fa-home"></i>
+                <span>Início</span>
+            </a>
+            <a href="#" class="visitador-nav-link" data-page="agenda" onclick="return goVisitadorPage('agenda', event)">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Agenda</span>
+            </a>
+            <a href="#" class="visitador-nav-link" data-page="prescritores" onclick="return goVisitadorPage('prescritores', event)">
+                <i class="fas fa-user-md"></i>
+                <span>Prescritores</span>
+            </a>
+        </nav>
+        <div class="visitador-nav-drawer-overlay" id="visitadorNavDrawerOverlay" onclick="closeVisitadorNavDrawer()" aria-hidden="true"></div>
+        <div class="visitador-nav-drawer" id="visitadorNavDrawer">
+            <div class="visitador-nav-drawer-header">
+                <span>Menu</span>
+                <button type="button" class="visitador-nav-drawer-close" onclick="closeVisitadorNavDrawer()" aria-label="Fechar">&times;</button>
+            </div>
+            <a href="#" class="visitador-nav-drawer-link active" data-page="dashboard" onclick="return goVisitadorPageAndCloseDrawer('dashboard', event)">
+                <i class="fas fa-home"></i>
+                <span>Início</span>
+            </a>
+            <a href="#" class="visitador-nav-drawer-link" data-page="agenda" onclick="return goVisitadorPageAndCloseDrawer('agenda', event)">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Agenda</span>
+            </a>
+            <a href="#" class="visitador-nav-drawer-link" data-page="prescritores" onclick="return goVisitadorPageAndCloseDrawer('prescritores', event)">
+                <i class="fas fa-user-md"></i>
+                <span>Prescritores</span>
+            </a>
         </div>
         <div class="user-menu">
             <!-- Toggle Tema Claro/Escuro -->
@@ -173,12 +427,6 @@
                             </button>
                             <button type="button" id="btnFinalizarRota" onclick="finishRotaFromUI()" style="display:none; padding:8px 14px; border-radius:10px; border:none; background:#DC2626; color:white; font-size:0.85rem; cursor:pointer; font-weight:600;"
                                 title="Encerrar a rota do dia (todos os pontos já registrados serão mantidos).">Finalizar rota</button>
-                            <button type="button" id="btnRelatorioVisitas" onclick="openPaginaRelatorioVisitas()"
-                                style="padding:12px 22px; border-radius:12px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; font-size:0.95rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s;"
-                                title="Abrir relatório de visitas com agenda, mapa e relação de prescritores.">
-                                <i class="fas fa-clipboard-list" style="font-size:1rem;"></i>
-                                Relatório de visitas
-                            </button>
                         </div>
                     </div>
                     <p style="margin:8px 0 0 0;">Acompanhe suas metas e o desempenho da sua carteira.</p>
@@ -462,16 +710,137 @@
         </div>
         </div><!-- fim dashboardContent -->
 
-        <!-- Página Relatório de Visitas (oculta por padrão) -->
-        <div id="paginaRelatorioVisitas" style="display:none; padding:0 24px 24px;">
+        <!-- Página Agenda (calendário mensal – substitui Relatório de visitas) -->
+        <div id="paginaAgenda" class="visitador-page" style="display:none; padding:0 24px 24px;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:20px;">
+                <div class="card" style="padding:14px 16px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
+                        <i class="fas fa-calendar-day" style="margin-right:6px; color:#0EA5E9;"></i>Visitas no dia
+                    </div>
+                    <div id="agendaKpiDiaCount" style="font-size:1.6rem; line-height:1; font-weight:800; color:var(--text-primary);">0</div>
+                </div>
+                <div class="card" style="padding:14px 16px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
+                        <i class="fas fa-calendar-week" style="margin-right:6px; color:#10B981;"></i>Visitas na semana
+                    </div>
+                    <div id="agendaKpiSemanaCount" style="font-size:1.6rem; line-height:1; font-weight:800; color:var(--text-primary);">0</div>
+                </div>
+                <div class="card" style="padding:14px 16px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
+                        <i class="fas fa-calendar-alt" style="margin-right:6px; color:#F59E0B;"></i>Visitas no mês
+                    </div>
+                    <div id="agendaKpiMesCount" style="font-size:1.6rem; line-height:1; font-weight:800; color:var(--text-primary);">0</div>
+                </div>
+            </div>
             <div style="margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
-                <button type="button" onclick="closePaginaRelatorioVisitas()"
-                    style="padding:8px 14px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; font-size:0.85rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-                    <i class="fas fa-arrow-left"></i> Voltar ao painel
-                </button>
+                <h2 style="margin:0; font-size:1.25rem; font-weight:700; color:var(--text-primary);">
+                    <i class="fas fa-calendar-alt" style="margin-right:8px; color:var(--primary);"></i>Agenda
+                </h2>
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <button type="button" onclick="openNovoAgendamentoModal()"
+                        style="padding:10px 18px; border-radius:10px; border:none; background:var(--success); color:white; font-weight:600; font-size:0.9rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-plus"></i> Novo agendamento
+                    </button>
+                    <button type="button" onclick="openPrescritoresModal('')"
+                        style="padding:10px 18px; border-radius:10px; border:none; background:var(--primary); color:white; font-weight:600; font-size:0.9rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-user-md"></i> Atender prescritor
+                    </button>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom:24px; padding:16px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button type="button" id="agendaMesPrev" onclick="agendaMesAnterior()" style="padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer;"><i class="fas fa-chevron-left"></i></button>
+                        <h3 id="agendaMesTitulo" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary); min-width:180px; text-align:center;">Carregando...</h3>
+                        <button type="button" id="agendaMesNext" onclick="agendaMesProximo()" style="padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer;"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+                <div id="agendaCalendarioGrid" style="display:grid; grid-template-columns:repeat(7, 1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden;">
+                    <!-- Cabeçalho dias da semana -->
+                    <div style="grid-column:1/8; display:grid; grid-template-columns:repeat(7, 1fr); background:var(--bg-body); font-size:0.7rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">
+                        <div style="padding:10px; text-align:center;">Dom</div><div style="padding:10px; text-align:center;">Seg</div><div style="padding:10px; text-align:center;">Ter</div><div style="padding:10px; text-align:center;">Qua</div><div style="padding:10px; text-align:center;">Qui</div><div style="padding:10px; text-align:center;">Sex</div><div style="padding:10px; text-align:center;">Sáb</div>
+                    </div>
+                    <div id="agendaCalendarioDias" style="grid-column:1/8; display:grid; grid-template-columns:repeat(7, 1fr); min-height:400px;">
+                        <!-- preenchido por JS -->
+                    </div>
+                </div>
+            </div>
+            <div id="paginaAgendaList" style="display:none;"></div>
+        </div>
+
+        <!-- Modal Novo / Editar agendamento -->
+        <div id="modalNovoAgendamento" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+            <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:420px; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
+                <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                    <h3 id="modalNovoAgendamentoTitle" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-calendar-plus" style="margin-right:8px; color:var(--primary);"></i>Novo agendamento</h3>
+                    <button type="button" onclick="closeNovoAgendamentoModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+                </div>
+                <div style="padding:20px 24px;">
+                    <input type="hidden" id="novoAgendamentoId" value="">
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Prescritor</label>
+                        <select id="novoAgendamentoPrescritor" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                            <option value="">Selecione o prescritor</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Data</label>
+                        <input type="date" id="novoAgendamentoData" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Horário (opcional)</label>
+                        <input type="time" id="novoAgendamentoHora" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                </div>
+                <div style="padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px;">
+                    <button type="button" onclick="closeNovoAgendamentoModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Cancelar</button>
+                    <button type="button" id="btnSalvarNovoAgendamento" onclick="saveNovoAgendamento()" style="padding:10px 20px; border-radius:8px; border:none; background:var(--success); color:white; font-weight:600; cursor:pointer;"><i class="fas fa-check" style="margin-right:6px;"></i>Agendar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Página Prescritores (ajustar dados da carteira) -->
+        <div id="paginaPrescritores" class="visitador-page" style="display:none; padding:0 24px 32px;">
+            <div class="prescritores-page-header">
+                <h2>
+                    <span class="prescritores-icon"><i class="fas fa-user-md"></i></span>
+                    Prescritores
+                </h2>
+                <p>Ajuste os dados dos prescritores da sua carteira (nome e WhatsApp).</p>
+            </div>
+            <div class="prescritores-search-wrap">
+                <i class="fas fa-search prescritores-search-icon"></i>
+                <input type="text" id="searchPrescritoresPage" placeholder="Buscar prescritor..." autocomplete="off">
+            </div>
+            <div class="prescritores-table-card">
+                <div id="paginaPrescritoresBody" style="min-height:200px; overflow-x:auto;">
+                    <table class="prescritores-table">
+                        <thead>
+                            <tr>
+                                <th>Prescritor</th>
+                                <th>WhatsApp</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paginaPrescritoresTbody">
+                            <tr><td colspan="3" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="paginaPrescritoresPagination" class="prescritores-pagination"></div>
+            </div>
+        </div>
+
+        <!-- Página Relatório de Visitas (oculta por padrão) -->
+        <div id="paginaRelatorioVisitas" class="visitador-page" style="display:none; padding:0 24px 24px;">
+            <div style="margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
                 <h2 style="margin:0; font-size:1.25rem; font-weight:700; color:var(--text-primary);">
                     <i class="fas fa-clipboard-list" style="margin-right:8px; color:var(--primary);"></i>Relatório de visitas
                 </h2>
+                <button type="button" onclick="goVisitadorPage('dashboard', event)"
+                    style="padding:8px 14px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; font-size:0.85rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </button>
             </div>
 
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:20px;">
@@ -727,6 +1096,67 @@
         </div>
     </div>
 
+    <!-- Modal Editar Prescritor (dados completos) -->
+    <div id="modalEditarPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:560px; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
+            <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-user-edit" style="margin-right:8px; color:var(--primary);"></i>Editar prescritor</h3>
+                <button type="button" onclick="closeEditarPrescritorModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:20px 24px; overflow-y:auto; flex:1;">
+                <input type="hidden" id="edPrescritorNome">
+                <p id="edPrescritorNomeLabel" style="font-weight:600; color:var(--text-primary); margin:0 0 16px 0; font-size:0.95rem;"></p>
+                <div style="display:grid; gap:14px;">
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Profissão</label><input type="text" id="edPrescritorProfissao" placeholder="Ex: Médico" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Registro</label><input type="text" id="edPrescritorRegistro" placeholder="Nº registro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">UF Registro</label><select id="edPrescritorUfRegistro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">UF</option><option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option><option value="AP">AP</option><option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option><option value="MA">MA</option><option value="MG">MG</option><option value="MS">MS</option><option value="MT">MT</option><option value="PA">PA</option><option value="PB">PB</option><option value="PE">PE</option><option value="PI">PI</option><option value="PR">PR</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RO">RO</option><option value="RR">RR</option><option value="RS">RS</option><option value="SC">SC</option><option value="SE">SE</option><option value="SP">SP</option><option value="TO">TO</option></select></div></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Data de nascimento</label><input type="date" id="edPrescritorDataNascimento" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">CEP</label><input type="text" id="edPrescritorCep" placeholder="00000-000" maxlength="9" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                    <div style="display:grid; grid-template-columns:1fr 80px; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Rua</label><input type="text" id="edPrescritorRua" placeholder="Logradouro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Nº</label><input type="text" id="edPrescritorNumero" placeholder="Nº" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div></div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Bairro</label><input type="text" id="edPrescritorBairro" placeholder="Bairro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Cidade / UF</label><input type="text" id="edPrescritorCidadeUf" placeholder="Cidade - UF" readonly style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-secondary); font-size:0.9rem; box-sizing:border-box;"><input type="hidden" id="edPrescritorCidade"><input type="hidden" id="edPrescritorUf"></div></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Local de atendimento</label><select id="edPrescritorLocalAtendimento" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">Selecione</option><option value="Consultório">Consultório</option><option value="Residência">Residência</option><option value="Outros">Outros</option></select></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">WhatsApp</label><input type="tel" id="edPrescritorWhatsapp" placeholder="(00) 00000-0000" oninput="formatWhatsApp(this)" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">E-mail</label><input type="email" id="edPrescritorEmail" placeholder="email@exemplo.com" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                </div>
+            </div>
+            <div style="padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; flex-shrink:0;">
+                <button type="button" onclick="closeEditarPrescritorModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+                <button type="button" id="btnSaveEditarPrescritor" onclick="saveEditarPrescritorModal()" style="padding:10px 20px; border-radius:8px; border:none; background:var(--primary); color:white; font-weight:600; cursor:pointer;"><i class="fas fa-save" style="margin-right:6px;"></i>Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Aprovados / Recusados do prescritor -->
+    <div id="modalAprovadosRecusados" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:400px; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
+            <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="modalAprovadosRecusadosTitle" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"></h3>
+                <button type="button" onclick="closeAprovadosRecusadosModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div id="modalAprovadosRecusadosBody" style="padding:24px; font-size:1.25rem; font-weight:700; text-align:center;">
+                <i class="fas fa-spinner fa-spin" style="color:var(--primary);"></i> Carregando...
+            </div>
+            <div style="padding:16px 24px; border-top:1px solid var(--border); text-align:right;">
+                <button type="button" onclick="closeAprovadosRecusadosModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Relatório de visitas do prescritor -->
+    <div id="modalRelatorioVisitasPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:12px; width:100%; max-width:520px; box-shadow:0 20px 60px rgba(0,0,0,0.25); border:1px solid var(--border); overflow:hidden; max-height:85vh; display:flex; flex-direction:column;">
+            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <h3 id="modalRelatorioVisitasPrescritorTitle" style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-clipboard-list" style="margin-right:8px; color:#0ea5e9;"></i>Relatório de visitas</h3>
+                <button type="button" onclick="closeRelatorioVisitasPrescritorModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div id="modalRelatorioVisitasPrescritorBody" style="padding:18px 22px; overflow-y:auto; flex:1;">
+                <div style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+            </div>
+            <div style="padding:14px 22px; border-top:1px solid var(--border); text-align:right;">
+                <button type="button" onclick="closeRelatorioVisitasPrescritorModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal para Encerrar Visita (Relatório + Próxima Visita) -->
     <div id="modalEncerrarVisita"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:3500; justify-content:center; align-items:center; padding:20px;">
@@ -808,16 +1238,31 @@
                         style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none; resize:vertical;"></textarea>
                 </div>
 
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:6px;">
                     <div>
                         <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Próxima visita (data)</label>
                         <input id="visitaProximaData" type="date"
                             style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                        <div style="margin-top:6px; font-size:0.7rem; color:var(--text-secondary); margin-bottom:2px;">Sugestões:</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            <button type="button" onclick="aplicarSugestaoProximaData('amanha')" class="btn-sugestao-proxima" title="Amanhã">Amanhã</button>
+                            <button type="button" onclick="aplicarSugestaoProximaData(3)" class="btn-sugestao-proxima" title="Daqui a 3 dias">Em 3 dias</button>
+                            <button type="button" onclick="aplicarSugestaoProximaData(7)" class="btn-sugestao-proxima" title="Daqui a 1 semana">Em 1 semana</button>
+                            <button type="button" onclick="aplicarSugestaoProximaData('segunda')" class="btn-sugestao-proxima" title="Próxima segunda-feira">Próx. segunda</button>
+                        </div>
                     </div>
                     <div>
                         <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Próxima visita (hora)</label>
                         <input id="visitaProximaHora" type="time"
                             style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                        <div style="margin-top:6px; font-size:0.7rem; color:var(--text-secondary); margin-bottom:2px;">Sugestões:</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            <button type="button" onclick="aplicarSugestaoProximaHora('08:00')" class="btn-sugestao-proxima" title="8h">8h</button>
+                            <button type="button" onclick="aplicarSugestaoProximaHora('09:00')" class="btn-sugestao-proxima" title="9h">9h</button>
+                            <button type="button" onclick="aplicarSugestaoProximaHora('10:00')" class="btn-sugestao-proxima" title="10h">10h</button>
+                            <button type="button" onclick="aplicarSugestaoProximaHora('14:00')" class="btn-sugestao-proxima" title="14h">14h</button>
+                            <button type="button" onclick="aplicarSugestaoProximaHora('16:00')" class="btn-sugestao-proxima" title="16h">16h</button>
+                        </div>
                     </div>
                 </div>
 
@@ -854,6 +1299,7 @@
                 <button onclick="closeDetalheVisitaModal()" style="background:var(--bg-body); border:1px solid var(--border); width:36px; height:36px; border-radius:10px; font-size:1.25rem; color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;">&times;</button>
             </div>
             <div style="overflow-y:auto; padding:20px 24px; flex:1;">
+                <div id="dvViewContainer">
 
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
                     <div style="flex:1;">
@@ -917,6 +1363,25 @@
                     <div id="dvGeoMapContainer" style="height:180px; border:1px solid var(--border); border-radius:12px; overflow:hidden;"></div>
                 </div>
 
+                </div>
+                <div id="dvEditContainer" style="display:none;">
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin:0 0 16px 0;">Ajuste o resumo ou os itens entregues após a visita (ex.: resumo que não ficou coerente ou amostra/brinde/artigo enviados depois).</p>
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="fas fa-align-left" style="margin-right:4px;"></i>Resumo</div>
+                    <textarea id="dvEditResumo" rows="3" placeholder="Resumo da visita" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box; margin-bottom:14px; resize:vertical;"></textarea>
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="fas fa-box-open" style="margin-right:4px;"></i>Itens entregues</div>
+                    <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:8px;">
+                        <input type="text" id="dvEditAmostra" placeholder="Amostra (ex.: enviada após a visita)" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                        <input type="text" id="dvEditBrinde" placeholder="Brinde" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                        <input type="text" id="dvEditArtigo" placeholder="Artigo" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                </div>
+            </div>
+            <div id="dvFooter" style="padding:14px 24px; border-top:1px solid var(--border); background:var(--bg-body); flex-shrink:0; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" id="dvBtnEditar" onclick="dvToggleEdit(true)" style="padding:10px 18px; border-radius:8px; border:none; background:var(--primary); color:white; font-weight:600; cursor:pointer; font-size:0.9rem;"><i class="fas fa-pen" style="margin-right:6px;"></i>Editar</button>
+                <span id="dvFooterEdit" style="display:none;">
+                    <button type="button" onclick="dvToggleEdit(false)" style="padding:10px 18px; border-radius:8px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary); font-weight:600; cursor:pointer; font-size:0.9rem;">Cancelar</button>
+                    <button type="button" id="dvBtnSalvar" onclick="dvSalvarDetalheVisita()" style="padding:10px 18px; border-radius:8px; border:none; background:var(--success); color:white; font-weight:600; cursor:pointer; font-size:0.9rem;"><i class="fas fa-check" style="margin-right:6px;"></i>Salvar</button>
+                </span>
             </div>
         </div>
     </div>
@@ -1171,6 +1636,11 @@
                 item.classList.add('read');
                 if (item.classList.contains('visita') && item.dataset.prescritor && typeof openPrescritoresModal === 'function') openPrescritoresModal(item.dataset.prescritor);
             }
+        });
+        var agendaCalendarioDiasEl = document.getElementById('agendaCalendarioDias');
+        if (agendaCalendarioDiasEl) agendaCalendarioDiasEl.addEventListener('click', function (e) {
+            var item = e.target.closest('.agenda-visita-item');
+            if (item && item.dataset.prescritor !== undefined && typeof openPrescritoresModal === 'function') openPrescritoresModal(item.dataset.prescritor || '');
         });
         function toggleNotificationsPanel(e) {
             if (e) e.stopPropagation();
@@ -1542,10 +2012,18 @@
                     statusMsg.style.display = 'block';
                     // Atualizar cache local
                     prescritorContatos[nome] = whatsapp;
-                    // Re-renderizar tabela
+                    // Re-renderizar tabela do modal
                     const search = document.getElementById('searchPrescritor').value.toLowerCase();
                     const filtered = search ? allPrescritores.filter(p => p.prescritor.toLowerCase().includes(search)) : allPrescritores;
                     renderModalPrescritores(filtered);
+                    // Atualizar página Prescritores se estiver visível
+                    var pagPresc = document.getElementById('paginaPrescritores');
+                    if (pagPresc && pagPresc.style.display !== 'none' && typeof __paginaPrescritoresList !== 'undefined') {
+                        __paginaPrescritoresList.forEach(function (p) {
+                            if ((p.prescritor || '') === nome) p.whatsapp = whatsapp;
+                        });
+                        if (typeof renderPaginaPrescritores === 'function') renderPaginaPrescritores();
+                    }
                     // Fechar após 1s
                     setTimeout(() => closeWhatsAppModal(), 1000);
                 } else {
@@ -1563,16 +2041,229 @@
             btn.disabled = false;
         }
 
+        // === Modal Editar Prescritor (dados completos) ===
+        async function openEditarPrescritorModal(nome) {
+            var elNome = document.getElementById('edPrescritorNome');
+            var elNomeLabel = document.getElementById('edPrescritorNomeLabel');
+            if (!elNome || !elNomeLabel) return;
+            elNome.value = nome;
+            elNomeLabel.textContent = nome;
+            ['edPrescritorProfissao','edPrescritorRegistro','edPrescritorUfRegistro','edPrescritorDataNascimento','edPrescritorCep','edPrescritorRua','edPrescritorNumero','edPrescritorBairro','edPrescritorCidadeUf','edPrescritorCidade','edPrescritorUf','edPrescritorLocalAtendimento','edPrescritorWhatsapp','edPrescritorEmail'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            try {
+                var res = await apiGet('get_prescritor_dados', { nome_prescritor: nome });
+                var d = (res && res.dados) ? res.dados : {};
+                document.getElementById('edPrescritorProfissao').value = d.profissao || '';
+                document.getElementById('edPrescritorRegistro').value = d.registro || '';
+                document.getElementById('edPrescritorUfRegistro').value = d.uf_registro || '';
+                document.getElementById('edPrescritorDataNascimento').value = d.data_nascimento || '';
+                document.getElementById('edPrescritorCep').value = d.endereco_cep || '';
+                document.getElementById('edPrescritorRua').value = d.endereco_rua || '';
+                document.getElementById('edPrescritorNumero').value = d.endereco_numero || '';
+                document.getElementById('edPrescritorBairro').value = d.endereco_bairro || '';
+                document.getElementById('edPrescritorCidade').value = d.endereco_cidade || '';
+                document.getElementById('edPrescritorUf').value = d.endereco_uf || '';
+                document.getElementById('edPrescritorCidadeUf').value = [d.endereco_cidade, d.endereco_uf].filter(Boolean).join(' - ') || '';
+                document.getElementById('edPrescritorLocalAtendimento').value = d.local_atendimento || '';
+                var whatsEl = document.getElementById('edPrescritorWhatsapp');
+                whatsEl.value = (d.whatsapp || '').replace(/\D/g, '');
+                if (typeof formatWhatsApp === 'function') formatWhatsApp(whatsEl);
+                document.getElementById('edPrescritorEmail').value = d.email || '';
+            } catch (e) { console.warn('get_prescritor_dados', e); }
+
+            document.getElementById('modalEditarPrescritor').style.display = 'flex';
+            bindEditarPrescritorCepBlur();
+            var cepVal = (document.getElementById('edPrescritorCep') || {}).value || '';
+            var cepDigits = cepVal.replace(/\D/g, '');
+            if (cepDigits.length === 8) {
+                formatCepEditarPrescritor(document.getElementById('edPrescritorCep'));
+                fetchCepAndFillEditarPrescritor(cepDigits);
+            }
+        }
+
+        function closeEditarPrescritorModal() {
+            document.getElementById('modalEditarPrescritor').style.display = 'none';
+        }
+
+        async function openAprovadosRecusadosModal(nome, tipo) {
+            var modal = document.getElementById('modalAprovadosRecusados');
+            var titleEl = document.getElementById('modalAprovadosRecusadosTitle');
+            var bodyEl = document.getElementById('modalAprovadosRecusadosBody');
+            if (!modal || !titleEl || !bodyEl) return;
+            var anoEl = document.getElementById('anoSelect');
+            var mesEl = document.getElementById('mesSelect');
+            var ano = anoEl ? anoEl.value : (new Date().getFullYear());
+            var mes = mesEl && mesEl.value !== '' ? mesEl.value : '';
+            var label = tipo === 'aprovados' ? 'Aprovados' : 'Recusados';
+            var periodo = mes ? (mes + '/' + ano) : ('' + ano);
+            titleEl.textContent = label + ' – ' + (nome || '') + ' (' + periodo + ')';
+            bodyEl.innerHTML = '<i class="fas fa-spinner fa-spin" style="color:var(--primary);"></i> Carregando...';
+            modal.style.display = 'flex';
+            try {
+                var params = { nome_prescritor: nome, ano: ano };
+                if (mes) params.mes = mes;
+                var res = await apiGet('get_prescritor_dados', params);
+                var d = (res && res.dados) ? res.dados : {};
+                var valor = tipo === 'aprovados' ? (d.aprovados != null && d.aprovados !== '' ? d.aprovados : '0,00') : (d.recusados != null && d.recusados !== '' ? d.recusados : '0,00');
+                bodyEl.innerHTML = '<span style="color:' + (tipo === 'aprovados' ? 'var(--success)' : 'var(--danger)') + ';">R$ ' + valor + '</span>';
+            } catch (e) {
+                bodyEl.innerHTML = '<span style="color:var(--danger);">Erro ao carregar.</span>';
+            }
+        }
+
+        function closeAprovadosRecusadosModal() {
+            var modal = document.getElementById('modalAprovadosRecusados');
+            if (modal) modal.style.display = 'none';
+        }
+
+        async function openRelatorioVisitasPrescritorModal(nome) {
+            var modal = document.getElementById('modalRelatorioVisitasPrescritor');
+            var titleEl = document.getElementById('modalRelatorioVisitasPrescritorTitle');
+            var bodyEl = document.getElementById('modalRelatorioVisitasPrescritorBody');
+            if (!modal || !bodyEl) return;
+            if (titleEl) titleEl.innerHTML = '<i class="fas fa-clipboard-list" style="margin-right:8px; color:#0ea5e9;"></i>Relatório de visitas – ' + (nome ? String(nome).replace(/</g, '&lt;') : '');
+            modal.style.display = 'flex';
+            bodyEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+            try {
+                var res = await apiGet('get_visitas_prescritor', { prescritor: nome || '', visitador: typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '' });
+                var visitas = (res && res.visitas) ? res.visitas : [];
+                if (visitas.length === 0) {
+                    bodyEl.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-secondary); margin:0;">Nenhuma visita registrada para este prescritor.</p>';
+                    return;
+                }
+                var html = '';
+                visitas.forEach(function (v) {
+                    var dataStr = (v.data_visita || '').toString().slice(0, 10);
+                    var horaStr = (v.horario || '').toString().slice(0, 5);
+                    var status = (v.status_visita || 'Realizada').trim();
+                    var hid = v.id ? parseInt(v.id, 10) : 0;
+                    var label = dataStr + (horaStr ? ' às ' + horaStr : '') + ' – ' + status;
+                    html += '<div class="relatorio-visita-row" data-historicoid="' + hid + '" style="padding:12px 14px; border:1px solid var(--border); border-radius:10px; margin-bottom:8px; cursor:pointer; background:var(--bg-body); transition:background 0.15s;" onmouseover="this.style.background=\'rgba(14,165,233,0.1)\'" onmouseout="this.style.background=\'var(--bg-body)\'"><span style="font-weight:600; color:var(--text-primary);">' + (dataStr ? new Date(dataStr + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—') + (horaStr ? ' às ' + horaStr : '') + '</span><span style="margin-left:8px; font-size:0.85rem; color:var(--text-secondary);">' + (status || '') + '</span></div>';
+                });
+                bodyEl.innerHTML = html;
+                bodyEl.querySelectorAll('.relatorio-visita-row').forEach(function (row) {
+                    row.onclick = async function () {
+                        var id = parseInt(row.getAttribute('data-historicoid'), 10);
+                        if (!id) return;
+                        try {
+                            var det = await apiGet('get_detalhe_visita', { historico_id: id });
+                            if (det && det.success && det.visita && typeof openDetalheVisitaModal === 'function') {
+                                closeRelatorioVisitasPrescritorModal();
+                                openDetalheVisitaModal(det.visita);
+                            }
+                        } catch (e) {}
+                    };
+                });
+            } catch (e) {
+                bodyEl.innerHTML = '<p style="text-align:center; padding:24px; color:var(--danger); margin:0;">Erro ao carregar visitas.</p>';
+            }
+        }
+
+        function closeRelatorioVisitasPrescritorModal() {
+            var modal = document.getElementById('modalRelatorioVisitasPrescritor');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function formatCepEditarPrescritor(input) {
+            if (!input) return;
+            var v = (input.value || '').replace(/\D/g, '');
+            if (v.length > 8) v = v.slice(0, 8);
+            if (v.length > 5) input.value = v.slice(0, 5) + '-' + v.slice(5);
+            else input.value = v;
+        }
+
+        function fetchCepAndFillEditarPrescritor(cepDigits) {
+            cepDigits = String(cepDigits || '').replace(/\D/g, '');
+            if (cepDigits.length !== 8) return;
+            fetch('https://viacep.com.br/ws/' + cepDigits + '/json/')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data && data.erro) return;
+                    var rua = document.getElementById('edPrescritorRua');
+                    var bairro = document.getElementById('edPrescritorBairro');
+                    var cidade = document.getElementById('edPrescritorCidade');
+                    var uf = document.getElementById('edPrescritorUf');
+                    var cidadeUf = document.getElementById('edPrescritorCidadeUf');
+                    if (rua) rua.value = (data && data.logradouro) || '';
+                    if (bairro) bairro.value = (data && data.bairro) || '';
+                    if (cidade) cidade.value = (data && data.localidade) || '';
+                    if (uf) uf.value = (data && data.uf) || '';
+                    if (cidadeUf) cidadeUf.value = [data && data.localidade, data && data.uf].filter(Boolean).join(' - ') || '';
+                })
+                .catch(function () {});
+        }
+
+        function bindEditarPrescritorCepBlur() {
+            var cepEl = document.getElementById('edPrescritorCep');
+            if (!cepEl) return;
+            if (!cepEl._edPrescritorCepBound) {
+                cepEl._edPrescritorCepBound = true;
+                cepEl.addEventListener('input', function () {
+                    formatCepEditarPrescritor(cepEl);
+                    var cep = (cepEl.value || '').replace(/\D/g, '');
+                    if (cep.length === 8) fetchCepAndFillEditarPrescritor(cep);
+                });
+                cepEl.addEventListener('blur', function () {
+                    var cep = (cepEl.value || '').replace(/\D/g, '');
+                    if (cep.length === 8) fetchCepAndFillEditarPrescritor(cep);
+                });
+            }
+        }
+
+        async function saveEditarPrescritorModal() {
+            var nome = (document.getElementById('edPrescritorNome') || {}).value;
+            if (!nome) return;
+            var payload = {
+                nome_prescritor: nome,
+                profissao: (document.getElementById('edPrescritorProfissao') || {}).value,
+                registro: (document.getElementById('edPrescritorRegistro') || {}).value,
+                uf_registro: (document.getElementById('edPrescritorUfRegistro') || {}).value,
+                data_nascimento: (document.getElementById('edPrescritorDataNascimento') || {}).value,
+                endereco_rua: (document.getElementById('edPrescritorRua') || {}).value,
+                endereco_numero: (document.getElementById('edPrescritorNumero') || {}).value,
+                endereco_bairro: (document.getElementById('edPrescritorBairro') || {}).value,
+                endereco_cep: (document.getElementById('edPrescritorCep') || {}).value.replace(/\D/g, ''),
+                endereco_cidade: (document.getElementById('edPrescritorCidade') || {}).value,
+                endereco_uf: (document.getElementById('edPrescritorUf') || {}).value,
+                local_atendimento: (document.getElementById('edPrescritorLocalAtendimento') || {}).value,
+                whatsapp: (document.getElementById('edPrescritorWhatsapp') || {}).value,
+                email: (document.getElementById('edPrescritorEmail') || {}).value
+            };
+            var btn = document.getElementById('btnSaveEditarPrescritor');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
+            try {
+                var result = await apiPost('update_prescritor_dados', payload);
+                if (result && result.success) {
+                    if (typeof __paginaPrescritoresList !== 'undefined') {
+                        var p = __paginaPrescritoresList.find(function (x) { return (x.prescritor || '') === nome; });
+                        if (p) p.whatsapp = payload.whatsapp || p.whatsapp;
+                    }
+                    if (typeof renderPaginaPrescritores === 'function') renderPaginaPrescritores();
+                    closeEditarPrescritorModal();
+                } else {
+                    alert('Erro: ' + (result && result.error ? result.error : 'Não foi possível salvar.'));
+                }
+            } catch (err) {
+                alert('Erro de conexão.');
+            }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save" style="margin-right:6px;"></i>Salvar'; }
+        }
+
         // =========================
         // DETALHE DA VISITA (Modal)
         // =========================
         let __dvGeoMap = null;
         let __dvGeoMarker = null;
+        let __dvVisita = null;
 
         function openDetalheVisitaModal(visita) {
             if (!visita) return;
+            __dvVisita = visita;
             const modal = document.getElementById('modalDetalheVisita');
             if (!modal) return;
+            dvToggleEdit(false);
 
             const statusLower = (visita.status_visita || '').toLowerCase();
             const statusCfg = {
@@ -1699,6 +2390,68 @@
             modal.style.display = 'flex';
         }
 
+        function dvToggleEdit(showEdit) {
+            const viewEl = document.getElementById('dvViewContainer');
+            const editEl = document.getElementById('dvEditContainer');
+            const btnEditar = document.getElementById('dvBtnEditar');
+            const footerEdit = document.getElementById('dvFooterEdit');
+            if (!viewEl || !editEl) return;
+            if (showEdit && __dvVisita) {
+                viewEl.style.display = 'none';
+                editEl.style.display = 'block';
+                if (btnEditar) btnEditar.style.display = 'none';
+                if (footerEdit) footerEdit.style.display = 'inline-flex';
+                var elResumo = document.getElementById('dvEditResumo');
+                var elAmostra = document.getElementById('dvEditAmostra');
+                var elBrinde = document.getElementById('dvEditBrinde');
+                var elArtigo = document.getElementById('dvEditArtigo');
+                if (elResumo) elResumo.value = __dvVisita.resumo_visita || '';
+                if (elAmostra) elAmostra.value = __dvVisita.amostra || '';
+                if (elBrinde) elBrinde.value = __dvVisita.brinde || '';
+                if (elArtigo) elArtigo.value = __dvVisita.artigo || '';
+            } else {
+                viewEl.style.display = 'block';
+                editEl.style.display = 'none';
+                if (btnEditar) btnEditar.style.display = 'inline-block';
+                if (footerEdit) footerEdit.style.display = 'none';
+            }
+        }
+
+        async function dvSalvarDetalheVisita() {
+            if (!__dvVisita || !__dvVisita.id) return;
+            var historicoId = parseInt(__dvVisita.id, 10);
+            var elResumo = document.getElementById('dvEditResumo');
+            var elAmostra = document.getElementById('dvEditAmostra');
+            var elBrinde = document.getElementById('dvEditBrinde');
+            var elArtigo = document.getElementById('dvEditArtigo');
+            var payload = {
+                historico_id: historicoId,
+                visitador: typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '',
+                resumo_visita: elResumo ? elResumo.value : '',
+                amostra: elAmostra ? elAmostra.value : '',
+                brinde: elBrinde ? elBrinde.value : '',
+                artigo: elArtigo ? elArtigo.value : ''
+            };
+            var btn = document.getElementById('dvBtnSalvar');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Salvando...'; }
+            try {
+                var res = await apiPost('update_detalhe_visita', payload);
+                if (res && res.success) {
+                    var updated = await apiGet('get_detalhe_visita', { historico_id: historicoId });
+                    if (updated && updated.success && updated.visita) {
+                        __dvVisita = updated.visita;
+                        openDetalheVisitaModal(updated.visita);
+                        dvToggleEdit(false);
+                    }
+                    if (typeof loadVisitadorDashboard === 'function') loadVisitadorDashboard(currentVisitadorName);
+                    if (typeof loadAgendaMes === 'function') loadAgendaMes(__agendaAno, __agendaMes);
+                } else alert(res && res.error ? res.error : 'Erro ao salvar.');
+            } catch (e) {
+                alert('Erro ao salvar alterações.');
+            }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check" style="margin-right:6px;"></i>Salvar'; }
+        }
+
         function closeDetalheVisitaModal() {
             const modal = document.getElementById('modalDetalheVisita');
             if (modal) modal.style.display = 'none';
@@ -1751,6 +2504,27 @@
             }, 4000);
         }
 
+        function aplicarSugestaoProximaData(opcao) {
+            var el = document.getElementById('visitaProximaData');
+            if (!el) return;
+            var d = new Date();
+            if (opcao === 'amanha') {
+                d.setDate(d.getDate() + 1);
+            } else if (opcao === 'segunda') {
+                var dia = d.getDay();
+                var add = dia === 0 ? 1 : (8 - dia);
+                d.setDate(d.getDate() + add);
+            } else if (typeof opcao === 'number') {
+                d.setDate(d.getDate() + opcao);
+            } else return;
+            el.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        function aplicarSugestaoProximaHora(hora) {
+            var el = document.getElementById('visitaProximaHora');
+            if (el && hora) el.value = String(hora).slice(0, 5);
+        }
+
         function openEncerrarVisitaModal(prescritor) {
             if (!canManageVisits) return;
             if (!activeVisit || !activeVisit.id) return;
@@ -1772,8 +2546,10 @@
             document.getElementById('visitaBrinde').value = '';
             document.getElementById('visitaArtigo').value = '';
             document.getElementById('visitaResumo').value = '';
-            document.getElementById('visitaProximaData').value = '';
-            document.getElementById('visitaProximaHora').value = '';
+            var amanha = new Date();
+            amanha.setDate(amanha.getDate() + 1);
+            document.getElementById('visitaProximaData').value = amanha.getFullYear() + '-' + String(amanha.getMonth() + 1).padStart(2, '0') + '-' + String(amanha.getDate()).padStart(2, '0');
+            document.getElementById('visitaProximaHora').value = '09:00';
             resetGeoUI();
             const msg = document.getElementById('encerrarVisitaMsg');
             if (msg) msg.style.display = 'none';
@@ -2023,23 +2799,441 @@
             if (mapaEmpty && rMapaEmpty) { rMapaEmpty.style.display = mapaEmpty.style.display; }
         }
 
+        function copyDashboardToAgendaKpis() {
+            var vDia = document.getElementById('visitasDiaCount');
+            var vSemana = document.getElementById('visitasSemanaCount');
+            var vMes = document.getElementById('visitasMesCount');
+            var aDia = document.getElementById('agendaKpiDiaCount');
+            var aSemana = document.getElementById('agendaKpiSemanaCount');
+            var aMes = document.getElementById('agendaKpiMesCount');
+            if (vDia && aDia) aDia.textContent = vDia.textContent || '0';
+            if (vSemana && aSemana) aSemana.textContent = vSemana.textContent || '0';
+            if (vMes && aMes) aMes.textContent = vMes.textContent || '0';
+        }
+
         async function openPaginaRelatorioVisitas() {
-            document.getElementById('dashboardContent').style.display = 'none';
-            document.getElementById('paginaRelatorioVisitas').style.display = 'block';
-            if (typeof loadVisitadorDashboard === 'function') {
-                const anoEl = document.getElementById('anoSelect');
-                const mesEl = document.getElementById('mesSelect');
-                const ano = anoEl ? anoEl.value : null;
-                const mes = mesEl && mesEl.value ? mesEl.value : null;
-                await loadVisitadorDashboard(currentVisitadorName, ano, mes);
-            }
-            copyDashboardToRelatorio();
-            await loadAndRenderRelatorioPrescritores();
+            goVisitadorPage('relatorio', null);
+        }
+
+        function showVisitadorPage(page) {
+            var dash = document.getElementById('dashboardContent');
+            var agenda = document.getElementById('paginaAgenda');
+            var rel = document.getElementById('paginaRelatorioVisitas');
+            var presc = document.getElementById('paginaPrescritores');
+            if (dash) dash.style.display = (page === 'dashboard') ? 'block' : 'none';
+            if (agenda) agenda.style.display = (page === 'agenda') ? 'block' : 'none';
+            if (rel) rel.style.display = (page === 'relatorio') ? 'block' : 'none';
+            if (presc) presc.style.display = (page === 'prescritores') ? 'block' : 'none';
+            setVisitadorNavActive(page);
         }
 
         function closePaginaRelatorioVisitas() {
-            document.getElementById('paginaRelatorioVisitas').style.display = 'none';
-            document.getElementById('dashboardContent').style.display = 'block';
+            showVisitadorPage('dashboard');
+        }
+
+        var __agendaAno = new Date().getFullYear();
+        var __agendaMes = new Date().getMonth() + 1;
+        var __agendaVisitas = [];
+
+        function renderPaginaAgenda() {
+            var titulo = document.getElementById('agendaMesTitulo');
+            if (titulo) titulo.textContent = getAgendaMesNome(__agendaMes) + ' ' + __agendaAno;
+            loadAgendaMes(__agendaAno, __agendaMes);
+        }
+
+        function getAgendaMesNome(mes) {
+            var nomes = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            return nomes[mes] || '';
+        }
+
+        async function loadAgendaMes(ano, mes) {
+            var titulo = document.getElementById('agendaMesTitulo');
+            if (titulo) titulo.textContent = getAgendaMesNome(mes) + ' ' + ano + '...';
+            try {
+                var res = await apiGet('get_visitas_agendadas_mes', { ano: ano, mes: mes });
+                __agendaVisitas = (res && res.visitas) ? res.visitas : [];
+                if (titulo) titulo.textContent = getAgendaMesNome(mes) + ' ' + ano;
+                renderAgendaCalendario(__agendaVisitas, ano, mes);
+            } catch (e) {
+                __agendaVisitas = [];
+                if (titulo) titulo.textContent = getAgendaMesNome(mes) + ' ' + ano;
+                renderAgendaCalendario([], ano, mes);
+            }
+        }
+
+        function renderAgendaCalendario(visitas, ano, mes) {
+            var container = document.getElementById('agendaCalendarioDias');
+            if (!container) return;
+            var primeiroDia = new Date(ano, mes - 1, 1).getDay();
+            var diasNoMes = new Date(ano, mes, 0).getDate();
+            var hoje = new Date();
+            var hojeStr = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
+            var visitasPorDia = {};
+            visitas.forEach(function (v) {
+                var d = (v.data_agendada || '').toString().slice(0, 10);
+                if (!visitasPorDia[d]) visitasPorDia[d] = [];
+                visitasPorDia[d].push(v);
+            });
+            var html = '';
+            var totalCells = 42;
+            var diaAtual = 1;
+            for (var i = 0; i < totalCells; i++) {
+                var vazio = i < primeiroDia || diaAtual > diasNoMes;
+                var dia = vazio ? '' : diaAtual;
+                var dataStr = vazio ? '' : ano + '-' + String(mes).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+                var list = (dataStr && visitasPorDia[dataStr]) ? visitasPorDia[dataStr] : [];
+                var isHoje = dataStr === hojeStr;
+                if (!vazio) diaAtual++;
+                var bg = vazio ? 'var(--bg-body)' : (isHoje ? 'rgba(59,130,246,0.15)' : 'var(--bg-card)');
+                html += '<div style="min-height:100px; padding:8px; background:' + bg + '; border-radius:6px; font-size:0.8rem;">';
+                if (dia) {
+                    html += '<div style="font-weight:700; color:var(--text-primary); margin-bottom:6px;">' + dia + '</div>';
+                    list.forEach(function (v) {
+                        var tipo = (v.tipo || 'agendada');
+                        var isRealizada = (tipo === 'realizada');
+                        var dataVisit = (v.data_agendada || '').toString().slice(0, 10);
+                        var horaVisit = (v.hora || '').slice(0, 5);
+                        var isFuturo = false;
+                        if (!isRealizada && dataVisit) {
+                            if (dataVisit > hojeStr) isFuturo = true;
+                            else if (dataVisit === hojeStr) {
+                                if (!horaVisit) isFuturo = true;
+                                else {
+                                    var minVisit = parseInt(horaVisit.slice(0, 2), 10) * 60 + parseInt(horaVisit.slice(3, 5), 10);
+                                    var minAgora = hoje.getHours() * 60 + hoje.getMinutes();
+                                    isFuturo = minVisit > minAgora;
+                                }
+                            }
+                        }
+                        var bordaCor = isRealizada ? '#16a34a' : 'var(--primary)';
+                        var badgeCor = isRealizada ? '#16a34a' : 'var(--primary)';
+                        var hora = (v.hora || '').slice(0, 5);
+                        var prescCompleto = (v.prescritor || '-').trim();
+                        var esc = function (x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+                        var hid = (v.historico_id && parseInt(v.historico_id, 10)) ? parseInt(v.historico_id, 10) : '';
+                        var id = v.id ? parseInt(v.id, 10) : '';
+                        var dataStrEsc = esc((v.data_agendada || '').toString().slice(0, 10));
+                        html += '<div class="agenda-visita-item" data-tipo="' + esc(tipo) + '" data-prescritor="' + esc(v.prescritor || '') + '" data-id="' + id + '" data-historicoid="' + hid + '" data-agendamento-id="' + id + '" data-agendamento-prescritor="' + esc(v.prescritor || '') + '" data-agendamento-data="' + dataStrEsc + '" data-agendamento-hora="' + esc(hora) + '" style="border-left:3px solid ' + bordaCor + '; padding:8px 8px 8px 10px; margin-bottom:8px; cursor:pointer; background:var(--bg-body); border-radius:0 8px 8px 0; box-shadow:0 1px 2px rgba(0,0,0,0.04); transition:box-shadow 0.15s;">';
+                        html += '<div style="display:flex; flex-direction:column; gap:4px;">';
+                        html += '<div class="agenda-visita-nome" title="Clique para atender" style="font-size:0.78rem; font-weight:700; color:var(--text-primary); line-height:1.3; word-break:break-word;">' + esc(prescCompleto) + (hora ? ' <span style="font-weight:500; color:var(--text-secondary); font-size:0.72rem;">' + esc(hora) + '</span>' : '') + '</div>';
+                        html += '<div class="agenda-visita-acoes" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">';
+                        html += '<span style="font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; color:' + badgeCor + ';">' + (isRealizada ? 'Realizada' : 'Agendada') + '</span>';
+                        if (hid) html += '<button type="button" class="agenda-btn-relatorio" data-historicoid="' + hid + '" onclick="event.stopPropagation();openRelatorioAgendamento(' + hid + ');" title="Ver relatório da visita" style="background:none; border:none; padding:2px; color:var(--primary); cursor:pointer; font-size:0.75rem;"><i class="fas fa-clipboard-list"></i></button>';
+                        if (!isRealizada && id && isFuturo) {
+                            html += '<button type="button" class="agenda-btn-editar" data-id="' + id + '" onclick="event.stopPropagation();openEditarAgendamentoModal(this);" title="Editar" style="background:none; border:none; padding:2px; color:var(--primary); cursor:pointer; font-size:0.75rem;"><i class="fas fa-pen"></i></button>';
+                            html += '<button type="button" class="agenda-btn-excluir" data-id="' + id + '" onclick="event.stopPropagation();excluirAgendamentoConfirm(' + id + ');" title="Excluir" style="background:none; border:none; padding:2px; color:var(--danger); cursor:pointer; font-size:0.75rem;"><i class="fas fa-trash-alt"></i></button>';
+                        }
+                        html += '</div></div></div>';
+                    });
+                }
+                html += '</div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function agendaMesAnterior() {
+            __agendaMes--;
+            if (__agendaMes < 1) { __agendaMes = 12; __agendaAno--; }
+            loadAgendaMes(__agendaAno, __agendaMes);
+        }
+
+        function agendaMesProximo() {
+            __agendaMes++;
+            if (__agendaMes > 12) { __agendaMes = 1; __agendaAno++; }
+            loadAgendaMes(__agendaAno, __agendaMes);
+        }
+
+        async function openNovoAgendamentoModal(editItem) {
+            var idEl = document.getElementById('novoAgendamentoId');
+            var titleEl = document.getElementById('modalNovoAgendamentoTitle');
+            var btnSalvar = document.getElementById('btnSalvarNovoAgendamento');
+            var sel = document.getElementById('novoAgendamentoPrescritor');
+            var dataEl = document.getElementById('novoAgendamentoData');
+            var horaEl = document.getElementById('novoAgendamentoHora');
+            if (!sel || !dataEl) return;
+            var isEdit = editItem && (editItem.id || (editItem.dataset && (editItem.dataset.agendamentoId || editItem.dataset.id)));
+            if (idEl) idEl.value = isEdit ? (editItem.dataset && (editItem.dataset.agendamentoId || editItem.dataset.id)) || editItem.id || '' : '';
+            if (titleEl) titleEl.innerHTML = isEdit ? '<i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Editar agendamento' : '<i class="fas fa-calendar-plus" style="margin-right:8px; color:var(--primary);"></i>Novo agendamento';
+            if (btnSalvar) btnSalvar.innerHTML = isEdit ? '<i class="fas fa-save" style="margin-right:6px;"></i>Salvar alterações' : '<i class="fas fa-check" style="margin-right:6px;"></i>Agendar';
+            sel.innerHTML = '<option value="">Carregando...</option>';
+            document.getElementById('modalNovoAgendamento').style.display = 'flex';
+            if (isEdit && (editItem.dataset || editItem)) {
+                var d = editItem.dataset || {};
+                dataEl.value = (d.agendamentoData || editItem.data_agendada || '').toString().slice(0, 10);
+                if (horaEl) horaEl.value = (d.agendamentoHora || editItem.hora || '').slice(0, 5);
+            } else {
+                dataEl.value = __agendaAno + '-' + String(__agendaMes).padStart(2, '0') + '-01';
+                if (horaEl) horaEl.value = '';
+            }
+            try {
+                var list = await apiGet('all_prescritores', { visitador: currentVisitadorName || '', ano: __agendaAno });
+                var prescritores = Array.isArray(list) ? list : [];
+                sel.innerHTML = '<option value="">Selecione o prescritor</option>';
+                prescritores.forEach(function (p) {
+                    var nome = p.prescritor || p.nome || '-';
+                    sel.appendChild(new Option(nome, nome));
+                });
+                if (isEdit && (editItem.dataset || editItem)) {
+                    var presc = (editItem.dataset && editItem.dataset.agendamentoPrescritor) || editItem.prescritor || '';
+                    sel.value = presc;
+                }
+            } catch (e) {
+                sel.innerHTML = '<option value="">Erro ao carregar prescritores</option>';
+            }
+        }
+
+        function openEditarAgendamentoModal(btn) {
+            var row = btn.closest('.agenda-visita-item');
+            if (!row) return;
+            openNovoAgendamentoModal(row);
+        }
+
+        async function openRelatorioAgendamento(historicoId) {
+            if (!historicoId) return;
+            try {
+                var res = await apiGet('get_detalhe_visita', { historico_id: historicoId });
+                if (res && res.success && res.visita && typeof openDetalheVisitaModal === 'function') openDetalheVisitaModal(res.visita);
+                else alert('Relatório não encontrado.');
+            } catch (e) {
+                alert('Erro ao carregar relatório.');
+            }
+        }
+
+        async function excluirAgendamentoConfirm(id) {
+            if (!id || !confirm('Excluir este agendamento?')) return;
+            try {
+                var res = await apiPost('excluir_agendamento', { id: id });
+                if (res && res.success) {
+                    loadAgendaMes(__agendaAno, __agendaMes);
+                    if (typeof loadVisitadorDashboard === 'function') loadVisitadorDashboard(currentVisitadorName);
+                } else {
+                    alert(res && res.error ? res.error : 'Erro ao excluir.');
+                }
+            } catch (e) {
+                alert('Erro de conexão.');
+            }
+        }
+
+        function closeNovoAgendamentoModal() {
+            document.getElementById('modalNovoAgendamento').style.display = 'none';
+            var idEl = document.getElementById('novoAgendamentoId');
+            if (idEl) idEl.value = '';
+        }
+
+        async function saveNovoAgendamento() {
+            var idEl = document.getElementById('novoAgendamentoId');
+            var id = (idEl && idEl.value) ? idEl.value.trim() : '';
+            var prescritor = (document.getElementById('novoAgendamentoPrescritor') || {}).value;
+            var data = (document.getElementById('novoAgendamentoData') || {}).value;
+            var hora = (document.getElementById('novoAgendamentoHora') || {}).value;
+            if (!prescritor || !data) {
+                alert('Selecione o prescritor e a data.');
+                return;
+            }
+            var btn = document.getElementById('btnSalvarNovoAgendamento');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
+            try {
+                var payload = { prescritor: prescritor, data_agendada: data };
+                if (hora) payload.hora = hora;
+                var action = id ? 'update_agendamento' : 'criar_agendamento';
+                if (id) payload.id = parseInt(id, 10);
+                var res = await apiPost(action, payload);
+                if (res && res.success) {
+                    closeNovoAgendamentoModal();
+                    loadAgendaMes(__agendaAno, __agendaMes);
+                    if (typeof loadVisitadorDashboard === 'function') loadVisitadorDashboard(currentVisitadorName);
+                } else {
+                    alert(res && res.error ? res.error : (id ? 'Erro ao atualizar.' : 'Erro ao agendar.'));
+                }
+            } catch (e) {
+                alert('Erro de conexão.');
+            }
+            if (btn) { btn.disabled = false; btn.innerHTML = id ? '<i class="fas fa-save" style="margin-right:6px;"></i>Salvar alterações' : '<i class="fas fa-check" style="margin-right:6px;"></i>Agendar'; }
+        }
+
+        function setVisitadorNavActive(page) {
+            var nav = document.getElementById('visitadorNav');
+            var drawer = document.getElementById('visitadorNavDrawer');
+            if (nav) nav.querySelectorAll('.visitador-nav-link').forEach(function (a) {
+                a.classList.toggle('active', (a.getAttribute('data-page') || '') === page);
+            });
+            if (drawer) drawer.querySelectorAll('.visitador-nav-drawer-link').forEach(function (a) {
+                a.classList.toggle('active', (a.getAttribute('data-page') || '') === page);
+            });
+        }
+
+        function toggleVisitadorNavDrawer() {
+            var drawer = document.getElementById('visitadorNavDrawer');
+            var overlay = document.getElementById('visitadorNavDrawerOverlay');
+            if (!drawer || !overlay) return;
+            var isOpen = drawer.classList.toggle('open');
+            overlay.classList.toggle('open', isOpen);
+            document.body.style.overflow = isOpen ? 'hidden' : '';
+        }
+
+        function closeVisitadorNavDrawer() {
+            var drawer = document.getElementById('visitadorNavDrawer');
+            var overlay = document.getElementById('visitadorNavDrawerOverlay');
+            if (drawer) drawer.classList.remove('open');
+            if (overlay) overlay.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        function goVisitadorPageAndCloseDrawer(page, e) {
+            if (e) e.preventDefault();
+            goVisitadorPage(page, e);
+            closeVisitadorNavDrawer();
+            return false;
+        }
+
+        function goVisitadorPage(page, e) {
+            if (e) e.preventDefault();
+            if (page === 'dashboard') {
+                showVisitadorPage('dashboard');
+                return false;
+            }
+            if (page === 'agenda') {
+                showVisitadorPage('agenda');
+                (async function () {
+                    if (typeof loadVisitadorDashboard === 'function') {
+                        var anoEl = document.getElementById('anoSelect');
+                        var mesEl = document.getElementById('mesSelect');
+                        var ano = anoEl ? anoEl.value : null;
+                        var mes = mesEl && mesEl.value ? mesEl.value : null;
+                        await loadVisitadorDashboard(currentVisitadorName, ano, mes);
+                    }
+                    copyDashboardToAgendaKpis();
+                    renderPaginaAgenda();
+                })();
+                return false;
+            }
+            if (page === 'relatorio') {
+                goVisitadorPage('agenda', e);
+                return false;
+            }
+            if (page === 'prescritores') {
+                showVisitadorPage('prescritores');
+                loadPaginaPrescritores();
+                return false;
+            }
+            return false;
+        }
+
+        var __paginaPrescritoresList = [];
+
+        async function loadPaginaPrescritores() {
+            var tbody = document.getElementById('paginaPrescritoresTbody');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>';
+            try {
+                var visitador = currentVisitadorName || localStorage.getItem('userName') || '';
+                var anoEl = document.getElementById('anoSelect');
+                var ano = anoEl ? anoEl.value : (new Date().getFullYear()).toString();
+                var params = { visitador: visitador, ano: ano };
+                var list = await apiGet('all_prescritores', params) || [];
+                var contatos = {};
+                try { contatos = await apiGet('get_prescritor_contatos') || {}; } catch (e) {}
+                __paginaPrescritoresList = list.map(function (p) {
+                    return {
+                        prescritor: p.prescritor || p.nome || '-',
+                        whatsapp: contatos[p.prescritor] || contatos[p.nome] || '',
+                        ultima_compra: p.ultima_compra || p.ultima_compra_aprovacao || '',
+                        valor_aprovado: p.valor_aprovado ?? p.total_aprovado ?? 0
+                    };
+                });
+                renderPaginaPrescritores();
+                var searchEl = document.getElementById('searchPrescritoresPage');
+                if (searchEl) searchEl.oninput = renderPaginaPrescritores;
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:48px 24px; color:var(--danger); font-size:0.9rem;"><i class="fas fa-exclamation-circle" style="margin-right:8px;"></i>Erro ao carregar prescritores.</td></tr>';
+            }
+        }
+
+        var __paginaPrescritoresPage = 1;
+        var __paginaPrescritoresPageSize = 15;
+
+        function renderPaginaPrescritores() {
+            var tbody = document.getElementById('paginaPrescritoresTbody');
+            var pagEl = document.getElementById('paginaPrescritoresPagination');
+            if (!tbody) return;
+            var q = (document.getElementById('searchPrescritoresPage') || {}).value || '';
+            var list = __paginaPrescritoresList;
+            if (q) {
+                q = q.toLowerCase().trim();
+                list = list.filter(function (p) { return (p.prescritor || '').toLowerCase().indexOf(q) !== -1; });
+            }
+            var esc = function (x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-user-slash" style="margin-right:8px; opacity:0.6;"></i>Nenhum prescritor encontrado.</td></tr>';
+                if (pagEl) pagEl.innerHTML = '';
+                return;
+            }
+            var totalPages = Math.max(1, Math.ceil(list.length / __paginaPrescritoresPageSize));
+            __paginaPrescritoresPage = Math.min(Math.max(1, __paginaPrescritoresPage), totalPages);
+            var start = (__paginaPrescritoresPage - 1) * __paginaPrescritoresPageSize;
+            var pageList = list.slice(start, start + __paginaPrescritoresPageSize);
+            var html = '';
+            pageList.forEach(function (p) {
+                var nome = p.prescritor || '-';
+                var whatsapp = (p.whatsapp || '').trim();
+                var onlyDigits = whatsapp.replace(/\D/g, '');
+                var waNum = onlyDigits.length >= 10 && onlyDigits.length <= 11 ? '55' + onlyDigits : (onlyDigits.length >= 12 ? onlyDigits : '');
+                var whatsappCell = !waNum ? esc(whatsapp || '—') : '<a href="https://wa.me/' + esc(waNum) + '" target="_blank" rel="noopener noreferrer" style="color:#25D366; text-decoration:none; font-weight:500;" title="Enviar mensagem no WhatsApp"><i class="fab fa-whatsapp" style="margin-right:4px;"></i>' + esc(whatsapp || waNum) + '</a>';
+                html += '<tr>' +
+                    '<td>' + esc(nome) + '</td>' +
+                    '<td>' + whatsappCell + '</td>' +
+                    '<td>' +
+                    '<span class="prescritores-actions">' +
+                    '<button type="button" class="prescritores-btn prescritores-btn-editar btn-editar-prescritor-page" data-nome="' + esc(nome) + '" title="Editar prescritor"><i class="fas fa-user-edit"></i></button>' +
+                    '<button type="button" class="prescritores-btn prescritores-btn-relatorio btn-relatorio-visitas-prescritor-page" data-nome="' + esc(nome) + '" title="Relatório de visitas"><i class="fas fa-clipboard-list"></i></button>' +
+                    '<button type="button" class="prescritores-btn prescritores-btn-aprovados btn-aprovados-prescritor-page" data-nome="' + esc(nome) + '" title="Aprovados"><i class="fas fa-check"></i></button>' +
+                    '<button type="button" class="prescritores-btn prescritores-btn-recusados btn-recusados-prescritor-page" data-nome="' + esc(nome) + '" title="Recusados"><i class="fas fa-times"></i></button>' +
+                    '</span></td></tr>';
+            });
+            tbody.innerHTML = html;
+            if (pagEl) {
+                var from = start + 1;
+                var to = Math.min(start + __paginaPrescritoresPageSize, list.length);
+                var pagHtml = '<span style="font-weight:500;">' + from + ' – ' + to + ' de ' + list.length + ' prescritores</span>';
+                pagHtml += '<span class="prescritores-pag-btns">';
+                pagHtml += '<button type="button" onclick="paginaPrescritoresGoTo(1)" ' + (__paginaPrescritoresPage <= 1 ? 'disabled' : '') + ' title="Primeira página"><i class="fas fa-angle-double-left"></i></button>';
+                pagHtml += '<button type="button" onclick="paginaPrescritoresGoTo(__paginaPrescritoresPage - 1)" ' + (__paginaPrescritoresPage <= 1 ? 'disabled' : '') + ' title="Anterior"><i class="fas fa-angle-left"></i></button>';
+                pagHtml += '<span style="padding:0 10px; font-weight:500;">Página ' + __paginaPrescritoresPage + ' de ' + totalPages + '</span>';
+                pagHtml += '<button type="button" onclick="paginaPrescritoresGoTo(__paginaPrescritoresPage + 1)" ' + (__paginaPrescritoresPage >= totalPages ? 'disabled' : '') + ' title="Próxima"><i class="fas fa-angle-right"></i></button>';
+                pagHtml += '<button type="button" onclick="paginaPrescritoresGoTo(' + totalPages + ')" ' + (__paginaPrescritoresPage >= totalPages ? 'disabled' : '') + ' title="Última página"><i class="fas fa-angle-double-right"></i></button>';
+                pagHtml += '</span>';
+                pagEl.innerHTML = pagHtml;
+                pagEl.style.display = 'flex';
+            }
+            tbody.querySelectorAll('.btn-editar-prescritor-page').forEach(function (btn) {
+                btn.onclick = function () {
+                    var nome = btn.getAttribute('data-nome');
+                    if (typeof openEditarPrescritorModal === 'function') openEditarPrescritorModal(nome);
+                };
+            });
+            tbody.querySelectorAll('.btn-aprovados-prescritor-page').forEach(function (btn) {
+                btn.onclick = function () {
+                    var nome = btn.getAttribute('data-nome');
+                    if (typeof openAprovadosRecusadosModal === 'function') openAprovadosRecusadosModal(nome, 'aprovados');
+                };
+            });
+            tbody.querySelectorAll('.btn-recusados-prescritor-page').forEach(function (btn) {
+                btn.onclick = function () {
+                    var nome = btn.getAttribute('data-nome');
+                    if (typeof openAprovadosRecusadosModal === 'function') openAprovadosRecusadosModal(nome, 'recusados');
+                };
+            });
+            tbody.querySelectorAll('.btn-relatorio-visitas-prescritor-page').forEach(function (btn) {
+                btn.onclick = function () {
+                    var nome = btn.getAttribute('data-nome');
+                    if (typeof openRelatorioVisitasPrescritorModal === 'function') openRelatorioVisitasPrescritorModal(nome);
+                };
+            });
+        }
+
+        function paginaPrescritoresGoTo(page) {
+            __paginaPrescritoresPage = Math.max(1, parseInt(page, 10) || 1);
+            renderPaginaPrescritores();
         }
 
         async function loadAndRenderRelatorioPrescritores() {

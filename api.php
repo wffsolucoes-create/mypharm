@@ -100,6 +100,8 @@ try {
         'all_prescritores',
         'get_prescritor_contatos',
         'save_prescritor_whatsapp',
+        'get_prescritor_dados',
+        'update_prescritor_dados',
         'visita_ativa',
         'iniciar_visita',
         'encerrar_visita',
@@ -113,7 +115,14 @@ try {
         'upload_foto_perfil',
         'get_meu_perfil',
         'update_meu_perfil',
-        'get_foto_perfil'
+        'get_foto_perfil',
+        'get_visitas_agendadas_mes',
+        'criar_agendamento',
+        'update_agendamento',
+        'excluir_agendamento',
+        'get_detalhe_visita',
+        'update_detalhe_visita',
+        'get_visitas_prescritor'
     ];
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
 
@@ -138,9 +147,10 @@ try {
             $path = __DIR__ . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'avatars' . DIRECTORY_SEPARATOR . $f;
         }
         if (!$path || !is_file($path)) {
-            http_response_code(404);
-            header('Content-Type: application/json; charset=utf-8');
-            echo json_encode(['error' => 'Foto não encontrada'], JSON_UNESCAPED_UNICODE);
+            // Retorna 1x1 pixel transparente para evitar 404 no <img src="...?action=get_foto_perfil">
+            header('Content-Type: image/gif');
+            header('Cache-Control: private, max-age=3600');
+            echo base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
             exit;
         }
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
@@ -2359,6 +2369,165 @@ try {
             break;
 
         // ============================================
+        // PRESCRITOR - DADOS COMPLETOS (edição visitador)
+        // ============================================
+        case 'get_prescritor_dados': {
+            $nome = trim($_GET['nome_prescritor'] ?? '');
+            if (empty($nome)) {
+                echo json_encode(['success' => false, 'error' => 'Nome não informado'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS prescritor_dados (
+                    nome_prescritor VARCHAR(255) PRIMARY KEY,
+                    profissao VARCHAR(255) NULL,
+                    registro VARCHAR(100) NULL,
+                    uf_registro VARCHAR(10) NULL,
+                    data_nascimento DATE NULL,
+                    endereco_rua VARCHAR(255) NULL,
+                    endereco_numero VARCHAR(20) NULL,
+                    endereco_bairro VARCHAR(120) NULL,
+                    endereco_cep VARCHAR(20) NULL,
+                    endereco_cidade VARCHAR(120) NULL,
+                    endereco_uf VARCHAR(5) NULL,
+                    local_atendimento VARCHAR(50) NULL,
+                    whatsapp VARCHAR(30) NULL,
+                    email VARCHAR(255) NULL,
+                    atualizado_em DATETIME NULL
+                )
+            ");
+            $stmt = $pdo->prepare("SELECT * FROM prescritor_dados WHERE nome_prescritor = :nome LIMIT 1");
+            $stmt->execute(['nome' => $nome]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $dados = $row ?: [
+                'nome_prescritor' => $nome,
+                'profissao' => '',
+                'registro' => '',
+                'uf_registro' => '',
+                'data_nascimento' => null,
+                'endereco_rua' => '',
+                'endereco_numero' => '',
+                'endereco_bairro' => '',
+                'endereco_cep' => '',
+                'endereco_cidade' => '',
+                'endereco_uf' => '',
+                'local_atendimento' => '',
+                'whatsapp' => '',
+                'email' => ''
+            ];
+            if ($row) {
+                $dados['profissao'] = $row['profissao'] ?? '';
+                $dados['registro'] = $row['registro'] ?? '';
+                $dados['uf_registro'] = $row['uf_registro'] ?? '';
+                $dados['data_nascimento'] = $row['data_nascimento'] ?? null;
+                $dados['endereco_rua'] = $row['endereco_rua'] ?? '';
+                $dados['endereco_numero'] = $row['endereco_numero'] ?? '';
+                $dados['endereco_bairro'] = $row['endereco_bairro'] ?? '';
+                $dados['endereco_cep'] = $row['endereco_cep'] ?? '';
+                $dados['endereco_cidade'] = $row['endereco_cidade'] ?? '';
+                $dados['endereco_uf'] = $row['endereco_uf'] ?? '';
+                $dados['local_atendimento'] = $row['local_atendimento'] ?? '';
+                $dados['whatsapp'] = $row['whatsapp'] ?? '';
+                $dados['email'] = $row['email'] ?? '';
+            }
+            $visitador = (strtolower($_SESSION['user_setor'] ?? '') === 'visitador') ? trim($_SESSION['user_nome'] ?? '') : trim($_GET['visitador'] ?? '');
+            $ano = (int)($_GET['ano'] ?? date('Y'));
+            $mes = isset($_GET['mes']) && $_GET['mes'] !== '' ? (int)$_GET['mes'] : null;
+            $whereVis = $visitador !== '' ? " AND pc.visitador = :vis" : "";
+            if ($mes !== null) {
+                // Mês selecionado: aprovados e recusados direto de gestao_pedidos (respeita ano + mês)
+                $stmtKpi = $pdo->prepare("
+                    SELECT
+                        COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
+                        COALESCE(SUM(CASE WHEN gp.status_financeiro = 'Recusado' THEN gp.preco_liquido ELSE 0 END), 0) as valor_recusado
+                    FROM prescritores_cadastro pc
+                    LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome
+                        AND gp.ano_referencia = :ano AND MONTH(gp.data_aprovacao) = :mes
+                    WHERE pc.nome = :nome $whereVis
+                    GROUP BY pc.nome
+                ");
+                $paramsKpi = ['nome' => $nome, 'ano' => $ano, 'mes' => $mes];
+                if ($visitador !== '') $paramsKpi['vis'] = $visitador;
+                $stmtKpi->execute($paramsKpi);
+            } else {
+                // Sem mês: ano inteiro (aprovados de gp, recusados de prescritor_resumido)
+                $stmtKpi = $pdo->prepare("
+                    SELECT
+                        COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
+                        COALESCE(SUM(pr.valor_recusado), 0) + COALESCE(SUM(pr.valor_no_carrinho), 0) as valor_recusado
+                    FROM prescritores_cadastro pc
+                    LEFT JOIN prescritor_resumido pr ON pr.nome = pc.nome AND pr.ano_referencia = :ano
+                    LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome AND gp.ano_referencia = :ano2
+                        AND gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+                    WHERE pc.nome = :nome $whereVis
+                    GROUP BY pc.nome
+                ");
+                $paramsKpi = ['nome' => $nome, 'ano' => $ano, 'ano2' => $ano];
+                if ($visitador !== '') $paramsKpi['vis'] = $visitador;
+                $stmtKpi->execute($paramsKpi);
+            }
+            $kpi = $stmtKpi->fetch(PDO::FETCH_ASSOC);
+            $dados['aprovados'] = $kpi ? number_format((float)($kpi['valor_aprovado'] ?? 0), 2, ',', '.') : '0,00';
+            $dados['recusados'] = $kpi ? number_format((float)($kpi['valor_recusado'] ?? 0), 2, ',', '.') : '0,00';
+            echo json_encode(['success' => true, 'dados' => $dados], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        case 'update_prescritor_dados': {
+            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $nome = trim($input['nome_prescritor'] ?? '');
+            if (empty($nome)) {
+                echo json_encode(['success' => false, 'error' => 'Nome não informado'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS prescritor_dados (
+                    nome_prescritor VARCHAR(255) PRIMARY KEY,
+                    profissao VARCHAR(255) NULL,
+                    registro VARCHAR(100) NULL,
+                    uf_registro VARCHAR(10) NULL,
+                    data_nascimento DATE NULL,
+                    endereco_rua VARCHAR(255) NULL,
+                    endereco_numero VARCHAR(20) NULL,
+                    endereco_bairro VARCHAR(120) NULL,
+                    endereco_cep VARCHAR(20) NULL,
+                    endereco_cidade VARCHAR(120) NULL,
+                    endereco_uf VARCHAR(5) NULL,
+                    local_atendimento VARCHAR(50) NULL,
+                    whatsapp VARCHAR(30) NULL,
+                    email VARCHAR(255) NULL,
+                    atualizado_em DATETIME NULL
+                )
+            ");
+            $stmt = $pdo->prepare("
+                INSERT INTO prescritor_dados (nome_prescritor, profissao, registro, uf_registro, data_nascimento, endereco_rua, endereco_numero, endereco_bairro, endereco_cep, endereco_cidade, endereco_uf, local_atendimento, whatsapp, email, atualizado_em)
+                VALUES (:nome, :profissao, :registro, :uf_registro, :data_nascimento, :endereco_rua, :endereco_numero, :endereco_bairro, :endereco_cep, :endereco_cidade, :endereco_uf, :local_atendimento, :whatsapp, :email, NOW())
+                ON DUPLICATE KEY UPDATE
+                    profissao = VALUES(profissao), registro = VALUES(registro), uf_registro = VALUES(uf_registro), data_nascimento = VALUES(data_nascimento),
+                    endereco_rua = VALUES(endereco_rua), endereco_numero = VALUES(endereco_numero), endereco_bairro = VALUES(endereco_bairro), endereco_cep = VALUES(endereco_cep),
+                    endereco_cidade = VALUES(endereco_cidade), endereco_uf = VALUES(endereco_uf), local_atendimento = VALUES(local_atendimento), whatsapp = VALUES(whatsapp), email = VALUES(email), atualizado_em = NOW()
+            ");
+            $stmt->execute([
+                'nome' => $nome,
+                'profissao' => trim($input['profissao'] ?? ''),
+                'registro' => trim($input['registro'] ?? ''),
+                'uf_registro' => trim($input['uf_registro'] ?? ''),
+                'data_nascimento' => !empty($input['data_nascimento']) ? $input['data_nascimento'] : null,
+                'endereco_rua' => trim($input['endereco_rua'] ?? ''),
+                'endereco_numero' => trim($input['endereco_numero'] ?? ''),
+                'endereco_bairro' => trim($input['endereco_bairro'] ?? ''),
+                'endereco_cep' => trim($input['endereco_cep'] ?? ''),
+                'endereco_cidade' => trim($input['endereco_cidade'] ?? ''),
+                'endereco_uf' => trim($input['endereco_uf'] ?? ''),
+                'local_atendimento' => trim($input['local_atendimento'] ?? ''),
+                'whatsapp' => trim($input['whatsapp'] ?? ''),
+                'email' => trim($input['email'] ?? '')
+            ]);
+            $pdo->prepare("INSERT INTO prescritor_contatos (nome_prescritor, whatsapp) VALUES (:n, :w) ON DUPLICATE KEY UPDATE whatsapp = :w2, atualizado_em = NOW()")->execute(['n' => $nome, 'w' => trim($input['whatsapp'] ?? ''), 'w2' => trim($input['whatsapp'] ?? '')]);
+            echo json_encode(['success' => true, 'message' => 'Dados salvos com sucesso!'], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        // ============================================
         // VISITAS - FLUXO (iniciar/encerrar)
         // ============================================
         case 'visita_ativa':
@@ -2704,6 +2873,373 @@ try {
 
             echo json_encode(['success' => true, 'historico_id' => $historicoId], JSON_UNESCAPED_UNICODE);
             break;
+
+        // ========== AGENDA – listar por mês e criar agendamento ==========
+        case 'get_visitas_agendadas_mes': {
+            $visitadorNome = (strtolower($_SESSION['user_setor'] ?? '') === 'visitador') ? trim($_SESSION['user_nome'] ?? '') : trim($_GET['visitador'] ?? '');
+            $ano = (int)($_GET['ano'] ?? date('Y'));
+            $mes = (int)($_GET['mes'] ?? date('n'));
+            $isMyPharm = (strcasecmp($visitadorNome, 'My Pharm') === 0 || $visitadorNome === '');
+            $visitadorWhere = $isMyPharm
+                ? "(visitador IS NULL OR TRIM(visitador) = '' OR LOWER(TRIM(visitador)) = 'my pharm')"
+                : "TRIM(COALESCE(visitador, '')) = TRIM(:v)";
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS visitas_agendadas (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    visitador VARCHAR(255) NOT NULL,
+                    prescritor VARCHAR(255) NOT NULL,
+                    data_agendada DATE NOT NULL,
+                    hora TIME NULL,
+                    observacao TEXT NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'agendada',
+                    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY uniq_visita (visitador, prescritor, data_agendada),
+                    INDEX idx_visitador_data (visitador, data_agendada)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            // 1) Visitas REALIZADAS no mês (historico_visitas) – mesmo sem agendamento
+            $stmtReal = $pdo->prepare("
+                SELECT hv.id as historico_id, hv.prescritor, DATE(hv.data_visita) as data_agendada, DATE_FORMAT(COALESCE(hv.horario, hv.data_visita), '%H:%i') as hora
+                FROM historico_visitas hv
+                WHERE hv.data_visita IS NOT NULL
+                  AND YEAR(hv.data_visita) = :ano
+                  AND MONTH(hv.data_visita) = :mes
+                  AND " . str_replace('visitador', 'hv.visitador', $visitadorWhere) . "
+                ORDER BY hv.data_visita ASC, hv.horario ASC
+            ");
+            $paramsReal = ['ano' => $ano, 'mes' => $mes];
+            if (!$isMyPharm) $paramsReal['v'] = $visitadorNome;
+            $stmtReal->execute($paramsReal);
+            $realizadas = $stmtReal->fetchAll(PDO::FETCH_ASSOC);
+            $realizadasSet = [];
+            foreach ($realizadas as $r) {
+                $key = (trim($r['prescritor'] ?? '') . '|' . ($r['data_agendada'] ?? ''));
+                $realizadasSet[$key] = true;
+            }
+            // 2) Agendamentos do mês (com historico_id se já realizou nessa data)
+            $stmt = $pdo->prepare("
+                SELECT va.id, va.prescritor, va.data_agendada, DATE_FORMAT(va.hora, '%H:%i') as hora, va.status, va.observacao,
+                       hv.id as historico_id
+                FROM visitas_agendadas va
+                LEFT JOIN historico_visitas hv ON TRIM(COALESCE(hv.visitador, '')) = TRIM(COALESCE(va.visitador, ''))
+                  AND hv.prescritor = va.prescritor
+                  AND DATE(hv.data_visita) = va.data_agendada
+                  AND hv.data_visita IS NOT NULL
+                WHERE " . str_replace('visitador', 'va.visitador', $visitadorWhere) . "
+                  AND va.status = 'agendada'
+                  AND YEAR(va.data_agendada) = :ano
+                  AND MONTH(va.data_agendada) = :mes
+                ORDER BY va.data_agendada ASC, va.hora ASC
+            ");
+            $params = ['ano' => $ano, 'mes' => $mes];
+            if (!$isMyPharm) $params['v'] = $visitadorNome;
+            $stmt->execute($params);
+            $agendadas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // 3) Lista unificada: todas realizadas (tipo=realizada) + agendadas que ainda não têm realizada no mesmo dia (tipo=agendada)
+            $lista = [];
+            foreach ($realizadas as $r) {
+                $lista[] = [
+                    'tipo' => 'realizada',
+                    'id' => null,
+                    'prescritor' => $r['prescritor'] ?? '',
+                    'data_agendada' => $r['data_agendada'] ?? '',
+                    'hora' => $r['hora'] ?? '',
+                    'historico_id' => isset($r['historico_id']) ? (int)$r['historico_id'] : null,
+                    'status' => 'realizada'
+                ];
+            }
+            foreach ($agendadas as $a) {
+                $key = (trim($a['prescritor'] ?? '') . '|' . ($a['data_agendada'] ?? ''));
+                if (isset($realizadasSet[$key])) continue; // já está como realizada
+                $lista[] = [
+                    'tipo' => 'agendada',
+                    'id' => isset($a['id']) ? (int)$a['id'] : null,
+                    'prescritor' => $a['prescritor'] ?? '',
+                    'data_agendada' => $a['data_agendada'] ?? '',
+                    'hora' => $a['hora'] ?? '',
+                    'historico_id' => isset($a['historico_id']) && $a['historico_id'] ? (int)$a['historico_id'] : null,
+                    'status' => 'agendada'
+                ];
+            }
+            usort($lista, function ($x, $y) {
+                $d = strcmp($x['data_agendada'] ?? '', $y['data_agendada'] ?? '');
+                if ($d !== 0) return $d;
+                return strcmp($x['hora'] ?? '', $y['hora'] ?? '');
+            });
+            echo json_encode(['success' => true, 'visitas' => $lista], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        case 'get_detalhe_visita': {
+            $historicoId = (int)($_GET['historico_id'] ?? 0);
+            if ($historicoId <= 0) {
+                echo json_encode(['success' => false, 'error' => 'ID inválido'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $visitadorNome = (strtolower($_SESSION['user_setor'] ?? '') === 'visitador') ? trim($_SESSION['user_nome'] ?? '') : trim($_GET['visitador'] ?? '');
+            $isMyPharm = (strcasecmp($visitadorNome, 'My Pharm') === 0 || $visitadorNome === '');
+            $visitadorWhere = $isMyPharm
+                ? "(hv.visitador IS NULL OR TRIM(hv.visitador) = '' OR LOWER(TRIM(hv.visitador)) = 'my pharm')"
+                : "TRIM(COALESCE(hv.visitador, '')) = TRIM(:v)";
+            $stmt = $pdo->prepare("
+                SELECT hv.id, hv.visitador, hv.prescritor, hv.data_visita, hv.horario, hv.inicio_visita,
+                    hv.status_visita, hv.local_visita, hv.resumo_visita, hv.reagendado_para,
+                    hv.amostra, hv.brinde, hv.artigo,
+                    TIMESTAMPDIFF(MINUTE, hv.inicio_visita, CONCAT(hv.data_visita, ' ', COALESCE(hv.horario, '00:00:00'))) as duracao_minutos,
+                    vg.lat as geo_lat, vg.lng as geo_lng, vg.accuracy_m as geo_accuracy
+                FROM historico_visitas hv
+                LEFT JOIN visitas_geolocalizacao vg ON vg.historico_id = hv.id
+                WHERE hv.id = :id AND hv.data_visita IS NOT NULL AND $visitadorWhere
+                LIMIT 1
+            ");
+            $params = ['id' => $historicoId];
+            if (!$isMyPharm) $params['v'] = $visitadorNome;
+            $stmt->execute($params);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                echo json_encode(['success' => false, 'error' => 'Visita não encontrada'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            echo json_encode(['success' => true, 'visita' => $row], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        case 'get_visitas_prescritor': {
+            $prescritor = trim($_GET['prescritor'] ?? '');
+            if ($prescritor === '') {
+                echo json_encode(['success' => false, 'error' => 'Prescritor não informado.', 'visitas' => []], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $visitadorNome = (strtolower($_SESSION['user_setor'] ?? '') === 'visitador') ? trim($_SESSION['user_nome'] ?? '') : trim($_GET['visitador'] ?? '');
+            $isMyPharm = (strcasecmp($visitadorNome, 'My Pharm') === 0 || $visitadorNome === '');
+            $visitadorWhere = $isMyPharm
+                ? "(hv.visitador IS NULL OR TRIM(hv.visitador) = '' OR LOWER(TRIM(hv.visitador)) = 'my pharm')"
+                : "TRIM(COALESCE(hv.visitador, '')) = TRIM(:v)";
+            $stmt = $pdo->prepare("
+                SELECT hv.id, hv.prescritor, hv.data_visita, hv.horario, hv.status_visita, hv.local_visita, hv.resumo_visita,
+                    hv.amostra, hv.brinde, hv.artigo,
+                    TIMESTAMPDIFF(MINUTE, hv.inicio_visita, CONCAT(hv.data_visita, ' ', COALESCE(hv.horario, '00:00:00'))) as duracao_minutos
+                FROM historico_visitas hv
+                WHERE hv.data_visita IS NOT NULL AND hv.prescritor = :p AND $visitadorWhere
+                ORDER BY hv.data_visita DESC, hv.horario DESC
+                LIMIT 100
+            ");
+            $params = ['p' => $prescritor];
+            if (!$isMyPharm) $params['v'] = $visitadorNome;
+            $stmt->execute($params);
+            $lista = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'visitas' => $lista], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        case 'update_detalhe_visita': {
+            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $historicoId = (int)($input['historico_id'] ?? 0);
+            if ($historicoId <= 0) {
+                echo json_encode(['success' => false, 'error' => 'ID da visita inválido.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $visitadorNome = (strtolower($_SESSION['user_setor'] ?? '') === 'visitador') ? trim($_SESSION['user_nome'] ?? '') : trim($input['visitador'] ?? '');
+            $isMyPharm = (strcasecmp($visitadorNome, 'My Pharm') === 0 || $visitadorNome === '');
+            $visitadorWhere = $isMyPharm
+                ? "(visitador IS NULL OR TRIM(visitador) = '' OR LOWER(TRIM(visitador)) = 'my pharm')"
+                : "TRIM(COALESCE(visitador, '')) = TRIM(:v)";
+            $stmtGet = $pdo->prepare("SELECT id FROM historico_visitas WHERE id = :id AND data_visita IS NOT NULL AND $visitadorWhere LIMIT 1");
+            $stmtGet->execute($isMyPharm ? ['id' => $historicoId] : ['id' => $historicoId, 'v' => $visitadorNome]);
+            if (!$stmtGet->fetch(PDO::FETCH_ASSOC)) {
+                echo json_encode(['success' => false, 'error' => 'Visita não encontrada ou sem permissão.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $data_visita = isset($input['data_visita']) ? trim($input['data_visita']) : null;
+            $datePart = null;
+            if ($data_visita !== null && $data_visita !== '') {
+                if (preg_match('/^\d{4}-\d{2}-\d{2}/', $data_visita)) $datePart = substr($data_visita, 0, 10);
+                elseif (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $data_visita, $m)) $datePart = sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]);
+            }
+            $horario = isset($input['horario']) && $input['horario'] !== '' ? preg_replace('/[^\d:]/', '', trim($input['horario'])) : null;
+            if ($horario !== null && strlen($horario) === 4) $horario = substr($horario, 0, 2) . ':' . substr($horario, 2, 2);
+            $inicio_visita = isset($input['inicio_visita']) && $input['inicio_visita'] !== '' ? trim($input['inicio_visita']) : null;
+            if ($inicio_visita !== null && preg_match('/^\d{4}-\d{2}-\d{2}/', $inicio_visita)) {
+                $t = str_replace('T', ' ', $inicio_visita);
+                $t = preg_match('/\d{1,2}:\d{2}/', $t) ? $t : $t . ' 00:00:00';
+                $inicio_visita = substr($t, 0, 19);
+            }
+            $local_visita = isset($input['local_visita']) ? trim($input['local_visita']) : null;
+            $resumo_visita = isset($input['resumo_visita']) ? trim($input['resumo_visita']) : null;
+            $amostra = isset($input['amostra']) ? trim($input['amostra']) : null;
+            $brinde = isset($input['brinde']) ? trim($input['brinde']) : null;
+            $artigo = isset($input['artigo']) ? trim($input['artigo']) : null;
+            $updates = [];
+            $params = ['id' => $historicoId];
+            if ($datePart !== null) { $updates[] = 'data_visita = :data_visita'; $params['data_visita'] = $datePart; }
+            if ($horario !== null) { $updates[] = 'horario = :horario'; $params['horario'] = $horario; }
+            if ($inicio_visita !== null) { $updates[] = 'inicio_visita = :inicio_visita'; $params['inicio_visita'] = $inicio_visita; }
+            if ($local_visita !== null) { $updates[] = 'local_visita = :local_visita'; $params['local_visita'] = $local_visita; }
+            if ($resumo_visita !== null) { $updates[] = 'resumo_visita = :resumo_visita'; $params['resumo_visita'] = $resumo_visita; }
+            if ($amostra !== null) { $updates[] = 'amostra = :amostra'; $params['amostra'] = $amostra; }
+            if ($brinde !== null) { $updates[] = 'brinde = :brinde'; $params['brinde'] = $brinde; }
+            if ($artigo !== null) { $updates[] = 'artigo = :artigo'; $params['artigo'] = $artigo; }
+            if (count($updates) === 0) {
+                echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            if (!$isMyPharm) $params['v'] = $visitadorNome;
+            $sql = "UPDATE historico_visitas SET " . implode(', ', $updates) . " WHERE id = :id AND $visitadorWhere";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        case 'criar_agendamento': {
+            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $visitadorNome = (strtolower($_SESSION['user_setor'] ?? '') === 'visitador') ? trim($_SESSION['user_nome'] ?? '') : trim($input['visitador'] ?? '');
+            $prescritor = trim($input['prescritor'] ?? '');
+            $data_agendada = trim($input['data_agendada'] ?? '');
+            $hora = isset($input['hora']) && $input['hora'] !== '' ? trim($input['hora']) : null;
+            if ($prescritor === '' || $data_agendada === '') {
+                echo json_encode(['success' => false, 'error' => 'Prescritor e data são obrigatórios.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $datePart = null;
+            if (preg_match('/^\d{4}-\d{2}-\d{2}/', $data_agendada)) {
+                $datePart = substr($data_agendada, 0, 10);
+            } elseif (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $data_agendada, $m)) {
+                $datePart = sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]);
+            }
+            if (!$datePart) {
+                echo json_encode(['success' => false, 'error' => 'Data inválida. Use AAAA-MM-DD ou DD/MM/AAAA.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $timePart = null;
+            if ($hora && preg_match('/^\d{1,2}:?\d{2}$/', preg_replace('/\s/', '', $hora))) {
+                $timePart = preg_replace('/[^\d:]/', '', $hora);
+                if (strlen($timePart) === 4) $timePart = substr($timePart, 0, 2) . ':' . substr($timePart, 2, 2);
+            }
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS visitas_agendadas (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    visitador VARCHAR(255) NOT NULL,
+                    prescritor VARCHAR(255) NOT NULL,
+                    data_agendada DATE NOT NULL,
+                    hora TIME NULL,
+                    observacao TEXT NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'agendada',
+                    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY uniq_visita (visitador, prescritor, data_agendada),
+                    INDEX idx_visitador_data (visitador, data_agendada)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            $stmt = $pdo->prepare("
+                INSERT INTO visitas_agendadas (visitador, prescritor, data_agendada, hora, observacao, status)
+                VALUES (:v, :p, :d, :h, NULL, 'agendada')
+                ON DUPLICATE KEY UPDATE hora = VALUES(hora), status = 'agendada'
+            ");
+            $stmt->execute([
+                'v' => $visitadorNome,
+                'p' => $prescritor,
+                'd' => $datePart,
+                'h' => $timePart
+            ]);
+            echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        case 'update_agendamento': {
+            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $id = (int)($input['id'] ?? 0);
+            if ($id <= 0) {
+                echo json_encode(['success' => false, 'error' => 'ID do agendamento não informado.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $visitadorNome = (strtolower($_SESSION['user_setor'] ?? '') === 'visitador') ? trim($_SESSION['user_nome'] ?? '') : trim($input['visitador'] ?? '');
+            $isMyPharm = (strcasecmp($visitadorNome, 'My Pharm') === 0 || $visitadorNome === '');
+            $vw = $isMyPharm ? "(visitador IS NULL OR TRIM(visitador) = '' OR LOWER(TRIM(visitador)) = 'my pharm')" : "TRIM(COALESCE(visitador, '')) = TRIM(:v)";
+            $stmtGet = $pdo->prepare("SELECT data_agendada, hora FROM visitas_agendadas WHERE id = :id AND " . str_replace('visitador', 'visitador', $vw));
+            $stmtGet->execute($isMyPharm ? ['id' => $id] : ['id' => $id, 'v' => $visitadorNome]);
+            $row = $stmtGet->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                echo json_encode(['success' => false, 'error' => 'Agendamento não encontrado.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $hoje = date('Y-m-d');
+            $agendaDate = isset($row['data_agendada']) ? (is_object($row['data_agendada']) ? $row['data_agendada']->format('Y-m-d') : substr((string)$row['data_agendada'], 0, 10)) : '';
+            if ($agendaDate < $hoje) {
+                echo json_encode(['success' => false, 'error' => 'Só é possível editar visitas futuras.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            if ($agendaDate === $hoje && !empty($row['hora'])) {
+                $horaRow = is_object($row['hora']) ? $row['hora']->format('H:i') : substr((string)$row['hora'], 0, 5);
+                if ($horaRow && $horaRow < date('H:i')) {
+                    echo json_encode(['success' => false, 'error' => 'Só é possível editar visitas futuras.'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+            }
+            $prescritor = trim($input['prescritor'] ?? '');
+            $data_agendada = trim($input['data_agendada'] ?? '');
+            $hora = isset($input['hora']) && $input['hora'] !== '' ? trim($input['hora']) : null;
+            if ($prescritor === '' || $data_agendada === '') {
+                echo json_encode(['success' => false, 'error' => 'Prescritor e data são obrigatórios.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $datePart = null;
+            if (preg_match('/^\d{4}-\d{2}-\d{2}/', $data_agendada)) $datePart = substr($data_agendada, 0, 10);
+            elseif (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $data_agendada, $m)) $datePart = sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]);
+            if (!$datePart) {
+                echo json_encode(['success' => false, 'error' => 'Data inválida.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $timePart = null;
+            if ($hora && preg_match('/^\d{1,2}:?\d{2}$/', preg_replace('/\s/', '', $hora))) {
+                $timePart = preg_replace('/[^\d:]/', '', $hora);
+                if (strlen($timePart) === 4) $timePart = substr($timePart, 0, 2) . ':' . substr($timePart, 2, 2);
+            }
+            $stmt = $pdo->prepare("
+                UPDATE visitas_agendadas SET prescritor = :p, data_agendada = :d, hora = :h
+                WHERE id = :id AND TRIM(COALESCE(visitador, '')) = TRIM(:v)
+            ");
+            $stmt->execute(['id' => $id, 'v' => $visitadorNome, 'p' => $prescritor, 'd' => $datePart, 'h' => $timePart]);
+            if ($stmt->rowCount() === 0) {
+                echo json_encode(['success' => false, 'error' => 'Agendamento não encontrado ou sem permissão.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        case 'excluir_agendamento': {
+            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $id = (int)($input['id'] ?? 0);
+            if ($id <= 0) {
+                echo json_encode(['success' => false, 'error' => 'ID do agendamento não informado.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $visitadorNome = (strtolower($_SESSION['user_setor'] ?? '') === 'visitador') ? trim($_SESSION['user_nome'] ?? '') : trim($input['visitador'] ?? '');
+            $isMyPharm = (strcasecmp($visitadorNome, 'My Pharm') === 0 || $visitadorNome === '');
+            $vw = $isMyPharm ? "(visitador IS NULL OR TRIM(visitador) = '' OR LOWER(TRIM(visitador)) = 'my pharm')" : "TRIM(COALESCE(visitador, '')) = TRIM(:v)";
+            $stmtGet = $pdo->prepare("SELECT data_agendada, hora FROM visitas_agendadas WHERE id = :id AND " . str_replace('visitador', 'visitador', $vw));
+            $stmtGet->execute($isMyPharm ? ['id' => $id] : ['id' => $id, 'v' => $visitadorNome]);
+            $row = $stmtGet->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                echo json_encode(['success' => false, 'error' => 'Agendamento não encontrado.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $hoje = date('Y-m-d');
+            $agendaDate = isset($row['data_agendada']) ? (is_object($row['data_agendada']) ? $row['data_agendada']->format('Y-m-d') : substr((string)$row['data_agendada'], 0, 10)) : '';
+            if ($agendaDate < $hoje) {
+                echo json_encode(['success' => false, 'error' => 'Só é possível excluir visitas futuras.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            if ($agendaDate === $hoje && !empty($row['hora'])) {
+                $horaRow = is_object($row['hora']) ? $row['hora']->format('H:i') : substr((string)$row['hora'], 0, 5);
+                if ($horaRow && $horaRow < date('H:i')) {
+                    echo json_encode(['success' => false, 'error' => 'Só é possível excluir visitas futuras.'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+            }
+            $stmt = $pdo->prepare("DELETE FROM visitas_agendadas WHERE id = :id AND TRIM(COALESCE(visitador, '')) = TRIM(:v)");
+            $stmt->execute(['id' => $id, 'v' => $visitadorNome]);
+            if ($stmt->rowCount() === 0) {
+                echo json_encode(['success' => false, 'error' => 'Agendamento não encontrado ou já excluído.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
+            break;
+        }
 
         // ========== ROTA DO DIA (GPS percurso) ==========
         case 'rota_ativa':
