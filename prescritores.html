@@ -742,6 +742,10 @@
                         <option value="12">Dezembro</option>
                     </select>
                 </div>
+                <button type="button" id="btnNovoPrescritor" class="btn-premium" onclick="openNovoPrescritorModal()"
+                    style="padding: 0.75rem 1.25rem; border-radius: 8px; background: var(--success, #10B981); color: white; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-user-plus"></i> Novo prescritor
+                </button>
                 <button type="button" id="btnAtualizarPrescritores" class="btn-premium" onclick="loadData()"
                     style="padding: 0.75rem 1.25rem; border-radius: 8px; background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
                     <i class="fas fa-sync-alt"></i> Atualizar
@@ -827,7 +831,7 @@
                                 <th onclick="sortTable('dias_sem_visita')" style="text-align:center; cursor:pointer;">
                                     <div class="th-sort">Dias s/ Visita <i class="fas fa-sort"></i></div>
                                 </th>
-                                <th style="text-align:center; width: 80px;">Ações</th>
+                                <th style="text-align:center; width: 200px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="prescritoresBody">
@@ -890,26 +894,135 @@
         </div>
     </div>
 
+    <!-- Modal Novo Prescritor -->
+    <div id="modalNovoPrescritor"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:2000; justify-content:center; align-items:center; padding:20px;">
+        <div
+            style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:400px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div
+                style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0;">
+                    <i class="fas fa-user-plus" style="margin-right:8px; color:var(--success, #10B981);"></i>Novo prescritor
+                </h3>
+                <button onclick="closeNovoPrescritorModal()"
+                    style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:24px;">
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Nome do prescritor</label>
+                    <input type="text" id="novoPrescritorNome" placeholder="Nome completo"
+                        style="width:100%; padding:12px; background:var(--bg-body); color:var(--text-primary); border:1px solid var(--border); border-radius:8px; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:24px;">
+                    <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Visitador</label>
+                    <select id="novoPrescritorVisitador"
+                        style="width:100%; padding:12px; background:var(--bg-body); color:var(--text-primary); border:1px solid var(--border); border-radius:8px; box-sizing:border-box;">
+                        <option value="">My Pharm</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <button onclick="closeNovoPrescritorModal()"
+                        style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-weight:600; cursor:pointer;">Cancelar</button>
+                    <button id="btnConfirmNovoPrescritor" onclick="confirmNovoPrescritor()"
+                        style="flex:1; padding:12px; border-radius:8px; background:var(--success, #10B981); color:white; border:none; font-weight:600; cursor:pointer;">Cadastrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Prescritor -->
+    <div id="modalEditarPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:560px; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
+            <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-user-edit" style="margin-right:8px; color:var(--primary);"></i>Editar prescritor</h3>
+                <button type="button" onclick="closeEditarPrescritorModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:20px 24px; overflow-y:auto; flex:1;">
+                <input type="hidden" id="edPrescritorNome">
+                <p id="edPrescritorNomeLabel" style="font-weight:600; color:var(--text-primary); margin:0 0 16px 0; font-size:0.95rem;"></p>
+                <div style="display:grid; gap:14px;">
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Profissão</label><input type="text" id="edPrescritorProfissao" placeholder="Ex: Médico" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Registro</label><input type="text" id="edPrescritorRegistro" placeholder="Nº registro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">UF Registro</label><select id="edPrescritorUfRegistro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">UF</option><option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option><option value="AP">AP</option><option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option><option value="MA">MA</option><option value="MG">MG</option><option value="MS">MS</option><option value="MT">MT</option><option value="PA">PA</option><option value="PB">PB</option><option value="PE">PE</option><option value="PI">PI</option><option value="PR">PR</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RO">RO</option><option value="RR">RR</option><option value="RS">RS</option><option value="SC">SC</option><option value="SE">SE</option><option value="SP">SP</option><option value="TO">TO</option></select></div></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Data de nascimento</label><input type="date" id="edPrescritorDataNascimento" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">CEP</label><input type="text" id="edPrescritorCep" placeholder="00000-000" maxlength="9" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                    <div style="display:grid; grid-template-columns:1fr 80px; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Rua</label><input type="text" id="edPrescritorRua" placeholder="Logradouro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Nº</label><input type="text" id="edPrescritorNumero" placeholder="Nº" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div></div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Bairro</label><input type="text" id="edPrescritorBairro" placeholder="Bairro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Cidade / UF</label><input type="text" id="edPrescritorCidadeUf" placeholder="Cidade - UF" readonly style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-secondary); font-size:0.9rem; box-sizing:border-box;"><input type="hidden" id="edPrescritorCidade"><input type="hidden" id="edPrescritorUf"></div></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Local de atendimento</label><select id="edPrescritorLocalAtendimento" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">Selecione</option><option value="Consultório">Consultório</option><option value="Residência">Residência</option><option value="Outros">Outros</option></select></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">WhatsApp</label><input type="tel" id="edPrescritorWhatsapp" placeholder="(00) 00000-0000" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">E-mail</label><input type="email" id="edPrescritorEmail" placeholder="email@exemplo.com" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                </div>
+            </div>
+            <div style="padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; flex-shrink:0;">
+                <button type="button" onclick="closeEditarPrescritorModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+                <button type="button" id="btnSaveEditarPrescritor" onclick="saveEditarPrescritorModal()" style="padding:10px 20px; border-radius:8px; border:none; background:var(--primary); color:white; font-weight:600; cursor:pointer;"><i class="fas fa-save" style="margin-right:6px;"></i>Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Aprovados / Recusados -->
+    <div id="modalAprovadosRecusados" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:400px; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
+            <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="modalAprovadosRecusadosTitle" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"></h3>
+                <button type="button" onclick="closeAprovadosRecusadosModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div id="modalAprovadosRecusadosBody" style="padding:24px; font-size:1.25rem; font-weight:700; text-align:center;"></div>
+            <div style="padding:16px 24px; border-top:1px solid var(--border); text-align:right;">
+                <button type="button" onclick="closeAprovadosRecusadosModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Relatório de visitas -->
+    <div id="modalRelatorioVisitasPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:12px; width:100%; max-width:520px; box-shadow:0 20px 60px rgba(0,0,0,0.25); border:1px solid var(--border); overflow:hidden; max-height:85vh; display:flex; flex-direction:column;">
+            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <h3 id="modalRelatorioVisitasPrescritorTitle" style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-clipboard-list" style="margin-right:8px; color:#0ea5e9;"></i>Relatório de visitas</h3>
+                <button type="button" onclick="closeRelatorioVisitasPrescritorModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div id="modalRelatorioVisitasPrescritorBody" style="padding:18px 22px; overflow-y:auto; flex:1;"></div>
+            <div style="padding:14px 22px; border-top:1px solid var(--border); text-align:right;">
+                <button type="button" onclick="closeRelatorioVisitasPrescritorModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/shared/mypharm-utils.js"></script>
+    <script src="js/prescritores/actions-feature.js"></script>
     <script>
         let __csrfToken = '';
         (async function() {
             try {
                 const r = await fetch('api.php?action=csrf_token');
                 const d = await r.json();
-                if (d.token) __csrfToken = d.token;
+                if (d.token) {
+                    __csrfToken = d.token;
+                    if (window.MyPharmApiClient && typeof window.MyPharmApiClient.setCsrfToken === 'function') {
+                        window.MyPharmApiClient.setCsrfToken(d.token);
+                    }
+                }
             } catch(_) {}
         })();
 
         function escapeHtml(str) {
+            if (window.MyPharmUtils && typeof window.MyPharmUtils.escapeHtml === 'function') {
+                return window.MyPharmUtils.escapeHtml(str);
+            }
             if (str === null || str === undefined) return '';
             return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
         }
 
         function formatMoney(value) {
+            if (window.MyPharmUtils && typeof window.MyPharmUtils.formatMoney === 'function') {
+                return window.MyPharmUtils.formatMoney(value);
+            }
             const num = parseFloat(value) || 0;
             return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
         function formatNumber(value) {
+            if (window.MyPharmUtils && typeof window.MyPharmUtils.formatNumber === 'function') {
+                return window.MyPharmUtils.formatNumber(value);
+            }
             const num = parseFloat(value) || 0;
             return num.toLocaleString('pt-BR');
         }
@@ -1074,14 +1187,13 @@
                         ${getDaysBadge(d.dias_sem_visita, true)}
                     </td>
                     <td style="text-align:center;">
-                        <button onclick="openTransferModal('${d.prescritor.replace(/'/g, "\\'")}', '${(d.visitador || 'My Pharm').replace(/'/g, "\\'")}')" 
-                                style="background: var(--bg-body); border: 1px solid var(--border); color: var(--text-secondary); padding: 6px; border-radius: 6px; cursor: pointer; transition: all 0.2s;"
-                                title="Transferir Prescritor"
-                                onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';"
-                                onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"
-                        >
-                            <i class="fas fa-exchange-alt"></i>
-                        </button>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center;">
+                            <button onclick="openEditarPrescritorModal('${(d.prescritor||'').replace(/'/g, "\\'")}', '${(d.visitador||'').replace(/'/g, "\\'")}')" title="Editar" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer;" onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"><i class="fas fa-user-edit"></i></button>
+                            <button onclick="openRelatorioVisitasPrescritorModal('${(d.prescritor||'').replace(/'/g, "\\'")}', '${(d.visitador||'').replace(/'/g, "\\'")}')" title="Relatório de visitas" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer;" onmouseover="this.style.borderColor='#0ea5e9'; this.style.color='#0ea5e9';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"><i class="fas fa-clipboard-list"></i></button>
+                            <button onclick="openAprovadosRecusadosModal('${(d.prescritor||'').replace(/'/g, "\\'")}', 'aprovados', '${(d.visitador||'').replace(/'/g, "\\'")}')" title="Aprovados" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer;" onmouseover="this.style.borderColor='#10B981'; this.style.color='#10B981';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"><i class="fas fa-check-circle"></i></button>
+                            <button onclick="openAprovadosRecusadosModal('${(d.prescritor||'').replace(/'/g, "\\'")}', 'recusados', '${(d.visitador||'').replace(/'/g, "\\'")}')" title="Recusados" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer;" onmouseover="this.style.borderColor='#EF4444'; this.style.color='#EF4444';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"><i class="fas fa-times-circle"></i></button>
+                            <button onclick="openTransferModal('${(d.prescritor||'').replace(/'/g, "\\'")}', '${(d.visitador || 'My Pharm').replace(/'/g, "\\'")}')" title="Transferir Prescritor" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer;" onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"><i class="fas fa-exchange-alt"></i></button>
+                        </div>
                     </td>
                 </tr>
             `}).join('');
@@ -1180,68 +1292,7 @@
             }
         }
 
-        // --- Transfer Modal Logic ---
-        function openTransferModal(prescritor, visitadorAtual) {
-            document.getElementById('transferPrescritorNome').textContent = prescritor;
-            document.getElementById('transferPrescritorInput').value = prescritor;
-
-            // Preencher select de visitadores (usando a mesma lista do filtro)
-            const select = document.getElementById('newVisitadorSelect');
-            const filter = document.getElementById('visitadorFilter');
-
-            select.innerHTML = '';
-            Array.from(filter.options).forEach(opt => {
-                if (opt.value !== "") { // Pular "Todos"
-                    const newOpt = document.createElement('option');
-                    newOpt.value = opt.value;
-                    newOpt.textContent = opt.textContent;
-                    if (opt.value === visitadorAtual) newOpt.selected = true;
-                    select.appendChild(newOpt);
-                }
-            });
-
-            document.getElementById('modalTransfer').style.display = 'flex';
-        }
-
-        function closeTransferModal() {
-            document.getElementById('modalTransfer').style.display = 'none';
-        }
-
-        async function confirmTransfer() {
-            const nome = document.getElementById('transferPrescritorInput').value;
-            const novo = document.getElementById('newVisitadorSelect').value;
-            const btn = document.getElementById('btnConfirmTransfer');
-
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
-
-            try {
-                const csrfH = {};
-                if (typeof __csrfToken !== 'undefined' && __csrfToken) csrfH['X-CSRF-Token'] = __csrfToken;
-                const response = await fetch('api.php?action=transfer_prescritor', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...csrfH },
-                    body: JSON.stringify({
-                        nome_prescritor: nome,
-                        novo_visitador: novo
-                    })
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    closeTransferModal();
-                    loadData(); // Recarregar tabela
-                } else {
-                    alert('Erro ao transferir: ' + result.error);
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Erro de conexão ao transferir prescritor');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = 'Confirmar Transferência';
-            }
-        }
+        // ações de prescritor extraídas para js/prescritores/actions-feature.js
 
         async function loadYears() {
             try {
