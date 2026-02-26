@@ -300,6 +300,183 @@
             opacity: 0.9;
             text-decoration: underline;
         }
+
+        /* Página Pedidos – layout dedicado */
+        #paginaPedidos {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+        #paginaPedidos .pedidos-page-header {
+            margin-bottom: 24px;
+        }
+        #paginaPedidos .pedidos-page-header h2 {
+            margin: 0 0 8px 0;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #paginaPedidos .pedidos-page-header h2 .pedidos-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.08));
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+        #paginaPedidos .pedidos-page-header p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+        #paginaPedidos .pedidos-filters {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+        #paginaPedidos .pedidos-filters label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        #paginaPedidos .pedidos-filters select {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            min-width: 100px;
+        }
+        #paginaPedidos .pedidos-search-wrap {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+            max-width: 400px;
+        }
+        #paginaPedidos .pedidos-search-wrap input {
+            width: 100%;
+            padding: 10px 16px 10px 40px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        #paginaPedidos .pedidos-search-wrap input:focus {
+            border-color: var(--primary);
+        }
+        #paginaPedidos .pedidos-search-wrap .pedidos-search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        #paginaPedidos .pedidos-table-card {
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        #paginaPedidos .pedidos-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+        #paginaPedidos .pedidos-table thead th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            background: var(--bg-body);
+            border-bottom: 2px solid var(--border);
+        }
+        #paginaPedidos .pedidos-table thead th:nth-child(1) { width: 90px; }
+        #paginaPedidos .pedidos-table thead th:nth-child(2) { width: 56px; text-align: center; }
+        #paginaPedidos .pedidos-table thead th:nth-child(3) { width: 95px; }
+        #paginaPedidos .pedidos-table thead th:nth-child(4) { width: 95px; }
+        #paginaPedidos .pedidos-table thead th:nth-child(7) { text-align: right; width: 120px; }
+        #paginaPedidos .pedidos-table thead th:nth-child(8) { text-align: center; width: 100px; }
+        #paginaPedidos .pedidos-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: var(--bg-body);
+        }
+        #paginaPedidos .pedidos-pagination .prescritores-pag-btns {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #paginaPedidos .pedidos-pagination button {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        #paginaPedidos .pedidos-pagination button:hover:not(:disabled) {
+            background: var(--bg-body);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        #paginaPedidos .pedidos-pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #paginaPedidos .pedidos-table tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s ease;
+        }
+        #paginaPedidos .pedidos-table tbody tr:last-child {
+            border-bottom: none;
+        }
+        #paginaPedidos .pedidos-table tbody tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+        #paginaPedidos .pedidos-table tbody td {
+            padding: 12px 16px;
+            color: var(--text-primary);
+        }
+        #paginaPedidos .pedidos-table tbody td:nth-child(2) {
+            text-align: center;
+        }
+        #paginaPedidos .pedidos-table tbody td:nth-child(7) {
+            text-align: right;
+        }
+        #paginaPedidos .pedidos-table tbody td:nth-child(8) {
+            text-align: center;
+        }
     </style>
     <link rel="stylesheet" href="css/visitador.css">
     <style>body{visibility:hidden;}</style>
@@ -343,6 +520,10 @@
                 <i class="fas fa-user-md"></i>
                 <span>Prescritores</span>
             </a>
+            <a href="#" class="visitador-nav-link" data-page="pedidos" onclick="return goVisitadorPage('pedidos', event)">
+                <i class="fas fa-list-alt"></i>
+                <span>Pedidos</span>
+            </a>
         </nav>
         <div class="visitador-nav-drawer-overlay" id="visitadorNavDrawerOverlay" onclick="closeVisitadorNavDrawer()" aria-hidden="true"></div>
         <div class="visitador-nav-drawer" id="visitadorNavDrawer">
@@ -361,6 +542,10 @@
             <a href="#" class="visitador-nav-drawer-link" data-page="prescritores" onclick="return goVisitadorPageAndCloseDrawer('prescritores', event)">
                 <i class="fas fa-user-md"></i>
                 <span>Prescritores</span>
+            </a>
+            <a href="#" class="visitador-nav-drawer-link" data-page="pedidos" onclick="return goVisitadorPageAndCloseDrawer('pedidos', event)">
+                <i class="fas fa-list-alt"></i>
+                <span>Pedidos</span>
             </a>
         </div>
         <div class="user-menu">
@@ -551,7 +736,7 @@
         </div>
 
         <div class="kpi-row">
-            <div class="kpi-card-mini">
+            <div class="kpi-card-mini" id="cardVendasAprovadas">
                 <div class="kpi-icon-box" style="background:rgba(37,99,235,0.1); color:var(--primary);">
                     <i class="fas fa-chart-line"></i>
                 </div>
@@ -560,7 +745,7 @@
                     <span id="kpiTotalVendidoLabel">Vendas Aprovadas</span>
                 </div>
             </div>
-            <div class="kpi-card-mini">
+            <div class="kpi-card-mini" id="cardRecusadosCarrinho">
                 <div class="kpi-icon-box" style="background:rgba(239,68,68,0.1); color:var(--danger);">
                     <i class="fas fa-exclamation-triangle"></i>
                 </div>
@@ -831,6 +1016,71 @@
             </div>
         </div>
 
+        <!-- Página Pedidos (aprovados e recusados + carrinho) -->
+        <div id="paginaPedidos" class="visitador-page" style="display:none; padding:0 24px 32px;">
+            <div class="pedidos-page-header">
+                <h2>
+                    <span class="pedidos-icon"><i class="fas fa-list-alt"></i></span>
+                    Pedidos
+                </h2>
+                <p>Relação de pedidos aprovados, recusados e no carrinho da sua carteira. Clique em uma linha para ver detalhes e componentes.</p>
+            </div>
+            <div class="pedidos-filters">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <label for="paginaPedidosDataDe">De</label>
+                    <input type="date" id="paginaPedidosDataDe" style="padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <label for="paginaPedidosDataAte">Até</label>
+                    <input type="date" id="paginaPedidosDataAte" style="padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <label for="paginaPedidosFiltroStatus">Status</label>
+                    <select id="paginaPedidosFiltroStatus" style="padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; min-width:140px;">
+                        <option value="">Todos</option>
+                        <option value="Aprovado">Aprovados</option>
+                        <option value="Recusado">Recusados (No carrinho + Recusado)</option>
+                    </select>
+                </div>
+                <div class="pedidos-search-wrap">
+                    <i class="fas fa-search pedidos-search-icon"></i>
+                    <input type="text" id="searchPedidosPage" placeholder="Buscar por prescritor, cliente ou número..." autocomplete="off">
+                </div>
+            </div>
+            <div id="paginaPedidosCards" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:20px;">
+                <div class="card" style="padding:16px 20px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-coins" style="margin-right:6px; color:var(--success);"></i>Valor total</div>
+                    <div id="pedidosCardValor" style="font-size:1.35rem; font-weight:800; color:var(--text-primary);">R$ 0,00</div>
+                </div>
+                <div class="card" style="padding:16px 20px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-list-ol" style="margin-right:6px; color:var(--primary);"></i>Quantidade</div>
+                    <div id="pedidosCardQuantidade" style="font-size:1.35rem; font-weight:800; color:var(--text-primary);">0 pedidos</div>
+                </div>
+            </div>
+            <div class="pedidos-table-card">
+                <div id="paginaPedidosBody" style="min-height:200px; overflow-x:auto;">
+                    <table class="pedidos-table">
+                        <thead>
+                            <tr>
+                                <th id="pedidosThNumero" onclick="sortPaginaPedidosBy('numero_pedido')" style="cursor:pointer; user-select:none;" title="Ordenar">Nº Pedido <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThSerie" onclick="sortPaginaPedidosBy('serie_pedido')" style="cursor:pointer; user-select:none;" title="Ordenar">Série <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThDataAprovacao" onclick="sortPaginaPedidosBy('data_aprovacao')" style="cursor:pointer; user-select:none;" title="Ordenar">Data aprovação <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThDataOrcamento" onclick="sortPaginaPedidosBy('data_orcamento')" style="cursor:pointer; user-select:none;" title="Ordenar">Data orçamento <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThPrescritor" onclick="sortPaginaPedidosBy('prescritor')" style="cursor:pointer; user-select:none;" title="Ordenar">Prescritor <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThCliente" onclick="sortPaginaPedidosBy('cliente')" style="cursor:pointer; user-select:none;" title="Ordenar">Cliente <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThValor" onclick="sortPaginaPedidosBy('valor')" style="cursor:pointer; user-select:none;" title="Ordenar">Valor <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThStatus" onclick="sortPaginaPedidosBy('tipo')" style="cursor:pointer; user-select:none;" title="Ordenar">Status <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody id="paginaPedidosTbody">
+                            <tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="paginaPedidosPagination" class="pedidos-pagination"></div>
+            </div>
+        </div>
+
         <!-- Página Relatório de Visitas (oculta por padrão) -->
         <div id="paginaRelatorioVisitas" class="visitador-page" style="display:none; padding:0 24px 24px;">
             <div style="margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
@@ -1096,6 +1346,43 @@
         </div>
     </div>
 
+    <!-- Modal Detalhe do Pedido (dados + componentes) -->
+    <div id="modalDetalhePedido" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3200; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:960px; max-height:92vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
+            <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-file-invoice" style="margin-right:8px; color:var(--primary);"></i>Detalhe do Pedido</h3>
+                <button type="button" onclick="closeModalDetalhePedido()" style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px;">&times;</button>
+            </div>
+            <div id="modalDetalhePedidoBody" style="overflow-y:auto; flex:1; padding:24px;">
+                <div id="modalDetalhePedidoLoading" style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem; margin-bottom:12px;"></i><p>Carregando...</p></div>
+                <div id="modalDetalhePedidoError" style="display:none; text-align:center; padding:24px; color:var(--danger);"></div>
+                <div id="modalDetalhePedidoContent" style="display:none;">
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Dados do pedido</div>
+                        <div id="modalDetalhePedidoFields" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px;"></div>
+                    </div>
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Item (Série)</div>
+                        <div id="modalDetalhePedidoItem" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:12px;"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Componentes</div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Descrição</th><th style="padding:10px 12px; text-align:right;">Qtd calc.</th><th style="padding:10px 12px; text-align:right;">Preço venda</th></tr></thead>
+                                <tbody id="modalDetalhePedidoComponentes"></tbody>
+                            </table>
+                        </div>
+                        <p id="modalDetalhePedidoComponentesEmpty" style="display:none; padding:16px; text-align:center; color:var(--text-secondary); font-size:0.9rem;">Nenhum componente disponível.</p>
+                    </div>
+                </div>
+            </div>
+            <div style="padding:14px 24px; border-top:1px solid var(--border); flex-shrink:0;">
+                <button type="button" onclick="closeModalDetalhePedido()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Editar Prescritor (dados completos) -->
     <div id="modalEditarPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
         <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:560px; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
@@ -1121,6 +1408,33 @@
             <div style="padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; flex-shrink:0;">
                 <button type="button" onclick="closeEditarPrescritorModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
                 <button type="button" id="btnSaveEditarPrescritor" onclick="saveEditarPrescritorModal()" style="padding:10px 20px; border-radius:8px; border:none; background:var(--primary); color:white; font-weight:600; cursor:pointer;"><i class="fas fa-save" style="margin-right:6px;"></i>Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Pedidos Aprovados e Recusados + Carrinho (mesmo estilo do modal Prescritores) -->
+    <div id="modalPedidosVisitador" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:95vw; max-height:85vh; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <div>
+                    <h2 id="modalPedidosVisitadorTitle" style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:0;"><i class="fas fa-list-alt" style="color:var(--primary); margin-right:8px;"></i>Pedidos Aprovados e Recusados + Carrinho</h2>
+                    <p id="modalPedidosVisitadorSubtitle" style="font-size:0.8rem; color:var(--text-secondary); margin:4px 0 0 0;">Carregando...</p>
+                </div>
+                <button type="button" onclick="closeModalPedidosVisitador()" style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px; border-radius:6px;" onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#EF4444'" onmouseout="this.style.background='none';this.style.color='var(--text-secondary)'">&times;</button>
+            </div>
+            <div style="padding:16px 24px; border-bottom:1px solid var(--border); flex-shrink:0;">
+                <input type="text" id="searchPedidosVisitador" placeholder="Buscar por prescritor, cliente ou número do pedido..." oninput="filterPedidosVisitadorModal()" style="width:100%; padding:10px 16px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; outline:none;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+            </div>
+            <div id="modalPedidosVisitadorBody" style="overflow-y:auto; flex:1; padding:0;">
+                <div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+            </div>
+            <div id="modalPedidosVisitadorFooter" style="padding:12px 24px; border-top:1px solid var(--border); background:var(--bg-card); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; font-size:0.85rem;">
+                <div style="color:var(--text-secondary);" id="modalPedidosVisitadorPagination">Mostrando 0-0 de 0</div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button type="button" id="btnPedidosPrev" onclick="changePagePedidosModal(-1)" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; transition:all 0.2s;">Anterior</button>
+                    <button type="button" id="btnPedidosNext" onclick="changePagePedidosModal(1)" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; transition:all 0.2s;">Próximo</button>
+                    <button type="button" onclick="closeModalPedidosVisitador()" style="padding:8px 16px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1546,6 +1860,232 @@
             document.getElementById('modalPrescritores').style.display = 'none';
         }
 
+        let modalPedidosAprovados = [];
+        let modalPedidosRecusados = [];
+        let modalPedidosAprovadosFiltered = [];
+        let modalPedidosRecusadosFiltered = [];
+        let modalPedidosCurrentPage = 1;
+        let modalPedidosPageSize = 20;
+        let modalPedidosSortPedidos = { column: 'data_aprovacao', direction: 'desc' };
+        let modalPedidosAno = '';
+
+        async function openModalPedidosVisitador() {
+            const modal = document.getElementById('modalPedidosVisitador');
+            const titleEl = document.getElementById('modalPedidosVisitadorTitle');
+            const subtitleEl = document.getElementById('modalPedidosVisitadorSubtitle');
+            const bodyEl = document.getElementById('modalPedidosVisitadorBody');
+            const paginationEl = document.getElementById('modalPedidosVisitadorPagination');
+            const searchEl = document.getElementById('searchPedidosVisitador');
+            if (!modal || !bodyEl) return;
+            const nome = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '').trim() || (localStorage.getItem('userName') || '').trim();
+            const anoEl = document.getElementById('anoSelect');
+            const mesEl = document.getElementById('mesSelect');
+            const ano = anoEl ? anoEl.value : (new Date().getFullYear()).toString();
+            const mes = mesEl && mesEl.value ? mesEl.value : '';
+            if (titleEl) titleEl.innerHTML = '<i class="fas fa-list-alt" style="color:var(--primary); margin-right:8px;"></i>Pedidos Aprovados e Recusados + Carrinho';
+            if (subtitleEl) subtitleEl.textContent = nome ? (mes ? 'Carteira: ' + nome + ' — ' + mes + '/' + ano : 'Carteira: ' + nome + ' — ' + ano) : 'Carregando...';
+            if (searchEl) searchEl.value = '';
+            bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+            if (paginationEl) paginationEl.textContent = 'Mostrando 0-0 de 0';
+            modal.style.display = 'flex';
+            try {
+                const params = { nome: nome, ano: ano };
+                if (mes) params.mes = mes;
+                const res = await apiGet('list_pedidos_visitador', params);
+                modalPedidosAprovados = Array.isArray(res.aprovados) ? res.aprovados : [];
+                modalPedidosRecusados = Array.isArray(res.recusados_carrinho) ? res.recusados_carrinho : [];
+                modalPedidosAprovadosFiltered = [...modalPedidosAprovados];
+                modalPedidosRecusadosFiltered = [...modalPedidosRecusados];
+                modalPedidosCurrentPage = 1;
+                modalPedidosAno = ano || '';
+                renderModalPedidosVisitadorBody();
+            } catch (e) {
+                bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--danger);">Erro ao carregar pedidos.</div>';
+            }
+        }
+
+        function filterPedidosVisitadorModal() {
+            const q = (document.getElementById('searchPedidosVisitador') || {}).value || '';
+            const term = String(q).toLowerCase().trim();
+            if (!term) {
+                modalPedidosAprovadosFiltered = [...modalPedidosAprovados];
+                modalPedidosRecusadosFiltered = [...modalPedidosRecusados];
+            } else {
+                modalPedidosAprovadosFiltered = modalPedidosAprovados.filter(function (p) {
+                    return (p.prescritor || '').toLowerCase().indexOf(term) !== -1 || (p.cliente || '').toLowerCase().indexOf(term) !== -1 || String(p.numero_pedido || '').indexOf(term) !== -1;
+                });
+                modalPedidosRecusadosFiltered = modalPedidosRecusados.filter(function (p) {
+                    return (p.prescritor || '').toLowerCase().indexOf(term) !== -1 || (p.cliente || '').toLowerCase().indexOf(term) !== -1 || String(p.numero_pedido || '').indexOf(term) !== -1;
+                });
+            }
+            modalPedidosCurrentPage = 1;
+            renderModalPedidosVisitadorBody();
+        }
+
+        function sortPedidosModal(list, col, dir) {
+            const d = dir === 'asc' ? 1 : -1;
+            return list.slice().sort(function (a, b) {
+                let va = a[col]; let vb = b[col];
+                if (col === 'data_aprovacao') { va = (va || '').replace(/-/g, ''); vb = (vb || '').replace(/-/g, ''); return (va === vb ? 0 : (va < vb ? -1 : 1)) * d; }
+                if (col === 'valor') { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; return (va - vb) * d; }
+                if (col === 'numero_pedido' || col === 'serie_pedido') { va = Number(va) || 0; vb = Number(vb) || 0; return (va - vb) * d; }
+                va = String(va || '').toLowerCase(); vb = String(vb || '').toLowerCase();
+                return (va < vb ? -1 : (va > vb ? 1 : 0)) * d;
+            });
+        }
+
+        function sortTablePedidosModal(column) {
+            if (modalPedidosSortPedidos.column === column) modalPedidosSortPedidos.direction = modalPedidosSortPedidos.direction === 'asc' ? 'desc' : 'asc';
+            else { modalPedidosSortPedidos.column = column; modalPedidosSortPedidos.direction = 'desc'; }
+            modalPedidosCurrentPage = 1;
+            renderModalPedidosVisitadorBody();
+        }
+
+        function changePagePedidosModal(delta) {
+            const aprovados = modalPedidosAprovadosFiltered || [];
+            const recusados = modalPedidosRecusadosFiltered || [];
+            const combined = aprovados.map(function (p) { return { ...p, tipo: 'Aprovado' }; }).concat(recusados.map(function (p) { return { ...p, tipo: 'Recusado' }; }));
+            const sorted = sortPedidosModal(combined, modalPedidosSortPedidos.column, modalPedidosSortPedidos.direction);
+            const total = sorted.length;
+            const totalPages = Math.max(1, Math.ceil(total / modalPedidosPageSize));
+            modalPedidosCurrentPage = Math.max(1, Math.min(totalPages, modalPedidosCurrentPage + delta));
+            renderModalPedidosVisitadorBody();
+        }
+
+        function renderModalPedidosVisitadorBody() {
+            const bodyEl = document.getElementById('modalPedidosVisitadorBody');
+            const paginationEl = document.getElementById('modalPedidosVisitadorPagination');
+            const btnPrev = document.getElementById('btnPedidosPrev');
+            const btnNext = document.getElementById('btnPedidosNext');
+            if (!bodyEl) return;
+            const esc = function (x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+            const fmtDate = function (d) {
+                if (!d) return '—';
+                var s = String(d).trim();
+                if (s.length >= 10) return s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4);
+                return s;
+            };
+            const fmtMoney = typeof formatMoney === 'function' ? formatMoney : function (v) { return 'R$ ' + (parseFloat(v) || 0).toFixed(2).replace('.', ','); };
+            const aprovados = modalPedidosAprovadosFiltered || [];
+            const recusados = modalPedidosRecusadosFiltered || [];
+            const combined = aprovados.map(function (p) { return { ...p, tipo: 'Aprovado' }; }).concat(recusados.map(function (p) { return { ...p, tipo: 'Recusado' }; }));
+            const sorted = sortPedidosModal(combined, modalPedidosSortPedidos.column, modalPedidosSortPedidos.direction);
+            const total = sorted.length;
+            const totalPages = Math.max(1, Math.ceil(total / modalPedidosPageSize));
+            const page = Math.max(1, Math.min(modalPedidosCurrentPage, totalPages));
+            const start = (page - 1) * modalPedidosPageSize;
+            const pageRows = sorted.slice(start, start + modalPedidosPageSize);
+            const sortIcon = function (col) {
+                if (modalPedidosSortPedidos.column !== col) return '<i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i>';
+                return modalPedidosSortPedidos.direction === 'asc' ? '<i class="fas fa-sort-up" style="margin-left:4px;"></i>' : '<i class="fas fa-sort-down" style="margin-left:4px;"></i>';
+            };
+            let html = '<div style="padding:0;"><table style="width:100%; border-collapse:collapse; font-size:0.85rem;">';
+            html += '<thead style="position:sticky; top:0; background:var(--bg-card); z-index:1;"><tr style="border-bottom:2px solid var(--border);">';
+            html += '<th style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase;">#</th>';
+            html += '<th onclick="sortTablePedidosModal(\'numero_pedido\')" style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; cursor:pointer; user-select:none;">Nº Pedido ' + sortIcon('numero_pedido') + '</th>';
+            html += '<th onclick="sortTablePedidosModal(\'serie_pedido\')" style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; cursor:pointer; user-select:none;">Série ' + sortIcon('serie_pedido') + '</th>';
+            html += '<th onclick="sortTablePedidosModal(\'data_aprovacao\')" style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; cursor:pointer; user-select:none;">Data ' + sortIcon('data_aprovacao') + '</th>';
+            html += '<th onclick="sortTablePedidosModal(\'prescritor\')" style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; cursor:pointer; user-select:none;">Prescritor ' + sortIcon('prescritor') + '</th>';
+            html += '<th onclick="sortTablePedidosModal(\'cliente\')" style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; cursor:pointer; user-select:none;">Cliente ' + sortIcon('cliente') + '</th>';
+            html += '<th onclick="sortTablePedidosModal(\'valor\')" style="padding:12px 16px; text-align:right; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; cursor:pointer; user-select:none;">Valor ' + sortIcon('valor') + '</th>';
+            html += '<th style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase;">Status</th></tr></thead><tbody>';
+            if (pageRows.length === 0) {
+                html += '<tr><td colspan="8" style="padding:24px; text-align:center; color:var(--text-secondary);">Nenhum pedido encontrado.</td></tr>';
+            } else {
+                pageRows.forEach(function (p, i) {
+                    const idx = start + i + 1;
+                    const isAprovado = p.tipo === 'Aprovado';
+                    const n = p.numero_pedido, s = p.serie_pedido, a = modalPedidosAno || '';
+                    html += '<tr role="button" tabindex="0" onclick="openModalDetalhePedido(' + n + ',' + s + ',\'' + String(a).replace(/'/g, "\\'") + '\')" style="border-bottom:1px solid var(--border); background:' + (i % 2 === 0 ? 'var(--bg-body)' : 'transparent') + '; cursor:pointer;" title="Ver detalhes e componentes do pedido">';
+                    html += '<td style="padding:12px 16px; color:var(--text-secondary);">' + idx + '</td>';
+                    html += '<td style="padding:12px 16px;">' + esc(p.numero_pedido) + '</td>';
+                    html += '<td style="padding:12px 16px; text-align:center;">' + esc(p.serie_pedido) + '</td>';
+                    html += '<td style="padding:12px 16px;">' + esc(fmtDate(p.data_aprovacao)) + '</td>';
+                    html += '<td style="padding:12px 16px;">' + esc(p.prescritor) + '</td>';
+                    html += '<td style="padding:12px 16px;">' + esc(p.cliente) + '</td>';
+                    html += '<td style="padding:12px 16px; text-align:right; font-weight:600; color:' + (isAprovado ? 'var(--success)' : 'var(--danger)') + ';">' + esc(fmtMoney(p.valor)) + '</td>';
+                    html += '<td style="padding:12px 16px; text-align:center; font-size:0.8rem;">' + esc(p.tipo) + '</td></tr>';
+                });
+            }
+            html += '</tbody></table></div>';
+            bodyEl.innerHTML = html;
+            const end = Math.min(start + modalPedidosPageSize, total);
+            if (paginationEl) paginationEl.textContent = total ? ('Mostrando ' + (start + 1) + '-' + end + ' de ' + total) : 'Mostrando 0-0 de 0';
+            if (btnPrev) btnPrev.disabled = page <= 1;
+            if (btnNext) btnNext.disabled = page >= totalPages;
+        }
+
+        function closeModalPedidosVisitador() {
+            const modal = document.getElementById('modalPedidosVisitador');
+            if (modal) modal.style.display = 'none';
+        }
+
+        async function openModalDetalhePedido(numero, serie, ano) {
+            var modal = document.getElementById('modalDetalhePedido');
+            var loading = document.getElementById('modalDetalhePedidoLoading');
+            var errEl = document.getElementById('modalDetalhePedidoError');
+            var content = document.getElementById('modalDetalhePedidoContent');
+            if (!modal || !loading) return;
+            modal.style.display = 'flex';
+            loading.style.display = 'block';
+            if (errEl) errEl.style.display = 'none';
+            if (content) content.style.display = 'none';
+            var params = { numero: numero, serie: serie };
+            if (ano) params.ano = ano;
+            function esc(x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+            function fmtDate(d) {
+                if (!d) return '—';
+                var s = String(d).trim();
+                if (s.length >= 10) return s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4);
+                return s;
+            }
+            function fmtMoney(v) { return 'R$ ' + (parseFloat(v) || 0).toFixed(2).replace('.', ','); }
+            try {
+                var resDet = await apiGet('get_pedido_detalhe', params);
+                if (resDet.error && !resDet.pedido) {
+                    loading.style.display = 'none';
+                    if (errEl) { errEl.textContent = resDet.error || 'Pedido não encontrado.'; errEl.style.display = 'block'; }
+                    return;
+                }
+                var p = resDet.pedido || {};
+                var resComp = await apiGet('get_pedido_componentes', params);
+                var componentes = (resComp && resComp.componentes) ? resComp.componentes : [];
+                loading.style.display = 'none';
+                content.style.display = 'block';
+                var fieldsHtml = '';
+                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Cliente</span><div style="font-weight:600;">' + esc(p.paciente) + '</div></div>';
+                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Data</span><div style="font-weight:600;">' + esc(fmtDate(p.data)) + '</div></div>';
+                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Prescritor</span><div style="font-weight:600;">' + esc(p.prescritor || '—') + '</div></div>';
+                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Status</span><div style="font-weight:600;">' + esc(p.status_financeiro || p.status || '—') + '</div></div>';
+                document.getElementById('modalDetalhePedidoFields').innerHTML = fieldsHtml;
+                var itemHtml = '';
+                itemHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Série</span><div style="font-weight:600;">' + esc(p.serie) + '</div></div>';
+                itemHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Descrição</span><div style="font-weight:600;">' + esc(p.descricao) + '</div></div>';
+                itemHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Valor líquido</span><div style="font-weight:600; color:var(--success);">' + esc(fmtMoney(p.valor_liquido)) + '</div></div>';
+                document.getElementById('modalDetalhePedidoItem').innerHTML = itemHtml;
+                var tbody = document.getElementById('modalDetalhePedidoComponentes');
+                var emptyComp = document.getElementById('modalDetalhePedidoComponentesEmpty');
+                if (!componentes || componentes.length === 0) {
+                    tbody.innerHTML = '';
+                    emptyComp.style.display = 'block';
+                } else {
+                    emptyComp.style.display = 'none';
+                    var ch = '';
+                    componentes.forEach(function (c, i) {
+                        ch += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 12px;">' + (i + 1) + '</td><td style="padding:10px 12px;">' + esc(c.descricao || c.componente) + '</td><td style="padding:10px 12px; text-align:right;">' + esc(c.qtd_calculada) + '</td><td style="padding:10px 12px; text-align:right;">' + (c.preco_venda ? fmtMoney(c.preco_venda) : '—') + '</td></tr>';
+                    });
+                    tbody.innerHTML = ch;
+                }
+            } catch (e) {
+                loading.style.display = 'none';
+                if (errEl) { errEl.textContent = e.message || 'Erro ao carregar.'; errEl.style.display = 'block'; }
+            }
+        }
+        function closeModalDetalhePedido() {
+            var modal = document.getElementById('modalDetalhePedido');
+            if (modal) modal.style.display = 'none';
+        }
+
         function closeNotificationsPanel() {
             const panel = document.getElementById('notificationsPanel');
             const backdrop = document.getElementById('notificationsBackdrop');
@@ -1667,6 +2207,12 @@
         // Fechar modal ao clicar fora
         document.getElementById('modalPrescritores').addEventListener('click', function (e) {
             if (e.target === this) closePrescritoresModal();
+        });
+        document.getElementById('modalPedidosVisitador').addEventListener('click', function (e) {
+            if (e.target === this) closeModalPedidosVisitador();
+        });
+        document.getElementById('modalDetalhePedido').addEventListener('click', function (e) {
+            if (e.target === this) closeModalDetalhePedido();
         });
         document.getElementById('modalWhatsApp').addEventListener('click', function (e) {
             if (e.target === this) closeWhatsAppModal();
@@ -2533,10 +3079,12 @@
             var agenda = document.getElementById('paginaAgenda');
             var rel = document.getElementById('paginaRelatorioVisitas');
             var presc = document.getElementById('paginaPrescritores');
+            var pedidos = document.getElementById('paginaPedidos');
             if (dash) dash.style.display = (page === 'dashboard') ? 'block' : 'none';
             if (agenda) agenda.style.display = (page === 'agenda') ? 'block' : 'none';
             if (rel) rel.style.display = (page === 'relatorio') ? 'block' : 'none';
             if (presc) presc.style.display = (page === 'prescritores') ? 'block' : 'none';
+            if (pedidos) pedidos.style.display = (page === 'pedidos') ? 'block' : 'none';
             setVisitadorNavActive(page);
         }
 
@@ -2830,6 +3378,11 @@
                 loadPaginaPrescritores();
                 return false;
             }
+            if (page === 'pedidos') {
+                showVisitadorPage('pedidos');
+                loadPaginaPedidos();
+                return false;
+            }
             return false;
         }
 
@@ -2948,6 +3501,170 @@
         function paginaPrescritoresGoTo(page) {
             __paginaPrescritoresPage = Math.max(1, parseInt(page, 10) || 1);
             renderPaginaPrescritores();
+        }
+
+        var __paginaPedidosList = [];
+        var __paginaPedidosPage = 1;
+        var __paginaPedidosPageSize = 20;
+        var __paginaPedidosSort = { column: 'data_aprovacao', direction: 'desc' };
+
+        async function loadPaginaPedidos() {
+            var tbody = document.getElementById('paginaPedidosTbody');
+            if (!tbody) return;
+            var hoje = new Date();
+            var hojeStr = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
+            var dataDeEl = document.getElementById('paginaPedidosDataDe');
+            var dataAteEl = document.getElementById('paginaPedidosDataAte');
+            if (dataDeEl) dataDeEl.value = hojeStr;
+            if (dataAteEl) dataAteEl.value = hojeStr;
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>';
+            var ano = '2026';
+            var mes = '';
+            // Sempre usar o visitador logado: se for admin visualizando outro, usa currentVisitadorName; senão usa nome da sessão/localStorage
+            var nome = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '') || (localStorage.getItem('userName') || '');
+            if (!nome) nome = (localStorage.getItem('userName') || '').trim();
+            try {
+                var params = { nome: nome, ano: ano };
+                if (mes) params.mes = mes;
+                var res = await apiGet('list_pedidos_visitador', params);
+                var aprovados = Array.isArray(res.aprovados) ? res.aprovados : [];
+                var recusados = Array.isArray(res.recusados_carrinho) ? res.recusados_carrinho : [];
+                __paginaPedidosList = aprovados.map(function (p) { return { ...p, tipo: 'Aprovado' }; }).concat(recusados.map(function (p) { return { ...p, tipo: 'Recusado' }; }));
+                __paginaPedidosPage = 1;
+                renderPaginaPedidos();
+                var searchEl = document.getElementById('searchPedidosPage');
+                if (searchEl) searchEl.oninput = function () { __paginaPedidosPage = 1; renderPaginaPedidos(); };
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--danger); font-size:0.9rem;"><i class="fas fa-exclamation-circle" style="margin-right:8px;"></i>Erro ao carregar pedidos.</td></tr>';
+            }
+            var dataDeEl = document.getElementById('paginaPedidosDataDe');
+            var dataAteEl = document.getElementById('paginaPedidosDataAte');
+            var filtroStatusEl = document.getElementById('paginaPedidosFiltroStatus');
+            if (dataDeEl) dataDeEl.onchange = function () { __paginaPedidosPage = 1; renderPaginaPedidos(); };
+            if (dataAteEl) dataAteEl.onchange = function () { __paginaPedidosPage = 1; renderPaginaPedidos(); };
+            if (filtroStatusEl) filtroStatusEl.onchange = function () { __paginaPedidosPage = 1; renderPaginaPedidos(); };
+        }
+
+        function sortPaginaPedidosBy(col) {
+            if (__paginaPedidosSort.column === col) __paginaPedidosSort.direction = __paginaPedidosSort.direction === 'asc' ? 'desc' : 'asc';
+            else { __paginaPedidosSort.column = col; __paginaPedidosSort.direction = 'desc'; }
+            __paginaPedidosPage = 1;
+            renderPaginaPedidos();
+        }
+
+        function sortPaginaPedidosList(list, col, dir) {
+            var d = dir === 'asc' ? 1 : -1;
+            return list.slice().sort(function (a, b) {
+                var va = a[col], vb = b[col];
+                if (col === 'data_aprovacao' || col === 'data_orcamento') { va = (va || '').replace(/-/g, ''); vb = (vb || '').replace(/-/g, ''); return (va === vb ? 0 : (va < vb ? -1 : 1)) * d; }
+                if (col === 'valor') { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; return (va - vb) * d; }
+                if (col === 'numero_pedido' || col === 'serie_pedido') { va = Number(va) || 0; vb = Number(vb) || 0; return (va - vb) * d; }
+                va = String(va || '').toLowerCase(); vb = String(vb || '').toLowerCase();
+                return (va < vb ? -1 : (va > vb ? 1 : 0)) * d;
+            });
+        }
+
+        function renderPaginaPedidos() {
+            var tbody = document.getElementById('paginaPedidosTbody');
+            var pagEl = document.getElementById('paginaPedidosPagination');
+            if (!tbody) return;
+            var q = (document.getElementById('searchPedidosPage') || {}).value || '';
+            var dataDe = (document.getElementById('paginaPedidosDataDe') || {}).value || '';
+            var dataAte = (document.getElementById('paginaPedidosDataAte') || {}).value || '';
+            var filtroStatus = (document.getElementById('paginaPedidosFiltroStatus') || {}).value || '';
+            var list = __paginaPedidosList;
+            if (filtroStatus) {
+                list = list.filter(function (p) { return (p.tipo || '') === filtroStatus; });
+            }
+            if (q) {
+                q = q.toLowerCase().trim();
+                list = list.filter(function (p) {
+                    return (p.prescritor || '').toLowerCase().indexOf(q) !== -1 || (p.cliente || '').toLowerCase().indexOf(q) !== -1 || String(p.numero_pedido || '').indexOf(q) !== -1;
+                });
+            }
+            if (dataDe || dataAte) {
+                list = list.filter(function (p) {
+                    var d = (p.data_aprovacao || '').trim().slice(0, 10);
+                    if (!d) return false;
+                    if (dataDe && d < dataDe) return false;
+                    if (dataAte && d > dataAte) return false;
+                    return true;
+                });
+            }
+            list = sortPaginaPedidosList(list, __paginaPedidosSort.column, __paginaPedidosSort.direction);
+            var totalValor = list.reduce(function (acc, p) { return acc + (parseFloat(p.valor) || 0); }, 0);
+            var cardValor = document.getElementById('pedidosCardValor');
+            var cardQty = document.getElementById('pedidosCardQuantidade');
+            if (cardValor) cardValor.textContent = 'R$ ' + totalValor.toFixed(2).replace('.', ',');
+            if (cardQty) cardQty.textContent = list.length + ' pedido' + (list.length !== 1 ? 's' : '');
+            var esc = function (x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+            function fmtDate(d) {
+                if (!d) return '—';
+                var s = String(d).trim();
+                if (s.length >= 10) return s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4);
+                return s;
+            }
+            function fmtMoney(v) { return 'R$ ' + (parseFloat(v) || 0).toFixed(2).replace('.', ','); }
+            function serieStr(p) { return (p.serie_pedido === null || p.serie_pedido === undefined || p.serie_pedido === '') ? '0' : String(p.serie_pedido); }
+            var ano = '2026';
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-inbox" style="margin-right:8px; opacity:0.6;"></i>Nenhum pedido encontrado.</td></tr>';
+                if (pagEl) pagEl.innerHTML = '';
+                updatePaginaPedidosSortIcons();
+                return;
+            }
+            var totalPages = Math.max(1, Math.ceil(list.length / __paginaPedidosPageSize));
+            __paginaPedidosPage = Math.min(Math.max(1, __paginaPedidosPage), totalPages);
+            var start = (__paginaPedidosPage - 1) * __paginaPedidosPageSize;
+            var pageList = list.slice(start, start + __paginaPedidosPageSize);
+            var html = '';
+            pageList.forEach(function (p) {
+                var isAprovado = p.tipo === 'Aprovado';
+                var n = p.numero_pedido, s = p.serie_pedido;
+                html += '<tr role="button" tabindex="0" onclick="openModalDetalhePedido(' + n + ',' + (s === null || s === undefined || s === '' ? 0 : s) + ',\'' + String(ano || '').replace(/'/g, "\\'") + '\')" style="cursor:pointer;" title="Ver detalhes e componentes">';
+                html += '<td>' + esc(p.numero_pedido) + '</td>';
+                html += '<td>' + esc(serieStr(p)) + '</td>';
+                html += '<td>' + esc(fmtDate(p.data_aprovacao)) + '</td>';
+                html += '<td>' + esc(p.data_orcamento ? fmtDate(p.data_orcamento) : '—') + '</td>';
+                html += '<td>' + esc(p.prescritor) + '</td>';
+                html += '<td>' + esc(p.cliente) + '</td>';
+                html += '<td style="text-align:right; font-weight:600; color:' + (isAprovado ? 'var(--success)' : 'var(--danger)') + ';">' + esc(fmtMoney(p.valor)) + '</td>';
+                html += '<td>' + esc(p.tipo) + '</td></tr>';
+            });
+            tbody.innerHTML = html;
+            if (pagEl) {
+                var from = start + 1;
+                var to = Math.min(start + __paginaPedidosPageSize, list.length);
+                var pagHtml = '<span style="font-weight:500;">Mostrando ' + from + ' – ' + to + ' de ' + list.length + ' pedidos</span>';
+                pagHtml += '<span class="prescritores-pag-btns">';
+                pagHtml += '<button type="button" onclick="paginaPedidosGoTo(1)" ' + (__paginaPedidosPage <= 1 ? 'disabled' : '') + ' title="Primeira página"><i class="fas fa-angle-double-left"></i></button>';
+                pagHtml += '<button type="button" onclick="paginaPedidosGoTo(__paginaPedidosPage - 1)" ' + (__paginaPedidosPage <= 1 ? 'disabled' : '') + ' title="Anterior"><i class="fas fa-angle-left"></i></button>';
+                pagHtml += '<span style="padding:0 10px; font-weight:500;">Página ' + __paginaPedidosPage + ' de ' + totalPages + '</span>';
+                pagHtml += '<button type="button" onclick="paginaPedidosGoTo(__paginaPedidosPage + 1)" ' + (__paginaPedidosPage >= totalPages ? 'disabled' : '') + ' title="Próxima"><i class="fas fa-angle-right"></i></button>';
+                pagHtml += '<button type="button" onclick="paginaPedidosGoTo(' + totalPages + ')" ' + (__paginaPedidosPage >= totalPages ? 'disabled' : '') + ' title="Última página"><i class="fas fa-angle-double-right"></i></button>';
+                pagHtml += '</span>';
+                pagEl.innerHTML = pagHtml;
+                pagEl.style.display = 'flex';
+            }
+            updatePaginaPedidosSortIcons();
+        }
+
+        function updatePaginaPedidosSortIcons() {
+            var col = __paginaPedidosSort.column;
+            var dir = __paginaPedidosSort.direction;
+            var map = { numero_pedido: 'pedidosThNumero', serie_pedido: 'pedidosThSerie', data_aprovacao: 'pedidosThDataAprovacao', data_orcamento: 'pedidosThDataOrcamento', prescritor: 'pedidosThPrescritor', cliente: 'pedidosThCliente', valor: 'pedidosThValor', tipo: 'pedidosThStatus' };
+            for (var key in map) {
+                var el = document.getElementById(map[key]);
+                if (!el) continue;
+                var icon = el.querySelector('i');
+                if (!icon) continue;
+                icon.className = key === col ? (dir === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down') : 'fas fa-sort';
+            }
+        }
+
+        function paginaPedidosGoTo(page) {
+            __paginaPedidosPage = Math.max(1, parseInt(page, 10) || 1);
+            renderPaginaPedidos();
         }
 
         async function loadAndRenderRelatorioPrescritores() {
