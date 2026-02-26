@@ -3,6 +3,7 @@
  * Módulo Dashboard: KPIs, faturamento, tops e canais.
  * Usa buildDateFilter() e safeLimit() de api/bootstrap.php.
  */
+require_once __DIR__ . '/dashboard_visitador.php';
 
 function handleDashboardModuleAction(string $action, PDO $pdo): void
 {
@@ -35,7 +36,16 @@ function handleDashboardModuleAction(string $action, PDO $pdo): void
             dashboardVisitadoresStub($pdo);
             return;
         case 'visitador_dashboard':
-            dashboardVisitadorDashboardStub($pdo);
+            dashboardVisitadorDashboardReal($pdo);
+            return;
+        case 'list_pedidos_visitador':
+            dashboardListPedidosVisitador($pdo);
+            return;
+        case 'get_pedido_detalhe':
+            dashboardGetPedidoDetalhe($pdo);
+            return;
+        case 'get_pedido_componentes':
+            dashboardGetPedidoComponentes($pdo);
             return;
         default:
             http_response_code(400);
@@ -46,6 +56,8 @@ function handleDashboardModuleAction(string $action, PDO $pdo): void
 
 // ---------------------------------------------------------------------------
 // KPIs
+// Chave de ligação com itens e outras tabelas: (numero_pedido, serie_pedido).
+// Vendas Aprovadas = soma de preco_liquido onde status NÃO é Recusado/Cancelado/Orçamento.
 // ---------------------------------------------------------------------------
 function dashboardKpis(PDO $pdo): void
 {
@@ -54,10 +66,12 @@ function dashboardKpis(PDO $pdo): void
 
     $sql = "SELECT 
         COALESCE(SUM(preco_liquido), 0) as faturamento_total,
+        COALESCE(SUM(CASE WHEN status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN preco_liquido ELSE 0 END), 0) as vendas_aprovadas,
         COALESCE(SUM(preco_bruto), 0) as receita_bruta,
         COALESCE(SUM(preco_custo), 0) as custo_total,
         COALESCE(SUM(desconto), 0) as total_descontos,
         COUNT(*) as total_pedidos,
+        COUNT(DISTINCT CONCAT(numero_pedido, '-', serie_pedido)) as total_pedidos_unicos,
         COUNT(DISTINCT cliente) as total_clientes,
         COUNT(DISTINCT COALESCE(NULLIF(prescritor, ''), 'My Pharm')) as total_prescritores,
         COALESCE(AVG(preco_liquido), 0) as ticket_medio

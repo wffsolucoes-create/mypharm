@@ -1,7 +1,27 @@
 <?php
 
+/** Resolve nome do visitador para usuario_id (usuarios com setor = visitador). Retorna null se My Pharm / vazio. */
+function prescritores_resolve_usuario_id(PDO $pdo, string $visitador): ?int
+{
+    $v = trim($visitador);
+    if ($v === '' || strcasecmp($v, 'My Pharm') === 0) {
+        $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE LOWER(TRIM(COALESCE(setor,''))) = 'visitador' AND TRIM(COALESCE(nome,'')) = 'My Pharm' LIMIT 1");
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? (int)$row['id'] : null;
+    }
+    $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE LOWER(TRIM(COALESCE(setor,''))) = 'visitador' AND TRIM(nome) = :nome LIMIT 1");
+    $stmt->execute(['nome' => $v]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ? (int)$row['id'] : null;
+}
+
 function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
 {
+    try {
+        $pdo->exec("ALTER TABLE prescritores_cadastro ADD COLUMN usuario_id INT NULL");
+    } catch (Throwable $e) { /* coluna já existe */ }
+
     switch ($action) {
         case 'save_prescritor_whatsapp':
             $input = json_decode(file_get_contents('php://input'), true);
@@ -53,12 +73,26 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                     local_atendimento VARCHAR(50) NULL,
                     whatsapp VARCHAR(30) NULL,
                     email VARCHAR(255) NULL,
+                    usuario_id INT NULL,
                     atualizado_em DATETIME NULL
                 )
             ");
-            $stmt = $pdo->prepare("SELECT * FROM prescritor_dados WHERE nome_prescritor = :nome LIMIT 1");
+            try { $pdo->exec("ALTER TABLE prescritor_dados ADD COLUMN usuario_id INT NULL"); } catch (Throwable $e) {}
+            $stmt = $pdo->prepare("
+                SELECT pd.*, COALESCE(pd.usuario_id, pc.usuario_id) as usuario_id
+                FROM prescritor_dados pd
+                LEFT JOIN prescritores_cadastro pc ON pc.nome = pd.nome_prescritor
+                WHERE pd.nome_prescritor = :nome LIMIT 1
+            ");
             $stmt->execute(['nome' => $nome]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $usuarioIdFromCadastro = null;
+            if (!$row) {
+                $st = $pdo->prepare("SELECT usuario_id FROM prescritores_cadastro WHERE nome = :nome LIMIT 1");
+                $st->execute(['nome' => $nome]);
+                $cad = $st->fetch(PDO::FETCH_ASSOC);
+                $usuarioIdFromCadastro = $cad && isset($cad['usuario_id']) ? (int)$cad['usuario_id'] : null;
+            }
             $dados = $row ?: [
                 'nome_prescritor' => $nome,
                 'profissao' => '',
@@ -73,7 +107,8 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                 'endereco_uf' => '',
                 'local_atendimento' => '',
                 'whatsapp' => '',
-                'email' => ''
+                'email' => '',
+                'usuario_id' => $usuarioIdFromCadastro
             ];
             if ($row) {
                 $dados['profissao'] = $row['profissao'] ?? '';
@@ -89,6 +124,7 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                 $dados['local_atendimento'] = $row['local_atendimento'] ?? '';
                 $dados['whatsapp'] = $row['whatsapp'] ?? '';
                 $dados['email'] = $row['email'] ?? '';
+                $dados['usuario_id'] = isset($row['usuario_id']) ? (int)$row['usuario_id'] : null;
             }
             $visitador = (strtolower($_SESSION['user_setor'] ?? '') === 'visitador') ? trim($_SESSION['user_nome'] ?? '') : trim($_GET['visitador'] ?? '');
             $ano = (int)($_GET['ano'] ?? date('Y'));
@@ -157,9 +193,11 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                     local_atendimento VARCHAR(50) NULL,
                     whatsapp VARCHAR(30) NULL,
                     email VARCHAR(255) NULL,
+                    usuario_id INT NULL,
                     atualizado_em DATETIME NULL
                 )
             ");
+            try { $pdo->exec("ALTER TABLE prescritor_dados ADD COLUMN usuario_id INT NULL"); } catch (Throwable $e) {}
             $stmt = $pdo->prepare("
                 INSERT INTO prescritor_dados (nome_prescritor, profissao, registro, uf_registro, data_nascimento, endereco_rua, endereco_numero, endereco_bairro, endereco_cep, endereco_cidade, endereco_uf, local_atendimento, whatsapp, email, atualizado_em)
                 VALUES (:nome, :profissao, :registro, :uf_registro, :data_nascimento, :endereco_rua, :endereco_numero, :endereco_bairro, :endereco_cep, :endereco_cidade, :endereco_uf, :local_atendimento, :whatsapp, :email, NOW())
@@ -205,8 +243,9 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
             $stmt = $pdo->prepare("UPDATE prescritor_resumido SET visitador = :vis WHERE nome = :nome");
             $stmt->execute(['vis' => $novo_visitador, 'nome' => $nome]);
 
-            $stmtCadastro = $pdo->prepare("INSERT INTO prescritores_cadastro (nome, visitador) VALUES (:nome, :vis) ON DUPLICATE KEY UPDATE visitador = :vis2");
-            $stmtCadastro->execute(['nome' => $nome, 'vis' => $novo_visitador, 'vis2' => $novo_visitador]);
+            $usuarioId = prescritores_resolve_usuario_id($pdo, $novo_visitador);
+            $stmtCadastro = $pdo->prepare("INSERT INTO prescritores_cadastro (nome, visitador, usuario_id) VALUES (:nome, :vis, :uid) ON DUPLICATE KEY UPDATE visitador = :vis2, usuario_id = :uid2");
+            $stmtCadastro->execute(['nome' => $nome, 'vis' => $novo_visitador, 'uid' => $usuarioId, 'vis2' => $novo_visitador, 'uid2' => $usuarioId]);
 
             echo json_encode(['success' => true, 'message' => 'Prescritor transferido com sucesso!'], JSON_UNESCAPED_UNICODE);
             return true;
@@ -232,8 +271,9 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                     echo json_encode(['success' => false, 'error' => 'Já existe um prescritor cadastrado com este nome.'], JSON_UNESCAPED_UNICODE);
                     return true;
                 }
-                $stmtCadastro = $pdo->prepare("INSERT INTO prescritores_cadastro (nome, visitador) VALUES (:nome, :vis)");
-                $stmtCadastro->execute(['nome' => $nome, 'vis' => $visitador]);
+                $usuarioId = prescritores_resolve_usuario_id($pdo, $visitador);
+                $stmtCadastro = $pdo->prepare("INSERT INTO prescritores_cadastro (nome, visitador, usuario_id) VALUES (:nome, :vis, :uid)");
+                $stmtCadastro->execute(['nome' => $nome, 'vis' => $visitador, 'uid' => $usuarioId]);
                 echo json_encode(['success' => true, 'message' => 'Prescritor cadastrado com sucesso!'], JSON_UNESCAPED_UNICODE);
             } catch (Exception $e) {
                 echo json_encode(['success' => false, 'error' => 'Erro ao cadastrar: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);

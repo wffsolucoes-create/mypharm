@@ -50,6 +50,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pdo = getConnection();
+runUsuarioIdMigrationIfNeeded($pdo);
+try {
+    $pdo->exec("ALTER TABLE gestao_pedidos ADD INDEX idx_numero_serie (numero_pedido, serie_pedido)");
+} catch (Throwable $e) { /* índice já existe */ }
 $action = $_GET['action'] ?? '';
 
 try {
@@ -67,6 +71,9 @@ try {
         'logout',
         'check_session',
         'visitador_dashboard',
+        'list_pedidos_visitador',
+        'get_pedido_detalhe',
+        'get_pedido_componentes',
         'all_prescritores',
         'get_prescritor_contatos',
         'save_prescritor_whatsapp',
@@ -166,6 +173,9 @@ try {
         case 'canais':
         case 'visitadores':
         case 'visitador_dashboard':
+        case 'list_pedidos_visitador':
+        case 'get_pedido_detalhe':
+        case 'get_pedido_componentes':
             handleDashboardModuleAction($action, $pdo);
             break;
         case 'admin_visitas':
@@ -558,6 +568,7 @@ try {
                     SELECT 
                         pc.nome as prescritor,
                         pc.visitador as visitador,
+                        pc.usuario_id as usuario_id,
                         COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
                         (COALESCE(MAX(pr.valor_recusado), 0) + COALESCE(MAX(pr.valor_no_carrinho), 0)) as valor_recusado,
                         COUNT(gp.id) as total_pedidos,
@@ -575,7 +586,7 @@ try {
                         FROM historico_visitas GROUP BY prescritor
                     ) hv ON pc.nome = hv.prescritor
                     WHERE $visWhere
-                    GROUP BY pc.nome, pc.visitador
+                    GROUP BY pc.nome, pc.visitador, pc.usuario_id
                     ORDER BY valor_aprovado DESC
                 ";
                 if ($useLimit) $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
@@ -645,6 +656,7 @@ try {
                     SELECT 
                         COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') as prescritor,
                         MAX(pr.visitador) as visitador,
+                        MAX(pc.usuario_id) as usuario_id,
                         SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END) as valor_aprovado,
                         (COALESCE(MAX(pr.valor_recusado), 0) + COALESCE(MAX(pr.valor_no_carrinho), 0)) as valor_recusado,
                         COUNT(*) as total_pedidos,
@@ -653,6 +665,7 @@ try {
                         MAX(hv.ultima_visita) as ultima_visita
                     FROM gestao_pedidos gp
                     LEFT JOIN prescritor_resumido pr ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pr.nome $joinAno
+                    LEFT JOIN prescritores_cadastro pc ON pc.nome = COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')
                     LEFT JOIN (
                         SELECT prescritor, MAX(data_visita) as ultima_visita 
                         FROM historico_visitas GROUP BY prescritor
@@ -694,13 +707,17 @@ try {
             break;
 
         case 'list_visitadores':
-            $stmt = $pdo->query("SELECT DISTINCT visitador FROM prescritor_resumido WHERE visitador IS NOT NULL AND visitador != '' ORDER BY visitador ASC");
-            $data = $stmt->fetchAll();
-            // Remover "My Pharm" da lista (pode vir do banco) e colocar uma vez no início
-            $data = array_values(array_filter($data, function ($r) {
-                return strcasecmp(trim($r['visitador'] ?? ''), 'My Pharm') !== 0;
+            $stmt = $pdo->query("SELECT id, nome as visitador FROM usuarios WHERE LOWER(TRIM(COALESCE(setor,''))) = 'visitador' ORDER BY nome ASC");
+            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $myPharm = null;
+            $data = array_values(array_filter($data, function ($r) use (&$myPharm) {
+                if (strcasecmp(trim($r['visitador'] ?? ''), 'My Pharm') === 0) {
+                    $myPharm = $r;
+                    return false;
+                }
+                return true;
             }));
-            array_unshift($data, ['visitador' => 'My Pharm']);
+            array_unshift($data, ['id' => $myPharm['id'] ?? null, 'visitador' => 'My Pharm']);
             echo json_encode($data, JSON_UNESCAPED_UNICODE);
             break;
 

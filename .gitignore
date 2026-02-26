@@ -17,3 +17,8 @@ Desktop.ini
 
 # Cursor
 .cursor/
+
+# Estado local / migração / patches temporários
+.migrated_usuario_id
+fix_dashboard_patch.php
+fix_*.patch

@@ -455,20 +455,20 @@ function renderKPIs(kpis) {
     grid.innerHTML = `
         <div class="kpi-card">
             <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
-            <div class="kpi-label">Faturamento Líquido</div>
-            <div class="kpi-value">${formatCompactMoney(kpis.faturamento_total)}</div>
-            <div class="kpi-sub">Receita bruta: ${formatCompactMoney(kpis.receita_bruta)}</div>
+            <div class="kpi-label">Vendas Aprovadas</div>
+            <div class="kpi-value">${formatCompactMoney(kpis.vendas_aprovadas != null ? kpis.vendas_aprovadas : kpis.faturamento_total)}</div>
+            <div class="kpi-sub">Faturamento total: ${formatCompactMoney(kpis.faturamento_total)} · Receita bruta: ${formatCompactMoney(kpis.receita_bruta)}</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-icon"><i class="fas fa-hand-holding-usd"></i></div>
             <div class="kpi-label">Lucro Bruto</div>
-            <div class="kpi-value">${formatCompactMoney(kpis.faturamento_total - kpis.custo_total)}</div>
+            <div class="kpi-value">${formatCompactMoney((kpis.vendas_aprovadas != null ? kpis.vendas_aprovadas : kpis.faturamento_total) - kpis.custo_total)}</div>
             <div class="kpi-sub">Margem: <span class="trend-up">${kpis.margem_lucro}%</span></div>
         </div>
         <div class="kpi-card">
             <div class="kpi-icon"><i class="fas fa-shopping-cart"></i></div>
             <div class="kpi-label">Total de Pedidos</div>
-            <div class="kpi-value">${formatNumber(kpis.total_pedidos)}</div>
+            <div class="kpi-value">${formatNumber(kpis.total_pedidos_unicos != null ? kpis.total_pedidos_unicos : kpis.total_pedidos)}</div>
             <div class="kpi-sub">Ticket médio: ${formatMoney(kpis.ticket_medio)}</div>
         </div>
         <div class="kpi-card">
@@ -1618,6 +1618,7 @@ async function loadInsights() {
 
 // ============ VISITADOR DASHBOARD (Página Dedicada) ============
 async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesSelecionado = null, diaSelecionado = null) {
+    const nome = (nomeVisitador && String(nomeVisitador).trim()) || (typeof localStorage !== 'undefined' && localStorage.getItem('userName')) || '';
     showLoading();
     try {
         const anoSelect = document.getElementById('anoSelect');
@@ -1631,7 +1632,7 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
 
         const dia = null; // Removed dia filter logic
 
-        const params = { nome: nomeVisitador, ano };
+        const params = { nome: nome, ano };
         if (mes) params.mes = mes;
         if (dia) params.dia = dia;
         const data = await apiGet('visitador_dashboard', params);
@@ -1644,12 +1645,12 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
         }
 
         // Na primeira carga, definir o mês padrão como o último mês com dados
-        if (!mesSelect.getAttribute('data-default-set') && data.kpis?.ultimo_mes_com_dados) {
+        if (mesSelect && !mesSelect.getAttribute('data-default-set') && data.kpis?.ultimo_mes_com_dados) {
             mesSelect.setAttribute('data-default-set', 'true');
             const ultimoMes = data.kpis.ultimo_mes_com_dados.toString();
             mesSelect.value = ultimoMes;
             // Recarregar com o mês correto
-            loadVisitadorDashboard(nomeVisitador, ano, ultimoMes);
+            loadVisitadorDashboard(nome, ano, ultimoMes);
             return;
         }
 
@@ -1657,13 +1658,13 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
         if (anoSelect && !anoSelect.getAttribute('data-listener')) {
             anoSelect.setAttribute('data-listener', 'true');
             anoSelect.addEventListener('change', () => {
-                loadVisitadorDashboard(nomeVisitador, anoSelect.value, mesSelect ? mesSelect.value : null);
+                loadVisitadorDashboard(nome, anoSelect.value, mesSelect ? mesSelect.value : null);
             });
         }
         if (mesSelect && !mesSelect.getAttribute('data-listener')) {
             mesSelect.setAttribute('data-listener', 'true');
             mesSelect.addEventListener('change', () => {
-                loadVisitadorDashboard(nomeVisitador, anoSelect ? anoSelect.value : null, mesSelect.value);
+                loadVisitadorDashboard(nome, anoSelect ? anoSelect.value : null, mesSelect.value);
             });
         }
 
@@ -2339,7 +2340,8 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
         }
 
     } catch (err) {
-        console.error(err);
+        console.error('Erro loadVisitadorDashboard:', err);
+        hideLoading();
     }
     hideLoading();
 }

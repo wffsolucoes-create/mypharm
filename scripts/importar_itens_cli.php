@@ -121,8 +121,12 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS itens_orcamentos_pedidos (
     valor_bruto DECIMAL(14,2) DEFAULT 0, valor_liquido DECIMAL(14,2) DEFAULT 0, preco_custo DECIMAL(14,2) DEFAULT 0, fator DECIMAL(10,2) DEFAULT 0,
     status VARCHAR(50), usuario_inclusao VARCHAR(100), usuario_aprovador VARCHAR(100),
     paciente VARCHAR(255), prescritor VARCHAR(255), status_financeiro VARCHAR(50), ano_referencia INT NOT NULL,
-    INDEX idx_ano (ano_referencia), INDEX idx_prescritor (prescritor(100)), INDEX idx_status (status)
+    INDEX idx_ano (ano_referencia), INDEX idx_prescritor (prescritor(100)), INDEX idx_status (status_financeiro),
+    INDEX idx_numero_serie (numero, serie)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+try {
+    $pdo->exec("ALTER TABLE itens_orcamentos_pedidos ADD INDEX idx_numero_serie (numero, serie)");
+} catch (Throwable $e) { /* já existe */ }
 
 $pdo->exec("CREATE TABLE IF NOT EXISTS prescritor_resumido (
     id INT AUTO_INCREMENT PRIMARY KEY, visitador VARCHAR(150), nome VARCHAR(255), profissao VARCHAR(100), sigla VARCHAR(20), uf VARCHAR(10),

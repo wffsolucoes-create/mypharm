@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalhe do Pedido | MyPharm</title>
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #3B82F6;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --bg-body: #0F172A;
+            --bg-card: #1E293B;
+            --text-primary: #F1F5F9;
+            --text-secondary: #94A3B8;
+            --border: #334155;
+            --radius: 16px;
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg-body); color: var(--text-primary); min-height: 100vh; padding: 24px; }
+        .container { max-width: 960px; margin: 0 auto; }
+        .header-page { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .header-page h1 { font-size: 1.35rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .btn-voltar { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); text-decoration: none; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-voltar:hover { background: var(--primary); border-color: var(--primary); color: white; }
+        .card { background: var(--bg-card); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow-lg); }
+        .card h2 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+        .field { font-size: 0.9rem; }
+        .field label { display: block; color: var(--text-secondary); font-size: 0.75rem; margin-bottom: 4px; text-transform: uppercase; }
+        .field .value { font-weight: 600; color: var(--text-primary); }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+        .badge-success { background: rgba(16,185,129,0.2); color: var(--success); }
+        .badge-warning { background: rgba(245,158,11,0.2); color: var(--warning); }
+        .badge-danger { background: rgba(239,68,68,0.2); color: var(--danger); }
+        .badge-info { background: rgba(59,130,246,0.2); color: var(--primary); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { font-weight: 600; color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase; background: rgba(0,0,0,0.2); }
+        tr:hover { background: rgba(255,255,255,0.03); }
+        .text-right { text-align: right; }
+        .loading { text-align: center; padding: 48px 24px; color: var(--text-secondary); }
+        .loading i { font-size: 2rem; margin-bottom: 12px; opacity: 0.7; }
+        .error { color: var(--danger); padding: 24px; text-align: center; }
+        .empty { color: var(--text-secondary); padding: 24px; text-align: center; font-size: 0.9rem; }
+        .valor { font-weight: 600; }
+        .valor-success { color: var(--success); }
+        .valor-danger { color: var(--danger); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-page">
+            <h1><i class="fas fa-file-invoice" style="color: var(--primary);"></i> Detalhe do Pedido</h1>
+            <a href="visitador.html" class="btn-voltar"><i class="fas fa-arrow-left"></i> Voltar ao painel</a>
+        </div>
+
+        <div id="loading" class="card loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Carregando pedido...</p>
+        </div>
+        <div id="error" class="card error" style="display:none;"></div>
+        <div id="content" style="display:none;">
+            <div class="card" id="cardPedido">
+                <h2><i class="fas fa-user" style="margin-right:8px;"></i> Dados do pedido</h2>
+                <div class="grid-2" id="pedidoFields"></div>
+            </div>
+            <div class="card">
+                <h2><i class="fas fa-box-open" style="margin-right:8px;"></i> Item (Série)</h2>
+                <div class="grid-2" id="itemFields"></div>
+            </div>
+            <div class="card">
+                <h2><i class="fas fa-list" style="margin-right:8px;"></i> Componentes do pedido</h2>
+                <div id="componentesWrap">
+                    <table id="tabComponentes">
+                        <thead><tr><th>#</th><th>Descrição</th><th>Quantidade</th><th>QSP</th><th>Tipo</th><th class="text-right">Qtd calculada</th><th class="text-right">Preço venda</th></tr></thead>
+                        <tbody id="componentesBody"></tbody>
+                    </table>
+                    <p id="componentesEmpty" class="empty" style="display:none;">Nenhum componente disponível para este item.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var API_URL = typeof API_URL !== 'undefined' ? API_URL : 'api.php';
+            function qs(name) {
+                var m = window.location.search.match(new RegExp('[?&]' + name + '=([^&]*)'));
+                return m ? decodeURIComponent(m[1]) : '';
+            }
+            function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+            function fmtDate(d) {
+                if (!d) return '—';
+                var s = String(d).trim();
+                if (s.length >= 10) return s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4);
+                return s;
+            }
+            function fmtMoney(v) { return 'R$ ' + (parseFloat(v) || 0).toFixed(2).replace('.', ','); }
+            function statusClass(s) {
+                if (!s) return 'badge-info';
+                var t = (s + '').toLowerCase();
+                if (t.indexOf('aprovad') !== -1) return 'badge-success';
+                if (t.indexOf('recusad') !== -1 || t.indexOf('cancel') !== -1) return 'badge-danger';
+                if (t.indexOf('carrinho') !== -1 || t.indexOf('pendente') !== -1) return 'badge-warning';
+                return 'badge-info';
+            }
+            function showLoading(show) {
+                document.getElementById('loading').style.display = show ? 'block' : 'none';
+            }
+            function showError(msg) {
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = msg;
+                document.getElementById('content').style.display = 'none';
+            }
+            function showContent() {
+                document.getElementById('error').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                document.getElementById('loading').style.display = 'none';
+            }
+            async function apiGet(action, params) {
+                var url = API_URL + '?action=' + encodeURIComponent(action);
+                if (params) for (var k in params) if (params.hasOwnProperty(k)) url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+                var r = await fetch(url, { credentials: 'include' });
+                var text = await r.text();
+                if (!r.ok) throw new Error(text || 'Erro ' + r.status);
+                try { return JSON.parse(text); } catch (e) { throw new Error(text || 'Resposta inválida'); }
+            }
+            async function load() {
+                var numero = qs('numero');
+                var serie = qs('serie');
+                var ano = qs('ano');
+                if (!numero || !serie) {
+                    showError('Parâmetros inválidos. Use: pedido-detalhe.html?numero=XXX&serie=YY');
+                    showLoading(false);
+                    return;
+                }
+                try {
+                    var params = { numero: numero, serie: serie };
+                    if (ano) params.ano = ano;
+                    var resDetalhe = await apiGet('get_pedido_detalhe', params);
+                    if (resDetalhe.error && !resDetalhe.pedido) {
+                        showError(resDetalhe.error || 'Pedido não encontrado.');
+                        showLoading(false);
+                        return;
+                    }
+                    var pedido = resDetalhe.pedido || {};
+                    var resComp = await apiGet('get_pedido_componentes', params);
+                    var componentes = (resComp && resComp.componentes) ? resComp.componentes : [];
+                    showLoading(false);
+                    showContent();
+                    renderPedido(pedido);
+                    renderItem(pedido);
+                    renderComponentes(componentes);
+                } catch (e) {
+                    showLoading(false);
+                    if (e.message && e.message.indexOf('401') !== -1) {
+                        showError('Sessão expirada. Faça login novamente.');
+                        setTimeout(function () { window.location.href = 'index.html'; }, 2000);
+                    } else {
+                        showError(e.message || 'Erro ao carregar o pedido.');
+                    }
+                }
+            }
+            function renderPedido(p) {
+                var html = '';
+                html += '<div class="field"><label>Cliente / Paciente</label><div class="value">' + esc(p.paciente) + '</div></div>';
+                html += '<div class="field"><label>Data</label><div class="value">' + esc(fmtDate(p.data)) + '</div></div>';
+                html += '<div class="field"><label>Prescritor</label><div class="value">' + esc(p.prescritor || '—') + '</div></div>';
+                html += '<div class="field"><label>Canal</label><div class="value">' + esc(p.canal) + '</div></div>';
+                html += '<div class="field"><label>Status</label><div class="value"><span class="badge ' + statusClass(p.status_financeiro) + '">' + esc(p.status_financeiro || p.status || '—') + '</span></div></div>';
+                document.getElementById('pedidoFields').innerHTML = html;
+            }
+            function renderItem(p) {
+                var html = '';
+                html += '<div class="field"><label>Série</label><div class="value">' + esc(p.serie) + '</div></div>';
+                html += '<div class="field"><label>Descrição</label><div class="value">' + esc(p.descricao) + '</div></div>';
+                html += '<div class="field"><label>Forma farmacêutica</label><div class="value">' + esc(p.forma_farmaceutica) + '</div></div>';
+                html += '<div class="field"><label>Quantidade</label><div class="value">' + esc(p.quantidade) + ' ' + esc(p.unidade) + '</div></div>';
+                html += '<div class="field"><label>Valor bruto</label><div class="value">' + esc(fmtMoney(p.valor_bruto)) + '</div></div>';
+                html += '<div class="field"><label>Valor líquido</label><div class="value valor valor-success">' + esc(fmtMoney(p.valor_liquido)) + '</div></div>';
+                document.getElementById('itemFields').innerHTML = html;
+            }
+            function renderComponentes(list) {
+                var tbody = document.getElementById('componentesBody');
+                var emptyEl = document.getElementById('componentesEmpty');
+                var tab = document.getElementById('tabComponentes');
+                if (!list || list.length === 0) {
+                    tbody.innerHTML = '';
+                    tab.style.display = 'none';
+                    emptyEl.style.display = 'block';
+                    return;
+                }
+                tab.style.display = 'table';
+                emptyEl.style.display = 'none';
+                var html = '';
+                list.forEach(function (c, i) {
+                    html += '<tr>';
+                    html += '<td>' + (i + 1) + '</td>';
+                    html += '<td>' + esc(c.descricao || c.componente) + '</td>';
+                    html += '<td>' + esc(c.quantidade) + '</td>';
+                    html += '<td>' + esc(c.qsp || 'Não') + '</td>';
+                    html += '<td>' + esc(c.tipo || 'Componente') + '</td>';
+                    html += '<td class="text-right">' + esc(c.qtd_calculada) + '</td>';
+                    html += '<td class="text-right">' + esc(c.preco_venda ? fmtMoney(c.preco_venda) : '—') + '</td>';
+                    html += '</tr>';
+                });
+                tbody.innerHTML = html;
+            }
+            load();
+        })();
+    </script>
+</body>
+</html>

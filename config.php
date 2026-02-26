@@ -75,6 +75,39 @@ function getConnection()
     }
 }
 
+/** Migração única: colunas usuario_id em prescritores_cadastro e prescritor_dados. Roda uma vez por instalação. */
+function runUsuarioIdMigrationIfNeeded(PDO $pdo): void
+{
+    $marker = __DIR__ . DIRECTORY_SEPARATOR . '.migrated_usuario_id';
+    if (file_exists($marker)) {
+        return;
+    }
+    $run = function (string $sql) use ($pdo): bool {
+        try {
+            $pdo->exec(trim($sql));
+            return true;
+        } catch (PDOException $e) {
+            $m = $e->getMessage();
+            if (strpos($m, 'Duplicate column') !== false || strpos($m, '1060') !== false ||
+                strpos($m, 'Duplicate key') !== false || strpos($m, '1061') !== false) {
+                return true;
+            }
+            return false;
+        }
+    };
+    $run("ALTER TABLE prescritores_cadastro ADD COLUMN usuario_id INT NULL");
+    $run("ALTER TABLE prescritores_cadastro ADD INDEX idx_usuario_id (usuario_id)");
+    $run("UPDATE prescritores_cadastro pc INNER JOIN usuarios u ON TRIM(u.nome) = TRIM(pc.visitador) AND LOWER(TRIM(COALESCE(u.setor,''))) = 'visitador' SET pc.usuario_id = u.id");
+    $run("UPDATE prescritores_cadastro SET usuario_id = (SELECT id FROM usuarios WHERE TRIM(COALESCE(nome,'')) = 'My Pharm' AND LOWER(TRIM(COALESCE(setor,''))) = 'visitador' LIMIT 1) WHERE (visitador IS NULL OR TRIM(visitador) = '' OR TRIM(visitador) = 'My Pharm' OR UPPER(TRIM(visitador)) = 'MY PHARM')");
+    $run("ALTER TABLE prescritor_dados ADD COLUMN usuario_id INT NULL");
+    try {
+        $pdo->exec("UPDATE prescritor_dados pd INNER JOIN prescritores_cadastro pc ON pc.nome = pd.nome_prescritor SET pd.usuario_id = pc.usuario_id");
+    } catch (PDOException $e) {
+        // tabela prescritor_dados pode não existir ainda
+    }
+    @file_put_contents($marker, date('c'));
+}
+
 // Sessão segura
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
