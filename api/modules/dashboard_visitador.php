@@ -258,12 +258,15 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                 $stmt->execute($paramsProd);
                 $top_produtos = $stmt->fetchAll();
     
-                // Especialidades dos prescritores da carteira (profiss%�o) ��� para o gr%�fico no painel do visitador
+                // Especialidades: pr.profissao ou prescritor_dados.profissao; vazio = Não informada
+                $naoInformada = 'Não informada';
+                // Gráfico distribuição por especialidade (painel visitador)
                 $sqlEsp = "
                     SELECT 
-                        COALESCE(NULLIF(TRIM(pr.profissao), ''), 'N%�o informada') as familia,
+                        COALESCE(NULLIF(TRIM(pr.profissao), ''), NULLIF(TRIM(pd.profissao), ''), :nao_inf) as familia,
                         COUNT(*) as total
                     FROM prescritor_resumido pr
+                    LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pr.nome
                     WHERE pr.ano_referencia = :ano
                 ";
                 if ($isMyPharm) {
@@ -271,9 +274,11 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                 } else {
                     $sqlEsp .= " AND TRIM(COALESCE(pr.visitador, '')) = TRIM(:nome)";
                 }
-                $sqlEsp .= " GROUP BY COALESCE(NULLIF(TRIM(pr.profissao), ''), 'N%�o informada') ORDER BY total DESC LIMIT 10";
+                $sqlEsp .= " GROUP BY COALESCE(NULLIF(TRIM(pr.profissao), ''), NULLIF(TRIM(pd.profissao), ''), :nao_inf2) ORDER BY total DESC LIMIT 10";
                 $stmtEsp = $pdo->prepare($sqlEsp);
-                $stmtEsp->execute($isMyPharm ? ['ano' => $ano] : ['ano' => $ano, 'nome' => $nome]);
+                $paramsEsp = ['ano' => $ano, 'nao_inf' => $naoInformada, 'nao_inf2' => $naoInformada];
+                if (!$isMyPharm) $paramsEsp['nome'] = $nome;
+                $stmtEsp->execute($paramsEsp);
                 $top_especialidades = $stmtEsp->fetchAll(PDO::FETCH_ASSOC);
     
                 // Alertas inteligentes: prescritores com potencial (valor aprovado) mas inativos OU abaixo da m%�dia do ano anterior
@@ -847,6 +852,8 @@ function dashboardListPedidosVisitador(PDO $pdo): void
     $nome = trim($_GET['nome'] ?? '');
     $ano = (int)($_GET['ano'] ?? date('Y'));
     $mes = isset($_GET['mes']) && $_GET['mes'] !== '' ? (int)$_GET['mes'] : null;
+    $prescritorFilter = isset($_GET['prescritor']) ? trim((string)$_GET['prescritor']) : null;
+    if ($prescritorFilter === '') $prescritorFilter = null;
     // Se o usuário logado é visitador, usar sempre o nome da sessão (só vê pedidos da sua carteira)
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
     $sessionNome = trim($_SESSION['user_nome'] ?? '');
@@ -859,7 +866,9 @@ function dashboardListPedidosVisitador(PDO $pdo): void
     }
     $params = ['ano' => $ano, 'nome' => $nome];
     if ($mes) $params['mes'] = $mes;
+    if ($prescritorFilter !== null) $params['prescritor'] = $prescritorFilter;
     $filtroMesGp = $mes ? " AND MONTH(gp.data_aprovacao) = :mes" : "";
+    $filtroPrescritor = $prescritorFilter !== null ? " AND (COALESCE(NULLIF(TRIM(gp.prescritor),''), 'My Pharm') = :prescritor)" : "";
 
     // Pedidos apenas dos prescritores da carteira do visitador (gestao_pedidos + prescritores_cadastro)
     $sqlAprovados = "
@@ -874,6 +883,7 @@ function dashboardListPedidosVisitador(PDO $pdo): void
           AND gp.data_aprovacao IS NOT NULL
           AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', CONCAT('Or', CHAR(231), 'amento')) AND (gp.status_financeiro NOT LIKE '%carrinho%')))
           $filtroMesGp
+          $filtroPrescritor
         ORDER BY gp.data_aprovacao DESC, gp.numero_pedido DESC, gp.serie_pedido DESC
     ";
     $stmtA = $pdo->prepare($sqlAprovados);
@@ -892,6 +902,7 @@ function dashboardListPedidosVisitador(PDO $pdo): void
         WHERE gp.ano_referencia = :ano
           AND (gp.status_financeiro = 'Recusado' OR gp.status_financeiro LIKE '%carrinho%' OR gp.status_financeiro = 'No carrinho')
           $filtroMesGp
+          $filtroPrescritor
         ORDER BY gp.data_aprovacao DESC, gp.numero_pedido DESC, gp.serie_pedido DESC
     ";
     $stmtR = $pdo->prepare($sqlRecusados);
@@ -917,8 +928,9 @@ function dashboardListPedidosVisitador(PDO $pdo): void
 }
 
 /**
- * Detalhe de um pedido (um item: numero + serie) para exibir em página.
+ * Detalhe de um pedido (numero + serie): dados de gestao_pedidos e itens_orcamentos_pedidos.
  * Parâmetros: numero, serie, ano (opcional).
+ * Retorna: resumo (cabeçalho), itens_gestao (linhas da gestão), itens_orcamento (linhas do orçamento).
  */
 function dashboardGetPedidoDetalhe(PDO $pdo): void
 {
@@ -929,31 +941,109 @@ function dashboardGetPedidoDetalhe(PDO $pdo): void
         echo json_encode(['error' => 'Número e série são obrigatórios'], JSON_UNESCAPED_UNICODE);
         return;
     }
-    $where = "numero = :numero AND serie = :serie";
     $params = ['numero' => $numero, 'serie' => $serie];
+    $whereGp = "numero_pedido = :numero AND serie_pedido = :serie";
+    $whereIo = "numero = :numero AND serie = :serie";
     if ($ano !== null) {
-        $where .= " AND ano_referencia = :ano";
+        $whereGp .= " AND ano_referencia = :ano";
+        $whereIo .= " AND ano_referencia = :ano";
         $params['ano'] = $ano;
     }
-    $stmt = $pdo->prepare("
+
+    // 1) Gestão de Pedidos: todas as linhas (produto, valores, atendente, aprovador, etc.)
+    $stmtGp = $pdo->prepare("
+        SELECT id, data_aprovacao, data_orcamento, canal_atendimento, numero_pedido, serie_pedido,
+               forma_farmaceutica, produto, quantidade,
+               preco_bruto, valor_subsidio, preco_custo, desconto, acrescimo, preco_liquido,
+               cliente, paciente, prescritor, atendente, venda_pdv, cortesia, aprovador, orcamentista,
+               status_financeiro, origem_acrescimo_desconto, convenio, ano_referencia
+        FROM gestao_pedidos
+        WHERE $whereGp
+        ORDER BY id ASC
+    ");
+    $stmtGp->execute($params);
+    $itens_gestao = $stmtGp->fetchAll(PDO::FETCH_ASSOC);
+
+    // 2) Itens de Orçamentos e Pedidos: todas as linhas (descrição, usuários, valores)
+    $stmtIo = $pdo->prepare("
         SELECT id, filial, numero, serie, data, canal, forma_farmaceutica, descricao,
                quantidade, unidade, valor_bruto, valor_liquido, preco_custo, fator,
                status, usuario_inclusao, usuario_aprovador, paciente, prescritor, status_financeiro, ano_referencia
         FROM itens_orcamentos_pedidos
-        WHERE $where
-        LIMIT 1
+        WHERE $whereIo
+        ORDER BY id ASC
     ");
-    $stmt->execute($params);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$row) {
-        echo json_encode(['error' => 'Pedido não encontrado', 'pedido' => null], JSON_UNESCAPED_UNICODE);
+    $stmtIo->execute($params);
+    $itens_orcamento = $stmtIo->fetchAll(PDO::FETCH_ASSOC);
+
+    // Resumo: primeiro registro da gestão (ou do orçamento se gestão vazia)
+    $resumo = null;
+    if (!empty($itens_gestao)) {
+        $r = $itens_gestao[0];
+        $total = 0;
+        foreach ($itens_gestao as $i) {
+            $total += (float)($i['preco_liquido'] ?? 0);
+        }
+        $resumo = [
+            'numero_pedido' => $r['numero_pedido'],
+            'serie_pedido' => $r['serie_pedido'],
+            'data_aprovacao' => $r['data_aprovacao'],
+            'data_orcamento' => $r['data_orcamento'],
+            'canal_atendimento' => $r['canal_atendimento'],
+            'cliente' => $r['cliente'],
+            'paciente' => $r['paciente'],
+            'prescritor' => $r['prescritor'],
+            'atendente' => $r['atendente'],
+            'aprovador' => $r['aprovador'],
+            'orcamentista' => $r['orcamentista'],
+            'status_financeiro' => $r['status_financeiro'],
+            'convenio' => $r['convenio'],
+            'venda_pdv' => $r['venda_pdv'],
+            'cortesia' => $r['cortesia'],
+            'total_gestao' => round($total, 2),
+            'total_autorizado' => (isset($r['status_financeiro']) && stripos($r['status_financeiro'], 'Aprovad') !== false) ? round($total, 2) : null,
+            'qtd_itens_gestao' => count($itens_gestao),
+        ];
+    }
+    if (!$resumo && !empty($itens_orcamento)) {
+        $r = $itens_orcamento[0];
+        $resumo = [
+            'numero_pedido' => $r['numero'],
+            'serie_pedido' => $r['serie'],
+            'data_aprovacao' => null,
+            'data_orcamento' => $r['data'],
+            'canal_atendimento' => $r['canal'],
+            'cliente' => $r['paciente'],
+            'paciente' => $r['paciente'],
+            'prescritor' => $r['prescritor'],
+            'atendente' => null,
+            'aprovador' => $r['usuario_aprovador'],
+            'orcamentista' => $r['usuario_inclusao'],
+            'status_financeiro' => $r['status_financeiro'],
+            'convenio' => null,
+            'venda_pdv' => null,
+            'cortesia' => null,
+            'total_gestao' => null,
+            'total_autorizado' => null,
+            'qtd_itens_gestao' => 0,
+        ];
+    }
+    if (!$resumo) {
+        echo json_encode(['error' => 'Pedido não encontrado', 'pedido' => null, 'resumo' => null, 'itens_gestao' => [], 'itens_orcamento' => []], JSON_UNESCAPED_UNICODE);
         return;
     }
-    echo json_encode(['pedido' => $row], JSON_UNESCAPED_UNICODE);
+
+    echo json_encode([
+        'pedido' => $resumo,
+        'resumo' => $resumo,
+        'itens_gestao' => $itens_gestao,
+        'itens_orcamento' => $itens_orcamento,
+    ], JSON_UNESCAPED_UNICODE);
 }
 
 /**
- * Componentes de um pedido (numero + serie). Por enquanto retorna vazio; pode ser preenchido com tabela de componentes no futuro.
+ * Componentes de um pedido (numero + serie).
+ * Fonte: pedidos_detalhado_componentes — cada linha é um componente; numero+serie se repete, o que não repete é a coluna componente.
  * Parâmetros: numero, serie, ano (opcional).
  */
 function dashboardGetPedidoComponentes(PDO $pdo): void
@@ -965,7 +1055,25 @@ function dashboardGetPedidoComponentes(PDO $pdo): void
         echo json_encode(['error' => 'Número e série são obrigatórios', 'componentes' => []], JSON_UNESCAPED_UNICODE);
         return;
     }
-    // Futuro: buscar de tabela pedido_componentes (numero, serie, descricao, quantidade, qsp, tipo, qtd_calculada, preco_venda)
     $componentes = [];
+    $params = ['numero' => $numero, 'serie' => $serie];
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT componente, quantidade_componente as qtd_calculada, unidade_componente as unidade
+            FROM pedidos_detalhado_componentes
+            WHERE numero = :numero AND serie = :serie
+            ORDER BY id ASC
+        ");
+        $stmt->execute($params);
+        $componentes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Se não achou e série não é 0, tenta com serie 0 (relatório às vezes grava só série 0)
+        if (empty($componentes) && $serie !== 0) {
+            $stmt->execute(['numero' => $numero, 'serie' => 0]);
+            $componentes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    } catch (Throwable $e) {
+        $componentes = [];
+    }
     echo json_encode(['componentes' => $componentes], JSON_UNESCAPED_UNICODE);
 }

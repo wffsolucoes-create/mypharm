@@ -1963,11 +1963,15 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
 
             const topEspecialidades = data.top_especialidades || [];
             const totalEsp = topEspecialidades.reduce((acc, curr) => acc + parseInt(curr.total, 10), 0);
+            const labelEspecialidade = (fam) => {
+                const s = (fam && String(fam).trim()) || '';
+                return s ? truncateText(s, 18) : 'Não informada';
+            };
 
             new Chart(ctxProd, {
                 type: 'doughnut',
                 data: {
-                    labels: topEspecialidades.map(e => truncateText(e.familia || 'Outros', 18)),
+                    labels: topEspecialidades.map(e => labelEspecialidade(e.familia)),
                     datasets: [{
                         data: topEspecialidades.map(e => parseInt(e.total, 10)),
                         backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#64748B', '#EC4899', '#14B8A6', '#F97316', '#6366F1'],

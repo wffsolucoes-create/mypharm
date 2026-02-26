@@ -177,7 +177,7 @@ try {
         case 'get_pedido_detalhe':
         case 'get_pedido_componentes':
             handleDashboardModuleAction($action, $pdo);
-            break;
+                break;
         case 'admin_visitas':
             if ($userSetor === 'visitador') {
                 http_response_code(403);
@@ -251,7 +251,7 @@ try {
                 $stmt->execute(['visitador' => $visitadorFiltroR]);
             } else {
                 $stmt = $pdo->prepare("
-                    SELECT COUNT(*) FROM historico_visitas
+                SELECT COUNT(*) FROM historico_visitas 
                     WHERE data_visita IS NOT NULL AND YEARWEEK(data_visita, 1) = YEARWEEK(CURDATE(), 1)
                 ");
                 $stmt->execute([]);
@@ -376,15 +376,15 @@ try {
                     $whereGeo .= " AND TRIM(COALESCE(hv.visitador, '')) = TRIM(:visitador)";
                     $paramsGeo['visitador'] = $visitadorFiltroR;
                 }
-                $stmt = $pdo->prepare("
-                    SELECT 
+            $stmt = $pdo->prepare("
+                SELECT 
                         vg.lat, vg.lng,
                         hv.prescritor, hv.visitador as visitador_nome, hv.data_visita,
                         DATE_FORMAT(hv.horario, '%H:%i') as horario,
                         hv.local_visita, hv.status_visita
-                    FROM visitas_geolocalizacao vg
+                FROM visitas_geolocalizacao vg
                     INNER JOIN historico_visitas hv ON hv.id = vg.historico_id
-                    $whereGeo
+                $whereGeo
                       AND vg.lat IS NOT NULL AND vg.lng IS NOT NULL
                     ORDER BY hv.data_visita DESC, hv.horario DESC
                     LIMIT 500

@@ -60,6 +60,17 @@ Arquivo principal: `api.php`
 - **Autenticação**
   - login e controle de sessão inicial
 
+## Dados de pedidos (banco)
+
+Chave de ligação: **numero_pedido + serie_pedido** (gestão) ou **numero + serie** (itens).
+
+- **gestao_pedidos** (importado do CSV “Relatório de Gestão de Pedidos”)
+  - Por item: data_aprovacao, data_orcamento, canal_atendimento, forma_farmaceutica, produto, quantidade, preco_bruto, valor_subsidio, preco_custo, desconto, acrescimo, preco_liquido, cliente, paciente, prescritor, atendente, venda_pdv, cortesia, aprovador, orcamentista, status_financeiro, origem_acrescimo_desconto, convenio, ano_referencia.
+- **itens_orcamentos_pedidos** (importado do CSV “Relatório de Itens de Orçamentos e Pedidos”)
+  - Por item: filial, data, canal, forma_farmaceutica, descricao, quantidade, unidade, valor_bruto, valor_liquido, preco_custo, fator, status, usuario_inclusao, usuario_aprovador, paciente, prescritor, status_financeiro, ano_referencia.
+
+O detalhe do pedido (`get_pedido_detalhe`, modal no visitador) retorna **resumo** (cabeçalho), **itens_gestao** (todas as linhas de gestao_pedidos) e **itens_orcamento** (todas as linhas de itens_orcamentos_pedidos) para o numero+serie informado.
+
 ## Fronteiras sugeridas para módulos
 
 ### Back-end (PHP)

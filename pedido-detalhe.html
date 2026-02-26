@@ -78,7 +78,7 @@
                 <h2><i class="fas fa-list" style="margin-right:8px;"></i> Componentes do pedido</h2>
                 <div id="componentesWrap">
                     <table id="tabComponentes">
-                        <thead><tr><th>#</th><th>Descrição</th><th>Quantidade</th><th>QSP</th><th>Tipo</th><th class="text-right">Qtd calculada</th><th class="text-right">Preço venda</th></tr></thead>
+                        <thead><tr><th>#</th><th>Descrição</th><th>Quantidade</th><th>QSP</th><th>Tipo</th><th class="text-right">Qtd calculada</th></tr></thead>
                         <tbody id="componentesBody"></tbody>
                     </table>
                     <p id="componentesEmpty" class="empty" style="display:none;">Nenhum componente disponível para este item.</p>
@@ -206,7 +206,6 @@
                     html += '<td>' + esc(c.qsp || 'Não') + '</td>';
                     html += '<td>' + esc(c.tipo || 'Componente') + '</td>';
                     html += '<td class="text-right">' + esc(c.qtd_calculada) + '</td>';
-                    html += '<td class="text-right">' + esc(c.preco_venda ? fmtMoney(c.preco_venda) : '—') + '</td>';
                     html += '</tr>';
                 });
                 tbody.innerHTML = html;

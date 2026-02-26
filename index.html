@@ -889,8 +889,15 @@
                         <div class="import-card">
                             <div class="import-icon">📊</div>
                             <h2>Importar Dados dos CSVs</h2>
-                            <p>Clique no botão abaixo para importar todos os arquivos CSV da pasta Dados para o banco de
-                                dados MySQL. Isso pode levar alguns minutos dependendo do volume de dados.</p>
+                            <p>O botão abaixo importa para o MySQL <strong>apenas</strong> estes arquivos da pasta Dados:</p>
+                            <ul style="margin: 0.5rem 0 1rem 1.25rem; color: #444;">
+                                <li><strong>Relatório de Gestão de Pedidos 2026.csv</strong> — sempre</li>
+                                <li><strong>Relatório de Itens de Orçamentos e Pedidos 2026.csv</strong> — sempre</li>
+                                <li><strong>Relatórios de Orçamentos e Pedidos por Prescritor Detalhado com Componentes 2026.csv</strong> — sempre</li>
+                                <li><strong>Relatórios de Orçamentos e Pedidos por Prescritor Resumido 2026.csv</strong> — sempre</li>
+                                <li><strong>Relatório de Histórico de Visitas 2026.xlsx</strong> — só até 28/02; após essa data os dados vêm do sistema.</li>
+                            </ul>
+                            <p>Pode levar alguns minutos dependendo do volume de dados.</p>
                             <button class="import-btn" id="importBtn" onclick="importarDados()">
                                 <i class="fas fa-upload"></i> Importar Agora
                             </button>

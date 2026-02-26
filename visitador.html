@@ -581,7 +581,7 @@
             </div>
             <div class="user-profile">
                 <div class="avatar-wrap" id="avatarWrap" title="Clique para alterar foto de perfil">
-                    <div class="avatar" id="userAvatar">U</div>
+                <div class="avatar" id="userAvatar">U</div>
                     <img class="avatar-img" id="userAvatarImg" src="" alt="" style="display:none;">
                     <input type="file" id="inputFotoPerfil" accept="image/*" style="display:none;">
                 </div>
@@ -615,10 +615,10 @@
                         </div>
                     </div>
                     <p style="margin:8px 0 0 0;">Acompanhe suas metas e o desempenho da sua carteira.</p>
-                    <p id="ultimaAtualizacao"
-                        style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; opacity:0.7;">
-                        <i class="fas fa-clock" style="margin-right:4px;"></i>Última atualização: --
-                    </p>
+                <p id="ultimaAtualizacao"
+                    style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; opacity:0.7;">
+                    <i class="fas fa-clock" style="margin-right:4px;"></i>Última atualização: --
+                </p>
                 </div>
             </div>
             <div class="meta-grid">
@@ -810,26 +810,26 @@
                 </div>
 
                 <!-- Atenção Especial: prescritores com potencial porém inativos -->
-                <div class="card" style="display:flex; flex-direction:column;">
-                    <div class="card-header" style="flex-shrink:0;">
-                        <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="card" style="display:flex; flex-direction:column;">
+                        <div class="card-header" style="flex-shrink:0;">
+                            <div style="display:flex; align-items:center; gap:10px;">
                             <div style="width:36px; height:36px; border-radius:10px; background:rgba(239,68,68,0.12); display:flex; align-items:center; justify-content:center;">
                                 <i class="fas fa-triangle-exclamation" style="color:#EF4444; font-size:0.95rem;"></i>
-                            </div>
-                            <div>
+                                </div>
+                                <div>
                                 <div class="card-title" style="font-size:0.95rem;">Atenção Especial</div>
                                 <div class="card-subtitle" style="font-size:0.68rem;">Prescritores com potencial inativos</div>
+                                </div>
                             </div>
-                        </div>
                         <span id="alertasCount" style="font-size:0.7rem; padding:3px 10px; border-radius:999px; background:rgba(239,68,68,0.12); color:#EF4444; font-weight:800;">0</span>
-                    </div>
+                        </div>
                     <div id="alertasContainer"
                         style="flex:1; overflow-y:auto; max-height:380px; padding:4px 16px 16px 16px;">
                         <div style="text-align:center; padding:20px 0; color:var(--text-secondary); font-size:0.85rem;">
                             <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Analisando carteira...
+                            </div>
                         </div>
                     </div>
-                </div>
 
                 <!-- Dados dos 3 cards (Relatório Semanal, Agenda, Mapa) ficam em elementos ocultos para uso na página Relatório de visitas -->
                 <div id="dashboardRelatoriosVisitasFonte" style="display:none;">
@@ -842,7 +842,7 @@
                     <div id="visitasMapaResumo"></div>
                     <div id="visitasMapaEmpty" style="display:none;"></div>
                     <div id="dashboardVisitasMap" style="height:360px; width:100%;"></div>
-                </div>
+                    </div>
 
             </div>
 
@@ -1004,11 +1004,12 @@
                             <tr>
                                 <th>Prescritor</th>
                                 <th>WhatsApp</th>
+                                <th style="text-align:right;">Valor dos aprovados</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody id="paginaPrescritoresTbody">
-                            <tr><td colspan="3" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>
+                            <tr><td colspan="4" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1147,16 +1148,16 @@
                     </div>
                     <div id="relatorioAgendadasBody" style="flex:1; overflow-y:auto; max-height:320px; padding:4px 16px 16px 16px;">
                         <div style="text-align:center; padding:24px 0; color:var(--text-secondary); font-size:0.85rem;">Carregando...</div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
             <div class="card" style="margin-bottom:24px;">
                 <div class="card-header">
                     <div>
                         <div class="card-title">Mapa de Visitas</div>
                         <div class="card-subtitle">Visitas efetuadas com confirmação de GPS</div>
-                    </div>
+            </div>
                     <button type="button" onclick="openMapaVisitasStatsModal()"
                         style="padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-weight:800;">
                         <i class="fas fa-chart-simple"></i> Estatísticas
@@ -1361,15 +1362,29 @@
                         <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Dados do pedido</div>
                         <div id="modalDetalhePedidoFields" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px;"></div>
                     </div>
-                    <div style="margin-bottom:20px;">
-                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Item (Série)</div>
-                        <div id="modalDetalhePedidoItem" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:12px;"></div>
+                    <div id="modalDetalhePedidoItensGestaoWrap" style="margin-bottom:20px; display:none;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Itens (Gestão de Pedidos)</div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Produto</th><th style="padding:10px 12px; text-align:left;">Forma</th><th style="padding:10px 12px; text-align:right;">Qtd</th><th style="padding:10px 12px; text-align:right;">Preço liq.</th></tr></thead>
+                                <tbody id="modalDetalhePedidoItensGestao"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="modalDetalhePedidoItensOrcamentoWrap" style="margin-bottom:20px; display:none;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Itens (Orçamento)</div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Descrição</th><th style="padding:10px 12px; text-align:left;">Canal</th><th style="padding:10px 12px; text-align:right;">Qtd</th><th style="padding:10px 12px; text-align:right;">Valor liq.</th><th style="padding:10px 12px; text-align:left;">Inclusão</th><th style="padding:10px 12px; text-align:left;">Aprovador</th></tr></thead>
+                                <tbody id="modalDetalhePedidoItensOrcamento"></tbody>
+                            </table>
+                        </div>
                     </div>
                     <div>
                         <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Componentes</div>
                         <div style="overflow-x:auto;">
                             <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Descrição</th><th style="padding:10px 12px; text-align:right;">Qtd calc.</th><th style="padding:10px 12px; text-align:right;">Preço venda</th></tr></thead>
+                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Descrição</th><th style="padding:10px 12px; text-align:right;">Qtd calc.</th></tr></thead>
                                 <tbody id="modalDetalhePedidoComponentes"></tbody>
                             </table>
                         </div>
@@ -1869,7 +1884,7 @@
         let modalPedidosSortPedidos = { column: 'data_aprovacao', direction: 'desc' };
         let modalPedidosAno = '';
 
-        async function openModalPedidosVisitador() {
+        async function openModalPedidosVisitador(prescritorNome) {
             const modal = document.getElementById('modalPedidosVisitador');
             const titleEl = document.getElementById('modalPedidosVisitadorTitle');
             const subtitleEl = document.getElementById('modalPedidosVisitadorSubtitle');
@@ -1882,8 +1897,13 @@
             const mesEl = document.getElementById('mesSelect');
             const ano = anoEl ? anoEl.value : (new Date().getFullYear()).toString();
             const mes = mesEl && mesEl.value ? mesEl.value : '';
-            if (titleEl) titleEl.innerHTML = '<i class="fas fa-list-alt" style="color:var(--primary); margin-right:8px;"></i>Pedidos Aprovados e Recusados + Carrinho';
-            if (subtitleEl) subtitleEl.textContent = nome ? (mes ? 'Carteira: ' + nome + ' — ' + mes + '/' + ano : 'Carteira: ' + nome + ' — ' + ano) : 'Carregando...';
+            if (prescritorNome) {
+                if (titleEl) titleEl.innerHTML = '<i class="fas fa-list-alt" style="color:var(--primary); margin-right:8px;"></i>Pedidos do prescritor';
+                if (subtitleEl) subtitleEl.textContent = prescritorNome + (mes ? ' — ' + mes + '/' + ano : ' — ' + ano);
+            } else {
+                if (titleEl) titleEl.innerHTML = '<i class="fas fa-list-alt" style="color:var(--primary); margin-right:8px;"></i>Pedidos Aprovados e Recusados + Carrinho';
+                if (subtitleEl) subtitleEl.textContent = nome ? (mes ? 'Carteira: ' + nome + ' — ' + mes + '/' + ano : 'Carteira: ' + nome + ' — ' + ano) : 'Carregando...';
+            }
             if (searchEl) searchEl.value = '';
             bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
             if (paginationEl) paginationEl.textContent = 'Mostrando 0-0 de 0';
@@ -1891,6 +1911,7 @@
             try {
                 const params = { nome: nome, ano: ano };
                 if (mes) params.mes = mes;
+                if (prescritorNome) params.prescritor = prescritorNome;
                 const res = await apiGet('list_pedidos_visitador', params);
                 modalPedidosAprovados = Array.isArray(res.aprovados) ? res.aprovados : [];
                 modalPedidosRecusados = Array.isArray(res.recusados_carrinho) ? res.recusados_carrinho : [];
@@ -1999,7 +2020,7 @@
                     html += '<tr role="button" tabindex="0" onclick="openModalDetalhePedido(' + n + ',' + s + ',\'' + String(a).replace(/'/g, "\\'") + '\')" style="border-bottom:1px solid var(--border); background:' + (i % 2 === 0 ? 'var(--bg-body)' : 'transparent') + '; cursor:pointer;" title="Ver detalhes e componentes do pedido">';
                     html += '<td style="padding:12px 16px; color:var(--text-secondary);">' + idx + '</td>';
                     html += '<td style="padding:12px 16px;">' + esc(p.numero_pedido) + '</td>';
-                    html += '<td style="padding:12px 16px; text-align:center;">' + esc(p.serie_pedido) + '</td>';
+                    html += '<td style="padding:12px 16px; text-align:center;">' + (p.serie_pedido != null && p.serie_pedido !== '' ? esc(p.serie_pedido) : '0') + '</td>';
                     html += '<td style="padding:12px 16px;">' + esc(fmtDate(p.data_aprovacao)) + '</td>';
                     html += '<td style="padding:12px 16px;">' + esc(p.prescritor) + '</td>';
                     html += '<td style="padding:12px 16px;">' + esc(p.cliente) + '</td>';
@@ -2047,22 +2068,45 @@
                     if (errEl) { errEl.textContent = resDet.error || 'Pedido não encontrado.'; errEl.style.display = 'block'; }
                     return;
                 }
-                var p = resDet.pedido || {};
+                var p = resDet.pedido || resDet.resumo || {};
+                var itensGestao = Array.isArray(resDet.itens_gestao) ? resDet.itens_gestao : [];
+                var itensOrcamento = Array.isArray(resDet.itens_orcamento) ? resDet.itens_orcamento : [];
                 var resComp = await apiGet('get_pedido_componentes', params);
                 var componentes = (resComp && resComp.componentes) ? resComp.componentes : [];
                 loading.style.display = 'none';
                 content.style.display = 'block';
                 var fieldsHtml = '';
-                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Cliente</span><div style="font-weight:600;">' + esc(p.paciente) + '</div></div>';
-                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Data</span><div style="font-weight:600;">' + esc(fmtDate(p.data)) + '</div></div>';
+                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Nº / Série</span><div style="font-weight:600;">' + esc(p.numero_pedido) + ' / ' + (p.serie_pedido != null && p.serie_pedido !== '' ? esc(p.serie_pedido) : '0') + '</div></div>';
+                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Data aprovação</span><div style="font-weight:600;">' + esc(fmtDate(p.data_aprovacao)) + '</div></div>';
+                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Data orçamento</span><div style="font-weight:600;">' + esc(fmtDate(p.data_orcamento)) + '</div></div>';
+                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Canal</span><div style="font-weight:600;">' + esc(p.canal_atendimento || '—') + '</div></div>';
+                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Cliente / Paciente</span><div style="font-weight:600;">' + esc(p.cliente || p.paciente || '—') + '</div></div>';
                 fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Prescritor</span><div style="font-weight:600;">' + esc(p.prescritor || '—') + '</div></div>';
-                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Status</span><div style="font-weight:600;">' + esc(p.status_financeiro || p.status || '—') + '</div></div>';
+                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Status</span><div style="font-weight:600;">' + esc(p.status_financeiro || '—') + '</div></div>';
+                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Convênio</span><div style="font-weight:600;">' + esc(p.convenio || '—') + '</div></div>';
+                if (p.total_gestao != null) fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Total (gestão)</span><div style="font-weight:600; color:var(--success);">' + fmtMoney(p.total_gestao) + '</div></div>';
+                if (p.total_autorizado != null && p.total_autorizado !== '') fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Total autorizado</span><div style="font-weight:600; color:var(--success);">' + fmtMoney(p.total_autorizado) + '</div></div>';
                 document.getElementById('modalDetalhePedidoFields').innerHTML = fieldsHtml;
-                var itemHtml = '';
-                itemHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Série</span><div style="font-weight:600;">' + esc(p.serie) + '</div></div>';
-                itemHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Descrição</span><div style="font-weight:600;">' + esc(p.descricao) + '</div></div>';
-                itemHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Valor líquido</span><div style="font-weight:600; color:var(--success);">' + esc(fmtMoney(p.valor_liquido)) + '</div></div>';
-                document.getElementById('modalDetalhePedidoItem').innerHTML = itemHtml;
+                var wrapGestao = document.getElementById('modalDetalhePedidoItensGestaoWrap');
+                var tbodyGestao = document.getElementById('modalDetalhePedidoItensGestao');
+                if (itensGestao.length > 0 && wrapGestao && tbodyGestao) {
+                    wrapGestao.style.display = 'block';
+                    var rows = '';
+                    itensGestao.forEach(function (it, i) {
+                        rows += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 12px;">' + (i + 1) + '</td><td style="padding:10px 12px;">' + esc(it.produto) + '</td><td style="padding:10px 12px;">' + esc(it.forma_farmaceutica) + '</td><td style="padding:10px 12px; text-align:right;">' + esc(it.quantidade) + '</td><td style="padding:10px 12px; text-align:right;">' + fmtMoney(it.preco_liquido) + '</td></tr>';
+                    });
+                    tbodyGestao.innerHTML = rows;
+                } else if (wrapGestao) { wrapGestao.style.display = 'none'; }
+                var wrapOrc = document.getElementById('modalDetalhePedidoItensOrcamentoWrap');
+                var tbodyOrc = document.getElementById('modalDetalhePedidoItensOrcamento');
+                if (itensOrcamento.length > 0 && wrapOrc && tbodyOrc) {
+                    wrapOrc.style.display = 'block';
+                    var rowsOrc = '';
+                    itensOrcamento.forEach(function (it, i) {
+                        rowsOrc += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 12px;">' + (i + 1) + '</td><td style="padding:10px 12px;">' + esc(it.descricao) + '</td><td style="padding:10px 12px;">' + esc(it.canal) + '</td><td style="padding:10px 12px; text-align:right;">' + esc(it.quantidade) + '</td><td style="padding:10px 12px; text-align:right;">' + fmtMoney(it.valor_liquido) + '</td><td style="padding:10px 12px;">' + esc(it.usuario_inclusao) + '</td><td style="padding:10px 12px;">' + esc(it.usuario_aprovador) + '</td></tr>';
+                    });
+                    tbodyOrc.innerHTML = rowsOrc;
+                } else if (wrapOrc) { wrapOrc.style.display = 'none'; }
                 var tbody = document.getElementById('modalDetalhePedidoComponentes');
                 var emptyComp = document.getElementById('modalDetalhePedidoComponentesEmpty');
                 if (!componentes || componentes.length === 0) {
@@ -2072,7 +2116,9 @@
                     emptyComp.style.display = 'none';
                     var ch = '';
                     componentes.forEach(function (c, i) {
-                        ch += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 12px;">' + (i + 1) + '</td><td style="padding:10px 12px;">' + esc(c.descricao || c.componente) + '</td><td style="padding:10px 12px; text-align:right;">' + esc(c.qtd_calculada) + '</td><td style="padding:10px 12px; text-align:right;">' + (c.preco_venda ? fmtMoney(c.preco_venda) : '—') + '</td></tr>';
+                        var qtdUn = esc(c.qtd_calculada);
+                        if (c.unidade) qtdUn += ' ' + esc(c.unidade);
+                        ch += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 12px;">' + (i + 1) + '</td><td style="padding:10px 12px;">' + esc(c.descricao || c.componente) + '</td><td style="padding:10px 12px; text-align:right;">' + qtdUn + '</td></tr>';
                     });
                     tbody.innerHTML = ch;
                 }
@@ -2493,7 +2539,7 @@
 
             // Sem visita ativa: só pode iniciar visita se a rota do dia estiver ativa
             if (rotaState === 'idle') {
-                return `
+            return `
                     <button type="button" disabled title="Inicie a rota do dia para poder iniciar visitas."
                         style="padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-secondary); cursor:not-allowed; font-weight:700; font-size:0.75rem; opacity:0.8;">
                         Inicie a rota
@@ -2965,31 +3011,31 @@
             const effectiveTimeout = (mode === 'auto' || mode === 'silent') ? Math.max(timeoutMs, 12000) : timeoutMs;
 
             try {
-                const pos = await new Promise((resolve, reject) => {
+            const pos = await new Promise((resolve, reject) => {
                     navigator.geolocation.getCurrentPosition(resolve, reject, {
                         enableHighAccuracy: true,
                         timeout: effectiveTimeout,
                         maximumAge: maximumAge
                     });
-                });
+            });
 
-                const lat = pos.coords.latitude;
-                const lng = pos.coords.longitude;
-                const acc = pos.coords.accuracy;
-                visitaGeo = { lat, lng, accuracy: acc };
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const acc = pos.coords.accuracy;
+            visitaGeo = { lat, lng, accuracy: acc };
 
-                const accTxt = acc ? `±${Math.round(acc)}m` : '';
-                if (status) status.textContent = 'GPS capturado automaticamente.';
-                if (info) {
-                    info.style.display = 'block';
-                    info.textContent = `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)} ${accTxt}`;
-                }
+            const accTxt = acc ? `±${Math.round(acc)}m` : '';
+            if (status) status.textContent = 'GPS capturado automaticamente.';
+            if (info) {
+                info.style.display = 'block';
+                info.textContent = `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)} ${accTxt}`;
+            }
 
-                const extUrl = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(lat)}&mlon=${encodeURIComponent(lng)}#map=18/${encodeURIComponent(lat)}/${encodeURIComponent(lng)}`;
-                if (btnMap) { btnMap.href = extUrl; btnMap.style.display = 'inline-flex'; }
+            const extUrl = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(lat)}&mlon=${encodeURIComponent(lng)}#map=18/${encodeURIComponent(lat)}/${encodeURIComponent(lng)}`;
+            if (btnMap) { btnMap.href = extUrl; btnMap.style.display = 'inline-flex'; }
 
-                if (mapWrap) mapWrap.style.display = 'block';
-                renderLeafletMap(lat, lng, acc);
+            if (mapWrap) mapWrap.style.display = 'block';
+            renderLeafletMap(lat, lng, acc);
             } catch (err) {
                 if (status) {
                     status.textContent = mode === 'silent'
@@ -3391,12 +3437,15 @@
         async function loadPaginaPrescritores() {
             var tbody = document.getElementById('paginaPrescritoresTbody');
             if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>';
             try {
                 var visitador = currentVisitadorName || localStorage.getItem('userName') || '';
                 var anoEl = document.getElementById('anoSelect');
+                var mesEl = document.getElementById('mesSelect');
                 var ano = anoEl ? anoEl.value : (new Date().getFullYear()).toString();
+                var mes = mesEl && mesEl.value ? mesEl.value : '';
                 var params = { visitador: visitador, ano: ano };
+                if (mes) params.mes = mes;
                 var list = await apiGet('all_prescritores', params) || [];
                 var contatos = {};
                 try { contatos = await apiGet('get_prescritor_contatos') || {}; } catch (e) {}
@@ -3412,7 +3461,7 @@
                 var searchEl = document.getElementById('searchPrescritoresPage');
                 if (searchEl) searchEl.oninput = renderPaginaPrescritores;
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:48px 24px; color:var(--danger); font-size:0.9rem;"><i class="fas fa-exclamation-circle" style="margin-right:8px;"></i>Erro ao carregar prescritores.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:48px 24px; color:var(--danger); font-size:0.9rem;"><i class="fas fa-exclamation-circle" style="margin-right:8px;"></i>Erro ao carregar prescritores.</td></tr>';
             }
         }
 
@@ -3430,8 +3479,9 @@
                 list = list.filter(function (p) { return (p.prescritor || '').toLowerCase().indexOf(q) !== -1; });
             }
             var esc = function (x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+            var fmtMoney = function (v) { var n = parseFloat(v) || 0; return 'R$ ' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
             if (list.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-user-slash" style="margin-right:8px; opacity:0.6;"></i>Nenhum prescritor encontrado.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-user-slash" style="margin-right:8px; opacity:0.6;"></i>Nenhum prescritor encontrado.</td></tr>';
                 if (pagEl) pagEl.innerHTML = '';
                 return;
             }
@@ -3446,11 +3496,14 @@
                 var onlyDigits = whatsapp.replace(/\D/g, '');
                 var waNum = onlyDigits.length >= 10 && onlyDigits.length <= 11 ? '55' + onlyDigits : (onlyDigits.length >= 12 ? onlyDigits : '');
                 var whatsappCell = !waNum ? esc(whatsapp || '—') : '<a href="https://wa.me/' + esc(waNum) + '" target="_blank" rel="noopener noreferrer" style="color:#25D366; text-decoration:none; font-weight:500;" title="Enviar mensagem no WhatsApp"><i class="fab fa-whatsapp" style="margin-right:4px;"></i>' + esc(whatsapp || waNum) + '</a>';
+                var valorAprovado = (p.valor_aprovado != null && p.valor_aprovado !== '') ? fmtMoney(p.valor_aprovado) : '—';
                 html += '<tr>' +
                     '<td>' + esc(nome) + '</td>' +
                     '<td>' + whatsappCell + '</td>' +
+                    '<td style="text-align:right; font-weight:600; color:var(--success);">' + valorAprovado + '</td>' +
                     '<td>' +
                     '<span class="prescritores-actions">' +
+                    '<button type="button" class="prescritores-btn btn-pedidos-prescritor-page" data-nome="' + esc(nome) + '" title="Ver pedidos do prescritor"><i class="fas fa-list-alt"></i></button>' +
                     '<button type="button" class="prescritores-btn prescritores-btn-editar btn-editar-prescritor-page" data-nome="' + esc(nome) + '" title="Editar prescritor"><i class="fas fa-user-edit"></i></button>' +
                     '<button type="button" class="prescritores-btn prescritores-btn-relatorio btn-relatorio-visitas-prescritor-page" data-nome="' + esc(nome) + '" title="Relatório de visitas"><i class="fas fa-clipboard-list"></i></button>' +
                     '<button type="button" class="prescritores-btn prescritores-btn-aprovados btn-aprovados-prescritor-page" data-nome="' + esc(nome) + '" title="Aprovados"><i class="fas fa-check"></i></button>' +
@@ -3472,6 +3525,12 @@
                 pagEl.innerHTML = pagHtml;
                 pagEl.style.display = 'flex';
             }
+            tbody.querySelectorAll('.btn-pedidos-prescritor-page').forEach(function (btn) {
+                btn.onclick = function () {
+                    var nome = btn.getAttribute('data-nome');
+                    if (typeof openModalPedidosVisitador === 'function') openModalPedidosVisitador(nome);
+                };
+            });
             tbody.querySelectorAll('.btn-editar-prescritor-page').forEach(function (btn) {
                 btn.onclick = function () {
                     var nome = btn.getAttribute('data-nome');
@@ -3595,7 +3654,12 @@
             var totalValor = list.reduce(function (acc, p) { return acc + (parseFloat(p.valor) || 0); }, 0);
             var cardValor = document.getElementById('pedidosCardValor');
             var cardQty = document.getElementById('pedidosCardQuantidade');
-            if (cardValor) cardValor.textContent = 'R$ ' + totalValor.toFixed(2).replace('.', ',');
+            var fmtBr = function (v) {
+                var n = (parseFloat(v) || 0).toFixed(2);
+                var p = n.split('.');
+                return 'R$ ' + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + p[1];
+            };
+            if (cardValor) cardValor.textContent = fmtBr(totalValor);
             if (cardQty) cardQty.textContent = list.length + ' pedido' + (list.length !== 1 ? 's' : '');
             var esc = function (x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
             function fmtDate(d) {

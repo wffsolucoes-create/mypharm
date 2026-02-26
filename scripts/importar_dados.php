@@ -286,11 +286,75 @@ catch (Exception $e) {
 }
 
 // ============================================
-// 2. Itens de Orçamentos e Pedidos 2026
+// 2. Gestão de Pedidos 2026 (sempre)
 // ============================================
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS gestao_pedidos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        data_aprovacao DATETIME NULL, data_orcamento DATETIME NULL, canal_atendimento VARCHAR(100), numero_pedido INT DEFAULT 0, serie_pedido INT DEFAULT 0,
+        forma_farmaceutica VARCHAR(100), produto VARCHAR(255), quantidade INT DEFAULT 1,
+        preco_bruto DECIMAL(14,2) DEFAULT 0, valor_subsidio DECIMAL(14,2) DEFAULT 0, preco_custo DECIMAL(14,2) DEFAULT 0,
+        desconto DECIMAL(14,2) DEFAULT 0, acrescimo DECIMAL(14,2) DEFAULT 0, preco_liquido DECIMAL(14,2) DEFAULT 0,
+        cliente VARCHAR(255), paciente VARCHAR(255), prescritor VARCHAR(255), atendente VARCHAR(100),
+        venda_pdv VARCHAR(20), cortesia VARCHAR(20), aprovador VARCHAR(100), orcamentista VARCHAR(100),
+        status_financeiro VARCHAR(100), origem_acrescimo_desconto VARCHAR(100), convenio VARCHAR(255),
+        ano_referencia INT NOT NULL,
+        INDEX idx_ano (ano_referencia), INDEX idx_numero_serie (numero_pedido, serie_pedido)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $fileGp = dirname(__DIR__) . "/Dados/Relatório de Gestão de Pedidos 2026.csv";
+    if (file_exists($fileGp)) {
+        $pdo->exec("DELETE FROM gestao_pedidos WHERE ano_referencia = 2026");
+        list($handle, $header) = readCsvHeader($fileGp);
+        if ($handle && $header) {
+            $sqlGp = "INSERT INTO gestao_pedidos (data_aprovacao, data_orcamento, canal_atendimento, numero_pedido, serie_pedido, forma_farmaceutica, produto, quantidade, preco_bruto, valor_subsidio, preco_custo, desconto, acrescimo, preco_liquido, cliente, paciente, prescritor, atendente, venda_pdv, cortesia, aprovador, orcamentista, status_financeiro, origem_acrescimo_desconto, convenio, ano_referencia) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            $batch = [];
+            $countGp = 0;
+            while (($data = fgetcsv($handle, 0, ';')) !== false) {
+                if (count($data) !== count($header)) continue;
+                $row = array_combine($header, $data);
+                $batch[] = [
+                    parseBRDate($row['Data da Aprovação'] ?? ''),
+                    parseBRDate($row['Data de Orçamento'] ?? ''),
+                    trim($row['Canal de Atendimento'] ?? ''),
+                    (int)($row['Numero do Pedido'] ?? 0),
+                    (int)($row['Serie do Pedido'] ?? 0),
+                    trim($row['Forma Farmaceutica'] ?? ''),
+                    trim($row['Produto'] ?? ''),
+                    (int)($row['Quantidade'] ?? 1),
+                    parseBRMoney($row['Preço Bruto'] ?? '0'),
+                    parseBRMoney($row['Valor Subsídio'] ?? '0'),
+                    parseBRMoney($row['Preço Custo'] ?? '0'),
+                    parseBRMoney($row['Desconto'] ?? '0'),
+                    parseBRMoney($row['Acréscimo'] ?? '0'),
+                    parseBRMoney($row['Preço Líquido'] ?? '0'),
+                    trim($row['Cliente'] ?? ''),
+                    trim($row['Paciente'] ?? ''),
+                    trim($row['Prescritor'] ?? ''),
+                    trim($row['Atendente'] ?? ''),
+                    trim($row['Venda PDV'] ?? ''),
+                    trim($row['Cortesia'] ?? ''),
+                    trim($row['Aprovador'] ?? ''),
+                    trim($row['Orçamentista'] ?? ''),
+                    trim($row['Status Financeiro'] ?? ''),
+                    trim($row['Origem Acrescimo Desconto'] ?? ''),
+                    trim($row['Convênio'] ?? ''),
+                    2026
+                ];
+                $countGp++;
+                if (count($batch) >= 2000) { importBatch($pdo, $sqlGp, $batch); $batch = []; }
+            }
+            if (!empty($batch)) importBatch($pdo, $sqlGp, $batch);
+            fclose($handle);
+            $results['gestao_pedidos_2026'] = $countGp;
+        }
+    }
+} catch (Exception $e) {
+    $errors[] = "Gestão de Pedidos 2026: " . $e->getMessage();
+}
+
 // ============================================
-// 2. Itens de Orçamentos e Pedidos (2022 - 2026)
-// Absorve todos os pedidos dos CSVs e cadastra prescritores automaticamente.
+// 3. Itens de Orçamentos e Pedidos — somente 2026
 // ============================================
 try {
     // Garantir que a tabela existe
@@ -315,7 +379,7 @@ try {
     }
     $stmtNewPrescritor = $pdo->prepare("INSERT IGNORE INTO prescritores_cadastro (nome, visitador) VALUES (:nome, :visitador)");
 
-    foreach (range(2022, 2026) as $anoItem) {
+    foreach ([2026] as $anoItem) {
         $file = dirname(__DIR__) . "/Dados/Relatório de Itens de Orçamentos e Pedidos {$anoItem}.csv";
 
         if (!file_exists($file)) {
@@ -418,40 +482,58 @@ try {
         INDEX idx_ano (ano_referencia), INDEX idx_nome (nome(100)), INDEX idx_visitador (visitador)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-    foreach (range(2022, 2026) as $anoRef) {
-        $pdo->exec("DELETE FROM prescritor_resumido WHERE ano_referencia = " . (int)$anoRef);
-        $pdo->exec("
-            INSERT INTO prescritor_resumido
-            (visitador, nome, aprovados, valor_aprovado, recusados, valor_recusado, no_carrinho, valor_no_carrinho, ano_referencia)
-            SELECT
-                COALESCE(pc.visitador, 'My Pharm'),
-                COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm'),
-                SUM(CASE WHEN i.status = 'Aprovado' THEN 1 ELSE 0 END),
-                SUM(CASE WHEN i.status = 'Aprovado' THEN i.valor_liquido ELSE 0 END),
-                SUM(CASE WHEN i.status = 'Recusado' THEN 1 ELSE 0 END),
-                SUM(CASE WHEN i.status = 'Recusado' THEN i.valor_liquido ELSE 0 END),
-                SUM(CASE WHEN i.status = 'No carrinho' THEN 1 ELSE 0 END),
-                SUM(CASE WHEN i.status = 'No carrinho' THEN i.valor_liquido ELSE 0 END),
-                " . (int)$anoRef . "
-            FROM itens_orcamentos_pedidos i
-            LEFT JOIN prescritores_cadastro pc ON UPPER(TRIM(pc.nome)) = UPPER(TRIM(COALESCE(i.prescritor, '')))
-            WHERE i.ano_referencia = " . (int)$anoRef . "
-            GROUP BY COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm'), COALESCE(pc.visitador, 'My Pharm')
-        ");
-    }
-    $results['prescritor_resumido_atualizado'] = 'sim';
+    // Atualizar prescritor_resumido a partir dos itens apenas para 2026
+    $pdo->exec("DELETE FROM prescritor_resumido WHERE ano_referencia = 2026");
+    $pdo->exec("
+        INSERT INTO prescritor_resumido
+        (visitador, nome, aprovados, valor_aprovado, recusados, valor_recusado, no_carrinho, valor_no_carrinho, ano_referencia)
+        SELECT
+            COALESCE(pc.visitador, 'My Pharm'),
+            COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm'),
+            SUM(CASE WHEN i.status = 'Aprovado' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN i.status = 'Aprovado' THEN i.valor_liquido ELSE 0 END),
+            SUM(CASE WHEN i.status = 'Recusado' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN i.status = 'Recusado' THEN i.valor_liquido ELSE 0 END),
+            SUM(CASE WHEN i.status = 'No carrinho' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN i.status = 'No carrinho' THEN i.valor_liquido ELSE 0 END),
+            2026
+        FROM itens_orcamentos_pedidos i
+        LEFT JOIN prescritores_cadastro pc ON UPPER(TRIM(pc.nome)) = UPPER(TRIM(COALESCE(i.prescritor, '')))
+        WHERE i.ano_referencia = 2026
+        GROUP BY COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm'), COALESCE(pc.visitador, 'My Pharm')
+    ");
+
 }
 catch (Exception $e) {
     $errors[] = "Itens: " . $e->getMessage();
 }
 
 // ============================================
-// 3. Histórico de Visitas (XLSX) - 2025 e 2026
-// Tabela completa com todas as colunas
+// 4. Detalhado com Componentes 2026 (sempre)
 // ============================================
 try {
-    $pdo->exec("DROP TABLE IF EXISTS historico_visitas");
-    $pdo->exec("CREATE TABLE historico_visitas (
+    $php = defined('PHP_BINARY') && PHP_BINARY !== '' ? PHP_BINARY : 'php';
+    if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' && file_exists('c:\\xampp\\php\\php.exe')) {
+        $php = 'c:\\xampp\\php\\php.exe';
+    }
+    $scriptComponentes = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . 'importar_detalhado_componentes_cli.php';
+    if (file_exists($scriptComponentes)) {
+        $cmd = escapeshellarg($php) . ' ' . escapeshellarg($scriptComponentes) . ' 2026';
+        $out = [];
+        @exec($cmd . ' 2>&1', $out);
+        $countComp = (int) $pdo->query("SELECT COUNT(*) FROM pedidos_detalhado_componentes WHERE ano_referencia = 2026")->fetchColumn();
+        $results['pedidos_detalhado_componentes_2026'] = $countComp;
+    }
+} catch (Exception $e) {
+    $errors[] = "Detalhado Componentes 2026: " . $e->getMessage();
+}
+
+// ============================================
+// 5. Histórico de Visitas (XLSX) - 2025 e 2026 (2026 só até 28/02)
+// 2026: só importar até 28/02; depois os dados vêm do sistema (não apagar nem importar)
+// ============================================
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS historico_visitas (
         id INT AUTO_INCREMENT PRIMARY KEY,
         visitador VARCHAR(255),
         prescritor VARCHAR(255),
@@ -474,15 +556,29 @@ try {
         INDEX idx_ano (ano_referencia)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-    $results['historico_visitas_tabela'] = 'criada';
-
     $sqlVisitas = "INSERT INTO historico_visitas 
         (visitador, prescritor, profissao, uf, registro, data_visita, horario, 
          status_visita, local_visita, amostra, brinde, artigo, resumo_visita, 
          reagendado_para, ano_referencia)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
+    $hoje = new DateTime('now');
+    $limite2026 = new DateTime(date('Y') . '-02-28');
+
     foreach ([2025, 2026] as $anoVisitas) {
+        // 2026: importar do XLSX só até 28/02; após isso os dados vêm do sistema
+        if ($anoVisitas === 2026 && $hoje > $limite2026) {
+            $results['historico_visitas_2026'] = 0;
+            $results['historico_visitas_2026_obs'] = 'Após 28/02 — dados pelo sistema (XLSX não importado).';
+            continue;
+        }
+
+        if ($anoVisitas === 2025) {
+            $pdo->exec("DELETE FROM historico_visitas WHERE ano_referencia = 2025");
+        } else {
+            $pdo->exec("DELETE FROM historico_visitas WHERE ano_referencia = 2026");
+        }
+
         $fileVisitas = dirname(__DIR__) . "/Dados/Relatório de Histórico de Visitas {$anoVisitas}.xlsx";
         if (!file_exists($fileVisitas)) {
             $errors[] = "Arquivo não encontrado: Histórico de Visitas {$anoVisitas}";

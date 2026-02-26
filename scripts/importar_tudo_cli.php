@@ -6,8 +6,9 @@
  * 1. Vínculo prescritor→visitador (CSV Prescritor Resumido: nome + visitador → prescritores_cadastro)
  * 2. Gestão de Pedidos (CSV)
  * 3. Itens de Orçamentos e Pedidos (CSV, subprocess)
- * 4. Prescritor Resumido (CSV): profissão, totais → prescritor_resumido (gráfico por especialidade)
- * 5. Histórico de Visitas (XLSX)
+ * 4. Detalhado com Componentes (CSV, subprocess) — somente ano atual/padrão (ex.: 2026)
+ * 5. Prescritor Resumido (CSV): profissão, totais → prescritor_resumido (gráfico por especialidade)
+ * 6. Histórico de Visitas (XLSX)
  *
  * Uso (na pasta mypharm):
  *   php scripts/importar_tudo_cli.php           → só 2026 (padrão, uso diário)
@@ -204,7 +205,7 @@ try {
 $totalLinks = 0;
 foreach ($anosPrescritor as $anoPrescritor) {
     $filePrescritor = $baseDir . "/Dados/Relatórios de Orçamentos e Pedidos por Prescritor Resumido {$anoPrescritor}.csv";
-    echo "\n[1/5] Vínculo prescritor→visitador ({$anoPrescritor})... ";
+    echo "\n[1/6] Vínculo prescritor→visitador ({$anoPrescritor})... ";
     if (!file_exists($filePrescritor)) {
         echo "arquivo não encontrado.\n";
         continue;
@@ -276,7 +277,7 @@ try {
 $sqlGp = "INSERT INTO gestao_pedidos (data_aprovacao, data_orcamento, canal_atendimento, numero_pedido, serie_pedido, forma_farmaceutica, produto, quantidade, preco_bruto, valor_subsidio, preco_custo, desconto, acrescimo, preco_liquido, cliente, paciente, prescritor, atendente, venda_pdv, cortesia, aprovador, orcamentista, status_financeiro, origem_acrescimo_desconto, convenio, ano_referencia) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 foreach ($anosGestao as $anoGestao) {
     $fileGp = $baseDir . "/Dados/Relatório de Gestão de Pedidos {$anoGestao}.csv";
-    echo "\n[2/5] Gestão de Pedidos {$anoGestao}... ";
+    echo "\n[2/6] Gestão de Pedidos {$anoGestao}... ";
     if (!file_exists($fileGp)) {
         echo "arquivo não encontrado.\n";
         continue;
@@ -328,7 +329,7 @@ foreach ($anosGestao as $anoGestao) {
 
 // ========== 3. Itens (subprocess: importar_itens_cli.php) ==========
 if (!$onlyVisitas) {
-echo "\n[3/5] Itens de Orçamentos e Pedidos...\n";
+echo "\n[3/6] Itens de Orçamentos e Pedidos...\n";
 $php = (PHP_BINARY ?: 'php');
 $cmd = $anoUnico !== null
     ? "{$php} " . escapeshellarg($baseDir . '/scripts/importar_itens_cli.php') . ' ' . $anoUnico
@@ -337,7 +338,17 @@ passthru($cmd);
 echo "\n";
 }
 
-// ========== 3b. Prescritor Resumido (CSV) — profissão, totais por prescritor/ano ==========
+// ========== 4. Detalhado com Componentes (subprocess) — somente 2026 no uso diário ==========
+if (!$onlyVisitas) {
+$anoComponentes = $anoUnico ?? 2026;
+echo "\n[4/6] Detalhado com Componentes ({$anoComponentes})...\n";
+$php = (PHP_BINARY ?: 'php');
+$cmd = "{$php} " . escapeshellarg($baseDir . '/scripts/importar_detalhado_componentes_cli.php') . ' ' . $anoComponentes;
+passthru($cmd);
+echo "\n";
+}
+
+// ========== 5. Prescritor Resumido (CSV) — profissão, totais por prescritor/ano ==========
 // Preenche prescritor_resumido a partir do mesmo CSV "Relatórios de Orçamentos e Pedidos por Prescritor Resumido",
 // incluindo Profissão (especialidade) para o gráfico "Distribuição por Especialidade". Sobrescreve o que o passo 3 gerou.
 if (!$onlyVisitas) {
@@ -387,7 +398,7 @@ try {
     $pdo->exec("ALTER TABLE prescritor_dados ADD COLUMN usuario_id INT NULL");
 } catch (Throwable $e) { /* coluna já existe */ }
 
-echo "\n[4/5] Prescritor Resumido (CSV — profissão e totais) + prescritor_dados (todos, sem repetir)...\n";
+echo "\n[5/6] Prescritor Resumido (CSV — profissão e totais) + prescritor_dados (todos, sem repetir)...\n";
 $totalPrescResumido = 0;
 $totalPrescDados = 0;
 $batchDados = [];
@@ -505,7 +516,7 @@ $pdo->exec("
 // ========== 5. Histórico de Visitas (XLSX) ==========
 // A partir de março tudo será feito pelo sistema; esta importação é APENAS para não perder o histórico legado (XLSX).
 // Para 2026: NÃO apagamos antes de inserir — assim as visitas já registradas pelo sistema (a partir de março) são preservadas.
-echo "\n[5/5] Histórico de Visitas (XLSX — legado; a partir de março o sistema registra as visitas)...\n";
+echo "\n[6/6] Histórico de Visitas (XLSX — legado; a partir de março o sistema registra as visitas)...\n";
 // Reconectar (a conexão pode ter expirado após o subprocess dos itens)
 try {
     $pdo = new PDO(
@@ -549,9 +560,16 @@ $col = function (array $row, array $keys) {
     }
     return '';
 };
+$hoje = new DateTime('now');
+$limiteVisitas2026 = new DateTime(date('Y') . '-02-28');
+
 foreach ($anosVisitas as $anoV) {
     echo "  ";
-    // 2026: só importar do XLSX se ainda não houver dados (evita duplicar; a partir de março o sistema preenche)
+    // 2026: importar do XLSX só até 28/02; após isso os dados vêm do sistema
+    if ($anoV === 2026 && $hoje > $limiteVisitas2026) {
+        echo "2026: após 28/02 — importação do XLSX desativada (dados pelo sistema).\n";
+        continue;
+    }
     if ($anoV >= 2026) {
         $n = (int)$pdo->query("SELECT COUNT(*) FROM historico_visitas WHERE ano_referencia = {$anoV}")->fetchColumn();
         if ($n > 0) {
