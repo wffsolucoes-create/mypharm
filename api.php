@@ -1,4 +1,9 @@
 <?php
+// Evitar que erros/avisos PHP (Notice, Warning) sejam enviados como HTML e quebrem respostas JSON
+ini_set('display_errors', '0');
+if (function_exists('ini_set')) {
+    @ini_set('log_errors', '1');
+}
 require_once 'config.php';
 require_once __DIR__ . '/api/bootstrap.php';
 require_once __DIR__ . '/api/modules/prescritores.php';
@@ -50,6 +55,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// #region agent log
+function _debugLogRota($payload) {
+    $line = json_encode(array_merge(['timestamp' => round(microtime(true) * 1000), 'location' => 'api.php:rota_ativa'], $payload)) . "\n";
+    @file_put_contents(__DIR__ . DIRECTORY_SEPARATOR . 'debug-6ce141.log', $line, FILE_APPEND | LOCK_EX);
+}
+// #endregion
+
 $pdo = getConnection();
 runUsuarioIdMigrationIfNeeded($pdo);
 $action = $_GET['action'] ?? '';
@@ -96,6 +108,8 @@ try {
         'visitador_dashboard',
         'list_pedidos_visitador',
         'list_componentes_prescritor',
+        'evolucao_prescritor',
+        'analise_prescritor',
         'get_pedido_detalhe',
         'get_pedido_componentes',
         'all_prescritores',
@@ -179,6 +193,22 @@ try {
         exit;
     }
 
+    // #region agent log
+    if ($action === 'rota_ativa') {
+        _debugLogRota(['hypothesisId' => 'H3,H4', 'message' => 'before switch, action=rota_ativa', 'data' => []]);
+    }
+    // #endregion
+
+    // Fechar automaticamente rotas após 19h (definido antes do switch para estar sempre disponível em rota_ativa, start_rota, etc.)
+    $fecharRotasApos19h = function (PDO $pdo) {
+        $pdo->exec("
+            UPDATE rotas_diarias
+            SET data_fim = NOW(), pausado_em = NULL, status = 'finalizada'
+            WHERE status IN ('em_andamento', 'pausada')
+            AND (DATE(data_inicio) < CURDATE() OR (DATE(data_inicio) = CURDATE() AND CURTIME() >= '19:00:00'))
+        ");
+    };
+
     switch ($action) {
 
         // ============================================
@@ -211,6 +241,8 @@ try {
         case 'visitador_dashboard':
         case 'list_pedidos_visitador':
         case 'list_componentes_prescritor':
+        case 'evolucao_prescritor':
+        case 'analise_prescritor':
         case 'get_pedido_detalhe':
         case 'get_pedido_componentes':
         case 'get_visitas_mapa_periodo':
@@ -751,6 +783,15 @@ try {
             $filtroSearch = $searchTerm !== null ? "AND (pc.nome LIKE :search)" : "";
             $recMap = [];
 
+            // Garantir que tabelas existam (evita 500 se importação web foi usada sem CLI)
+            try {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS prescritores_cadastro (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(200) NOT NULL, visitador VARCHAR(150), usuario_id INT NULL, INDEX idx_nome (nome(120)), INDEX idx_visitador (visitador(80))) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                $pdo->exec("CREATE TABLE IF NOT EXISTS prescritor_dados (nome_prescritor VARCHAR(255) PRIMARY KEY, profissao VARCHAR(255) NULL, usuario_id INT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                $pdo->exec("CREATE TABLE IF NOT EXISTS historico_visitas (id INT AUTO_INCREMENT PRIMARY KEY, visitador VARCHAR(255), prescritor VARCHAR(255), data_visita DATE NULL, ano_referencia INT NULL, INDEX idx_prescritor (prescritor(100)), INDEX idx_data (data_visita)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                $pdo->exec("CREATE TABLE IF NOT EXISTS gestao_pedidos (id INT AUTO_INCREMENT PRIMARY KEY, data_aprovacao DATETIME NULL, data_orcamento DATETIME NULL, canal_atendimento VARCHAR(100), numero_pedido INT DEFAULT 0, serie_pedido INT DEFAULT 0, forma_farmaceutica VARCHAR(100), produto VARCHAR(255), quantidade INT DEFAULT 1, preco_bruto DECIMAL(14,2) DEFAULT 0, valor_subsidio DECIMAL(14,2) DEFAULT 0, preco_custo DECIMAL(14,2) DEFAULT 0, desconto DECIMAL(14,2) DEFAULT 0, acrescimo DECIMAL(14,2) DEFAULT 0, preco_liquido DECIMAL(14,2) DEFAULT 0, cliente VARCHAR(255), paciente VARCHAR(255), prescritor VARCHAR(255), atendente VARCHAR(100), venda_pdv VARCHAR(20), cortesia VARCHAR(20), aprovador VARCHAR(100), orcamentista VARCHAR(100), status_financeiro VARCHAR(100), origem_acrescimo_desconto VARCHAR(100), convenio VARCHAR(255), ano_referencia INT NOT NULL, INDEX idx_ano (ano_referencia), INDEX idx_numero_serie (numero_pedido, serie_pedido)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            } catch (Throwable $e) { /* ignora se já existirem com estrutura diferente */ }
+
+            $dataFallback = null; // se preenchido, pula query principal e usa esta lista
             // Com filtro de visitador: listar TODA a carteira (prescritores_cadastro), com indicadores do ano/período
             if ($visitadorFilter) {
                 $visWhere = ($visitadorFilter === 'My Pharm')
@@ -853,10 +894,28 @@ try {
                     $stmt = $pdo->prepare($sql);
                     $stmt->execute($paramsVis);
                 } catch (Throwable $e) {
-                    http_response_code(500);
-                    echo json_encode(['error' => 'Erro ao listar prescritores: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
-                    exit;
+                    // Fallback: query mínima só com prescritores_cadastro + prescritor_dados (sem gestao_pedidos/historico)
+                    try {
+                        $sqlFallback = "SELECT pc.nome as prescritor, pc.visitador as visitador, pc.usuario_id as usuario_id, MAX(pd.profissao) as profissao,
+                            0 as valor_aprovado, 0 as valor_recusado, 0 as qtd_recusados, 0 as total_pedidos,
+                            NULL as ultima_compra, NULL as dias_sem_compra, NULL as ultima_visita
+                            FROM prescritores_cadastro pc
+                            LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pc.nome
+                            WHERE $visWhere " . ($searchTerm !== null ? "AND (pc.nome LIKE :search)" : "") . "
+                            GROUP BY pc.nome, pc.visitador, pc.usuario_id ORDER BY pc.nome";
+                        $stmtFallback = $pdo->prepare($sqlFallback);
+                        $paramsFallback = [];
+                        if ($visitadorFilter !== 'My Pharm') $paramsFallback['vis'] = $visitadorFilter;
+                        if ($searchTerm !== null) $paramsFallback['search'] = '%' . $searchTerm . '%';
+                        $stmtFallback->execute($paramsFallback);
+                        $dataFallback = $stmtFallback->fetchAll(PDO::FETCH_ASSOC);
+                    } catch (Throwable $e2) {
+                        http_response_code(500);
+                        echo json_encode(['error' => 'Erro ao listar prescritores: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+                        exit;
+                    }
                 }
+                if ($dataFallback === null && isset($stmt)) {
                 if ($useRange) {
                     try {
                         $anoIo = (int) substr($dataDe, 0, 4);
@@ -881,6 +940,7 @@ try {
                         // Se falhar (ex.: tabela inexistente), recMap fica vazio; lista segue com recusados 0
                     }
                 }
+                } // if ($dataFallback === null && isset($stmt))
             }
             else {
                 // Sem filtro de visitador: listar TODOS os prescritores (prescritores_cadastro)
@@ -940,7 +1000,7 @@ try {
                 if ($dataFiltro) $paramsTodos['data_filtro'] = $dataFiltro;
                 $stmt->execute($paramsTodos);
             }
-            $data = $stmt->fetchAll();
+            $data = ($dataFallback !== null) ? $dataFallback : $stmt->fetchAll();
 
             if ($visitadorFilter && $useRange && !empty($recMap)) {
                 foreach ($data as &$row) {
@@ -2221,38 +2281,53 @@ try {
 
         // ========== ROTA DO DIA (GPS percurso) ==========
         case 'rota_ativa':
+            // #region agent log
+            _debugLogRota(['hypothesisId' => 'H1,H3', 'message' => 'rota_ativa case entered', 'data' => ['action' => $action, 'closure_isset' => isset($fecharRotasApos19h)]]);
+            // #endregion
             if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
                 break;
             }
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS rotas_diarias (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    visitador_nome VARCHAR(255) NOT NULL,
-                    data_inicio DATETIME NOT NULL,
-                    data_fim DATETIME NULL,
-                    pausado_em DATETIME NULL,
-                    status VARCHAR(20) NOT NULL DEFAULT 'em_andamento',
-                    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_visitador_status (visitador_nome, status)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            ");
-            $visitadorNome = trim($_GET['visitador_nome'] ?? $_SESSION['user_nome'] ?? '');
-            if ($visitadorNome === '') {
-                echo json_encode(['active' => null], JSON_UNESCAPED_UNICODE);
-                break;
+            try {
+                $pdo->exec("
+                    CREATE TABLE IF NOT EXISTS rotas_diarias (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        visitador_nome VARCHAR(255) NOT NULL,
+                        data_inicio DATETIME NOT NULL,
+                        data_fim DATETIME NULL,
+                        pausado_em DATETIME NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'em_andamento',
+                        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_visitador_status (visitador_nome, status)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+                // #region agent log
+                _debugLogRota(['hypothesisId' => 'H1', 'message' => 'before fecharRotasApos19h', 'data' => ['closure_isset' => isset($fecharRotasApos19h)]]);
+                // #endregion
+                $fecharRotasApos19h($pdo);
+                $visitadorNome = trim($_GET['visitador_nome'] ?? $_SESSION['user_nome'] ?? '');
+                if ($visitadorNome === '') {
+                    echo json_encode(['active' => null], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+                $stmt = $pdo->prepare("
+                    SELECT id, visitador_nome, data_inicio, data_fim, pausado_em, status
+                    FROM rotas_diarias
+                    WHERE visitador_nome = :v AND status IN ('em_andamento', 'pausada')
+                    ORDER BY data_inicio DESC
+                    LIMIT 1
+                ");
+                $stmt->execute(['v' => $visitadorNome]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                echo json_encode(['active' => $row ?: null], JSON_UNESCAPED_UNICODE);
+            } catch (Throwable $e) {
+                // #region agent log
+                _debugLogRota(['hypothesisId' => 'H2', 'message' => 'catch rota_ativa', 'data' => ['exception' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]]);
+                // #endregion
+                http_response_code(500);
+                echo json_encode(['error' => 'Erro ao consultar rota ativa.', 'active' => null], JSON_UNESCAPED_UNICODE);
             }
-            $stmt = $pdo->prepare("
-                SELECT id, visitador_nome, data_inicio, data_fim, pausado_em, status
-                FROM rotas_diarias
-                WHERE visitador_nome = :v AND status IN ('em_andamento', 'pausada')
-                ORDER BY data_inicio DESC
-                LIMIT 1
-            ");
-            $stmt->execute(['v' => $visitadorNome]);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            echo json_encode(['active' => $row ?: null], JSON_UNESCAPED_UNICODE);
             break;
 
         case 'start_rota':
@@ -2294,6 +2369,7 @@ try {
                 WHERE visitador_nome = :v AND status IN ('em_andamento', 'pausada')
                 LIMIT 1
             ");
+            $fecharRotasApos19h($pdo);
             $stmt->execute(['v' => $visitadorNome]);
             if ($stmt->fetch()) {
                 echo json_encode(['success' => false, 'error' => 'Já existe uma rota ativa. Pause ou finalize antes de iniciar outra.'], JSON_UNESCAPED_UNICODE);
@@ -2432,6 +2508,7 @@ try {
                 echo json_encode(['success' => false, 'error' => 'Dados inválidos.'], JSON_UNESCAPED_UNICODE);
                 break;
             }
+            $fecharRotasApos19h($pdo);
             $stmt = $pdo->prepare("
                 SELECT id FROM rotas_diarias
                 WHERE visitador_nome = :v AND status = 'em_andamento'

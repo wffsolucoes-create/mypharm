@@ -166,14 +166,43 @@
             padding: 12px 16px; text-align: left; font-weight: 600; font-size: 0.75rem; text-transform: uppercase;
             letter-spacing: 0.02em; color: var(--text-secondary);
         }
-        .relatorio-table thead th[data-theme="success"] { background: rgba(16, 185, 129, 0.15); color: #059669; border-bottom: 2px solid rgba(16, 185, 129, 0.4); }
-        .relatorio-table thead th[data-theme="danger"] { background: rgba(239, 68, 68, 0.12); color: #DC2626; border-bottom: 2px solid rgba(239, 68, 68, 0.4); }
+        .relatorio-table thead th[data-theme="success"] { background: #059669; color: #fff; border-bottom: 2px solid #047857; }
+        .relatorio-table thead th[data-theme="danger"] { background: #DC2626; color: #fff; border-bottom: 2px solid #B91C1C; }
         .relatorio-table thead th[data-theme="neutral"] { background: var(--bg-body); border-bottom: 2px solid var(--border); }
         .relatorio-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
         .relatorio-table tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
         .relatorio-table tbody tr:hover { background: rgba(59, 130, 246, 0.06); }
         .relatorio-table tbody tr.row-tema-success:hover { background: rgba(16, 185, 129, 0.08); }
         .relatorio-table tbody tr.row-tema-danger:hover { background: rgba(239, 68, 68, 0.08); }
+        /* Modal Componentes – cards de resumo e tabela */
+        #modalComponentesPrescritor .pedidos-filters {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+        #modalComponentesPrescritor .pedidos-filters > div { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        #modalComponentesPrescritor .pedidos-filters label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; flex-shrink: 0; }
+        #modalComponentesPrescritor .pedidos-filters input[type="date"] { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-body); color: var(--text-primary); font-size: 0.9rem; min-width: 0; }
+        #modalComponentesPrescritor .pedidos-filters .btn-aplicar { padding: 10px 16px; border: none; border-radius: 8px; background: var(--primary); color: #fff; font-size: 0.9rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        #modalComponentesPrescritor .pedidos-filters .pedidos-search-wrap { position: relative; flex: 1; min-width: 220px; max-width: 400px; }
+        #modalComponentesPrescritor .pedidos-filters .pedidos-search-wrap input { width: 100%; padding: 10px 16px 10px 40px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-body); color: var(--text-primary); font-size: 0.9rem; box-sizing: border-box; }
+        #modalComponentesPrescritor .pedidos-filters .pedidos-search-wrap .pedidos-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 0.85rem; pointer-events: none; }
+        .modal-componentes-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .modal-componentes-cards .card-mini { padding: 14px 18px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-body); }
+        .modal-componentes-cards .card-mini .card-mini-label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+        .modal-componentes-cards .card-mini .card-mini-value { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); }
+        .modal-componentes-cards .card-mini.card-success .card-mini-value { color: var(--success); }
+        .modal-componentes-cards .card-mini.card-danger .card-mini-value { color: var(--danger); }
+        .modal-componentes-table-wrap { overflow-y: auto; overflow-x: auto; max-height: min(72vh, 520px); min-height: 160px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-body); }
+        .modal-componentes-table-wrap .relatorio-table { margin: 0; }
+        .modal-componentes-table-wrap .relatorio-table thead th { white-space: nowrap; }
+        .modal-componentes-table-wrap .relatorio-table tbody td { vertical-align: middle; }
         .badge-status { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
         .badge-status.aprovado { background: rgba(16, 185, 129, 0.2); color: #10B981; }
         .badge-status.recusado { background: rgba(239, 68, 68, 0.2); color: #EF4444; }
@@ -380,6 +409,11 @@
             background: rgba(239, 68, 68, 0.1);
             color: var(--danger);
             border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+        #paginaPrescritores .prescritores-btn-analises {
+            background: rgba(139, 92, 246, 0.12);
+            color: #8b5cf6;
+            border: 1px solid rgba(139, 92, 246, 0.25);
         }
         .btn-sugestao-proxima {
             padding: 4px 10px;
@@ -1946,7 +1980,7 @@
 
     <!-- Modal Lista de componentes (aprovados ou recusados) por prescritor -->
     <div id="modalComponentesPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
-        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:95vw; max-height:85vh; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
             <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
                 <div>
                     <h2 id="modalComponentesPrescritorTitle" style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:0;"><i class="fas fa-atom" style="color:var(--primary); margin-right:8px;"></i>Componentes</h2>
@@ -1954,7 +1988,7 @@
                 </div>
                 <button type="button" onclick="closeModalComponentesPrescritor()" style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px; border-radius:6px;" onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#EF4444'" onmouseout="this.style.background='none';this.style.color='var(--text-secondary)'">&times;</button>
             </div>
-            <div id="modalComponentesPrescritorBody" style="overflow-y:auto; flex:1; padding:16px 24px;">
+            <div id="modalComponentesPrescritorBody" style="overflow:visible; flex:1; min-height:0; padding:16px 24px;">
                 <div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
             </div>
             <div style="padding:12px 24px; border-top:1px solid var(--border); background:var(--bg-card); flex-shrink:0; text-align:right;">
@@ -1995,6 +2029,26 @@
         </div>
     </div>
 
+    <!-- Modal Análises do prescritor (painel de inteligência completo) -->
+    <div id="modalAnalisesPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3100; justify-content:center; align-items:flex-start; padding:16px; box-sizing:border-box; overflow-y:auto;">
+        <div style="background:var(--bg-card); border-radius:12px; width:100%; max-width:960px; margin:auto; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.25); border:1px solid var(--border); overflow:hidden;">
+            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <div>
+                    <h3 id="modalAnalisesPrescritorTitle" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-brain" style="margin-right:8px; color:#8b5cf6;"></i>Inteligência do Prescritor</h3>
+                    <p id="modalAnalisesPrescritorSubtitle" style="font-size:0.8rem; color:var(--text-secondary); margin:4px 0 0 0;">Prescritor</p>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <label style="font-size:0.8rem; color:var(--text-secondary); font-weight:600;">Ano</label>
+                    <select id="modalAnalisesPrescritorAno" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;"></select>
+                    <button type="button" onclick="closeModalAnalisesPrescritor()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px;">&times;</button>
+                </div>
+            </div>
+            <div id="modalAnalisesPrescritorBody" style="padding:18px 22px; overflow-y:auto; max-height:calc(90vh - 110px); min-height:0;">
+                <div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal para Encerrar Visita (Relatório + Próxima Visita) -->
     <div id="modalEncerrarVisita" class="modal-encerrar-visita-overlay"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:3500; align-items:flex-start; justify-content:center; padding:20px; box-sizing:border-box; overflow-y:auto;">
@@ -2023,9 +2077,16 @@
                         </select>
                     </div>
                     <div>
-                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Local</label>
-                        <input id="visitaLocal" type="text" placeholder="Ex.: consultório, clínica..."
-                            style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Local de atendimento</label>
+                        <select id="visitaLocal" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                            <option value="">Selecione</option>
+                            <option value="Clínica">Clínica</option>
+                            <option value="Hospital">Hospital</option>
+                            <option value="Telemedicina">Telemedicina</option>
+                            <option value="Consultório">Consultório</option>
+                            <option value="On line">On line</option>
+                            <option value="Outros">Outros</option>
+                        </select>
                     </div>
                 </div>
 
@@ -2173,7 +2234,7 @@
 
                 <div id="dvLocalRow" style="display:none; margin-bottom:16px;">
                     <div style="padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body);">
-                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="fas fa-map-pin" style="margin-right:4px;"></i>Local</div>
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="fas fa-map-pin" style="margin-right:4px;"></i>Local de atendimento</div>
                         <div id="dvLocal" style="font-size:0.88rem; font-weight:600; color:var(--text-primary); line-height:1.4;">—</div>
                     </div>
                 </div>
@@ -2604,6 +2665,262 @@
             if (modal) modal.style.display = 'none';
         }
 
+        var __modalAnalisesCharts = {};
+        var __modalAnalisesPrescritorNome = '';
+
+        function closeModalAnalisesPrescritor() {
+            var modal = document.getElementById('modalAnalisesPrescritor');
+            if (modal) modal.style.display = 'none';
+            Object.keys(__modalAnalisesCharts).forEach(function(k) {
+                if (__modalAnalisesCharts[k]) { __modalAnalisesCharts[k].destroy(); __modalAnalisesCharts[k] = null; }
+            });
+            __modalAnalisesCharts = {};
+        }
+
+        function __analiseCalcScore(kpis, comparativo, tendencia) {
+            var s = 0;
+            var tk = kpis.ticket_medio || 0;
+            var tkCart = comparativo.media_ticket_carteira || 1;
+            var ratio = tk / tkCart;
+            s += ratio >= 1.5 ? 25 : ratio >= 1 ? 20 : ratio >= 0.5 ? Math.round(ratio * 30) : Math.round(ratio * 20);
+            var vp = tendencia.variacao_pct || 0;
+            s += vp >= 30 ? 25 : vp >= 10 ? 20 : vp >= 0 ? 15 : vp >= -20 ? 8 : 0;
+            s += Math.min(25, Math.round((kpis.taxa_aprovacao || 0) / 100 * 25));
+            var d = kpis.dias_ultima_compra;
+            s += d === null ? 0 : d <= 14 ? 25 : d <= 30 ? 20 : d <= 60 ? 15 : d <= 90 ? 10 : d <= 120 ? 5 : 0;
+            return Math.min(100, Math.max(0, s));
+        }
+
+        function __fmtR$(v) { return 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+        function __fmtPct(v) { return parseFloat(v || 0).toFixed(1) + '%'; }
+        function __fmtInt(v) { return parseInt(v || 0).toLocaleString('pt-BR'); }
+        function __fmtData(d) {
+            if (!d) return '—';
+            var p = String(d).substring(0,10).split('-');
+            return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : d;
+        }
+
+        function __renderAnaliseCompleta(bodyEl, data) {
+            if (!bodyEl) return;
+            var kpis = data.kpis || {};
+            var comp = data.comparativo || {};
+            var tend = data.tendencia || {};
+            var vis = data.visitas || {};
+            var rec = data.recorrencia || {};
+            var score = __analiseCalcScore(kpis, comp, tend);
+            var scoreCor = score >= 70 ? '#059669' : score >= 40 ? '#d97706' : '#dc2626';
+            var scoreLabel = score >= 70 ? 'Saudável' : score >= 40 ? 'Atenção' : 'Crítico';
+            var scoreIcon = score >= 70 ? 'fa-heart' : score >= 40 ? 'fa-exclamation-triangle' : 'fa-times-circle';
+
+            var insights = [];
+            if (kpis.concentracao_carteira > 0) insights.push('<i class="fas fa-chart-pie" style="color:#6366f1;margin-right:4px;"></i>Representa <b>' + __fmtPct(kpis.concentracao_carteira) + '</b> do faturamento da carteira');
+            if (tend.variacao_pct > 0) insights.push('<i class="fas fa-arrow-up" style="color:#059669;margin-right:4px;"></i>Tendência de <b>crescimento de ' + __fmtPct(tend.variacao_pct) + '</b> (3 meses recentes vs anteriores)');
+            else if (tend.variacao_pct < 0) insights.push('<i class="fas fa-arrow-down" style="color:#dc2626;margin-right:4px;"></i>Tendência de <b>queda de ' + __fmtPct(Math.abs(tend.variacao_pct)) + '</b> (3 meses recentes vs anteriores)');
+            if (comp.media_margem_carteira > 0) {
+                var diffM = (kpis.margem_media || 0) - comp.media_margem_carteira;
+                if (diffM > 0) insights.push('<i class="fas fa-arrow-up" style="color:#059669;margin-right:4px;"></i>Margem <b>' + Math.abs(diffM).toFixed(1) + '% acima</b> da média da carteira');
+                else if (diffM < 0) insights.push('<i class="fas fa-arrow-down" style="color:#dc2626;margin-right:4px;"></i>Margem <b>' + Math.abs(diffM).toFixed(1) + '% abaixo</b> da média da carteira');
+            }
+            if (vis.total_visitas > 0 && kpis.pedidos_aprovados > 0) insights.push('<i class="fas fa-route" style="color:#8b5cf6;margin-right:4px;"></i>' + vis.total_visitas + ' visitas resultaram em <b>' + kpis.pedidos_aprovados + ' pedidos aprovados</b>');
+            if (rec.taxa_recorrencia > 0) insights.push('<i class="fas fa-redo" style="color:#0891b2;margin-right:4px;"></i><b>' + __fmtPct(rec.taxa_recorrencia) + '</b> dos pacientes retornam para novas compras');
+
+            function kpiCard(icon, label, value, sub) {
+                return '<div style="background:var(--bg-body);border:1px solid var(--border);border-radius:10px;padding:12px 14px;min-width:0;flex:1;">' +
+                    '<div style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><i class="fas ' + icon + '" style="margin-right:4px;"></i>' + label + '</div>' +
+                    '<div style="font-size:1rem;font-weight:700;color:var(--text-primary);white-space:nowrap;">' + value + '</div>' +
+                    (sub ? '<div style="font-size:0.65rem;color:var(--text-secondary);margin-top:2px;">' + sub + '</div>' : '') +
+                    '</div>';
+            }
+
+            function compSub(val, media, fmt) {
+                if (!media || media === 0) return '';
+                var diff = val - media;
+                var icon = diff >= 0 ? '▲' : '▼';
+                var cor = diff >= 0 ? '#059669' : '#dc2626';
+                return '<span style="color:' + cor + ';">' + icon + ' ' + (fmt === 'pct' ? Math.abs(diff).toFixed(1) + '%' : __fmtR$(Math.abs(diff))) + '</span> vs carteira';
+            }
+
+            var html = '';
+
+            // ── Score ──
+            html += '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:14px 18px;background:var(--bg-body);border:1px solid var(--border);border-radius:12px;">';
+            html += '<div style="position:relative;width:70px;height:70px;flex-shrink:0;">';
+            html += '<svg viewBox="0 0 36 36" style="width:70px;height:70px;transform:rotate(-90deg);">';
+            html += '<circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(128,128,128,0.15)" stroke-width="3"/>';
+            html += '<circle cx="18" cy="18" r="15.5" fill="none" stroke="' + scoreCor + '" stroke-width="3" stroke-dasharray="' + (score * 97.4 / 100) + ' 97.4" stroke-linecap="round"/>';
+            html += '</svg>';
+            html += '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.1rem;font-weight:800;color:' + scoreCor + ';">' + score + '</div></div>';
+            html += '<div style="flex:1;min-width:0;">';
+            html += '<div style="font-size:0.95rem;font-weight:700;color:' + scoreCor + ';"><i class="fas ' + scoreIcon + '" style="margin-right:6px;"></i>Score de Saúde: ' + scoreLabel + '</div>';
+            html += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;">Volume + Tendência + Aprovação + Recência</div>';
+            html += '</div></div>';
+
+            // ── Insights ──
+            if (insights.length > 0) {
+                html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">';
+                insights.forEach(function(ins) {
+                    html += '<div style="flex:1;min-width:220px;padding:8px 12px;background:var(--bg-body);border:1px solid var(--border);border-radius:8px;font-size:0.75rem;color:var(--text-secondary);line-height:1.4;">' + ins + '</div>';
+                });
+                html += '</div>';
+            }
+
+            // ── KPI Cards ──
+            html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px;">';
+            html += kpiCard('fa-check-circle', 'Faturamento aprovado', __fmtR$(kpis.total_aprovado), '');
+            html += kpiCard('fa-times-circle', 'Total reprovado', __fmtR$(kpis.total_reprovado), '');
+            html += kpiCard('fa-percentage', 'Taxa aprovação', __fmtPct(kpis.taxa_aprovacao), compSub(kpis.taxa_aprovacao, comp.media_taxa_aprovacao_carteira, 'pct'));
+            html += kpiCard('fa-receipt', 'Ticket médio', __fmtR$(kpis.ticket_medio), compSub(kpis.ticket_medio, comp.media_ticket_carteira, 'money'));
+            html += kpiCard('fa-coins', 'Margem média', __fmtPct(kpis.margem_media), compSub(kpis.margem_media, comp.media_margem_carteira, 'pct'));
+            html += kpiCard('fa-users', 'Pacientes', __fmtInt(kpis.total_pacientes), rec.pacientes_recorrentes > 0 ? rec.pacientes_recorrentes + ' recorrentes' : '');
+            html += kpiCard('fa-shopping-bag', 'Pedidos', __fmtInt(kpis.total_pedidos), kpis.pedidos_aprovados + ' aprov. / ' + (kpis.pedidos_reprovados||0) + ' reprov.');
+            html += kpiCard('fa-clock', 'Última compra', kpis.dias_ultima_compra !== null ? kpis.dias_ultima_compra + ' dias' : '—', '');
+            html += '</div>';
+
+            // ── Gráficos de evolução (3 linhas) ──
+            var meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+            function chartSection(id, titulo) {
+                return '<div style="margin-bottom:18px;"><h4 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px 0;font-weight:600;">' + titulo + '</h4><div style="height:200px;position:relative;"><canvas id="' + id + '"></canvas></div></div>';
+            }
+            html += chartSection('chartAnalVendas', 'Evolução mensal — Valores aprovados x reprovados (R$)');
+            html += chartSection('chartAnalPedidos', 'Evolução mensal — Pedidos aprovados x reprovados (qtd)');
+            html += chartSection('chartAnalComponentes', 'Evolução mensal — Componentes aprovados x reprovados (qtd)');
+
+            // ── Distribuições (doughnuts + top componentes) ──
+            var topFormas = data.top_formas || [];
+            var distCanal = data.distribuicao_canal || [];
+            var topComp = data.top_componentes || [];
+
+            if (topFormas.length > 0 || distCanal.length > 0) {
+                html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;">';
+                if (topFormas.length > 0) {
+                    html += '<div style="background:var(--bg-body);border:1px solid var(--border);border-radius:10px;padding:14px;">';
+                    html += '<h4 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px 0;font-weight:600;">Top formas farmacêuticas</h4>';
+                    html += '<div style="height:180px;position:relative;"><canvas id="chartAnalFormas"></canvas></div></div>';
+                }
+                if (distCanal.length > 0) {
+                    html += '<div style="background:var(--bg-body);border:1px solid var(--border);border-radius:10px;padding:14px;">';
+                    html += '<h4 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px 0;font-weight:600;">Canais de atendimento</h4>';
+                    html += '<div style="height:180px;position:relative;"><canvas id="chartAnalCanais"></canvas></div></div>';
+                }
+                html += '</div>';
+            }
+
+            if (topComp.length > 0) {
+                html += '<div style="background:var(--bg-body);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:18px;">';
+                html += '<h4 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px 0;font-weight:600;">Top componentes mais prescritos</h4>';
+                html += '<div style="height:' + Math.max(140, topComp.length * 28) + 'px;position:relative;"><canvas id="chartAnalTopComp"></canvas></div></div>';
+            }
+
+            // ── Visitas e recorrência ──
+            html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;">';
+            html += kpiCard('fa-map-marker-alt', 'Visitas realizadas', __fmtInt(vis.total_visitas), '');
+            html += kpiCard('fa-calendar-check', 'Última visita', __fmtData(vis.ultima_visita), vis.dias_sem_visita !== null ? vis.dias_sem_visita + ' dias atrás' : '');
+            html += kpiCard('fa-redo', 'Recorrência', __fmtPct(rec.taxa_recorrencia), rec.pacientes_recorrentes + ' de ' + rec.total_pacientes + ' pacientes');
+            html += kpiCard('fa-calendar-alt', 'Meses ativos', __fmtInt(kpis.meses_ativos) + ' de 12', '');
+            html += '</div>';
+
+            // ── Botão fechar ──
+            html += '<div style="text-align:right;padding-top:12px;border-top:1px solid var(--border);margin-top:8px;"><button type="button" onclick="closeModalAnalisesPrescritor()" style="padding:10px 20px;border-radius:8px;border:1px solid var(--border);background:var(--bg-body);color:var(--text-primary);font-weight:600;cursor:pointer;">Fechar</button></div>';
+
+            bodyEl.innerHTML = html;
+
+            // ── Criar gráficos Chart.js ──
+            Object.keys(__modalAnalisesCharts).forEach(function(k) { if (__modalAnalisesCharts[k]) __modalAnalisesCharts[k].destroy(); });
+            __modalAnalisesCharts = {};
+
+            var chartOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } }, scales: { y: { beginAtZero: true } } };
+            var vendas = data.vendas_mensal || [];
+            var pedidos = data.pedidos_mensal || [];
+            var comps = data.componentes_mensal || [];
+
+            var cvEl = document.getElementById('chartAnalVendas');
+            if (cvEl) {
+                __modalAnalisesCharts.vendas = new Chart(cvEl.getContext('2d'), {
+                    type: 'line', data: { labels: meses, datasets: [
+                        { label: 'Aprovadas (R$)', data: vendas.map(function(r){return parseFloat(r.valor_aprovado)||0;}), borderColor: '#059669', backgroundColor: 'rgba(5,150,105,0.08)', fill: true, tension: 0.3, pointRadius: 3 },
+                        { label: 'Reprovadas (R$)', data: vendas.map(function(r){return parseFloat(r.valor_reprovado)||0;}), borderColor: '#DC2626', backgroundColor: 'rgba(220,38,38,0.08)', fill: true, tension: 0.3, pointRadius: 3 }
+                    ]}, options: chartOpts
+                });
+            }
+            var cpEl = document.getElementById('chartAnalPedidos');
+            if (cpEl) {
+                __modalAnalisesCharts.pedidos = new Chart(cpEl.getContext('2d'), {
+                    type: 'line', data: { labels: meses, datasets: [
+                        { label: 'Aprovados (qtd)', data: pedidos.map(function(r){return parseInt(r.qtd_aprovado)||0;}), borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', fill: true, tension: 0.3, pointRadius: 3 },
+                        { label: 'Reprovados (qtd)', data: pedidos.map(function(r){return parseInt(r.qtd_reprovado)||0;}), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', fill: true, tension: 0.3, pointRadius: 3 }
+                    ]}, options: chartOpts
+                });
+            }
+            var ccEl = document.getElementById('chartAnalComponentes');
+            if (ccEl) {
+                __modalAnalisesCharts.componentes = new Chart(ccEl.getContext('2d'), {
+                    type: 'line', data: { labels: meses, datasets: [
+                        { label: 'Aprovados (qtd)', data: comps.map(function(r){return parseFloat(r.qtd_aprovado)||0;}), borderColor: '#059669', backgroundColor: 'rgba(5,150,105,0.08)', fill: true, tension: 0.3, pointRadius: 3 },
+                        { label: 'Reprovados (qtd)', data: comps.map(function(r){return parseFloat(r.qtd_reprovado)||0;}), borderColor: '#DC2626', backgroundColor: 'rgba(220,38,38,0.08)', fill: true, tension: 0.3, pointRadius: 3 }
+                    ]}, options: chartOpts
+                });
+            }
+
+            var doughnutOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 12 } } } };
+            var cores = ['#6366f1','#059669','#f59e0b','#dc2626','#0891b2','#8b5cf6','#ec4899'];
+
+            if (topFormas.length > 0) {
+                var cfEl = document.getElementById('chartAnalFormas');
+                if (cfEl) {
+                    __modalAnalisesCharts.formas = new Chart(cfEl.getContext('2d'), {
+                        type: 'doughnut', data: { labels: topFormas.map(function(f){return f.forma||'—';}), datasets: [{ data: topFormas.map(function(f){return parseFloat(f.total)||0;}), backgroundColor: cores }] }, options: doughnutOpts
+                    });
+                }
+            }
+            if (distCanal.length > 0) {
+                var cnEl = document.getElementById('chartAnalCanais');
+                if (cnEl) {
+                    __modalAnalisesCharts.canais = new Chart(cnEl.getContext('2d'), {
+                        type: 'doughnut', data: { labels: distCanal.map(function(c){return c.canal||'—';}), datasets: [{ data: distCanal.map(function(c){return parseFloat(c.total)||0;}), backgroundColor: cores }] }, options: doughnutOpts
+                    });
+                }
+            }
+            if (topComp.length > 0) {
+                var tcEl = document.getElementById('chartAnalTopComp');
+                if (tcEl) {
+                    __modalAnalisesCharts.topComp = new Chart(tcEl.getContext('2d'), {
+                        type: 'bar', data: { labels: topComp.map(function(c){return c.componente||'—';}), datasets: [{ label: 'Quantidade', data: topComp.map(function(c){return parseFloat(c.qtd)||0;}), backgroundColor: '#6366f1', borderRadius: 4 }] },
+                        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+                    });
+                }
+            }
+        }
+
+        async function openModalAnalisesPrescritor(prescritorNome) {
+            var modal = document.getElementById('modalAnalisesPrescritor');
+            var subtitleEl = document.getElementById('modalAnalisesPrescritorSubtitle');
+            var bodyEl = document.getElementById('modalAnalisesPrescritorBody');
+            var anoEl = document.getElementById('modalAnalisesPrescritorAno');
+            if (!modal || !bodyEl) return;
+            __modalAnalisesPrescritorNome = prescritorNome || '';
+            if (subtitleEl) subtitleEl.textContent = __modalAnalisesPrescritorNome || 'Prescritor';
+            var ano = (anoEl && anoEl.value) ? anoEl.value : String(new Date().getFullYear());
+            var y = new Date().getFullYear();
+            if (anoEl) {
+                var opts = [];
+                for (var i = 0; i <= 3; i++) opts.push('<option value="' + (y - i) + '"' + (parseInt(ano, 10) === (y - i) ? ' selected' : '') + '>' + (y - i) + '</option>');
+                anoEl.innerHTML = opts.join('');
+                anoEl.onchange = function () { if (__modalAnalisesPrescritorNome) openModalAnalisesPrescritor(__modalAnalisesPrescritorNome); };
+            }
+            bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando análise completa...</div>';
+            modal.style.display = 'flex';
+            try {
+                var res = await apiGet('analise_prescritor', { prescritor: __modalAnalisesPrescritorNome, ano: ano });
+                if (res && res.error) {
+                    bodyEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--danger);">' + String(res.error).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>';
+                    return;
+                }
+                __renderAnaliseCompleta(bodyEl, res);
+            } catch (e) {
+                bodyEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--danger);">Erro ao carregar análises.</div>';
+            }
+        }
+
         function fmtQtdComponente(qtd, unidade) {
             if (qtd === null || qtd === undefined || qtd === '') return '—';
             var n = parseFloat(qtd);
@@ -2611,6 +2928,145 @@
             var s = Number.isInteger(n) ? String(Math.round(n)) : String(n);
             var u = (unidade && String(unidade).trim()) ? ' ' + String(unidade).trim() : '';
             return s + u;
+        }
+
+        function renderModalComponentesTabela(bodyEl, sortCol, sortDir) {
+            var data = window.__modalComponentesData;
+            if (!data || !bodyEl) return;
+            var list = (data.list || []).slice();
+            var filterText = (data.filterText || '').trim().toLowerCase();
+            if (filterText) {
+                list = list.filter(function (c) {
+                    var comp = (c.componente || '').toLowerCase();
+                    var un = (c.unidade || '').toLowerCase();
+                    return comp.indexOf(filterText) !== -1 || un.indexOf(filterText) !== -1;
+                });
+            }
+            var isAprovados = data.isAprovados;
+            var thTheme = isAprovados ? 'success' : 'danger';
+            var rowClass = isAprovados ? 'row-tema-success' : 'row-tema-danger';
+            var esc = function (x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+            var sortNum = function (a, b, key) { var va = parseFloat(a[key]) || 0; var vb = parseFloat(b[key]) || 0; return va - vb; };
+            var sortStr = function (a, b, key) { var va = (a[key] || '').toString().toLowerCase(); var vb = (b[key] || '').toString().toLowerCase(); return va < vb ? -1 : (va > vb ? 1 : 0); };
+            var d = sortDir === 'asc' ? 1 : -1;
+            list.sort(function (a, b) {
+                if (sortCol === 'componente') return sortStr(a, b, 'componente') * d;
+                if (sortCol === 'unidade') return sortStr(a, b, 'unidade') * d;
+                if (sortCol === 'quantidade_total') return sortNum(a, b, 'quantidade_total') * d;
+                if (sortCol === 'qtd_pedidos') { var va = parseInt(a.qtd_pedidos, 10) || 0; var vb = parseInt(b.qtd_pedidos, 10) || 0; return (va - vb) * d; }
+                return 0;
+            });
+            var icon = function (col) {
+                if (col !== sortCol) return ' <i class="fas fa-sort" style="opacity:0.5; font-size:0.75rem;"></i>';
+                return sortDir === 'asc' ? ' <i class="fas fa-sort-up" style="font-size:0.75rem;"></i>' : ' <i class="fas fa-sort-down" style="font-size:0.75rem;"></i>';
+            };
+            var totalPedidos = list.reduce(function (acc, c) { return acc + (parseInt(c.qtd_pedidos, 10) || 0); }, 0);
+            var totalComponentes = list.length;
+            var cardClass = isAprovados ? 'card-success' : 'card-danger';
+            var dataDeVal = (data.dataDe || '').trim() || (function () { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01'; })();
+            var dataAteVal = (data.dataAte || '').trim() || (function () { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
+            var filterValue = (data.filterText || '');
+            var filtersHtml = '<div class="pedidos-filters">' +
+                '<div><label for="modalComponentesDataDe">De</label><input type="date" id="modalComponentesDataDe" value="' + esc(dataDeVal) + '"></div>' +
+                '<div><label for="modalComponentesDataAte">Até</label><input type="date" id="modalComponentesDataAte" value="' + esc(dataAteVal) + '"></div>' +
+                '<div><button type="button" class="btn-aplicar" id="modalComponentesBtnAplicar"><i class="fas fa-filter" style="margin-right:6px;"></i>Aplicar</button></div>' +
+                '<div class="pedidos-search-wrap"><i class="fas fa-search pedidos-search-icon"></i><input type="text" id="modalComponentesFilterInput" placeholder="Buscar por componente ou unidade..." value="' + esc(filterValue) + '" autocomplete="off"></div>' +
+                '</div>';
+            var cardsHtml = '<div class="modal-componentes-cards">' +
+                '<div class="card-mini ' + cardClass + '"><div class="card-mini-label"><i class="fas fa-cubes" style="margin-right:4px;"></i>Componentes</div><div class="card-mini-value">' + totalComponentes + '</div></div>' +
+                '<div class="card-mini ' + cardClass + '"><div class="card-mini-label"><i class="fas fa-shopping-cart" style="margin-right:4px;"></i>Total pedidos</div><div class="card-mini-value">' + totalPedidos + '</div></div>' +
+                '</div>';
+            var html = filtersHtml + cardsHtml + '<div class="modal-componentes-table-wrap"><table class="relatorio-table">' +
+                '<thead><tr>' +
+                '<th data-theme="' + thTheme + '" style="text-align:left; cursor:pointer; user-select:none; min-width:140px;" title="Clique para ordenar">Componente' + icon('componente') + '</th>' +
+                '<th data-theme="' + thTheme + '" style="text-align:left; cursor:pointer; user-select:none; width:80px;" title="Clique para ordenar">Unidade' + icon('unidade') + '</th>' +
+                '<th data-theme="' + thTheme + '" style="text-align:right; cursor:pointer; user-select:none; width:120px;" title="Clique para ordenar">Quantidade total' + icon('quantidade_total') + '</th>' +
+                '<th data-theme="' + thTheme + '" style="text-align:center; cursor:pointer; user-select:none; width:80px;" title="Clique para ordenar">Pedidos' + icon('qtd_pedidos') + '</th></tr></thead><tbody>';
+            if (list.length === 0) {
+                var emptyMsg = filterText ? 'Nenhum componente encontrado para o filtro.' : 'Nenhum componente no período selecionado.';
+                html += '<tr><td colspan="4" style="padding:24px 16px; text-align:center; color:var(--text-secondary);">' + emptyMsg + '</td></tr>';
+            } else {
+                list.forEach(function (c) {
+                    var qtdStr = fmtQtdComponente(c.quantidade_total, c.unidade);
+                    var qtdPed = (c.qtd_pedidos != null && c.qtd_pedidos !== '') ? parseInt(c.qtd_pedidos, 10) : 0;
+                    html += '<tr class="' + rowClass + '">' +
+                        '<td style="padding:12px 16px;">' + esc(c.componente) + '</td>' +
+                        '<td style="padding:12px 16px; color:var(--text-secondary);">' + esc(c.unidade) + '</td>' +
+                        '<td style="padding:12px 16px; text-align:right; font-weight:600; color:' + (isAprovados ? 'var(--success)' : 'var(--danger)') + ';">' + esc(qtdStr) + '</td>' +
+                        '<td style="padding:12px 16px; text-align:center;">' + qtdPed + '</td></tr>';
+                });
+            }
+            html += '</tbody></table></div>';
+            bodyEl.setAttribute('data-sort-col', sortCol);
+            bodyEl.setAttribute('data-sort-dir', sortDir);
+            bodyEl.innerHTML = html;
+            var filterInput = document.getElementById('modalComponentesFilterInput');
+            if (filterInput) {
+                filterInput.oninput = function () {
+                    if (window.__modalComponentesData) window.__modalComponentesData.filterText = this.value;
+                    var selStart = this.selectionStart, selEnd = this.selectionEnd;
+                    renderModalComponentesTabela(bodyEl, bodyEl.getAttribute('data-sort-col') || 'qtd_pedidos', bodyEl.getAttribute('data-sort-dir') || 'desc');
+                    var newInput = document.getElementById('modalComponentesFilterInput');
+                    if (newInput) {
+                        newInput.focus();
+                        newInput.setSelectionRange(selStart, selEnd);
+                    }
+                };
+            }
+            var inputDe = document.getElementById('modalComponentesDataDe');
+            var inputAte = document.getElementById('modalComponentesDataAte');
+            var btnAplicar = document.getElementById('modalComponentesBtnAplicar');
+            if (btnAplicar) {
+                btnAplicar.onclick = function () {
+                    if (!window.__modalComponentesData || !inputDe || !inputAte) return;
+                    var de = (inputDe.value || '').trim();
+                    var ate = (inputAte.value || '').trim();
+                    if (!de || !ate || de > ate) return;
+                    window.__modalComponentesData.dataDe = de;
+                    window.__modalComponentesData.dataAte = ate;
+                    if (typeof refetchModalComponentes === 'function') refetchModalComponentes();
+                };
+            }
+            bodyEl.querySelectorAll('thead th').forEach(function (th, idx) {
+                var cols = ['componente', 'unidade', 'quantidade_total', 'qtd_pedidos'];
+                var col = cols[idx];
+                if (!col) return;
+                th.onclick = function () {
+                    var curCol = bodyEl.getAttribute('data-sort-col');
+                    var curDir = bodyEl.getAttribute('data-sort-dir');
+                    var newDir = (curCol === col && curDir === 'asc') ? 'desc' : 'asc';
+                    renderModalComponentesTabela(bodyEl, col, newDir);
+                };
+            });
+        }
+
+        async function refetchModalComponentes() {
+            var data = window.__modalComponentesData;
+            if (!data || !data.prescritorNome) return;
+            var bodyEl = document.getElementById('modalComponentesPrescritorBody');
+            if (!bodyEl) return;
+            var dataDe = (data.dataDe || '').trim();
+            var dataAte = (data.dataAte || '').trim();
+            if (!dataDe || !dataAte || dataDe > dataAte) return;
+            var nome = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '').trim() || (localStorage.getItem('userName') || '').trim();
+            var params = { prescritor: data.prescritorNome, tipo: data.tipo || (data.isAprovados ? 'aprovados' : 'recusados'), data_de: dataDe, data_ate: dataAte };
+            if (nome) params.nome = nome;
+            bodyEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Atualizando...</div>';
+            try {
+                var res = await apiGet('list_componentes_prescritor', params);
+                if (res && res.error) {
+                    bodyEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--danger);">' + String(res.error).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;') + '</div>';
+                    return;
+                }
+                var list = Array.isArray(res.componentes) ? res.componentes : [];
+                window.__modalComponentesData.list = list;
+                window.__modalComponentesData.dataDe = dataDe;
+                window.__modalComponentesData.dataAte = dataAte;
+                window.__modalComponentesData.filterText = (window.__modalComponentesData.filterText || '').trim();
+                renderModalComponentesTabela(bodyEl, 'qtd_pedidos', 'desc');
+            } catch (e) {
+                bodyEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--danger);">Erro ao atualizar por período.</div>';
+            }
         }
 
         async function openModalComponentesPrescritor(prescritorNome, tipo) {
@@ -2626,6 +3082,9 @@
             if (titleEl) titleEl.innerHTML = isAprovados
                 ? '<i class="fas fa-atom" style="color:var(--success); margin-right:8px;"></i>Componentes aprovados'
                 : '<i class="fas fa-atom" style="color:var(--danger); margin-right:8px;"></i>Componentes recusados';
+            var d = new Date();
+            var dataAteDefault = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            var dataDeDefault = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
             if (subtitleEl) subtitleEl.textContent = (prescritorNome || '') + ' — ' + ano;
             bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
             modal.style.display = 'flex';
@@ -2635,7 +3094,7 @@
                     bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--danger);">Prescritor não informado.</div>';
                     return;
                 }
-                const params = { prescritor: prescritorNome, ano: ano, tipo: isAprovados ? 'aprovados' : 'recusados' };
+                const params = { prescritor: prescritorNome, ano: ano, tipo: isAprovados ? 'aprovados' : 'recusados', data_de: dataDeDefault, data_ate: dataAteDefault };
                 if (nome) params.nome = nome;
                 const res = await apiGet('list_componentes_prescritor', params);
                 if (res && res.error) {
@@ -2643,30 +3102,8 @@
                     return;
                 }
                 const componentes = Array.isArray(res.componentes) ? res.componentes : [];
-                if (componentes.length === 0) {
-                    bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--text-secondary);">' +
-                        (isAprovados ? 'Nenhum componente aprovado encontrado para este prescritor.' : 'Nenhum componente recusado encontrado para este prescritor.') + '</div>';
-                    return;
-                }
-                var thTheme = isAprovados ? 'success' : 'danger';
-                var rowClass = isAprovados ? 'row-tema-success' : 'row-tema-danger';
-                var html = '<table class="relatorio-table">' +
-                    '<thead><tr>' +
-                    '<th data-theme="' + thTheme + '" style="text-align:left;">Componente</th>' +
-                    '<th data-theme="' + thTheme + '" style="text-align:left;">Unidade</th>' +
-                    '<th data-theme="' + thTheme + '" style="text-align:right;">Quantidade total</th>' +
-                    '<th data-theme="' + thTheme + '" style="text-align:center;">Pedidos</th></tr></thead><tbody>';
-                componentes.forEach(function (c, idx) {
-                    var qtdStr = fmtQtdComponente(c.quantidade_total, c.unidade);
-                    var qtdPed = (c.qtd_pedidos != null && c.qtd_pedidos !== '') ? parseInt(c.qtd_pedidos, 10) : 0;
-                    html += '<tr class="' + rowClass + '">' +
-                        '<td style="padding:12px 16px;">' + esc(c.componente) + '</td>' +
-                        '<td style="padding:12px 16px; color:var(--text-secondary);">' + esc(c.unidade) + '</td>' +
-                        '<td style="padding:12px 16px; text-align:right; font-weight:600; color:' + (isAprovados ? 'var(--success)' : 'var(--danger)') + ';">' + esc(qtdStr) + '</td>' +
-                        '<td style="padding:12px 16px; text-align:center;">' + qtdPed + '</td></tr>';
-                });
-                html += '</tbody></table>';
-                bodyEl.innerHTML = html;
+                window.__modalComponentesData = { list: componentes.slice(), isAprovados: isAprovados, filterText: '', prescritorNome: prescritorNome, tipo: isAprovados ? 'aprovados' : 'recusados', dataDe: dataDeDefault, dataAte: dataAteDefault };
+                renderModalComponentesTabela(bodyEl, 'qtd_pedidos', 'desc');
             } catch (e) {
                 bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--danger);">Erro ao carregar componentes.</div>';
             }
@@ -3662,23 +4099,17 @@
             const msg = document.getElementById('encerrarVisitaMsg');
             if (msg) msg.style.display = 'none';
 
-            // Preencher "Local" automaticamente com os dados cadastrados do prescritor
+            // Preencher "Local de atendimento" com o valor do cadastro do prescritor (mesmas opções do select)
             (async function () {
                 try {
                     var vis = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '') || '';
                     var r = await apiGet('get_prescritor_dados', { nome: prescritor, visitador: vis });
-                    if (r && r.dados) {
-                        var partes = [];
-                        if (r.dados.local_atendimento) partes.push(r.dados.local_atendimento);
-                        if (r.dados.endereco_rua) {
-                            var end = r.dados.endereco_rua;
-                            if (r.dados.endereco_numero) end += ', ' + r.dados.endereco_numero;
-                            if (r.dados.endereco_bairro) end += ' - ' + r.dados.endereco_bairro;
-                            partes.push(end);
-                        }
+                    if (r && r.dados && r.dados.local_atendimento) {
                         var localEl = document.getElementById('visitaLocal');
-                        if (localEl && partes.length > 0 && !localEl.value) {
-                            localEl.value = partes.join(' · ');
+                        if (localEl && !localEl.value) {
+                            var val = (r.dados.local_atendimento || '').trim();
+                            var opt = Array.prototype.find.call(localEl.options, function (o) { return o.value === val; });
+                            if (opt) localEl.value = val;
                         }
                     }
                 } catch (e) { /* sem problema se falhar */ }
@@ -4638,6 +5069,7 @@
                     '<button type="button" class="prescritores-btn prescritores-btn-recusados btn-recusados-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista dos pedidos recusados (valor vermelho acima)"><i class="fas fa-times"></i></button>' +
                     '<button type="button" class="prescritores-btn btn-componentes-aprovados-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista de componentes aprovados"><i class="fas fa-atom" style="color:var(--success);"></i></button>' +
                     '<button type="button" class="prescritores-btn btn-componentes-recusados-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista de componentes recusados"><i class="fas fa-atom" style="color:var(--danger);"></i></button>' +
+                    '<button type="button" class="prescritores-btn prescritores-btn-analises btn-analises-prescritor-page" data-nome="' + esc(nome) + '" title="Análises e evolução: vendas e componentes por mês"><i class="fas fa-chart-line"></i></button>' +
                     '</span></td></tr>';
             });
             tbody.innerHTML = html;
@@ -4702,6 +5134,12 @@
                 btn.onclick = function () {
                     var nome = btn.getAttribute('data-nome');
                     if (typeof openRelatorioVisitasPrescritorModal === 'function') openRelatorioVisitasPrescritorModal(nome);
+                };
+            });
+            tbody.querySelectorAll('.btn-analises-prescritor-page').forEach(function (btn) {
+                btn.onclick = function () {
+                    var nome = btn.getAttribute('data-nome');
+                    if (typeof openModalAnalisesPrescritor === 'function') openModalAnalisesPrescritor(nome);
                 };
             });
         }

@@ -50,6 +50,12 @@ function handleDashboardModuleAction(string $action, PDO $pdo): void
         case 'list_componentes_prescritor':
             dashboardListComponentesPrescritor($pdo);
             return;
+        case 'evolucao_prescritor':
+            dashboardEvolucaoPrescritor($pdo);
+            return;
+        case 'analise_prescritor':
+            dashboardAnalisePrescritor($pdo);
+            return;
         case 'get_visitas_mapa_periodo':
             getVisitasMapaPeriodo($pdo);
             return;
