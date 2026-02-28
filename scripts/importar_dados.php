@@ -563,20 +563,21 @@ try {
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
     $hoje = new DateTime('now');
-    $limite2026 = new DateTime(date('Y') . '-02-28');
+    $limite2026 = new DateTime(date('Y') . '-03-01');
 
     foreach ([2025, 2026] as $anoVisitas) {
-        // 2026: importar do XLSX só até 28/02; após isso os dados vêm do sistema
-        if ($anoVisitas === 2026 && $hoje > $limite2026) {
+        // 2026: importar do XLSX até 28/02 (inclusive); a partir de 01/03 os dados vêm do sistema
+        if ($anoVisitas === 2026 && $hoje >= $limite2026) {
             $results['historico_visitas_2026'] = 0;
-            $results['historico_visitas_2026_obs'] = 'Após 28/02 — dados pelo sistema (XLSX não importado).';
+            $results['historico_visitas_2026_obs'] = 'A partir de 01/03 — dados pelo sistema (XLSX não importado).';
             continue;
         }
 
         if ($anoVisitas === 2025) {
             $pdo->exec("DELETE FROM historico_visitas WHERE ano_referencia = 2025");
         } else {
-            $pdo->exec("DELETE FROM historico_visitas WHERE ano_referencia = 2026");
+            // Só apagar visitas importadas do XLSX (sem inicio_visita, que é campo do sistema)
+            $pdo->exec("DELETE FROM historico_visitas WHERE ano_referencia = 2026 AND inicio_visita IS NULL");
         }
 
         $fileVisitas = dirname(__DIR__) . "/Dados/Relatório de Histórico de Visitas {$anoVisitas}.xlsx";
