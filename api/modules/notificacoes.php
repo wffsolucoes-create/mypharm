@@ -94,9 +94,21 @@ function listUsuariosParaMensagem(PDO $pdo): void
         echo json_encode(['success' => false, 'error' => 'Não autenticado', 'usuarios' => []], JSON_UNESCAPED_UNICODE);
         return;
     }
-    $stmt = $pdo->prepare("SELECT id, nome FROM usuarios WHERE ativo = 1 AND id != :uid ORDER BY nome");
-    $stmt->execute(['uid' => $userId]);
-    $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $usuarios = [];
+    try {
+        // COALESCE(ativo,1) para tratar NULL como ativo; se coluna ativo não existir, fallback sem filtro
+        $stmt = $pdo->prepare("SELECT id, nome FROM usuarios WHERE COALESCE(ativo, 1) = 1 AND id != :uid ORDER BY nome");
+        $stmt->execute(['uid' => $userId]);
+        $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        try {
+            $stmt = $pdo->prepare("SELECT id, nome FROM usuarios WHERE id != :uid ORDER BY nome");
+            $stmt->execute(['uid' => $userId]);
+            $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $e2) {
+            $usuarios = [];
+        }
+    }
     echo json_encode(['success' => true, 'usuarios' => $usuarios], JSON_UNESCAPED_UNICODE);
 }
 

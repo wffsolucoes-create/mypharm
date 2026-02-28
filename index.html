@@ -392,15 +392,47 @@
                     <h1 id="pageTitle">Dashboard</h1>
                 </div>
                 <div class="topbar-right">
-                    <span class="topbar-period-label">Período:</span>
-                    <label class="topbar-date-label" for="dataDeFilter">De</label>
-                    <input type="date" id="dataDeFilter" class="filter-date-input" title="Data inicial" onchange="onFilterChange()">
-                    <label class="topbar-date-label" for="dataAteFilter">ao</label>
-                    <input type="date" id="dataAteFilter" class="filter-date-input" title="Data final" onchange="onFilterChange()">
+                    <div class="topbar-period-wrap">
+                        <span class="topbar-period-label">Período</span>
+                        <div class="topbar-period-inputs">
+                            <label class="topbar-date-label" for="dataDeFilter">De</label>
+                            <input type="date" id="dataDeFilter" class="filter-date-input" title="Data inicial" onchange="onFilterChange()">
+                            <span class="topbar-period-sep">até</span>
+                            <label class="topbar-date-label" for="dataAteFilter">Até</label>
+                            <input type="date" id="dataAteFilter" class="filter-date-input" title="Data final" onchange="onFilterChange()">
+                        </div>
+                    </div>
                     <div class="theme-toggle" onclick="toggleTheme()" title="Alternar tema claro/escuro">
                         <div class="theme-toggle-knob">
                             <i class="fas fa-moon icon-moon"></i>
                             <i class="fas fa-sun icon-sun"></i>
+                        </div>
+                    </div>
+                    <div class="notifications-wrap">
+                        <button type="button" class="btn-notifications" id="btnNotifications" onclick="toggleNotificationsPanel(event)" title="Mensagens e notificações" aria-label="Notificações">
+                            <span class="btn-notifications-icon" aria-hidden="true"><i class="fas fa-bell"></i></span>
+                            <span class="notifications-badge" id="notificationsBadge" style="display:none;">0</span>
+                        </button>
+                        <div class="notifications-backdrop" id="notificationsBackdrop" onclick="closeNotificationsPanel()" aria-hidden="true"></div>
+                        <div class="notifications-panel" id="notificationsPanel">
+                            <div class="notifications-panel-header">
+                                <span><i class="fas fa-bell"></i> Mensagens e alertas</span>
+                                <button type="button" class="notifications-panel-close" onclick="closeNotificationsPanel()" aria-label="Fechar">&times;</button>
+                            </div>
+                            <div class="notifications-body">
+                                <div class="notifications-list" id="notificationsListAll">
+                                    <div class="notifications-empty" id="notificationsEmptyAll">
+                                        <i class="fas fa-inbox"></i>
+                                        <p>Nenhuma mensagem no momento.</p>
+                                    </div>
+                                </div>
+                                <div class="notifications-send-wrap">
+                                    <label class="notifications-send-label">Enviar mensagem para usuário</label>
+                                    <select id="notifParaUsuarioSelect" class="notifications-send-select"></select>
+                                    <textarea id="notifMensagemUsuarioInput" class="notifications-send-textarea" placeholder="Sua mensagem..." rows="3"></textarea>
+                                    <button type="button" id="btnEnviarMsgUsuario" class="notifications-send-btn" onclick="enviarMensagemUsuarioUI()"><i class="fas fa-paper-plane"></i> Enviar para usuário</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <button class="topbar-btn" onclick="refreshData()" title="Atualizar dados">

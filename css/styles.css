@@ -889,24 +889,48 @@ body {
     box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
-.topbar-period-label,
-.topbar-date-label {
-    font-size: 0.85rem;
+/* Bloco do filtro de per√≠odo */
+.topbar-period-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 14px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.topbar-period-label {
+    font-size: 0.8rem;
+    font-weight: 600;
     color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
     white-space: nowrap;
 }
 
-.topbar-date-label {
-    margin-left: 4px;
+.topbar-period-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
-.topbar-date-label:first-of-type {
-    margin-left: 8px;
+.topbar-period-sep {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0 2px;
+}
+
+.topbar-date-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
 }
 
 .filter-date-input {
     padding: 8px 12px;
-    background: var(--bg-input);
+    background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
@@ -914,7 +938,7 @@ body {
     font-size: 0.85rem;
     outline: none;
     transition: var(--transition);
-    min-width: 0;
+    min-width: 130px;
 }
 
 .filter-date-input:focus {
@@ -958,6 +982,286 @@ body {
     background: rgba(239, 71, 111, 0.2);
 }
 
+/* ============ NOTIFICAÔøΩÔøΩES (SINO) ÔøΩ ADMIN ============ */
+.notifications-wrap {
+    position: relative;
+    z-index: 1150;
+    flex-shrink: 0;
+}
+.btn-notifications {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+}
+.btn-notifications:hover {
+    background: rgba(59, 130, 246, 0.12);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: #3B82F6;
+}
+.btn-notifications-icon {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+}
+.btn-notifications i.fa-bell {
+    font-size: 1.15rem !important;
+    display: block !important;
+    line-height: 1 !important;
+}
+.notifications-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #EF4444;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    box-shadow: 0 0 0 2px var(--bg-surface);
+}
+.notifications-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 380px;
+    max-width: calc(100vw - 2rem);
+    max-height: 540px;
+    min-height: 320px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-lg);
+    z-index: 1100;
+    flex-direction: column;
+    overflow: hidden;
+}
+.notifications-panel.open {
+    display: flex;
+}
+.notifications-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1099;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+}
+.notifications-backdrop.open {
+    display: block;
+}
+.notifications-panel-close {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.notifications-panel-close:hover {
+    color: var(--text-primary);
+    background: rgba(255,255,255,0.08);
+}
+.notifications-panel-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.notifications-panel-header i.fa-bell {
+    color: #3B82F6;
+}
+.notifications-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 120px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+.notifications-list {
+    padding: 12px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+.notifications-send-wrap {
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-card);
+}
+.notifications-send-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+.notifications-send-select,
+.notifications-send-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+    background: var(--bg-input);
+    color: var(--text-primary);
+}
+.notifications-send-textarea {
+    resize: vertical;
+    min-height: 72px;
+}
+.notifications-send-btn {
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+.notifications-send-btn:hover {
+    filter: brightness(1.08);
+}
+.notifications-empty {
+    text-align: center;
+    padding: 28px 16px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+.notifications-empty i {
+    font-size: 1.75rem;
+    opacity: 0.5;
+    margin-bottom: 10px;
+    display: block;
+}
+.notifications-empty p { margin: 0; }
+.notification-item {
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+.notification-item:hover {
+    background: rgba(59, 130, 246, 0.08);
+}
+.notification-item .notification-item-main {
+    flex: 1;
+    min-width: 0;
+}
+.notification-item .notification-sender {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+.notification-item .notification-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+.notification-item .notification-date {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+.notification-item.read { opacity: 0.7; }
+.notification-item .notification-item-delete,
+.notification-item .notification-btn-lida,
+.notification-item .notification-btn-lida-msg,
+.notification-item .notification-btn-ocultar-msg {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.notification-item .notification-item-delete:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--danger, #EF4444);
+}
+.notification-item .notification-btn-lida:hover,
+.notification-item .notification-btn-lida-msg:hover {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--success, #10B981);
+}
+.notification-item .notification-btn-ocultar-msg:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--danger, #EF4444);
+}
+.notification-item-actions {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+@media (max-width: 1024px) {
+    .notifications-panel {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        right: auto;
+        transform: translate(-50%, -50%);
+        width: 90vw;
+        max-width: 420px;
+        max-height: 88vh;
+        min-height: 380px;
+    }
+}
+
 /* ============ PAGE CONTENT ============ */
 .page-content {
     padding: 28px 32px;
@@ -966,7 +1270,7 @@ body {
 /* ============ KPI CARDS ============ */
 .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 20px;
     margin-bottom: 28px;
 }
@@ -1591,14 +1895,14 @@ body {
         padding: 24px 24px;
     }
     .kpi-grid {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(3, 1fr);
     }
     .kpi-value {
         font-size: 1.5rem;
     }
 }
 
-/* MacBook Pro 14" / Laptop padrùo */
+/* MacBook Pro 14" / Laptop padrÔøΩo */
 @media (max-width: 1280px) {
     :root {
         --sidebar-width: 240px;
@@ -1672,6 +1976,35 @@ body {
     }
     .topbar-right {
         flex-wrap: wrap;
+        gap: 10px;
+    }
+    .topbar-period-wrap {
+        order: 1;
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px 14px;
+        gap: 10px;
+    }
+    .topbar-period-label {
+        font-size: 0.75rem;
+    }
+    .topbar-period-inputs {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 10px;
+    }
+    .topbar-period-inputs .filter-date-input {
+        flex: 1 1 120px;
+        min-width: 0;
+        min-height: 44px;
+        font-size: 1rem;
+        padding: 10px 12px;
+    }
+    .topbar-period-inputs .topbar-date-label,
+    .topbar-period-inputs .topbar-period-sep {
+        flex-shrink: 0;
     }
     .kpi-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -1770,12 +2103,17 @@ body {
     .topbar-right {
         width: 100%;
         justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+    .topbar-period-wrap {
+        width: 100%;
     }
     .filter-select {
         min-width: 120px;
     }
     .filter-date-input {
-        min-width: 120px;
+        min-width: 0;
+        min-height: 44px;
     }
     .page-content {
         padding: 12px;

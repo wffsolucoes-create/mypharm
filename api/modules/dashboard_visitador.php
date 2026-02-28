@@ -1276,11 +1276,16 @@ function getRelatorioRotaCompleto(PDO $pdo): void
         $visitas = $stmtV->fetchAll(PDO::FETCH_ASSOC);
 
         $tempoVisitaMin = 0;
+        $maxGeocodeVisitas = 15; // Limite de geocoding por rota para não travar o relatório
+        $visitaIdx = 0;
         foreach ($visitas as &$vis) {
             $d = (int)($vis['duracao_min'] ?? 0);
             if ($d > 0 && $d < 720) $tempoVisitaMin += $d;
             if (!empty($vis['geo_lat']) && !empty($vis['geo_lng'])) {
-                $vis['geo_endereco'] = reverseGeocode($pdo, (float)$vis['geo_lat'], (float)$vis['geo_lng']);
+                $vis['geo_endereco'] = ($visitaIdx < $maxGeocodeVisitas)
+                    ? reverseGeocode($pdo, (float)$vis['geo_lat'], (float)$vis['geo_lng'])
+                    : (number_format((float)$vis['geo_lat'], 5) . ', ' . number_format((float)$vis['geo_lng'], 5));
+                $visitaIdx++;
             }
         }
         unset($vis);

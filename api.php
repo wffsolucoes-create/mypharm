@@ -602,41 +602,85 @@ try {
             if ($dataDeP !== null && $dataAteP !== null) {
                 list($whereCond, $paramsP) = buildDateFilter();
                 $whereSql = $whereCond === '1=1' ? '' : "AND $whereCond";
-                $stmt = $pdo->prepare("
+                $rows = [];
+                // Tentar com prescritor_dados (profissão do cadastro); se tabela não existir, usar só pr
+                $sqlComPd = "
+                    SELECT
+                        COALESCE(NULLIF(TRIM(pr.profissao), ''), NULLIF(TRIM(pd.profissao), ''), 'Não informada') AS profissao,
+                        COUNT(DISTINCT COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')) AS total,
+                        SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN 1 ELSE 0 END) AS total_aprovados,
+                        COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) AS valor_total
+                    FROM gestao_pedidos gp
+                    LEFT JOIN prescritor_resumido pr ON pr.nome = COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') AND pr.ano_referencia = YEAR(gp.data_aprovacao)
+                    LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')
+                    WHERE gp.data_aprovacao IS NOT NULL $whereSql
+                    GROUP BY COALESCE(NULLIF(TRIM(pr.profissao), ''), NULLIF(TRIM(pd.profissao), ''), 'Não informada')
+                    ORDER BY valor_total DESC
+                ";
+                $sqlSemPd = "
                     SELECT
                         COALESCE(NULLIF(TRIM(pr.profissao), ''), 'Não informada') AS profissao,
                         COUNT(DISTINCT COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')) AS total,
                         SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN 1 ELSE 0 END) AS total_aprovados,
                         COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) AS valor_total
                     FROM gestao_pedidos gp
-                    LEFT JOIN prescritor_resumido pr
-                        ON pr.nome = COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')
-                        AND pr.ano_referencia = YEAR(gp.data_aprovacao)
+                    LEFT JOIN prescritor_resumido pr ON pr.nome = COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') AND pr.ano_referencia = YEAR(gp.data_aprovacao)
                     WHERE gp.data_aprovacao IS NOT NULL $whereSql
                     GROUP BY COALESCE(NULLIF(TRIM(pr.profissao), ''), 'Não informada')
-                    HAVING COALESCE(NULLIF(TRIM(pr.profissao), ''), 'Não informada') != ''
                     ORDER BY valor_total DESC
-                ");
-                foreach ($paramsP as $k => $v) {
-                    $stmt->bindValue(":$k", $v);
+                ";
+                try {
+                    $stmt = $pdo->prepare($sqlComPd);
+                    foreach ($paramsP as $k => $v) {
+                        $stmt->bindValue(":$k", $v);
+                    }
+                    $stmt->execute();
+                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                } catch (Throwable $e) {
+                    $stmt = $pdo->prepare($sqlSemPd);
+                    foreach ($paramsP as $k => $v) {
+                        $stmt->bindValue(":$k", $v);
+                    }
+                    $stmt->execute();
+                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                }
+                // Se não houver pedidos no período, usar resumo por ano do prescritor_resumido
+                if (empty($rows)) {
+                    $ano = (int)substr($dataAteP, 0, 4);
+                    $stmt = $pdo->prepare("
+                        SELECT
+                            COALESCE(NULLIF(TRIM(profissao), ''), 'Não informada') AS profissao,
+                            COUNT(*) AS total,
+                            SUM(aprovados) AS total_aprovados,
+                            SUM(valor_aprovado) AS valor_total
+                        FROM prescritor_resumido
+                        WHERE ano_referencia = :ano
+                        GROUP BY COALESCE(NULLIF(TRIM(profissao), ''), 'Não informada')
+                        HAVING COALESCE(NULLIF(TRIM(profissao), ''), 'Não informada') != ''
+                        ORDER BY valor_total DESC
+                    ");
+                    $stmt->execute(['ano' => $ano]);
+                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 }
             } else {
                 $ano = $_GET['ano'] ?? date('Y');
                 $stmt = $pdo->prepare("
                     SELECT
-                        profissao,
+                        COALESCE(NULLIF(TRIM(profissao), ''), 'Não informada') AS profissao,
                         COUNT(*) AS total,
                         SUM(aprovados) AS total_aprovados,
                         SUM(valor_aprovado) AS valor_total
                     FROM prescritor_resumido
-                    WHERE ano_referencia = :ano AND profissao IS NOT NULL AND TRIM(profissao) != ''
-                    GROUP BY profissao
+                    WHERE ano_referencia = :ano
+                    GROUP BY COALESCE(NULLIF(TRIM(profissao), ''), 'Não informada')
+                    HAVING COALESCE(NULLIF(TRIM(profissao), ''), 'Não informada') != ''
                     ORDER BY valor_total DESC
                 ");
                 $stmt->bindValue(':ano', (int)$ano, PDO::PARAM_INT);
+                $stmt->execute();
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
             }
-            $stmt->execute();
-            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC), JSON_UNESCAPED_UNICODE);
+            echo json_encode($rows ?? [], JSON_UNESCAPED_UNICODE);
             break;
 
         // ============================================

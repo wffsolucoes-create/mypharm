@@ -4,6 +4,7 @@ $pdo = getConnection();
 
 $indexes = [
     "ALTER TABLE gestao_pedidos ADD INDEX idx_numero_serie (numero_pedido, serie_pedido)",
+    "ALTER TABLE gestao_pedidos ADD INDEX idx_data_aprovacao (data_aprovacao)",
     "ALTER TABLE gestao_pedidos ADD INDEX idx_ano_status_data (ano_referencia, status_financeiro, data_aprovacao)",
     "ALTER TABLE gestao_pedidos ADD INDEX idx_prescritor (prescritor(100))",
     "ALTER TABLE prescritores_cadastro ADD INDEX idx_visitador (visitador(80))",

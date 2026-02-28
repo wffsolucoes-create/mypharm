@@ -213,6 +213,10 @@ function showApp(nome, tipo, fotoPerfil) {
 
     initPeriodFilter();
     loadDashboard();
+    if (document.getElementById('btnNotifications')) {
+        initAdminNotifications();
+        loadNotificacoesFromAPI();
+    }
 }
 
 function initPeriodFilter() {
@@ -406,6 +410,264 @@ function refreshData() {
     loadPageData(currentPage);
 }
 
+// ============ Notificações (sino) – Admin ============
+function getNotificationsListKey() {
+    return 'mypharm_notif_list_admin_' + (localStorage.getItem('userName') || '').replace(/\s+/g, '_');
+}
+function getStoredNotificationsList() {
+    try {
+        const raw = localStorage.getItem(getNotificationsListKey());
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+}
+function getNotificationsReadKey() {
+    return 'mypharm_notif_read_admin_' + (localStorage.getItem('userName') || '').replace(/\s+/g, '_');
+}
+function getReadNotifications() {
+    try {
+        const raw = localStorage.getItem(getNotificationsReadKey());
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+}
+function markNotificationRead(id) {
+    const read = getReadNotifications();
+    if (read.indexOf(id) === -1) read.push(id);
+    try { localStorage.setItem(getNotificationsReadKey(), JSON.stringify(read)); } catch (e) {}
+    updateNotificationsBadge();
+}
+function deleteNotification(id) {
+    const list = getStoredNotificationsList().filter(v => v.id !== id);
+    try { localStorage.setItem(getNotificationsListKey(), JSON.stringify(list)); } catch (e) {}
+    renderAllNotifications();
+    updateNotificationsBadge();
+}
+function escNotif(x) {
+    return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+let __notificacoesApi = [];
+let __mensagensApi = [];
+let __mensagensRecebidasApi = [];
+
+async function loadNotificacoesFromAPI() {
+    const btn = document.getElementById('btnNotifications');
+    if (!btn) return;
+    try {
+        const r = await apiGet('list_notificacoes');
+        if (r && r.success) {
+            __notificacoesApi = r.notificacoes || [];
+            __mensagensApi = r.mensagens || [];
+            __mensagensRecebidasApi = r.mensagens_recebidas || [];
+        }
+    } catch (e) {
+        __notificacoesApi = [];
+        __mensagensApi = [];
+        __mensagensRecebidasApi = [];
+    }
+    renderAllNotifications();
+    updateNotificationsBadge();
+}
+
+async function loadUsuariosParaMensagem() {
+    const sel = document.getElementById('notifParaUsuarioSelect');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Carregando...</option>';
+    sel.disabled = true;
+    try {
+        const r = await apiGet('list_usuarios_para_mensagem');
+        sel.disabled = false;
+        sel.innerHTML = '<option value="">Selecione o usuário</option>';
+        if (r && r.success && Array.isArray(r.usuarios)) {
+            r.usuarios.forEach(u => {
+                sel.appendChild(new Option(u.nome || 'Usuário ' + u.id, String(u.id)));
+            });
+            if (r.usuarios.length === 0) {
+                sel.appendChild(new Option('Nenhum outro usuário', ''));
+            }
+        } else {
+            sel.innerHTML = '<option value="">' + (r && r.error ? r.error : 'Erro ao carregar') + '</option>';
+        }
+    } catch (e) {
+        sel.disabled = false;
+        sel.innerHTML = '<option value="">Erro ao carregar</option>';
+    }
+}
+
+function renderAllNotifications() {
+    const listEl = document.getElementById('notificationsListAll');
+    const emptyEl = document.getElementById('notificationsEmptyAll');
+    if (!listEl) return;
+    const agendaList = getStoredNotificationsList();
+    const read = getReadNotifications();
+    let itemsHtml = '';
+    (__notificacoesApi || []).forEach(n => {
+        const isRead = !!n.lida;
+        const tipoLabel = n.tipo === '30_dias_sem_visita' ? '30 dias sem visita' : (n.tipo === 'dias_sem_compra' ? (n.dias_sem_compra || 15) + ' dias sem compra' : 'Sistema');
+        itemsHtml += '<div class="notification-item sistema ' + (isRead ? 'read' : '') + '" data-origin="sistema" data-notif-id="' + escNotif(n.id) + '" data-prescritor="' + escNotif(n.prescritor_nome) + '">' +
+            '<div class="notification-item-main"><div class="notification-sender">' + escNotif(tipoLabel) + '</div>' +
+            '<div class="notification-title">' + escNotif(n.prescritor_nome || '-') + '</div>' +
+            '<div class="notification-date">' + escNotif(n.mensagem || '') + '</div></div>' +
+            '<div class="notification-item-actions"><button type="button" class="notification-btn-lida" data-id="' + n.id + '" title="Marcar como lida"><i class="fas fa-check"></i></button>' +
+            '<button type="button" class="notification-item-delete" data-origin="sistema" data-id="' + n.id + '" title="Apagar"><i class="fas fa-trash-alt"></i></button></div></div>';
+    });
+    (__mensagensApi || []).forEach(m => {
+        const dataFmt = (m.criado_em || '').slice(0, 16).replace('T', ' ');
+        itemsHtml += '<div class="notification-item usuario" data-origin="usuario" data-prescritor="' + escNotif(m.prescritor_nome) + '">' +
+            '<div class="notification-item-main"><div class="notification-sender">' + escNotif(m.autor || 'Colega') + '</div>' +
+            '<div class="notification-title">' + escNotif(m.prescritor_nome) + '</div>' +
+            '<div class="notification-date">' + escNotif(m.mensagem) + (dataFmt ? ' · ' + dataFmt : '') + '</div></div></div>';
+    });
+    (__mensagensRecebidasApi || []).forEach(m => {
+        const dataFmt = (m.criado_em || '').slice(0, 16).replace('T', ' ');
+        const isRead = !!m.lida;
+        itemsHtml += '<div class="notification-item msg-usuario ' + (isRead ? 'read' : '') + '" data-origin="msg_usuario" data-msg-id="' + m.id + '">' +
+            '<div class="notification-item-main"><div class="notification-sender">' + escNotif(m.autor || 'Usuário') + '</div>' +
+            '<div class="notification-title">Mensagem para você</div>' +
+            '<div class="notification-date">' + escNotif(m.mensagem) + (dataFmt ? ' · ' + dataFmt : '') + '</div></div>' +
+            '<div class="notification-item-actions">' +
+            '<button type="button" class="notification-btn-lida-msg" data-id="' + m.id + '" title="Marcar como lida"><i class="fas fa-check"></i></button>' +
+            '<button type="button" class="notification-btn-ocultar-msg" data-id="' + m.id + '" title="Excluir da lista"><i class="fas fa-trash-alt"></i></button></div></div>';
+    });
+    agendaList.forEach(v => {
+        const isRead = read.indexOf(v.id) !== -1;
+        const dataFmt = v.data_agendada ? (String(v.data_agendada).trim().length >= 10 ? String(v.data_agendada).slice(8, 10) + '/' + String(v.data_agendada).slice(5, 7) + '/' + String(v.data_agendada).slice(0, 4) : '') : '';
+        const sub = (dataFmt + ((v.hora || '').trim() ? ' às ' + (v.hora || '').trim() : '')) || 'Hoje';
+        itemsHtml += '<div class="notification-item visita ' + (isRead ? 'read' : '') + '" data-origin="agenda" data-id="' + escNotif(v.id) + '" data-prescritor="' + escNotif(v.prescritor) + '">' +
+            '<div class="notification-item-main"><div class="notification-sender">Agenda</div>' +
+            '<div class="notification-title">' + escNotif(v.prescritor || '-') + '</div>' +
+            '<div class="notification-date">' + escNotif(sub) + '</div></div>' +
+            '<button type="button" class="notification-item-delete" data-origin="agenda" data-id="' + escNotif(v.id) + '" title="Apagar"><i class="fas fa-trash-alt"></i></button></div>';
+    });
+    if (emptyEl) emptyEl.style.display = itemsHtml ? 'none' : 'block';
+    if (itemsHtml) {
+        let wrap = listEl.querySelector('.notifications-items-wrap');
+        if (!wrap) {
+            wrap = document.createElement('div');
+            wrap.className = 'notifications-items-wrap';
+            listEl.insertBefore(wrap, emptyEl);
+        }
+        wrap.innerHTML = itemsHtml;
+    } else {
+        const w = listEl.querySelector('.notifications-items-wrap');
+        if (w) w.innerHTML = '';
+    }
+}
+
+function updateNotificationsBadge() {
+    const notifs = __notificacoesApi || [];
+    const msgs = __mensagensApi || [];
+    const msgRec = __mensagensRecebidasApi || [];
+    const list = getStoredNotificationsList();
+    const read = getReadNotifications();
+    const unread = notifs.filter(n => !n.lida).length + msgs.length + msgRec.filter(m => !m.lida).length + list.filter(v => read.indexOf(v.id) === -1).length;
+    const badge = document.getElementById('notificationsBadge');
+    if (!badge) return;
+    badge.textContent = unread > 99 ? '99+' : String(unread);
+    badge.style.display = unread > 0 ? 'inline-flex' : 'none';
+}
+
+async function enviarMensagemUsuarioUI() {
+    const sel = document.getElementById('notifParaUsuarioSelect');
+    const msg = (document.getElementById('notifMensagemUsuarioInput') || {}).value;
+    const paraId = sel ? parseInt(sel.value, 10) : 0;
+    if (!paraId || !msg) {
+        alert('Selecione o usuário e escreva a mensagem.');
+        return;
+    }
+    const btn = document.getElementById('btnEnviarMsgUsuario');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...'; }
+    try {
+        const r = await apiPost('enviar_mensagem_usuario', { para_usuario_id: paraId, mensagem: msg.trim() });
+        if (r && r.success) {
+            if (document.getElementById('notifMensagemUsuarioInput')) document.getElementById('notifMensagemUsuarioInput').value = '';
+            loadNotificacoesFromAPI();
+        } else alert(r && r.error ? r.error : 'Erro ao enviar.');
+    } catch (e) { alert('Erro de conexão.'); }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar para usuário'; }
+}
+
+function closeNotificationsPanel() {
+    const panel = document.getElementById('notificationsPanel');
+    const backdrop = document.getElementById('notificationsBackdrop');
+    if (panel) panel.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('open');
+    document.removeEventListener('click', closeNotificationsOnClickOutside);
+}
+
+function closeNotificationsOnClickOutside(e) {
+    const panel = document.getElementById('notificationsPanel');
+    const btn = document.getElementById('btnNotifications');
+    const backdrop = document.getElementById('notificationsBackdrop');
+    if (panel && btn && !panel.contains(e.target) && !btn.contains(e.target) && !(backdrop && backdrop.contains(e.target))) {
+        closeNotificationsPanel();
+    }
+}
+
+function toggleNotificationsPanel(e) {
+    if (e) e.stopPropagation();
+    const panel = document.getElementById('notificationsPanel');
+    const btn = document.getElementById('btnNotifications');
+    const backdrop = document.getElementById('notificationsBackdrop');
+    if (!panel || !btn) return;
+    const isOpen = panel.classList.toggle('open');
+    const isMobileOrTablet = window.innerWidth <= 1024;
+    if (backdrop) {
+        if (isOpen && isMobileOrTablet) backdrop.classList.add('open');
+        else backdrop.classList.remove('open');
+    }
+    if (isOpen) {
+        Promise.all([loadNotificacoesFromAPI(), loadUsuariosParaMensagem()]).catch(() => {});
+        setTimeout(() => document.addEventListener('click', closeNotificationsOnClickOutside), 0);
+    } else {
+        document.removeEventListener('click', closeNotificationsOnClickOutside);
+    }
+}
+
+function initAdminNotifications() {
+    const panel = document.getElementById('notificationsPanel');
+    if (!panel || panel.dataset.notificationsBound === '1') return;
+    panel.dataset.notificationsBound = '1';
+    panel.addEventListener('click', function (e) {
+        const btnLida = e.target.closest('.notification-btn-lida');
+        if (btnLida && btnLida.dataset.id) {
+            e.stopPropagation();
+            e.preventDefault();
+            apiPost('marcar_notificacao_lida', { id: parseInt(btnLida.dataset.id, 10) }).then(() => loadNotificacoesFromAPI());
+            return;
+        }
+        const btnLidaMsg = e.target.closest('.notification-btn-lida-msg');
+        if (btnLidaMsg && btnLidaMsg.dataset.id) {
+            e.stopPropagation();
+            e.preventDefault();
+            apiPost('marcar_mensagem_usuario_lida', { id: parseInt(btnLidaMsg.dataset.id, 10) }).then(() => loadNotificacoesFromAPI());
+            return;
+        }
+        const btnOcultarMsg = e.target.closest('.notification-btn-ocultar-msg');
+        if (btnOcultarMsg && btnOcultarMsg.dataset.id) {
+            e.stopPropagation();
+            e.preventDefault();
+            apiPost('ocultar_mensagem_usuario', { id: parseInt(btnOcultarMsg.dataset.id, 10) }).then(() => loadNotificacoesFromAPI());
+            return;
+        }
+        const btnDelete = e.target.closest('.notification-item-delete');
+        if (btnDelete && btnDelete.dataset.id) {
+            e.stopPropagation();
+            e.preventDefault();
+            if (btnDelete.dataset.origin === 'sistema') {
+                apiPost('apagar_notificacao', { id: parseInt(btnDelete.dataset.id, 10) }).then(() => loadNotificacoesFromAPI());
+            } else {
+                deleteNotification(btnDelete.dataset.id);
+            }
+            return;
+        }
+        const item = e.target.closest('.notification-item');
+        if (item && item.dataset.prescritor) {
+            if (item.dataset.origin === 'agenda' && item.dataset.id) markNotificationRead(item.dataset.id);
+            item.classList.add('read');
+        }
+    });
+}
+
 // ============ Load Page Data ============
 async function loadPageData(page) {
     showLoading();
@@ -443,33 +705,24 @@ async function loadDashboard() {
     const fp = getFilterParams();
     const params = { data_de: fp.data_de, data_ate: fp.data_ate };
 
-    // Primeiro buscar e renderizar KPIs para melhorar percepção de carga
+    // Carregar KPIs e gráficos em paralelo; exibir tudo junto quando terminar
     try {
-        const kpis = await apiGet('kpis', params);
-        renderKPIs(kpis);
+        const [kpis, mensal, formas, canais, statusData] = await Promise.all([
+            apiGet('kpis', params),
+            apiGet('faturamento_mensal', params),
+            apiGet('top_formas', { ...params, limit: 8 }),
+            apiGet('canais', params),
+            apiGet('itens_status', params)
+        ]);
+
+        if (kpis) renderKPIs(kpis);
+        if (mensal) renderChartFaturamentoMensal(mensal);
+        if (formas) renderChartFormas(formas);
+        if (canais) renderChartCanais(canais);
+        if (statusData) renderChartStatus(statusData);
     } catch (err) {
-        console.error('Erro ao carregar KPIs:', err);
+        console.error('Erro ao carregar dashboard:', err);
     }
-
-    // Esconder loading principal cedo (loadPageData também chama hideLoading após await)
-    // Carregar gráficos e dados pesados em segundo plano sem bloquear a UI
-    (async () => {
-        try {
-            const [mensal, formas, canais, statusData] = await Promise.all([
-                apiGet('faturamento_mensal', params),
-                apiGet('top_formas', { ...params, limit: 8 }),
-                apiGet('canais', params),
-                apiGet('itens_status', params)
-            ]);
-
-            renderChartFaturamentoMensal(mensal);
-            renderChartFormas(formas);
-            renderChartCanais(canais);
-            renderChartStatus(statusData);
-        } catch (err) {
-            console.error('Erro ao carregar dados do dashboard:', err);
-        }
-    })();
 }
 
 function renderKPIs(kpis) {
