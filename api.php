@@ -2222,8 +2222,35 @@ try {
             }
             $input = json_decode(file_get_contents('php://input'), true) ?: [];
             $sessionNome = trim($_SESSION['user_nome'] ?? '');
-            // Visitador: sempre pela rota do usuário logado (permite finalizar em qualquer dispositivo)
             $visitadorNome = ($userSetor === 'visitador') ? $sessionNome : trim($input['visitador_nome'] ?? $sessionNome);
+            // Não permitir finalizar rota com visita em andamento
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS visitas_em_andamento (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    visitador VARCHAR(255) NOT NULL,
+                    prescritor VARCHAR(255) NOT NULL,
+                    inicio DATETIME NOT NULL,
+                    fim DATETIME NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'iniciada',
+                    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_visitador_status (visitador, status)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            $stmt = $pdo->prepare("
+                SELECT id, prescritor FROM visitas_em_andamento
+                WHERE visitador = :v AND status = 'iniciada' AND fim IS NULL LIMIT 1
+            ");
+            $stmt->execute(['v' => $visitadorNome]);
+            $visitaAberta = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($visitaAberta) {
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Encerre a visita em andamento antes de finalizar a rota.',
+                    'prescritor' => $visitaAberta['prescritor'] ?? null
+                ], JSON_UNESCAPED_UNICODE);
+                break;
+            }
             $stmt = $pdo->prepare("
                 UPDATE rotas_diarias
                 SET data_fim = NOW(), pausado_em = NULL, status = 'finalizada'

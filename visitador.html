@@ -1958,17 +1958,17 @@
     </div>
 
     <!-- Modal para Encerrar Visita (Relatório + Próxima Visita) -->
-    <div id="modalEncerrarVisita"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:3500; justify-content:center; align-items:center; padding:20px;">
-        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:720px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
-            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+    <div id="modalEncerrarVisita" class="modal-encerrar-visita-overlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:3500; align-items:flex-start; justify-content:center; padding:20px; box-sizing:border-box; overflow-y:auto;">
+        <div class="modal-encerrar-visita-card" style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:720px; height:90vh; max-height:90vh; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden; display:flex; flex-direction:column; flex-shrink:0; margin:auto;">
+            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
                 <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:var(--text-primary);">
                     <i class="fas fa-clipboard-check" style="color:var(--success); margin-right:8px;"></i>
                     Encerrar Visita
                 </h3>
                 <button onclick="closeEncerrarVisitaModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
             </div>
-            <div style="padding:18px 22px;">
+            <div class="modal-encerrar-visita-body" style="padding:18px 22px; overflow-y:auto; flex:1; min-height:0;">
                 <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">
                     Prescritor: <strong id="encerrarVisitaPrescritor" style="color:var(--text-primary);"></strong>
                     <span id="encerrarVisitaInicio" style="margin-left:10px; opacity:0.8;"></span>
@@ -3618,10 +3618,8 @@
             document.getElementById('visitaBrinde').value = '';
             document.getElementById('visitaArtigo').value = '';
             document.getElementById('visitaResumo').value = '';
-            var amanha = new Date();
-            amanha.setDate(amanha.getDate() + 1);
-            document.getElementById('visitaProximaData').value = amanha.getFullYear() + '-' + String(amanha.getMonth() + 1).padStart(2, '0') + '-' + String(amanha.getDate()).padStart(2, '0');
-            document.getElementById('visitaProximaHora').value = '09:00';
+            document.getElementById('visitaProximaData').value = '';
+            document.getElementById('visitaProximaHora').value = '';
             resetGeoUI();
             const msg = document.getElementById('encerrarVisitaMsg');
             if (msg) msg.style.display = 'none';
@@ -4942,6 +4940,13 @@
 
         async function finishRotaFromUI() {
             if (!currentVisitadorName || (rotaState !== 'em_andamento' && rotaState !== 'pausada')) return;
+            try {
+                const av = await apiGet('visita_ativa', { visitador_nome: currentVisitadorName });
+                if (av && av.active) {
+                    alert('Não é possível finalizar a rota com uma visita em andamento. Encerre a visita ao prescritor "' + (av.active.prescritor || '') + '" antes de finalizar a rota.');
+                    return;
+                }
+            } catch (e) { /* ignora erro de rede, backend também valida */ }
             if (!confirm('Finalizar a rota do dia? O percurso registrado será mantido.')) return;
             try {
                 const res = await apiPost('finish_rota', { visitador_nome: currentVisitadorName });
@@ -4957,6 +4962,8 @@
                         var data = term ? relatorioPrescritoresFiltered.filter(function(p) { return (p.prescritor || '').toLowerCase().includes(term); }) : relatorioPrescritoresFiltered;
                         renderRelatorioPrescritoresTable(data);
                     }
+                } else if (res && res.error) {
+                    alert(res.error);
                 }
             } catch (e) {
                 console.error('Finalizar rota', e);
