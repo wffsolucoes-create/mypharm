@@ -1505,11 +1505,11 @@
             </div>
         </div>
 
-        <!-- Página Roteiro de Visitas (mapa com rotas e pontos) -->
+        <!-- Página Roteiro de Visitas (relatório completo) -->
         <div id="paginaRoteiroVisitas" class="visitador-page roteiro-page" style="display:none; padding:0 24px 32px;">
             <div class="roteiro-header">
                 <h2 class="roteiro-title"><i class="fas fa-route roteiro-title-icon"></i>Roteiro de Visitas</h2>
-                <p class="roteiro-subtitle">Visitas do período com confirmação de GPS. Mapa com rota percorrida e direção entre prescritores.</p>
+                <p class="roteiro-subtitle">Relatório completo: distância, tempos, localizações e visitas realizadas.</p>
             </div>
             <div class="roteiro-filters">
                 <div class="roteiro-filter-group">
@@ -1522,13 +1522,51 @@
                 </div>
                 <button type="button" onclick="loadRoteiroVisitas()" class="roteiro-btn-atualizar"><i class="fas fa-sync-alt"></i> Atualizar</button>
             </div>
+
+            <!-- KPIs resumo -->
+            <div id="roteiroKpis" class="roteiro-kpis" style="display:none;">
+                <div class="roteiro-kpi-card">
+                    <div class="roteiro-kpi-icon"><i class="fas fa-road"></i></div>
+                    <div class="roteiro-kpi-info">
+                        <div class="roteiro-kpi-value" id="roteiroKpiKm">0 km</div>
+                        <div class="roteiro-kpi-label">Distância percorrida</div>
+                    </div>
+                </div>
+                <div class="roteiro-kpi-card">
+                    <div class="roteiro-kpi-icon" style="background:rgba(16,185,129,0.12); color:#10B981;"><i class="fas fa-clock"></i></div>
+                    <div class="roteiro-kpi-info">
+                        <div class="roteiro-kpi-value" id="roteiroKpiTempoRota">0h 0min</div>
+                        <div class="roteiro-kpi-label">Tempo total de rota</div>
+                    </div>
+                </div>
+                <div class="roteiro-kpi-card">
+                    <div class="roteiro-kpi-icon" style="background:rgba(245,158,11,0.12); color:#F59E0B;"><i class="fas fa-user-clock"></i></div>
+                    <div class="roteiro-kpi-info">
+                        <div class="roteiro-kpi-value" id="roteiroKpiTempoVisita">0h 0min</div>
+                        <div class="roteiro-kpi-label">Tempo em visitas</div>
+                    </div>
+                </div>
+                <div class="roteiro-kpi-card">
+                    <div class="roteiro-kpi-icon" style="background:rgba(139,92,246,0.12); color:#8B5CF6;"><i class="fas fa-clipboard-check"></i></div>
+                    <div class="roteiro-kpi-info">
+                        <div class="roteiro-kpi-value" id="roteiroKpiVisitas">0</div>
+                        <div class="roteiro-kpi-label">Visitas realizadas</div>
+                    </div>
+                </div>
+            </div>
+
             <div id="roteiroResumo" class="roteiro-resumo">—</div>
+
+            <!-- Lista de rotas detalhadas -->
+            <div id="roteiroDetalhes" style="display:none;"></div>
+
+            <!-- Mapa -->
             <div id="roteiroDirecoes" class="roteiro-direcoes" style="display:none;"></div>
             <div class="roteiro-map-card">
                 <div id="roteiroMapContainer" class="roteiro-map-container"></div>
                 <div id="roteiroMapEmpty" class="roteiro-map-empty" style="display:none;">
                     <i class="fas fa-map-marked-alt"></i>
-                    <p>Nenhuma visita com GPS no período. Ajuste as datas e clique em Atualizar.</p>
+                    <p>Nenhuma rota no período. Ajuste as datas e clique em Atualizar.</p>
                 </div>
             </div>
         </div>
@@ -3908,7 +3946,7 @@
 
         var __roteiroMap = null;
         var __roteiroMarkers = [];
-        var __roteiroPolyline = null;
+        var __roteiroPolylines = [];
         function initRoteiroPage() {
             var deEl = document.getElementById('roteiroDataDe');
             var ateEl = document.getElementById('roteiroDataAte');
@@ -3920,6 +3958,23 @@
             if (ateEl && !ateEl.value) ateEl.value = deEl ? deEl.value : '';
             loadRoteiroVisitas();
         }
+        function fmtMinutos(min) {
+            if (!min || min <= 0) return '—';
+            var h = Math.floor(min / 60), m = min % 60;
+            return h > 0 ? h + 'h ' + m + 'min' : m + 'min';
+        }
+        function fmtDataHoraBr(dt) {
+            if (!dt) return '—';
+            var s = String(dt).replace('T', ' ').slice(0, 16);
+            var partes = s.split(' ');
+            if (partes.length < 2) return s;
+            var dp = partes[0].split('-');
+            return dp.length === 3 ? dp[2] + '/' + dp[1] + '/' + dp[0] + ' ' + partes[1] : s;
+        }
+        function fmtHoraBr(dt) {
+            if (!dt) return '—';
+            return String(dt).replace('T', ' ').slice(11, 16) || '—';
+        }
         async function loadRoteiroVisitas() {
             var deEl = document.getElementById('roteiroDataDe');
             var ateEl = document.getElementById('roteiroDataAte');
@@ -3927,85 +3982,164 @@
             var dirEl = document.getElementById('roteiroDirecoes');
             var container = document.getElementById('roteiroMapContainer');
             var emptyEl = document.getElementById('roteiroMapEmpty');
+            var kpisEl = document.getElementById('roteiroKpis');
+            var detalhesEl = document.getElementById('roteiroDetalhes');
             if (!deEl || !ateEl) return;
             var dataDe = deEl.value || new Date().toISOString().slice(0, 10);
             var dataAte = ateEl.value || dataDe;
             if (resumoEl) resumoEl.textContent = 'Carregando...';
             if (dirEl) { dirEl.style.display = 'none'; dirEl.innerHTML = ''; }
+            if (kpisEl) kpisEl.style.display = 'none';
+            if (detalhesEl) { detalhesEl.style.display = 'none'; detalhesEl.innerHTML = ''; }
             try {
                 var visitador = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '') || (localStorage.getItem('userName') || '');
-                var res = await apiGet('get_visitas_mapa_periodo', { data_de: dataDe, data_ate: dataAte, visitador: visitador });
-                var visitas = (res && res.visitas) ? res.visitas : [];
-                if (resumoEl) resumoEl.textContent = visitas.length + ' visita(s) com GPS no período.';
-                renderRoteiroMapa(visitas, container, emptyEl, dirEl);
+                var res = await apiGet('get_relatorio_rota_completo', { data_de: dataDe, data_ate: dataAte, visitador: visitador });
+                if (!res || !res.success) {
+                    if (resumoEl) resumoEl.textContent = (res && res.error) || 'Erro ao carregar.';
+                    return;
+                }
+                // KPIs
+                if (kpisEl) {
+                    kpisEl.style.display = 'grid';
+                    document.getElementById('roteiroKpiKm').textContent = (res.total_km || 0).toFixed(1) + ' km';
+                    document.getElementById('roteiroKpiTempoRota').textContent = fmtMinutos(res.total_tempo_rota_min);
+                    document.getElementById('roteiroKpiTempoVisita').textContent = fmtMinutos(res.total_tempo_visita_min);
+                    document.getElementById('roteiroKpiVisitas').textContent = res.total_visitas || 0;
+                }
+                if (resumoEl) resumoEl.textContent = (res.total_rotas || 0) + ' rota(s) encontrada(s) no período. ' + (res.total_visitas || 0) + ' visita(s).';
+                // Detalhes das rotas
+                renderRoteiroDetalhes(res.rotas || [], detalhesEl);
+                // Mapa com pontos de todas as rotas
+                renderRoteiroMapaCompleto(res.rotas || [], container, emptyEl, dirEl);
             } catch (e) {
                 if (resumoEl) resumoEl.textContent = 'Erro ao carregar roteiro.';
                 if (emptyEl) { emptyEl.style.display = 'block'; emptyEl.innerHTML = '<p style="margin:0;">Erro ao carregar dados.</p>'; }
                 if (container) container.style.display = 'none';
             }
         }
-        function renderRoteiroMapa(visitas, containerEl, emptyEl, dirEl) {
-            if (!containerEl) return;
-            if (!visitas || visitas.length === 0) {
-                containerEl.style.display = 'none';
-                if (emptyEl) { emptyEl.style.display = 'block'; }
-                if (dirEl) dirEl.style.display = 'none';
-                if (typeof L !== 'undefined' && __roteiroMap) {
-                    __roteiroMap.remove();
-                    __roteiroMap = null;
+        function renderRoteiroDetalhes(rotas, el) {
+            if (!el) return;
+            if (!rotas || rotas.length === 0) { el.style.display = 'none'; return; }
+            var html = '';
+            rotas.forEach(function (r, idx) {
+                var statusBg = r.status === 'finalizada' ? 'var(--success)' : (r.status === 'pausada' ? 'var(--warning)' : 'var(--primary)');
+                var statusLabel = r.status === 'finalizada' ? 'Finalizada' : (r.status === 'pausada' ? 'Pausada' : 'Em andamento');
+                html += '<div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:18px 20px; margin-bottom:16px;">';
+                html += '<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:14px;">';
+                html += '<h3 style="margin:0; font-size:1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-route" style="color:var(--primary); margin-right:8px;"></i>Rota #' + (idx + 1) + '</h3>';
+                html += '<span style="padding:4px 12px; border-radius:999px; font-size:0.75rem; font-weight:700; color:white; background:' + statusBg + ';">' + statusLabel + '</span>';
+                html += '</div>';
+                html += '<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:14px;">';
+                html += roteiroInfoCard('fa-play-circle', 'Início da rota', fmtDataHoraBr(r.data_inicio));
+                html += roteiroInfoCard('fa-flag-checkered', 'Fim da rota', r.data_fim ? fmtDataHoraBr(r.data_fim) : '—');
+                html += roteiroInfoCard('fa-road', 'Distância', (r.km || 0).toFixed(1) + ' km');
+                html += roteiroInfoCard('fa-clock', 'Tempo de percurso', fmtMinutos(r.tempo_rota_min));
+                html += roteiroInfoCard('fa-user-clock', 'Tempo em visitas', fmtMinutos(r.tempo_visita_min));
+                html += roteiroInfoCard('fa-map-pin', 'Pontos GPS', r.qtd_pontos || 0);
+                if (r.pausado_em) html += roteiroInfoCard('fa-pause-circle', 'Pausada em', fmtDataHoraBr(r.pausado_em));
+                html += roteiroInfoCard('fa-map-marker-alt', 'Local de início', r.local_inicio_lat ? (r.local_inicio_lat.toFixed(5) + ', ' + r.local_inicio_lng.toFixed(5)) : '—');
+                html += roteiroInfoCard('fa-map-marker-alt', 'Local de encerramento', r.local_fim_lat ? (r.local_fim_lat.toFixed(5) + ', ' + r.local_fim_lng.toFixed(5)) : '—');
+                html += '</div>';
+                // Visitas da rota
+                if (r.visitas && r.visitas.length > 0) {
+                    html += '<div style="font-size:0.8rem; font-weight:700; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;"><i class="fas fa-clipboard-list" style="margin-right:6px;"></i>Visitas do dia (' + r.visitas.length + ')</div>';
+                    html += '<div style="overflow-x:auto;">';
+                    html += '<table style="width:100%; border-collapse:collapse; font-size:0.82rem;">';
+                    html += '<thead><tr style="background:var(--bg-body); color:var(--text-secondary);">';
+                    html += '<th style="padding:8px 10px; text-align:left; font-weight:700; border-bottom:1px solid var(--border);">Prescritor</th>';
+                    html += '<th style="padding:8px 10px; text-align:left; font-weight:700; border-bottom:1px solid var(--border);">Início</th>';
+                    html += '<th style="padding:8px 10px; text-align:left; font-weight:700; border-bottom:1px solid var(--border);">Fim</th>';
+                    html += '<th style="padding:8px 10px; text-align:left; font-weight:700; border-bottom:1px solid var(--border);">Duração</th>';
+                    html += '<th style="padding:8px 10px; text-align:left; font-weight:700; border-bottom:1px solid var(--border);">Status</th>';
+                    html += '<th style="padding:8px 10px; text-align:left; font-weight:700; border-bottom:1px solid var(--border);">Local</th>';
+                    html += '</tr></thead><tbody>';
+                    r.visitas.forEach(function (v) {
+                        var stColor = (v.status_visita === 'Realizada') ? 'var(--success)' : 'var(--text-secondary)';
+                        html += '<tr style="border-bottom:1px solid var(--border);">';
+                        html += '<td style="padding:8px 10px; color:var(--text-primary); font-weight:600;">' + escNotif(v.prescritor || '—') + '</td>';
+                        html += '<td style="padding:8px 10px; color:var(--text-secondary);">' + fmtHoraBr(v.inicio_visita) + '</td>';
+                        html += '<td style="padding:8px 10px; color:var(--text-secondary);">' + fmtHoraBr(v.fim_visita) + '</td>';
+                        html += '<td style="padding:8px 10px; color:var(--primary); font-weight:600;">' + fmtMinutos(v.duracao_min > 0 ? v.duracao_min : 0) + '</td>';
+                        html += '<td style="padding:8px 10px; color:' + stColor + '; font-weight:600;">' + escNotif(v.status_visita || '—') + '</td>';
+                        html += '<td style="padding:8px 10px; color:var(--text-secondary);">' + escNotif(v.local_visita || '—') + '</td>';
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                } else {
+                    html += '<div style="font-size:0.82rem; color:var(--text-secondary); opacity:0.7;">Nenhuma visita registrada neste dia.</div>';
                 }
+                html += '</div>';
+            });
+            el.innerHTML = html;
+            el.style.display = 'block';
+        }
+        function roteiroInfoCard(icon, label, value) {
+            return '<div style="padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);">' +
+                '<div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="fas ' + icon + '" style="margin-right:4px;"></i>' + label + '</div>' +
+                '<div style="font-size:0.92rem; font-weight:700; color:var(--text-primary);">' + value + '</div></div>';
+        }
+        function renderRoteiroMapaCompleto(rotas, containerEl, emptyEl, dirEl) {
+            if (!containerEl) return;
+            var allPts = [];
+            rotas.forEach(function (r) {
+                if (r.pontos && r.pontos.length > 0) {
+                    r.pontos.forEach(function (p) { allPts.push({ lat: p.lat, lng: p.lng }); });
+                }
+                if (r.visitas) {
+                    r.visitas.forEach(function (v) {
+                        if (v.prescritor) allPts.push({ prescritor: v.prescritor, inicio: v.inicio_visita, fim: v.fim_visita, status: v.status_visita, local: v.local_visita });
+                    });
+                }
+            });
+            if (allPts.length === 0 && rotas.length === 0) {
+                containerEl.style.display = 'none';
+                if (emptyEl) emptyEl.style.display = 'block';
+                if (dirEl) dirEl.style.display = 'none';
+                if (typeof L !== 'undefined' && __roteiroMap) { __roteiroMap.remove(); __roteiroMap = null; }
                 __roteiroMarkers = [];
-                __roteiroPolyline = null;
+                __roteiroPolylines = [];
                 return;
             }
             containerEl.style.display = 'block';
             if (emptyEl) emptyEl.style.display = 'none';
-            var pts = visitas.map(function (v) {
-                var lat = parseFloat(v.lat);
-                var lng = parseFloat(v.lng);
-                var endereco = (v.local_visita || '').trim();
-                return { lat: lat, lng: lng, prescritor: v.prescritor || '—', data_visita: v.data_visita, horario: v.horario || '', endereco: endereco || '—' };
-            }).filter(function (p) { return Number.isFinite(p.lat) && Number.isFinite(p.lng); });
-            if (pts.length === 0) {
-                containerEl.style.display = 'none';
-                if (emptyEl) { emptyEl.style.display = 'block'; }
-                return;
-            }
-            var dirHtml = '<strong>Direção da rota:</strong> ';
-            dirHtml += pts.map(function (p, i) { return (i + 1) + '. ' + (p.prescritor || '—'); }).join(' → ');
-            if (dirEl) { dirEl.innerHTML = dirHtml; dirEl.style.display = 'block'; }
             if (typeof L === 'undefined') {
-                if (emptyEl) { emptyEl.style.display = 'block'; emptyEl.innerHTML = '<p style="margin:0;">Mapa indisponível (Leaflet não carregou).</p>'; }
+                if (emptyEl) { emptyEl.style.display = 'block'; emptyEl.innerHTML = '<p>Mapa indisponível (Leaflet).</p>'; }
                 containerEl.style.display = 'none';
                 return;
             }
             if (__roteiroMap) {
                 __roteiroMap.remove();
                 __roteiroMarkers.forEach(function (m) { if (m && m.remove) m.remove(); });
-                if (__roteiroPolyline && __roteiroPolyline.remove) __roteiroPolyline.remove();
+                __roteiroPolylines.forEach(function (p) { if (p && p.remove) p.remove(); });
             }
-            var latLngs = pts.map(function (p) { return [p.lat, p.lng]; });
-            var center = latLngs.length === 1 ? latLngs[0] : [latLngs[0][0] + (latLngs[latLngs.length - 1][0] - latLngs[0][0]) / 2, latLngs[0][1] + (latLngs[latLngs.length - 1][1] - latLngs[0][1]) / 2];
-            var zoom = 14;
-            __roteiroMap = L.map(containerEl, { zoomControl: true, attributionControl: false }).setView(center, zoom);
+            __roteiroMap = L.map(containerEl, { zoomControl: true, attributionControl: false }).setView([-8.76, -63.86], 14);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(__roteiroMap);
             __roteiroMarkers = [];
-            pts.forEach(function (p, i) {
-                var tooltipText = (p.prescritor || '—') + (p.endereco && p.endereco !== '—' ? '<br><span style="font-weight:500; font-size:0.85em;">' + String(p.endereco).replace(/</g, '&lt;') + '</span>' : '');
-                var popupParts = ['<strong>' + String(p.prescritor || '—').replace(/</g, '&lt;') + '</strong>'];
-                if (p.endereco && p.endereco !== '—') popupParts.push('<div style="margin-top:6px; color:var(--text-secondary);">' + String(p.endereco).replace(/</g, '&lt;') + '</div>');
-                if (p.data_visita || p.horario) popupParts.push('<div style="margin-top:4px; font-size:0.85em;">' + (p.data_visita || '') + (p.horario ? ' ' + p.horario : '') + '</div>');
-                var popupHtml = '<div class="roteiro-popup">' + popupParts.join('') + '</div>';
-                var marker = L.marker([p.lat, p.lng]).addTo(__roteiroMap);
-                marker.bindTooltip(tooltipText, { direction: 'top', permanent: false, opacity: 0.95, className: 'roteiro-tooltip' });
-                marker.bindPopup(popupHtml, { minWidth: 200 });
-                __roteiroMarkers.push(marker);
+            __roteiroPolylines = [];
+            var allLatLngs = [];
+            var colors = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+            rotas.forEach(function (r, rIdx) {
+                if (!r.pontos || r.pontos.length === 0) return;
+                var latLngs = r.pontos.map(function (p) { return [p.lat, p.lng]; });
+                allLatLngs = allLatLngs.concat(latLngs);
+                var cor = colors[rIdx % colors.length];
+                var poly = L.polyline(latLngs, { color: cor, weight: 4, opacity: 0.8 }).addTo(__roteiroMap);
+                __roteiroPolylines.push(poly);
+                // Marcador de início
+                var startM = L.circleMarker(latLngs[0], { radius: 8, color: cor, fillColor: cor, fillOpacity: 1 }).addTo(__roteiroMap);
+                startM.bindTooltip('Início rota #' + (rIdx + 1) + '<br>' + fmtDataHoraBr(r.data_inicio), { direction: 'top', className: 'roteiro-tooltip' });
+                __roteiroMarkers.push(startM);
+                // Marcador de fim
+                if (latLngs.length > 1) {
+                    var endM = L.circleMarker(latLngs[latLngs.length - 1], { radius: 8, color: '#EF4444', fillColor: '#EF4444', fillOpacity: 1 }).addTo(__roteiroMap);
+                    endM.bindTooltip('Fim rota #' + (rIdx + 1) + '<br>' + (r.data_fim ? fmtDataHoraBr(r.data_fim) : 'Em andamento'), { direction: 'top', className: 'roteiro-tooltip' });
+                    __roteiroMarkers.push(endM);
+                }
             });
-            if (latLngs.length > 1) {
-                __roteiroPolyline = L.polyline(latLngs, { color: '#2563EB', weight: 4, opacity: 0.8 }).addTo(__roteiroMap);
-                __roteiroMap.fitBounds(__roteiroPolyline.getBounds(), { padding: [30, 30] });
-            } else if (pts.length === 1) {
-                __roteiroMap.setView([pts[0].lat, pts[0].lng], 16);
+            if (allLatLngs.length > 1) {
+                __roteiroMap.fitBounds(allLatLngs, { padding: [30, 30] });
+            } else if (allLatLngs.length === 1) {
+                __roteiroMap.setView(allLatLngs[0], 16);
             }
         }
 

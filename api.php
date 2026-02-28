@@ -127,6 +127,7 @@ try {
         'update_detalhe_visita',
         'get_visitas_prescritor',
         'get_visitas_mapa_periodo',
+        'get_relatorio_rota_completo',
         'list_notificacoes',
         'enviar_mensagem_visitador',
         'enviar_mensagem_usuario',
@@ -213,6 +214,7 @@ try {
         case 'get_pedido_detalhe':
         case 'get_pedido_componentes':
         case 'get_visitas_mapa_periodo':
+        case 'get_relatorio_rota_completo':
             handleDashboardModuleAction($action, $pdo);
                 break;
         case 'list_notificacoes':

@@ -53,6 +53,9 @@ function handleDashboardModuleAction(string $action, PDO $pdo): void
         case 'get_visitas_mapa_periodo':
             getVisitasMapaPeriodo($pdo);
             return;
+        case 'get_relatorio_rota_completo':
+            getRelatorioRotaCompleto($pdo);
+            return;
         default:
             http_response_code(400);
             echo json_encode(['error' => 'Ação de dashboard desconhecida'], JSON_UNESCAPED_UNICODE);

@@ -1156,6 +1156,144 @@ function dashboardGetPedidoComponentes(PDO $pdo): void
  * Visitas com GPS para o Roteiro de Visitas (período: data_de até data_ate).
  * Retorna pontos ordenados por data_visita e horário para desenhar rota e direção.
  */
+function getRelatorioRotaCompleto(PDO $pdo): void
+{
+    $dataDe = trim($_GET['data_de'] ?? '');
+    $dataAte = trim($_GET['data_ate'] ?? '');
+    $nome = trim($_GET['visitador'] ?? '');
+    $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
+    if ($userSetor === 'visitador' && $nome === '') {
+        $nome = trim($_SESSION['user_nome'] ?? '');
+    }
+    if (!$nome) {
+        echo json_encode(['error' => 'Visitador não informado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    if (!$dataDe || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDe)) $dataDe = date('Y-m-d');
+    if (!$dataAte || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAte)) $dataAte = $dataDe;
+    if ($dataAte < $dataDe) $dataAte = $dataDe;
+
+    $haversineKm = function ($lat1, $lon1, $lat2, $lon2) {
+        $lat1 = (float)$lat1; $lon1 = (float)$lon1; $lat2 = (float)$lat2; $lon2 = (float)$lon2;
+        $R = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a = sin($dLat / 2) * sin($dLat / 2) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) * sin($dLon / 2);
+        return $R * 2 * atan2(sqrt($a), sqrt(1 - $a));
+    };
+
+    // 1) Rotas do período
+    $pdo->exec("CREATE TABLE IF NOT EXISTS rotas_diarias (
+        id INT AUTO_INCREMENT PRIMARY KEY, visitador_nome VARCHAR(255) NOT NULL,
+        data_inicio DATETIME NOT NULL, data_fim DATETIME NULL, pausado_em DATETIME NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'em_andamento', criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_visitador_status (visitador_nome, status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS rotas_pontos (
+        id INT AUTO_INCREMENT PRIMARY KEY, rota_id INT NOT NULL,
+        lat DECIMAL(10,7) NOT NULL, lng DECIMAL(10,7) NOT NULL,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP, INDEX idx_rota (rota_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $stmt = $pdo->prepare("
+        SELECT id, visitador_nome, data_inicio, data_fim, pausado_em, status
+        FROM rotas_diarias
+        WHERE visitador_nome = :v AND DATE(data_inicio) >= :de AND DATE(data_inicio) <= :ate
+        ORDER BY data_inicio DESC
+        LIMIT 100
+    ");
+    $stmt->execute(['v' => $nome, 'de' => $dataDe, 'ate' => $dataAte]);
+    $rotas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $resultado = [];
+    $totalKm = 0;
+    $totalTempoRota = 0;
+    $totalTempoVisita = 0;
+
+    foreach ($rotas as $rota) {
+        $rid = (int)$rota['id'];
+
+        // Pontos GPS da rota
+        $stmtP = $pdo->prepare("SELECT lat, lng, criado_em FROM rotas_pontos WHERE rota_id = :rid ORDER BY criado_em ASC");
+        $stmtP->execute(['rid' => $rid]);
+        $pontos = $stmtP->fetchAll(PDO::FETCH_ASSOC);
+        $qtd = count($pontos);
+
+        $km = 0;
+        for ($i = 1; $i < $qtd; $i++) {
+            $km += $haversineKm($pontos[$i - 1]['lat'], $pontos[$i - 1]['lng'], $pontos[$i]['lat'], $pontos[$i]['lng']);
+        }
+        $totalKm += $km;
+
+        $primeiroPonto = $qtd > 0 ? $pontos[0] : null;
+        $ultimoPonto = $qtd > 0 ? $pontos[$qtd - 1] : null;
+
+        // Tempo de percurso
+        $dataInicio = $rota['data_inicio'];
+        $dataFim = $rota['data_fim'];
+        $tempoRotaMin = 0;
+        if ($dataInicio && $dataFim) {
+            $tempoRotaMin = (int)((strtotime($dataFim) - strtotime($dataInicio)) / 60);
+        } elseif ($dataInicio && $rota['status'] === 'em_andamento') {
+            $tempoRotaMin = (int)((time() - strtotime($dataInicio)) / 60);
+        }
+        $totalTempoRota += $tempoRotaMin;
+
+        // Visitas desta rota (no mesmo dia do início)
+        $diaRota = substr($dataInicio, 0, 10);
+        $stmtV = $pdo->prepare("
+            SELECT hv.prescritor, hv.inicio_visita, CONCAT(hv.data_visita, ' ', COALESCE(hv.horario, '00:00:00')) as fim_visita,
+                   hv.status_visita, hv.local_visita, hv.resumo_visita, hv.amostra, hv.brinde, hv.artigo,
+                   TIMESTAMPDIFF(MINUTE, hv.inicio_visita, CONCAT(hv.data_visita, ' ', COALESCE(hv.horario, '00:00:00'))) as duracao_min
+            FROM historico_visitas hv
+            WHERE TRIM(hv.visitador) = TRIM(:v) AND hv.data_visita = :dia
+            ORDER BY hv.inicio_visita ASC
+        ");
+        $stmtV->execute(['v' => $nome, 'dia' => $diaRota]);
+        $visitas = $stmtV->fetchAll(PDO::FETCH_ASSOC);
+
+        $tempoVisitaMin = 0;
+        foreach ($visitas as $vis) {
+            $d = (int)($vis['duracao_min'] ?? 0);
+            if ($d > 0 && $d < 720) $tempoVisitaMin += $d;
+        }
+        $totalTempoVisita += $tempoVisitaMin;
+
+        $resultado[] = [
+            'rota_id' => $rid,
+            'data_inicio' => $dataInicio,
+            'data_fim' => $dataFim,
+            'status' => $rota['status'],
+            'pausado_em' => $rota['pausado_em'],
+            'km' => round($km, 2),
+            'qtd_pontos' => $qtd,
+            'tempo_rota_min' => $tempoRotaMin,
+            'tempo_visita_min' => $tempoVisitaMin,
+            'local_inicio_lat' => $primeiroPonto ? (float)$primeiroPonto['lat'] : null,
+            'local_inicio_lng' => $primeiroPonto ? (float)$primeiroPonto['lng'] : null,
+            'local_inicio_hora' => $primeiroPonto ? $primeiroPonto['criado_em'] : null,
+            'local_fim_lat' => $ultimoPonto ? (float)$ultimoPonto['lat'] : null,
+            'local_fim_lng' => $ultimoPonto ? (float)$ultimoPonto['lng'] : null,
+            'local_fim_hora' => $ultimoPonto ? $ultimoPonto['criado_em'] : null,
+            'visitas' => $visitas,
+            'pontos' => array_map(function ($p) { return ['lat' => (float)$p['lat'], 'lng' => (float)$p['lng']]; }, $pontos),
+        ];
+    }
+
+    echo json_encode([
+        'success' => true,
+        'visitador' => $nome,
+        'data_de' => $dataDe,
+        'data_ate' => $dataAte,
+        'total_rotas' => count($rotas),
+        'total_km' => round($totalKm, 2),
+        'total_tempo_rota_min' => $totalTempoRota,
+        'total_tempo_visita_min' => $totalTempoVisita,
+        'total_visitas' => array_sum(array_map(function ($r) { return count($r['visitas']); }, $resultado)),
+        'rotas' => $resultado,
+    ], JSON_UNESCAPED_UNICODE);
+}
+
 function getVisitasMapaPeriodo(PDO $pdo): void
 {
     $dataDe = trim($_GET['data_de'] ?? '');
