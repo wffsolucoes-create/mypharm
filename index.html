@@ -392,24 +392,11 @@
                     <h1 id="pageTitle">Dashboard</h1>
                 </div>
                 <div class="topbar-right">
-                    <select class="filter-select" id="anoFilter" onchange="onFilterChange()" title="Ano">
-                        <option value="">Todos os anos</option>
-                    </select>
-                    <select class="filter-select" id="mesFilter" onchange="onFilterChange()" title="Mês">
-                        <option value="">Todos os meses</option>
-                        <option value="1">Janeiro</option>
-                        <option value="2">Fevereiro</option>
-                        <option value="3">Março</option>
-                        <option value="4">Abril</option>
-                        <option value="5">Maio</option>
-                        <option value="6">Junho</option>
-                        <option value="7">Julho</option>
-                        <option value="8">Agosto</option>
-                        <option value="9">Setembro</option>
-                        <option value="10">Outubro</option>
-                        <option value="11">Novembro</option>
-                        <option value="12">Dezembro</option>
-                    </select>
+                    <span class="topbar-period-label">Período:</span>
+                    <label class="topbar-date-label" for="dataDeFilter">De</label>
+                    <input type="date" id="dataDeFilter" class="filter-date-input" title="Data inicial" onchange="onFilterChange()">
+                    <label class="topbar-date-label" for="dataAteFilter">ao</label>
+                    <input type="date" id="dataAteFilter" class="filter-date-input" title="Data final" onchange="onFilterChange()">
                     <div class="theme-toggle" onclick="toggleTheme()" title="Alternar tema claro/escuro">
                         <div class="theme-toggle-knob">
                             <i class="fas fa-moon icon-moon"></i>

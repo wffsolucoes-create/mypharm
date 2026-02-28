@@ -12,6 +12,18 @@ function safeLimit($value, $min = 1, $max = 100)
 
 function buildDateFilter()
 {
+    $dataDe = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : null;
+    $dataAte = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : null;
+    if ($dataDe === '') $dataDe = null;
+    if ($dataAte === '') $dataAte = null;
+    if ($dataDe !== null && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDe)) $dataDe = null;
+    if ($dataAte !== null && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAte)) $dataAte = null;
+    if ($dataDe !== null && $dataAte !== null && $dataDe > $dataAte) $dataAte = $dataDe;
+
+    if ($dataDe !== null && $dataAte !== null) {
+        return ['DATE(data_aprovacao) BETWEEN :data_de AND :data_ate', ['data_de' => $dataDe, 'data_ate' => $dataAte]];
+    }
+
     $ano = $_GET['ano'] ?? null;
     $mes = $_GET['mes'] ?? null;
     $dia = $_GET['dia'] ?? null;

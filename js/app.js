@@ -211,8 +211,21 @@ function showApp(nome, tipo, fotoPerfil) {
         el.style.display = tipo === 'admin' ? '' : 'none';
     });
 
-    loadYears();
+    initPeriodFilter();
     loadDashboard();
+}
+
+function initPeriodFilter() {
+    const deEl = document.getElementById('dataDeFilter');
+    const ateEl = document.getElementById('dataAteFilter');
+    if (!deEl || !ateEl) return;
+    const hoje = new Date();
+    const hojeStr = hoje.toISOString().slice(0, 10);
+    // Padrão: primeiro dia do mês até hoje para trazer dados no carregamento
+    const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
+    if (!deEl.value) deEl.value = primeiroDiaMes;
+    if (!ateEl.value) ateEl.value = hojeStr;
+    if (ateEl.value < deEl.value) ateEl.value = deEl.value;
 }
 
 function applyAvatarAdmin(initial, fotoUrl) {
@@ -360,9 +373,9 @@ function closeMobileSidebar() {
 }
 
 async function loadYears() {
-    const data = await apiGet('anos');
     const select = document.getElementById('anoFilter');
     if (!select) return;
+    const data = await apiGet('anos');
     select.innerHTML = '<option value="">Todos os anos</option>';
     data.forEach(item => {
         select.innerHTML += `<option value="${item.ano}">${item.ano}</option>`;
@@ -370,16 +383,22 @@ async function loadYears() {
 }
 
 function getFilterParams() {
-    const anoEl = document.getElementById('anoFilter');
-    const mesEl = document.getElementById('mesFilter');
-    return {
-        ano: anoEl?.value || '',
-        mes: mesEl?.value || ''
-    };
+    const deEl = document.getElementById('dataDeFilter');
+    const ateEl = document.getElementById('dataAteFilter');
+    const hoje = new Date();
+    const hojeStr = hoje.toISOString().slice(0, 10);
+    const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
+    const dataDe = deEl?.value || primeiroDiaMes;
+    let dataAte = ateEl?.value || hojeStr;
+    if (dataAte < dataDe) dataAte = dataDe;
+    return { data_de: dataDe, data_ate: dataAte };
 }
 
 function onFilterChange() {
-    currentYear = document.getElementById('anoFilter')?.value || '';
+    const ateEl = document.getElementById('dataAteFilter');
+    const deEl = document.getElementById('dataDeFilter');
+    if (ateEl && deEl && ateEl.value && deEl.value && ateEl.value < deEl.value) ateEl.value = deEl.value;
+    currentYear = deEl?.value ? deEl.value.slice(0, 4) : '';
     loadPageData(currentPage);
 }
 
@@ -422,9 +441,7 @@ function hideLoading() {
 // ============ DASHBOARD ============
 async function loadDashboard() {
     const fp = getFilterParams();
-    const params = { ano: fp.ano || currentYear };
-    if (fp.mes) params.mes = fp.mes;
-    if (fp.dia) params.dia = fp.dia;
+    const params = { data_de: fp.data_de, data_ate: fp.data_ate };
 
     // Primeiro buscar e renderizar KPIs para melhorar percepção de carga
     try {
@@ -439,7 +456,7 @@ async function loadDashboard() {
     (async () => {
         try {
             const [mensal, formas, canais, statusData] = await Promise.all([
-                apiGet('faturamento_mensal', { ano: fp.ano || currentYear || new Date().getFullYear(), mes: fp.mes, dia: fp.dia }),
+                apiGet('faturamento_mensal', params),
                 apiGet('top_formas', { ...params, limit: 8 }),
                 apiGet('canais', params),
                 apiGet('itens_status', params)
@@ -661,9 +678,7 @@ function renderChartStatus(data) {
 // ============ FATURAMENTO ============
 async function loadFaturamento() {
     const fp = getFilterParams();
-    const params = fp.ano ? { ano: fp.ano } : {};
-    if (fp.mes) params.mes = fp.mes;
-    if (fp.dia) params.dia = fp.dia;
+    const params = { data_de: fp.data_de, data_ate: fp.data_ate };
     const comparativo = await apiGet('comparativo_anual', params);
     renderFaturamentoAnual(comparativo);
     renderChartComparativoAnual(comparativo);
@@ -820,9 +835,7 @@ function renderChartTicketAnual(data) {
 // ============ PRESCRITORES ============
 async function loadPrescritores() {
     const fp = getFilterParams();
-    const params = fp.ano ? { ano: fp.ano } : {};
-    if (fp.mes) params.mes = fp.mes;
-    if (fp.dia) params.dia = fp.dia;
+    const params = { data_de: fp.data_de, data_ate: fp.data_ate };
     const [prescritores, profissoes, visitadores] = await Promise.all([
         apiGet('top_prescritores', { ...params, limit: 10 }),
         apiGet('profissoes', params),
@@ -837,10 +850,7 @@ async function loadPrescritores() {
 // ============ VISITADORES (NOVA PÁGINA) ============
 async function loadVisitadoresPage() {
     const fp = getFilterParams();
-    const ano = fp.ano || currentYear || new Date().getFullYear();
-    const params = { ano: ano };
-    if (fp.mes) params.mes = fp.mes;
-    if (fp.dia) params.dia = fp.dia;
+    const params = { data_de: fp.data_de, data_ate: fp.data_ate };
     const visitadores = await apiGet('visitadores', params);
 
     // Sort by revenue descending
@@ -856,8 +866,7 @@ let __visitasRelatorioCache = null; // para mapa (dropdown visitador)
 
 async function loadVisitasPage() {
     const fp = getFilterParams();
-    const params = { ano: fp.ano || currentYear || new Date().getFullYear() };
-    if (fp.mes) params.mes = fp.mes;
+    const params = { data_de: fp.data_de, data_ate: fp.data_ate };
     let lista = [];
     try {
         lista = await apiGet('admin_visitas', params) || [];
@@ -1308,10 +1317,8 @@ function renderChartVisitadores(data) {
 // ============ CLIENTES ============
 async function loadClientes() {
     const fp = getFilterParams();
-    const params = fp.ano ? { ano: fp.ano } : {};
-    if (fp.mes) params.mes = fp.mes;
-    if (fp.dia) params.dia = fp.dia;
-    const clientes = await apiGet('top_clientes', { ...params, limit: 15 });
+    const params = { data_de: fp.data_de, data_ate: fp.data_ate, limit: 15 };
+    const clientes = await apiGet('top_clientes', params);
     renderTableClientes(clientes);
     renderChartTopClientes(clientes.slice(0, 10));
 }
@@ -1365,10 +1372,8 @@ function renderChartTopClientes(data) {
 // ============ PRODUTOS ============
 async function loadProdutos() {
     const fp = getFilterParams();
-    const params = fp.ano ? { ano: fp.ano } : {};
-    if (fp.mes) params.mes = fp.mes;
-    if (fp.dia) params.dia = fp.dia;
-    const formas = await apiGet('top_formas', { ...params, limit: 15 });
+    const params = { data_de: fp.data_de, data_ate: fp.data_ate, limit: 15 };
+    const formas = await apiGet('top_formas', params);
     renderTableFormas(formas);
     renderChartProdutosFat(formas.slice(0, 10));
 }
@@ -1432,9 +1437,7 @@ function renderChartProdutosFat(data) {
 // ============ EQUIPE ============
 async function loadEquipe() {
     const fp = getFilterParams();
-    const params = fp.ano ? { ano: fp.ano } : {};
-    if (fp.mes) params.mes = fp.mes;
-    if (fp.dia) params.dia = fp.dia;
+    const params = { data_de: fp.data_de, data_ate: fp.data_ate };
     const atendentes = await apiGet('top_atendentes', params);
     renderTableAtendentes(atendentes);
     renderChartAtendentes(atendentes);
@@ -1493,9 +1496,7 @@ function renderChartAtendentes(data) {
 // ============ INSIGHTS ============
 async function loadInsights() {
     const fp = getFilterParams();
-    const params = fp.ano ? { ano: fp.ano } : {};
-    if (fp.mes) params.mes = fp.mes;
-    if (fp.dia) params.dia = fp.dia;
+    const params = { data_de: fp.data_de, data_ate: fp.data_ate };
 
     const [kpis, comparativo, formas, atendentes, visitadores, canais] = await Promise.all([
         apiGet('kpis', params),
@@ -2614,7 +2615,7 @@ async function importarDados() {
             `).join('');
 
             // Refresh data
-            await loadYears();
+            await loadPageData(currentPage);
         } else {
             statusEl.textContent = '❌ Erro: ' + (data.error || 'Falha na importação');
             statusEl.style.color = 'var(--danger)';

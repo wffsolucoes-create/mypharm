@@ -246,16 +246,30 @@ try {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.']); exit;
             }
+            $dataDeV = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : null;
+            $dataAteV = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : null;
+            if ($dataDeV === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDeV)) $dataDeV = null;
+            if ($dataAteV === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAteV)) $dataAteV = null;
+            if ($dataDeV !== null && $dataAteV !== null && $dataDeV > $dataAteV) $dataAteV = $dataDeV;
+
             $anoV = $_GET['ano'] ?? date('Y');
             $mesV = $_GET['mes'] ?? '';
             $visitadorFiltro = isset($_GET['visitador']) ? trim((string)$_GET['visitador']) : null;
             if ($visitadorFiltro === '') $visitadorFiltro = null;
 
-            $whereHV = "WHERE hv.data_visita IS NOT NULL AND YEAR(hv.data_visita) = :ano";
-            $paramsHV = ['ano' => (int)$anoV];
-            if ($mesV !== '') {
-                $whereHV .= " AND MONTH(hv.data_visita) = :mes";
-                $paramsHV['mes'] = (int)$mesV;
+            $whereHV = "WHERE hv.data_visita IS NOT NULL";
+            $paramsHV = [];
+            if ($dataDeV !== null && $dataAteV !== null) {
+                $whereHV .= " AND DATE(hv.data_visita) BETWEEN :data_de AND :data_ate";
+                $paramsHV['data_de'] = $dataDeV;
+                $paramsHV['data_ate'] = $dataAteV;
+            } else {
+                $whereHV .= " AND YEAR(hv.data_visita) = :ano";
+                $paramsHV['ano'] = (int)$anoV;
+                if ($mesV !== '') {
+                    $whereHV .= " AND MONTH(hv.data_visita) = :mes";
+                    $paramsHV['mes'] = (int)$mesV;
+                }
             }
             if ($visitadorFiltro !== null) {
                 $whereHV .= " AND TRIM(COALESCE(hv.visitador, '')) = TRIM(:visitador)";
@@ -284,16 +298,30 @@ try {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.']); exit;
             }
+            $dataDeR = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : null;
+            $dataAteR = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : null;
+            if ($dataDeR === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDeR)) $dataDeR = null;
+            if ($dataAteR === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAteR)) $dataAteR = null;
+            if ($dataDeR !== null && $dataAteR !== null && $dataDeR > $dataAteR) $dataAteR = $dataDeR;
+
             $anoR = (int)($_GET['ano'] ?? date('Y'));
             $mesR = isset($_GET['mes']) && $_GET['mes'] !== '' ? (int)$_GET['mes'] : null;
             $visitadorFiltroR = isset($_GET['visitador']) ? trim((string)$_GET['visitador']) : null;
             if ($visitadorFiltroR === '') $visitadorFiltroR = null;
 
-            $whereH = "WHERE data_visita IS NOT NULL AND YEAR(data_visita) = :ano";
-            $paramsH = ['ano' => $anoR];
-            if ($mesR !== null) {
-                $whereH .= " AND MONTH(data_visita) = :mes";
-                $paramsH['mes'] = $mesR;
+            $whereH = "WHERE data_visita IS NOT NULL";
+            $paramsH = [];
+            if ($dataDeR !== null && $dataAteR !== null) {
+                $whereH .= " AND DATE(data_visita) BETWEEN :data_de AND :data_ate";
+                $paramsH['data_de'] = $dataDeR;
+                $paramsH['data_ate'] = $dataAteR;
+            } else {
+                $whereH .= " AND YEAR(data_visita) = :ano";
+                $paramsH['ano'] = $anoR;
+                if ($mesR !== null) {
+                    $whereH .= " AND MONTH(data_visita) = :mes";
+                    $paramsH['mes'] = $mesR;
+                }
             }
             if ($visitadorFiltroR !== null) {
                 $whereH .= " AND TRIM(COALESCE(visitador, '')) = TRIM(:visitador)";
@@ -337,12 +365,20 @@ try {
             $stmt->execute($paramsH);
             $por_visitador_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Rotas no período (rotas_diarias: filtrar por data_inicio no ano/mês)
-            $whereR = "WHERE YEAR(rd.data_inicio) = :ano";
-            $paramsR = ['ano' => $anoR];
-            if ($mesR !== null) {
-                $whereR .= " AND MONTH(rd.data_inicio) = :mes";
-                $paramsR['mes'] = $mesR;
+            // Rotas no período (rotas_diarias: filtrar por data_inicio)
+            $whereR = "WHERE 1=1";
+            $paramsR = [];
+            if ($dataDeR !== null && $dataAteR !== null) {
+                $whereR .= " AND DATE(rd.data_inicio) BETWEEN :data_de AND :data_ate";
+                $paramsR['data_de'] = $dataDeR;
+                $paramsR['data_ate'] = $dataAteR;
+            } else {
+                $whereR .= " AND YEAR(rd.data_inicio) = :ano";
+                $paramsR['ano'] = $anoR;
+                if ($mesR !== null) {
+                    $whereR .= " AND MONTH(rd.data_inicio) = :mes";
+                    $paramsR['mes'] = $mesR;
+                }
             }
             if ($visitadorFiltroR !== null) {
                 $whereR .= " AND TRIM(COALESCE(rd.visitador_nome, '')) = TRIM(:visitador)";
@@ -429,11 +465,19 @@ try {
             // Pontos de atendimento (visitas com GPS) para marcar no mapa
             $pontos_atendimento = [];
             try {
-                $whereGeo = "WHERE hv.data_visita IS NOT NULL AND YEAR(hv.data_visita) = :ano";
-                $paramsGeo = ['ano' => $anoR];
-                if ($mesR !== null) {
-                    $whereGeo .= " AND MONTH(hv.data_visita) = :mes";
-                    $paramsGeo['mes'] = $mesR;
+                $whereGeo = "WHERE hv.data_visita IS NOT NULL";
+                $paramsGeo = [];
+                if ($dataDeR !== null && $dataAteR !== null) {
+                    $whereGeo .= " AND DATE(hv.data_visita) BETWEEN :data_de AND :data_ate";
+                    $paramsGeo['data_de'] = $dataDeR;
+                    $paramsGeo['data_ate'] = $dataAteR;
+                } else {
+                    $whereGeo .= " AND YEAR(hv.data_visita) = :ano";
+                    $paramsGeo['ano'] = $anoR;
+                    if ($mesR !== null) {
+                        $whereGeo .= " AND MONTH(hv.data_visita) = :mes";
+                        $paramsGeo['mes'] = $mesR;
+                    }
                 }
                 if ($visitadorFiltroR !== null) {
                     $whereGeo .= " AND TRIM(COALESCE(hv.visitador, '')) = TRIM(:visitador)";
@@ -546,35 +590,72 @@ try {
             break;
 
         // ============================================
-        // PROFISSÕES DOS PRESCRITORES
+        // PROFISSÕES DOS PRESCRITORES (por período: data_de/data_ate ou ano)
         // ============================================
         case 'profissoes':
-            $ano = $_GET['ano'] ?? null;
-            $whereAno = $ano ? "WHERE ano_referencia = :ano" : "";
+            $dataDeP = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : null;
+            $dataAteP = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : null;
+            if ($dataDeP === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDeP ?? '')) $dataDeP = null;
+            if ($dataAteP === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAteP ?? '')) $dataAteP = null;
+            if ($dataDeP !== null && $dataAteP !== null && $dataDeP > $dataAteP) $dataAteP = $dataDeP;
 
-            $stmt = $pdo->prepare("
-                SELECT 
-                    profissao,
-                    COUNT(*) as total,
-                    SUM(aprovados) as total_aprovados,
-                    SUM(valor_aprovado) as valor_total
-                FROM prescritor_resumido 
-                $whereAno
-                GROUP BY profissao
-                HAVING profissao != '' AND profissao IS NOT NULL
-                ORDER BY valor_total DESC
-            ");
-            if ($ano)
-                $stmt->bindParam(':ano', $ano, PDO::PARAM_INT);
+            if ($dataDeP !== null && $dataAteP !== null) {
+                list($whereCond, $paramsP) = buildDateFilter();
+                $whereSql = $whereCond === '1=1' ? '' : "AND $whereCond";
+                $stmt = $pdo->prepare("
+                    SELECT
+                        COALESCE(NULLIF(TRIM(pr.profissao), ''), 'Não informada') AS profissao,
+                        COUNT(DISTINCT COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')) AS total,
+                        SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN 1 ELSE 0 END) AS total_aprovados,
+                        COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) AS valor_total
+                    FROM gestao_pedidos gp
+                    LEFT JOIN prescritor_resumido pr
+                        ON pr.nome = COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')
+                        AND pr.ano_referencia = YEAR(gp.data_aprovacao)
+                    WHERE gp.data_aprovacao IS NOT NULL $whereSql
+                    GROUP BY COALESCE(NULLIF(TRIM(pr.profissao), ''), 'Não informada')
+                    HAVING COALESCE(NULLIF(TRIM(pr.profissao), ''), 'Não informada') != ''
+                    ORDER BY valor_total DESC
+                ");
+                foreach ($paramsP as $k => $v) {
+                    $stmt->bindValue(":$k", $v);
+                }
+            } else {
+                $ano = $_GET['ano'] ?? date('Y');
+                $stmt = $pdo->prepare("
+                    SELECT
+                        profissao,
+                        COUNT(*) AS total,
+                        SUM(aprovados) AS total_aprovados,
+                        SUM(valor_aprovado) AS valor_total
+                    FROM prescritor_resumido
+                    WHERE ano_referencia = :ano AND profissao IS NOT NULL AND TRIM(profissao) != ''
+                    GROUP BY profissao
+                    ORDER BY valor_total DESC
+                ");
+                $stmt->bindValue(':ano', (int)$ano, PDO::PARAM_INT);
+            }
             $stmt->execute();
-            echo json_encode($stmt->fetchAll(), JSON_UNESCAPED_UNICODE);
+            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC), JSON_UNESCAPED_UNICODE);
             break;
 
         // ============================================
         // COMPARATIVO ANUAL
         // ============================================
         case 'comparativo_anual':
-            $stmt = $pdo->query("
+            $dataDeComp = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : null;
+            $dataAteComp = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : null;
+            if ($dataDeComp === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDeComp)) $dataDeComp = null;
+            if ($dataAteComp === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAteComp)) $dataAteComp = null;
+            if ($dataDeComp !== null && $dataAteComp !== null && $dataDeComp > $dataAteComp) $dataAteComp = $dataDeComp;
+
+            $whereComp = '';
+            $paramsComp = [];
+            if ($dataDeComp !== null && $dataAteComp !== null) {
+                $whereComp = ' WHERE DATE(data_aprovacao) BETWEEN :data_de AND :data_ate';
+                $paramsComp = ['data_de' => $dataDeComp, 'data_ate' => $dataAteComp];
+            }
+            $stmt = $pdo->prepare("
                 SELECT 
                     ano_referencia as ano,
                     SUM(preco_liquido) as faturamento,
@@ -589,9 +670,11 @@ try {
                         THEN ROUND(((SUM(preco_liquido) - SUM(preco_custo)) / SUM(preco_liquido)) * 100, 2)
                         ELSE 0 END as margem_pct
                 FROM gestao_pedidos
+                $whereComp
                 GROUP BY ano_referencia
                 ORDER BY ano_referencia
             ");
+            $stmt->execute($paramsComp);
             echo json_encode($stmt->fetchAll(), JSON_UNESCAPED_UNICODE);
             break;
 

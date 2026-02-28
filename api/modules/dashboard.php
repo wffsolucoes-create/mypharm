@@ -312,11 +312,34 @@ function dashboardCanais(PDO $pdo): void
 }
 
 // ---------------------------------------------------------------------------
-// Visitadores (stub: retorna lista vazia até implementação completa)
+// Visitadores: faturamento e pedidos por visitador no período (carteira via prescritor_resumido)
 // ---------------------------------------------------------------------------
 function dashboardVisitadoresStub(PDO $pdo): void
 {
-    echo json_encode([], JSON_UNESCAPED_UNICODE);
+    list($whereCond, $params) = buildDateFilter();
+    $whereSql = $whereCond === '1=1' ? '' : "AND $whereCond";
+
+    $stmt = $pdo->prepare("
+        SELECT
+            COALESCE(NULLIF(TRIM(pr.visitador), ''), 'My Pharm') AS visitador,
+            COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) AS total_valor_aprovado,
+            COALESCE(SUM(CASE WHEN gp.status_financeiro = 'Recusado' THEN gp.preco_liquido ELSE 0 END), 0) AS total_valor_recusado,
+            COALESCE(SUM(CASE WHEN gp.status_financeiro IN ('Orçamento', 'No Carrinho') THEN gp.preco_liquido ELSE 0 END), 0) AS total_valor_carrinho,
+            COUNT(DISTINCT COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')) AS total_prescritores,
+            COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN 1 ELSE 0 END), 0) AS total_aprovados
+        FROM gestao_pedidos gp
+        LEFT JOIN prescritor_resumido pr
+            ON pr.nome = COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')
+            AND pr.ano_referencia = YEAR(gp.data_aprovacao)
+        WHERE gp.data_aprovacao IS NOT NULL $whereSql
+        GROUP BY COALESCE(NULLIF(TRIM(pr.visitador), ''), 'My Pharm')
+        ORDER BY total_valor_aprovado DESC
+    ");
+    foreach ($params as $k => $v) {
+        $stmt->bindValue(":$k", $v);
+    }
+    $stmt->execute();
+    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC), JSON_UNESCAPED_UNICODE);
 }
 
 // ---------------------------------------------------------------------------

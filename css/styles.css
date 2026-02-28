@@ -889,6 +889,39 @@ body {
     box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
+.topbar-period-label,
+.topbar-date-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.topbar-date-label {
+    margin-left: 4px;
+}
+
+.topbar-date-label:first-of-type {
+    margin-left: 8px;
+}
+
+.filter-date-input {
+    padding: 8px 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    outline: none;
+    transition: var(--transition);
+    min-width: 0;
+}
+
+.filter-date-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
 .topbar-btn {
     padding: 8px 12px;
     background: var(--bg-input);
@@ -1565,7 +1598,7 @@ body {
     }
 }
 
-/* MacBook Pro 14" / Laptop padr„o */
+/* MacBook Pro 14" / Laptop padrùo */
 @media (max-width: 1280px) {
     :root {
         --sidebar-width: 240px;
@@ -1739,6 +1772,9 @@ body {
         justify-content: flex-end;
     }
     .filter-select {
+        min-width: 120px;
+    }
+    .filter-date-input {
         min-width: 120px;
     }
     .page-content {
