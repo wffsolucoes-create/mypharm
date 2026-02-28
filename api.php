@@ -3,6 +3,7 @@ require_once 'config.php';
 require_once __DIR__ . '/api/bootstrap.php';
 require_once __DIR__ . '/api/modules/prescritores.php';
 require_once __DIR__ . '/api/modules/dashboard.php';
+require_once __DIR__ . '/api/modules/notificacoes.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -62,6 +63,31 @@ try {
         exit;
     }
 
+    // Controle de sessão única: 12h máx, inatividade 30 min, um aparelho por usuário
+    if (!in_array($action, $publicActions) && isset($_SESSION['user_id'])) {
+        $sessionCheck = validateAndRefreshUserSession($pdo);
+        if (!($sessionCheck['valid'] ?? true)) {
+            $reason = $sessionCheck['reason'] ?? 'session_invalid';
+            $_SESSION = [];
+            if (ini_get('session.use_cookies')) {
+                $params = session_get_cookie_params();
+                setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+            }
+            session_destroy();
+            http_response_code(401);
+            $msg = 'Sessão encerrada. Faça login novamente.';
+            if ($reason === 'other_device') {
+                $msg = 'Sua conta foi acessada em outro aparelho. Faça login novamente.';
+            } elseif ($reason === 'expired_inactivity') {
+                $msg = 'Sessão encerrada por inatividade. Faça login novamente.';
+            } elseif ($reason === 'expired_max') {
+                $msg = 'Sessão expirou (máximo 12 horas). Faça login novamente.';
+            }
+            echo json_encode(['error' => $msg, 'session_invalid' => true], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+    }
+
     // Visitador só pode acessar ações permitidas (evita bypass pela API)
     // Ações públicas (login, csrf_token) não entram nessa restrição
     $visitadorAllowed = [
@@ -100,7 +126,15 @@ try {
         'get_detalhe_visita',
         'update_detalhe_visita',
         'get_visitas_prescritor',
-        'get_visitas_mapa_periodo'
+        'get_visitas_mapa_periodo',
+        'list_notificacoes',
+        'enviar_mensagem_visitador',
+        'enviar_mensagem_usuario',
+        'list_usuarios_para_mensagem',
+        'marcar_notificacao_lida',
+        'marcar_mensagem_usuario_lida',
+        'ocultar_mensagem_usuario',
+        'apagar_notificacao'
     ];
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
 
@@ -181,6 +215,30 @@ try {
         case 'get_visitas_mapa_periodo':
             handleDashboardModuleAction($action, $pdo);
                 break;
+        case 'list_notificacoes':
+            listNotificacoes($pdo);
+            break;
+        case 'enviar_mensagem_visitador':
+            enviarMensagemVisitador($pdo);
+            break;
+        case 'enviar_mensagem_usuario':
+            enviarMensagemUsuario($pdo);
+            break;
+        case 'list_usuarios_para_mensagem':
+            listUsuariosParaMensagem($pdo);
+            break;
+        case 'marcar_mensagem_usuario_lida':
+            marcarMensagemUsuarioLida($pdo);
+            break;
+        case 'ocultar_mensagem_usuario':
+            ocultarMensagemUsuario($pdo);
+            break;
+        case 'marcar_notificacao_lida':
+            marcarNotificacaoLida($pdo);
+            break;
+        case 'apagar_notificacao':
+            apagarNotificacao($pdo);
+            break;
         case 'admin_visitas':
             if ($userSetor === 'visitador') {
                 http_response_code(403);
@@ -870,6 +928,8 @@ try {
                 $_SESSION['user_setor'] = $user['setor'];
                 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
+                registerUserSession($pdo, (int) $user['id']);
+
                 $pdo->prepare("UPDATE usuarios SET ultimo_acesso = NOW() WHERE id = :id")
                     ->execute(['id' => $user['id']]);
 
@@ -1076,10 +1136,10 @@ try {
             break;
         }
 
-        case 'logout':
-            // Limpar todas as variáveis de sessão
+        case 'logout': {
+            $logoutUserId = (int)($_SESSION['user_id'] ?? 0);
+            removeUserSession($pdo, $logoutUserId);
             $_SESSION = [];
-            // Destruir o cookie de sessão
             if (ini_get("session.use_cookies")) {
                 $params = session_get_cookie_params();
                 setcookie(session_name(), '', time() - 42000,
@@ -1090,6 +1150,7 @@ try {
             session_destroy();
             echo json_encode(['success' => true]);
             break;
+        }
 
         // ============================================
         // ADMIN - LISTAR USUÁRIOS
@@ -1105,6 +1166,25 @@ try {
                 DATE_FORMAT(ultimo_acesso, '%d/%m/%Y %H:%i') as ultimo_acesso
                 FROM usuarios ORDER BY id");
             echo json_encode(['success' => true, 'users' => $stmt->fetchAll()], JSON_UNESCAPED_UNICODE);
+            break;
+
+        // ============================================
+        // ADMIN - Carteira inativa → My Pharm (40 dias sem visita desde 02/03/2026)
+        // ============================================
+        case 'run_carteira_inativa_mypharm':
+            if (($_SESSION['user_tipo'] ?? '') !== 'admin') {
+                echo json_encode(['success' => false, 'error' => 'Acesso negado']);
+                break;
+            }
+            require_once __DIR__ . '/scripts/carteira_inativa_mypharm.php';
+            $dryRun = isset($_GET['dry_run']) && $_GET['dry_run'] !== '0' && $_GET['dry_run'] !== 'false';
+            $result = runCarteiraInativaMyPharm($pdo, $dryRun);
+            echo json_encode([
+                'success'  => true,
+                'count'    => $result['count'],
+                'moved'    => $result['moved'],
+                'dry_run'  => $dryRun,
+            ], JSON_UNESCAPED_UNICODE);
             break;
 
         // ============================================

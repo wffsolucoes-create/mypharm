@@ -693,9 +693,10 @@ tr:last-child td {
     position: absolute;
     top: calc(100% + 10px);
     right: 0;
-    width: 360px;
+    width: 380px;
     max-width: calc(100vw - 2rem);
-    max-height: 420px;
+    max-height: 540px;
+    min-height: 320px;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 14px;
@@ -769,8 +770,9 @@ tr:last-child td {
         right: auto;
         transform: translate(-50%, -50%);
         width: 90vw;
-        max-width: 400px;
-        max-height: 85vh;
+        max-width: 420px;
+        max-height: 88vh;
+        min-height: 380px;
         margin: 0;
     }
     .notifications-panel.open {
@@ -798,8 +800,9 @@ tr:last-child td {
     }
     .notifications-panel {
         width: calc(100vw - 2rem);
-        max-width: 360px;
-        max-height: 80vh;
+        max-width: 400px;
+        max-height: 85vh;
+        min-height: 360px;
     }
 }
 .notifications-panel-header {
@@ -846,9 +849,67 @@ tr:last-child td {
     flex: 1;
     overflow-y: auto;
     min-height: 120px;
+    background: var(--bg-card);
+    color: var(--text-primary);
 }
 .notifications-list {
     padding: 12px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+/* Formulário de envio no painel – respeita tema claro/escuro */
+.notifications-send-wrap {
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-card);
+}
+.notifications-send-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+.notifications-send-select,
+.notifications-send-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+    background: var(--bg-body);
+    color: var(--text-primary);
+}
+.notifications-send-select {
+    min-height: 42px;
+    cursor: pointer;
+}
+.notifications-send-select option {
+    background: var(--bg-body);
+    color: var(--text-primary);
+}
+.notifications-send-textarea {
+    resize: vertical;
+    min-height: 72px;
+}
+.notifications-send-btn {
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+.notifications-send-btn:hover {
+    filter: brightness(1.08);
+}
+.notifications-send-btn i {
+    margin-right: 6px;
 }
 .notifications-list.hidden {
     display: none !important;
@@ -892,6 +953,79 @@ tr:last-child td {
 .notification-item.read { opacity: 0.7; }
 .notification-item.read .notification-title { color: var(--text-secondary); }
 .notification-item.read .notification-sender { opacity: 0.8; }
+.notification-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+.notification-item .notification-item-main {
+    flex: 1;
+    min-width: 0;
+}
+.notification-item .notification-item-delete {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, background 0.2s;
+}
+.notification-item .notification-item-delete:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--danger, #EF4444);
+}
+.notification-item-actions {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.notification-item .notification-btn-lida,
+.notification-item .notification-btn-lida-msg {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, background 0.2s;
+}
+.notification-item .notification-btn-lida:hover,
+.notification-item .notification-btn-lida-msg:hover {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--success, #10B981);
+}
+.notification-item .notification-btn-ocultar-msg {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, background 0.2s;
+}
+.notification-item .notification-btn-ocultar-msg:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--danger, #EF4444);
+}
 
 .theme-toggle-knob {
     width: 20px;
@@ -1009,55 +1143,77 @@ tr:last-child td {
     .welcome-section .card { min-width: auto; }
 }
 
-/* CELULAR (até 768px): header empilhado, 2 colunas de KPIs, depois 1 coluna */
+/* CELULAR (até 768px): header em uma linha compacta, 2 colunas de KPIs, depois 1 coluna */
 @media (max-width: 768px) {
     header {
-        padding: 0.75rem 1rem;
-        padding-left: max(1rem, env(safe-area-inset-left));
-        padding-right: max(1rem, env(safe-area-inset-right));
-        height: auto;
-        min-height: 70px;
-        flex-direction: column;
-        gap: 10px;
+        padding: 0 12px;
+        padding-left: max(12px, env(safe-area-inset-left));
+        padding-right: max(12px, env(safe-area-inset-right));
+        height: 52px;
+        min-height: 52px;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 8px;
+        align-items: center;
     }
     .brand {
-        width: 100%;
-        justify-content: space-between;
+        flex: 1;
+        min-width: 0;
+        gap: 8px;
     }
     .brand img {
-        height: 36px;
+        height: 32px;
+        flex-shrink: 0;
     }
-    .visitador-nav {
-        width: 100%;
-        flex: none;
-        justify-content: center;
-        padding: 4px 0;
-        order: 1;
+    .brand-text-col {
+        min-width: 0;
     }
-    .visitador-nav-link {
-        padding: 10px 14px;
-        font-size: 0.85rem;
+    .brand-title {
+        font-size: 0.95rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
-    .visitador-nav-link span {
+    .brand-subtitle {
         display: none;
     }
-    .visitador-nav-link i {
-        margin: 0;
+    .visitador-nav-hamburger {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        min-height: 40px;
+        flex-shrink: 0;
+    }
+    .visitador-nav-hamburger .hamburger-bar {
+        width: 18px;
+        height: 2px;
+    }
+    .visitador-nav {
+        display: none;
     }
     .user-menu {
-        width: 100%;
-        justify-content: space-between;
-        border-top: 1px solid var(--border);
-        padding-top: 10px;
+        flex-shrink: 0;
+        gap: 4px;
+        border-top: none;
+        padding-top: 0;
     }
     .theme-toggle { margin-right: 0; }
     .btn-notifications {
-        min-width: 44px;
-        min-height: 44px;
+        min-width: 36px;
+        min-height: 36px;
+        width: 36px;
+        height: 36px;
+        padding: 0;
     }
     .btn-logout {
-        min-height: 44px;
-        padding: 10px 14px;
+        min-height: 36px;
+        padding: 8px 10px;
+        font-size: 0.8rem;
+    }
+    .theme-toggle {
+        width: 36px;
+        min-width: 36px;
+        height: 36px;
     }
     /* Avatar do header: tamanho fixo no celular para a imagem não “estourar” */
     .avatar-wrap {
@@ -1131,6 +1287,27 @@ tr:last-child td {
     }
     table { min-width: 560px; }
     th, td { padding: 10px 8px; font-size: 0.82rem; }
+}
+
+/* Celular muito estreito: header ainda mais compacto */
+@media (max-width: 480px) {
+    header {
+        height: 48px;
+        min-height: 48px;
+        padding-left: max(8px, env(safe-area-inset-left));
+        padding-right: max(8px, env(safe-area-inset-right));
+    }
+    .brand img { height: 28px; }
+    .brand-title { font-size: 0.85rem; }
+    .visitador-nav-hamburger {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        min-height: 36px;
+    }
+    .visitador-nav-hamburger .hamburger-bar { width: 16px; }
+    .user-menu .btn-notifications,
+    .theme-toggle { width: 32px; min-width: 32px; height: 32px; min-height: 32px; }
 }
 
 /* CELULAR PEQUENO (até 576px): 1 coluna, mais compacto */

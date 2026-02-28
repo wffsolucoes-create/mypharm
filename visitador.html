@@ -81,7 +81,26 @@
             }
         }
 
-        /* Agenda – cabeçalho do calendário (estilo atual) */
+        /* Agenda – calendário mais largo com rolagem horizontal em telas pequenas */
+        .agenda-calendario-scroll {
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+            margin: 0 -4px;
+            width: 100%;
+            min-width: 0;
+        }
+        .agenda-calendario-scroll::-webkit-scrollbar {
+            height: 8px;
+        }
+        .agenda-calendario-scroll::-webkit-scrollbar-track {
+            background: var(--bg-body);
+            border-radius: 4px;
+        }
+        .agenda-calendario-scroll::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
         #agendaCalendarioGrid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
@@ -112,6 +131,23 @@
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             min-height: 400px;
+        }
+        #agendaCalendarioDias .agenda-dia-cell {
+            max-height: 220px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+        #agendaCalendarioDias .agenda-dia-cell::-webkit-scrollbar {
+            width: 6px;
+        }
+        #agendaCalendarioDias .agenda-dia-cell::-webkit-scrollbar-track {
+            background: var(--bg-body);
+            border-radius: 3px;
+        }
+        #agendaCalendarioDias .agenda-dia-cell::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
         }
         /* Agenda – itens de visita (hover) */
         .agenda-visita-item:hover {
@@ -378,6 +414,9 @@
         #paginaPedidos {
             max-width: 1280px;
             margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
         }
         #paginaPedidos .pedidos-page-header {
             margin-bottom: 24px;
@@ -417,6 +456,16 @@
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 12px;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        #paginaPedidos .pedidos-filters > div {
+            min-width: 0;
+            max-width: 100%;
+        }
+        #paginaPedidos .pedidos-filters > div input[type="date"],
+        #paginaPedidos .pedidos-filters > div select {
+            flex: 1;
         }
         #paginaPedidos .pedidos-filters label {
             font-size: 0.8rem;
@@ -425,19 +474,26 @@
             text-transform: uppercase;
             letter-spacing: 0.03em;
         }
-        #paginaPedidos .pedidos-filters select {
+        #paginaPedidos .pedidos-filters input[type="date"],
+        #paginaPedidos .pedidos-filters select,
+        #paginaPedidos .pedidos-select-status {
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        #paginaPedidos .pedidos-filters select,
+        #paginaPedidos .pedidos-select-status {
             padding: 10px 14px;
             border: 1px solid var(--border);
             border-radius: 8px;
             background: var(--bg-body);
             color: var(--text-primary);
             font-size: 0.9rem;
-            min-width: 100px;
         }
         #paginaPedidos .pedidos-search-wrap {
             position: relative;
             flex: 1;
-            min-width: 220px;
+            min-width: 0;
             max-width: 400px;
         }
         #paginaPedidos .pedidos-search-wrap input {
@@ -551,8 +607,14 @@
             text-align: center;
         }
 
-        /* Página Roteiro de Visitas – layout profissional */
-        .roteiro-page { max-width: 1280px; margin: 0 auto; }
+        /* Página Roteiro de Visitas – mesmo padrão Pedidos/Prescritores */
+        .roteiro-page {
+            max-width: 1280px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
         .roteiro-header { margin-bottom: 24px; }
         .roteiro-title {
             margin: 0 0 6px 0;
@@ -577,18 +639,33 @@
             gap: 16px;
             flex-wrap: wrap;
             margin-bottom: 16px;
-            padding: 14px 18px;
+            padding: 16px 20px;
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 12px;
+            max-width: 100%;
+            box-sizing: border-box;
         }
-        .roteiro-filter-group { display: flex; align-items: center; gap: 8px; }
+        .roteiro-filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            max-width: 100%;
+        }
+        .roteiro-filter-group .roteiro-input {
+            flex: 1;
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
         .roteiro-label {
             font-size: 0.8rem;
             font-weight: 600;
             color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.03em;
+            flex-shrink: 0;
         }
         .roteiro-input {
             padding: 10px 14px;
@@ -668,6 +745,125 @@
             text-align: left;
         }
         .roteiro-tooltip::before { border-top-color: var(--border); }
+
+        /* Mobile: páginas Pedidos, Prescritores, Agenda e Roteiro alinhadas como o painel */
+        @media (max-width: 768px) {
+            #paginaPedidos,
+            #paginaPrescritores,
+            #paginaAgenda,
+            #paginaRoteiroVisitas {
+                padding: 0 12px 20px !important;
+                max-width: 100% !important;
+                overflow-x: hidden;
+            }
+            /* Agenda: calendário mais largo com rolagem horizontal */
+            #paginaAgenda .agenda-calendario-scroll {
+                overflow-x: auto;
+                overflow-y: visible;
+            }
+            #paginaAgenda #agendaCalendarioGrid {
+                min-width: 700px;
+            }
+            #paginaAgenda #agendaCalendarioDias .agenda-dia-cell {
+                min-width: 0;
+            }
+            #paginaPedidos .pedidos-page-header,
+            #paginaPrescritores .pedidos-page-header,
+            #paginaRoteiroVisitas .roteiro-header {
+                margin-bottom: 16px;
+            }
+            #paginaPedidos .pedidos-page-header h2,
+            #paginaPrescritores .pedidos-page-header h2,
+            #paginaRoteiroVisitas .roteiro-title {
+                font-size: 1.15rem;
+            }
+            #paginaPedidos .pedidos-page-header p,
+            #paginaPrescritores .pedidos-page-header p,
+            #paginaRoteiroVisitas .roteiro-subtitle {
+                font-size: 0.85rem;
+            }
+            #paginaPedidos .pedidos-filters,
+            #paginaPrescritores .pedidos-filters,
+            #paginaRoteiroVisitas .roteiro-filters {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 14px 16px;
+                width: 100%;
+                max-width: 100%;
+                overflow: hidden;
+                box-sizing: border-box;
+            }
+            #paginaRoteiroVisitas .roteiro-filter-group {
+                min-width: 0;
+                max-width: 100%;
+                overflow: hidden;
+            }
+            #paginaRoteiroVisitas .roteiro-filters .roteiro-input {
+                flex: 1;
+                min-width: 0;
+                width: 100%;
+                max-width: 100%;
+            }
+            #paginaRoteiroVisitas .roteiro-btn-atualizar {
+                width: 100%;
+                justify-content: center;
+            }
+            #paginaPedidos .pedidos-filters > div,
+            #paginaPrescritores .pedidos-filters > div {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                min-width: 0;
+                max-width: 100%;
+                overflow: hidden;
+            }
+            #paginaPedidos .pedidos-filters label,
+            #paginaPrescritores .pedidos-filters label {
+                flex-shrink: 0;
+                min-width: 32px;
+            }
+            #paginaPedidos .pedidos-filters input[type="date"],
+            #paginaPedidos .pedidos-filters select,
+            #paginaPedidos .pedidos-select-status,
+            #paginaPrescritores .pedidos-filters input[type="date"],
+            #paginaPrescritores .pedidos-filters select {
+                flex: 1;
+                min-width: 0;
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            #paginaPedidos .pedidos-search-wrap,
+            #paginaPrescritores .pedidos-search-wrap {
+                max-width: none;
+                min-width: 0;
+                width: 100%;
+                overflow: hidden;
+            }
+            #paginaPedidos .pedidos-search-wrap input {
+                min-width: 0;
+            }
+            #paginaPedidosCards,
+            #paginaPrescritoresCards {
+                grid-template-columns: 1fr !important;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+        }
+        @media (max-width: 576px) {
+            #paginaPedidos,
+            #paginaPrescritores,
+            #paginaAgenda,
+            #paginaRoteiroVisitas {
+                padding: 0 10px 16px !important;
+            }
+            #paginaPedidos .pedidos-filters,
+            #paginaPrescritores .pedidos-filters,
+            #paginaRoteiroVisitas .roteiro-filters {
+                padding: 12px;
+            }
+        }
     </style>
     <link rel="stylesheet" href="css/visitador.css">
     <style>body{visibility:hidden;}</style>
@@ -765,7 +961,7 @@
                 <div class="notifications-backdrop" id="notificationsBackdrop" onclick="closeNotificationsPanel()" aria-hidden="true"></div>
                 <div class="notifications-panel" id="notificationsPanel">
                     <div class="notifications-panel-header">
-                        <span><i class="fas fa-bell"></i> Mensagens</span>
+                        <span><i class="fas fa-bell"></i> Mensagens e alertas</span>
                         <button type="button" class="notifications-panel-close" onclick="closeNotificationsPanel()" aria-label="Fechar">&times;</button>
                     </div>
                     <div class="notifications-body">
@@ -774,6 +970,12 @@
                                 <i class="fas fa-inbox"></i>
                                 <p>Nenhuma mensagem no momento.</p>
                             </div>
+                        </div>
+                        <div class="notifications-send-wrap">
+                            <label class="notifications-send-label">Enviar mensagem para usuário</label>
+                            <select id="notifParaUsuarioSelect" class="notifications-send-select"></select>
+                            <textarea id="notifMensagemUsuarioInput" class="notifications-send-textarea" placeholder="Sua mensagem..." rows="3"></textarea>
+                            <button type="button" id="btnEnviarMsgUsuario" class="notifications-send-btn" onclick="enviarMensagemUsuarioUI()"><i class="fas fa-paper-plane"></i> Enviar para usuário</button>
                         </div>
                     </div>
                 </div>
@@ -1139,12 +1341,14 @@
                         <button type="button" id="agendaMesNext" onclick="agendaMesProximo()" style="padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer;"><i class="fas fa-chevron-right"></i></button>
                     </div>
                 </div>
-                <div id="agendaCalendarioGrid">
-                    <div class="agenda-cal-header">
-                        <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
-                    </div>
-                    <div id="agendaCalendarioDias">
-                        <!-- preenchido por JS -->
+                <div class="agenda-calendario-scroll">
+                    <div id="agendaCalendarioGrid">
+                        <div class="agenda-cal-header">
+                            <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+                        </div>
+                        <div id="agendaCalendarioDias">
+                            <!-- preenchido por JS -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1256,7 +1460,7 @@
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">
                     <label for="paginaPedidosFiltroStatus">Status</label>
-                    <select id="paginaPedidosFiltroStatus" style="padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; min-width:140px;">
+                    <select id="paginaPedidosFiltroStatus" class="pedidos-select-status" style="padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
                         <option value="">Todos</option>
                         <option value="Aprovado">Aprovados</option>
                         <option value="Recusado">Recusados (No carrinho + Recusado)</option>
@@ -2544,15 +2748,44 @@
                 closeNotificationsPanel();
             }
         }
+        function getNotificationsListKey() {
+            var v = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '').trim() || (localStorage.getItem('userName') || '').trim();
+            return 'mypharm_notif_list_' + (v ? String(v).replace(/\s+/g, '_') : 'user');
+        }
+        function getStoredNotificationsList() {
+            try {
+                var raw = localStorage.getItem(getNotificationsListKey());
+                return raw ? JSON.parse(raw) : [];
+            } catch (e) { return []; }
+        }
+        function setStoredNotificationsList(list) {
+            try {
+                localStorage.setItem(getNotificationsListKey(), JSON.stringify(Array.isArray(list) ? list : []));
+            } catch (e) {}
+        }
+        window.mergeNotificationsFromAgenda = function () {
+            var today = window.__todayAgendaVisits;
+            if (!Array.isArray(today)) today = [];
+            var stored = getStoredNotificationsList();
+            var ids = {};
+            stored.forEach(function (x) { ids[x.id] = true; });
+            today.forEach(function (v) {
+                if (v && v.id && !ids[v.id]) {
+                    stored.push({ id: v.id, prescritor: v.prescritor || '-', data_agendada: v.data_agendada, hora: v.hora || '' });
+                    ids[v.id] = true;
+                }
+            });
+            setStoredNotificationsList(stored);
+            renderNotificationsVisitas();
+            updateNotificationsBadge();
+        };
         function getNotificationsReadKey() {
-            const v = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '').trim() || (localStorage.getItem('userName') || '').trim();
-            const d = new Date();
-            const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-            return 'mypharm_notif_read_' + (v ? v.replace(/\s+/g, '_') : 'user') + '_' + dateStr;
+            var v = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '').trim() || (localStorage.getItem('userName') || '').trim();
+            return 'mypharm_notif_read_' + (v ? String(v).replace(/\s+/g, '_') : 'user');
         }
         function getReadNotifications() {
             try {
-                const raw = localStorage.getItem(getNotificationsReadKey());
+                var raw = localStorage.getItem(getNotificationsReadKey());
                 return raw ? JSON.parse(raw) : [];
             } catch (e) { return []; }
         }
@@ -2562,64 +2795,193 @@
             try { localStorage.setItem(getNotificationsReadKey(), JSON.stringify(read)); } catch (e) {}
             updateNotificationsBadge();
         }
-        function renderNotificationsVisitas() {
+        function deleteNotification(id) {
+            var list = getStoredNotificationsList().filter(function (v) { return v.id !== id; });
+            setStoredNotificationsList(list);
+            renderAllNotifications();
+            updateNotificationsBadge();
+        }
+        window.__notificacoesApi = [];
+        window.__mensagensApi = [];
+        window.__mensagensRecebidasApi = [];
+        async function loadNotificacoesFromAPI() {
+            try {
+                var r = await apiGet('list_notificacoes');
+                if (r && r.success) {
+                    window.__notificacoesApi = r.notificacoes || [];
+                    window.__mensagensApi = r.mensagens || [];
+                    window.__mensagensRecebidasApi = r.mensagens_recebidas || [];
+                }
+            } catch (e) { window.__notificacoesApi = []; window.__mensagensApi = []; window.__mensagensRecebidasApi = []; }
+            renderAllNotifications();
+            updateNotificationsBadge();
+        }
+        async function loadUsuariosParaMensagem() {
+            var sel = document.getElementById('notifParaUsuarioSelect');
+            if (!sel) return;
+            try {
+                var r = await apiGet('list_usuarios_para_mensagem');
+                sel.innerHTML = '<option value="">Selecione o usuário</option>';
+                if (r && r.success && r.usuarios && r.usuarios.length) {
+                    r.usuarios.forEach(function (u) {
+                        sel.appendChild(new Option(u.nome || 'Usuário ' + u.id, u.id));
+                    });
+                }
+            } catch (e) { sel.innerHTML = '<option value="">Erro ao carregar</option>'; }
+        }
+        function escNotif(x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
+        function renderAllNotifications() {
             const listEl = document.getElementById('notificationsListAll');
             const emptyEl = document.getElementById('notificationsEmptyAll');
             if (!listEl) return;
-            var today = window.__todayAgendaVisits;
-            if (!Array.isArray(today)) today = [];
+            var notifs = window.__notificacoesApi || [];
+            var msgs = window.__mensagensApi || [];
+            var agendaList = getStoredNotificationsList();
             var read = getReadNotifications();
             var itemsHtml = '';
-            today.forEach(function (v) {
+            notifs.forEach(function (n) {
+                var isRead = !!n.lida;
+                var tipoLabel = (n.tipo === '30_dias_sem_visita') ? '30 dias sem visita' : ((n.tipo === 'dias_sem_compra') ? (n.dias_sem_compra || 15) + ' dias sem compra' : 'Sistema');
+                itemsHtml += '<div class="notification-item sistema ' + (isRead ? 'read' : '') + '" data-origin="sistema" data-notif-id="' + escNotif(n.id) + '" data-prescritor="' + escNotif(n.prescritor_nome) + '">' +
+                    '<div class="notification-item-main"><div class="notification-sender">' + escNotif(tipoLabel) + '</div>' +
+                    '<div class="notification-title">' + escNotif(n.prescritor_nome || '-') + '</div>' +
+                    '<div class="notification-date">' + escNotif(n.mensagem || '') + '</div></div>' +
+                    '<div class="notification-item-actions"><button type="button" class="notification-btn-lida" data-id="' + n.id + '" title="Marcar como lida"><i class="fas fa-check"></i></button>' +
+                    '<button type="button" class="notification-item-delete" data-origin="sistema" data-id="' + n.id + '" title="Apagar"><i class="fas fa-trash-alt"></i></button></div></div>';
+            });
+            msgs.forEach(function (m) {
+                var dataFmt = (m.criado_em || '').slice(0, 16).replace('T', ' ');
+                itemsHtml += '<div class="notification-item usuario" data-origin="usuario" data-prescritor="' + escNotif(m.prescritor_nome) + '">' +
+                    '<div class="notification-item-main"><div class="notification-sender">' + escNotif(m.autor || 'Colega') + '</div>' +
+                    '<div class="notification-title">' + escNotif(m.prescritor_nome) + '</div>' +
+                    '<div class="notification-date">' + escNotif(m.mensagem) + (dataFmt ? ' · ' + dataFmt : '') + '</div></div></div>';
+            });
+            var msgRec = window.__mensagensRecebidasApi || [];
+            msgRec.forEach(function (m) {
+                var dataFmt = (m.criado_em || '').slice(0, 16).replace('T', ' ');
+                var isRead = !!m.lida;
+                itemsHtml += '<div class="notification-item msg-usuario ' + (isRead ? 'read' : '') + '" data-origin="msg_usuario" data-msg-id="' + m.id + '">' +
+                    '<div class="notification-item-main"><div class="notification-sender">' + escNotif(m.autor || 'Usuário') + '</div>' +
+                    '<div class="notification-title">Mensagem para você</div>' +
+                    '<div class="notification-date">' + escNotif(m.mensagem) + (dataFmt ? ' · ' + dataFmt : '') + '</div></div>' +
+                    '<div class="notification-item-actions">' +
+                    '<button type="button" class="notification-btn-lida-msg" data-id="' + m.id + '" title="Marcar como lida"><i class="fas fa-check"></i></button>' +
+                    '<button type="button" class="notification-btn-ocultar-msg" data-id="' + m.id + '" title="Excluir da lista"><i class="fas fa-trash-alt"></i></button></div></div>';
+            });
+            agendaList.forEach(function (v) {
                 var isRead = read.indexOf(v.id) !== -1;
-                var dataFmt = v.data_agendada ? (function () {
-                    var s = String(v.data_agendada).trim();
-                    if (s.length >= 10) return s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4);
-                    return s;
-                })() : '';
-                var hora = (v.hora || '').trim();
-                var sub = (dataFmt ? dataFmt + (hora ? ' às ' + hora : '') : (hora ? hora : ''));
-                var esc = function (x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
-                itemsHtml += '<div class="notification-item visita ' + (isRead ? 'read' : '') + '" data-id="' + esc(v.id) + '" data-prescritor="' + esc(v.prescritor) + '" role="button" tabindex="0">' +
-                    '<div class="notification-sender">Agenda</div>' +
-                    '<div class="notification-title">' + esc(v.prescritor || '-') + '</div>' +
-                    '<div class="notification-date">' + esc(sub || 'Hoje') + '</div></div>';
+                var dataFmt = v.data_agendada ? (String(v.data_agendada).trim().length >= 10 ? String(v.data_agendada).slice(8, 10) + '/' + String(v.data_agendada).slice(5, 7) + '/' + String(v.data_agendada).slice(0, 4) : '') : '';
+                var sub = dataFmt + ((v.hora || '').trim() ? ' às ' + (v.hora || '').trim() : '') || 'Hoje';
+                itemsHtml += '<div class="notification-item visita ' + (isRead ? 'read' : '') + '" data-origin="agenda" data-id="' + escNotif(v.id) + '" data-prescritor="' + escNotif(v.prescritor) + '" role="button" tabindex="0">' +
+                    '<div class="notification-item-main"><div class="notification-sender">Agenda</div>' +
+                    '<div class="notification-title">' + escNotif(v.prescritor || '-') + '</div>' +
+                    '<div class="notification-date">' + escNotif(sub) + '</div></div>' +
+                    '<button type="button" class="notification-item-delete" data-origin="agenda" data-id="' + escNotif(v.id) + '" title="Apagar"><i class="fas fa-trash-alt"></i></button></div>';
             });
             if (emptyEl) emptyEl.style.display = itemsHtml ? 'none' : 'block';
             if (itemsHtml) {
                 var wrap = listEl.querySelector('.notifications-items-wrap');
-                if (!wrap) {
-                    wrap = document.createElement('div');
-                    wrap.className = 'notifications-items-wrap';
-                    listEl.insertBefore(wrap, emptyEl);
-                }
+                if (!wrap) { wrap = document.createElement('div'); wrap.className = 'notifications-items-wrap'; listEl.insertBefore(wrap, emptyEl); }
                 wrap.innerHTML = itemsHtml;
             } else {
                 var w = listEl.querySelector('.notifications-items-wrap');
                 if (w) w.innerHTML = '';
             }
         }
+        function renderNotificationsVisitas() {
+            if (typeof loadNotificacoesFromAPI === 'function') loadNotificacoesFromAPI();
+            else renderAllNotifications();
+        }
         function updateNotificationsBadge() {
-            var today = window.__todayAgendaVisits;
-            if (!Array.isArray(today)) today = [];
+            var notifs = window.__notificacoesApi || [];
+            var msgs = window.__mensagensApi || [];
+            var msgRec = window.__mensagensRecebidasApi || [];
+            var list = getStoredNotificationsList();
             var read = getReadNotifications();
-            var unread = today.filter(function (v) { return read.indexOf(v.id) === -1; }).length;
+            var unread = notifs.filter(function (n) { return !n.lida; }).length + msgs.length + msgRec.filter(function (m) { return !m.lida; }).length + list.filter(function (v) { return read.indexOf(v.id) === -1; }).length;
             var badge = document.getElementById('notificationsBadge');
             if (!badge) return;
             badge.textContent = unread > 99 ? '99+' : String(unread);
             badge.style.display = unread > 0 ? 'inline-flex' : 'none';
             badge.classList.toggle('has-unread', unread > 0);
         }
+        async function enviarMensagemUsuarioUI() {
+            var sel = document.getElementById('notifParaUsuarioSelect');
+            var msg = (document.getElementById('notifMensagemUsuarioInput') || {}).value;
+            var paraId = sel ? parseInt(sel.value, 10) : 0;
+            if (!paraId || !msg) { alert('Selecione o usuário e escreva a mensagem.'); return; }
+            var btn = document.getElementById('btnEnviarMsgUsuario');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...'; }
+            try {
+                var r = await apiPost('enviar_mensagem_usuario', { para_usuario_id: paraId, mensagem: msg.trim() });
+                if (r && r.success) {
+                    if (document.getElementById('notifMensagemUsuarioInput')) document.getElementById('notifMensagemUsuarioInput').value = '';
+                    loadNotificacoesFromAPI();
+                } else alert(r && r.error ? r.error : 'Erro ao enviar.');
+            } catch (e) { alert('Erro de conexão.'); }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane" style="margin-right:6px;"></i>Enviar para usuário'; }
+        }
+        async function enviarMensagemVisitadorUI() {
+            var presc = (document.getElementById('notifPrescritorInput') || {}).value;
+            var msg = (document.getElementById('notifMensagemInput') || {}).value;
+            if (!presc || !msg) { alert('Informe o prescritor e a mensagem.'); return; }
+            var btn = document.getElementById('btnEnviarNotifMsg');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...'; }
+            try {
+                var r = await apiPost('enviar_mensagem_visitador', { prescritor_nome: presc.trim(), mensagem: msg.trim() });
+                if (r && r.success) {
+                    if (document.getElementById('notifPrescritorInput')) document.getElementById('notifPrescritorInput').value = '';
+                    if (document.getElementById('notifMensagemInput')) document.getElementById('notifMensagemInput').value = '';
+                    loadNotificacoesFromAPI();
+                } else alert(r && r.error ? r.error : 'Erro ao enviar.');
+            } catch (e) { alert('Erro de conexão.'); }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane" style="margin-right:6px;"></i>Enviar (prescritor)'; }
+        }
         window.updateNotificationsFromAgenda = function () {
-            renderNotificationsVisitas();
-            updateNotificationsBadge();
+            if (typeof window.mergeNotificationsFromAgenda === 'function') window.mergeNotificationsFromAgenda();
+            else {
+                renderNotificationsVisitas();
+                updateNotificationsBadge();
+            }
         };
         document.getElementById('notificationsPanel').addEventListener('click', function (e) {
+            var btnLida = e.target.closest('.notification-btn-lida');
+            if (btnLida && btnLida.dataset.id) {
+                e.stopPropagation();
+                e.preventDefault();
+                apiPost('marcar_notificacao_lida', { id: parseInt(btnLida.dataset.id, 10) }).then(function () { loadNotificacoesFromAPI(); });
+                return;
+            }
+            var btnLidaMsg = e.target.closest('.notification-btn-lida-msg');
+            if (btnLidaMsg && btnLidaMsg.dataset.id) {
+                e.stopPropagation();
+                e.preventDefault();
+                apiPost('marcar_mensagem_usuario_lida', { id: parseInt(btnLidaMsg.dataset.id, 10) }).then(function () { loadNotificacoesFromAPI(); });
+                return;
+            }
+            var btnOcultarMsg = e.target.closest('.notification-btn-ocultar-msg');
+            if (btnOcultarMsg && btnOcultarMsg.dataset.id) {
+                e.stopPropagation();
+                e.preventDefault();
+                apiPost('ocultar_mensagem_usuario', { id: parseInt(btnOcultarMsg.dataset.id, 10) }).then(function () { loadNotificacoesFromAPI(); });
+                return;
+            }
+            var btnDelete = e.target.closest('.notification-item-delete');
+            if (btnDelete && btnDelete.dataset.id) {
+                e.stopPropagation();
+                e.preventDefault();
+                if (btnDelete.dataset.origin === 'sistema') {
+                    apiPost('apagar_notificacao', { id: parseInt(btnDelete.dataset.id, 10) }).then(function () { loadNotificacoesFromAPI(); });
+                } else {
+                    deleteNotification(btnDelete.dataset.id);
+                }
+                return;
+            }
             var item = e.target.closest('.notification-item');
-            if (item && item.dataset.id) {
-                markNotificationRead(item.dataset.id);
+            if (item && item.dataset.prescritor) {
+                if (item.dataset.origin === 'agenda' && item.dataset.id) markNotificationRead(item.dataset.id);
                 item.classList.add('read');
-                if (item.classList.contains('visita') && item.dataset.prescritor && typeof openPrescritoresModal === 'function') openPrescritoresModal(item.dataset.prescritor);
+                if (typeof openPrescritoresModal === 'function') openPrescritoresModal(item.dataset.prescritor);
             }
         });
         var agendaCalendarioDiasEl = document.getElementById('agendaCalendarioDias');
@@ -2640,7 +3002,8 @@
                 else backdrop.classList.remove('open');
             }
             if (isOpen) {
-                renderNotificationsVisitas();
+                loadNotificacoesFromAPI();
+                loadUsuariosParaMensagem();
                 setTimeout(function () { document.addEventListener('click', closeNotificationsOnClickOutside); }, 0);
             } else {
                 document.removeEventListener('click', closeNotificationsOnClickOutside);
@@ -3712,7 +4075,7 @@
                 var isHoje = dataStr === hojeStr;
                 if (!vazio) diaAtual++;
                 var bg = vazio ? 'var(--bg-body)' : (isHoje ? 'rgba(59,130,246,0.15)' : 'var(--bg-card)');
-                html += '<div style="min-height:100px; padding:8px; background:' + bg + '; border-radius:6px; font-size:0.8rem;">';
+                html += '<div class="agenda-dia-cell" style="min-height:100px; padding:8px; background:' + bg + '; border-radius:6px; font-size:0.8rem;">';
                 if (dia) {
                     html += '<div style="font-weight:700; color:var(--text-primary); margin-bottom:6px;">' + dia + '</div>';
                     list.forEach(function (v) {

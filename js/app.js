@@ -72,6 +72,10 @@ async function apiGet(action, params = {}) {
     const query = new URLSearchParams({ action, ...params });
     const response = await fetch(`${API_URL}?${query}`, { credentials: 'include' });
     if (response.status === 401) {
+        try {
+            const data = await response.json();
+            if (data && data.error) sessionStorage.setItem('sessionError', data.error);
+        } catch (e) {}
         localStorage.clear();
         window.location.href = 'index.html';
         return;
@@ -89,6 +93,10 @@ async function apiPost(action, data = {}) {
         credentials: 'include'
     });
     if (response.status === 401) {
+        try {
+            const data = await response.json();
+            if (data && data.error) sessionStorage.setItem('sessionError', data.error);
+        } catch (e) {}
         localStorage.clear();
         window.location.href = 'index.html';
         return;
@@ -2337,7 +2345,8 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
                     </div>`;
                 window.__todayAgendaVisits = [];
             }
-            if (typeof window.updateNotificationsFromAgenda === 'function') window.updateNotificationsFromAgenda();
+            if (typeof window.mergeNotificationsFromAgenda === 'function') window.mergeNotificationsFromAgenda();
+            else if (typeof window.updateNotificationsFromAgenda === 'function') window.updateNotificationsFromAgenda();
         }
 
         // 7. Mapa de Visitas (GPS)
@@ -3002,6 +3011,16 @@ async function fetchCsrfToken() {
 document.addEventListener('DOMContentLoaded', async () => {
     loadSavedTheme();
     initParticles();
+
+    var sessionError = sessionStorage.getItem('sessionError');
+    if (sessionError) {
+        sessionStorage.removeItem('sessionError');
+        var errEl = document.getElementById('loginError');
+        if (errEl) {
+            errEl.textContent = sessionError;
+            errEl.style.display = 'block';
+        }
+    }
 
     await fetchCsrfToken();
 

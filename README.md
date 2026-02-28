@@ -232,6 +232,15 @@ php scripts/importar_tudo_cli.php
 ### Ferramenta de apoio
 - `scripts/analisar_banco.php` para diagnostico/analise de base.
 
+### Carteira inativa → My Pharm (40 dias sem visita)
+A partir de **02/03/2026** a contagem de visitas para a regra de inatividade e feita em separado (historico anterior preservado). Prescritores que ficarem **mais de 40 dias sem visita** (considerando apenas visitas a partir de 02/03/2026) sao movidos automaticamente para a carteira **My Pharm**.
+
+- **Script CLI (cron):** `scripts/mover_carteira_inativa_mypharm.php`
+  - Execucao diaria recomendada, ex.: `0 6 * * * cd /caminho/mypharm && php scripts/mover_carteira_inativa_mypharm.php`
+- **API (admin):** `GET/POST api.php?action=run_carteira_inativa_mypharm` — executa a rotina e retorna quantidade e lista de prescritores movidos.
+
+Constantes em `scripts/carteira_inativa_mypharm.php`: `CARTEIRA_INATIVA_DATA_INICIO` (2026-03-02), `CARTEIRA_INATIVA_DIAS` (40).
+
 ---
 
 ## API (resumo por dominios)
@@ -246,6 +255,7 @@ php scripts/importar_tudo_cli.php
 - `anos`
 - `admin_visitas`
 - `admin_visitas_relatorio`
+- `run_carteira_inativa_mypharm` — move para My Pharm prescritores com 40+ dias sem visita (desde 02/03/2026); apenas admin.
 
 ### Visitador
 - `visitador_dashboard`

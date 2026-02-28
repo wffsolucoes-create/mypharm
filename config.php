@@ -108,6 +108,56 @@ function runUsuarioIdMigrationIfNeeded(PDO $pdo): void
     @file_put_contents($marker, date('c'));
 }
 
+/** Cria tabelas de notificações e mensagens entre visitadores (se não existirem). */
+function runNotificacoesTablesIfNeeded(PDO $pdo): void
+{
+    $pdo->exec("CREATE TABLE IF NOT EXISTS notificacoes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        usuario_id INT NOT NULL,
+        tipo VARCHAR(50) NOT NULL,
+        titulo VARCHAR(255) DEFAULT NULL,
+        mensagem TEXT,
+        prescritor_nome VARCHAR(255) DEFAULT NULL,
+        dias_sem_compra INT NULL,
+        lida TINYINT(1) NOT NULL DEFAULT 0,
+        criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_usuario_lida (usuario_id, lida),
+        INDEX idx_usuario_criado (usuario_id, criado_em),
+        INDEX idx_tipo (tipo)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS mensagens_visitador (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        usuario_id INT NOT NULL,
+        prescritor_nome VARCHAR(255) NOT NULL,
+        mensagem TEXT NOT NULL,
+        criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_prescritor (prescritor_nome(100)),
+        INDEX idx_usuario (usuario_id),
+        INDEX idx_criado (criado_em)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS mensagens_usuario (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        de_usuario_id INT NOT NULL,
+        para_usuario_id INT NOT NULL,
+        mensagem TEXT NOT NULL,
+        lida TINYINT(1) NOT NULL DEFAULT 0,
+        criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_para (para_usuario_id, lida),
+        INDEX idx_de (de_usuario_id),
+        INDEX idx_criado (criado_em)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS mensagens_usuario_ocultas (
+        usuario_id INT NOT NULL,
+        mensagem_id INT NOT NULL,
+        criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (usuario_id, mensagem_id),
+        INDEX idx_usuario (usuario_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+}
+
 // Sessão segura
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
@@ -193,4 +243,90 @@ function getClientIp(): string
         }
     }
     return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+}
+
+// ========== Controle de sessão única (um aparelho por usuário, 12h máx, inatividade) ==========
+define('SESSION_MAX_HOURS', 12);
+define('SESSION_INACTIVITY_MINUTES', 30);
+
+function initUserSessionsTable(PDO $pdo): void
+{
+    $pdo->exec("CREATE TABLE IF NOT EXISTS user_sessions (
+        user_id INT NOT NULL PRIMARY KEY,
+        session_id VARCHAR(255) NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_activity DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_session (session_id),
+        INDEX idx_last_activity (last_activity)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/** Registra a sessão atual como a única ativa para o usuário (encerra qualquer outra). */
+function registerUserSession(PDO $pdo, int $userId): void
+{
+    initUserSessionsTable($pdo);
+    $sid = session_id();
+    if ($sid === '') {
+        return;
+    }
+    $pdo->prepare("INSERT INTO user_sessions (user_id, session_id, created_at, last_activity) VALUES (?, ?, NOW(), NOW())
+                   ON DUPLICATE KEY UPDATE session_id = VALUES(session_id), created_at = NOW(), last_activity = NOW()")
+        ->execute([$userId, $sid]);
+}
+
+/**
+ * Valida a sessão: mesmo session_id, criada há menos de 12h, última atividade há menos de 30 min.
+ * Atualiza last_activity se válida. Se inválida, destrói a sessão e retorna false.
+ * Retorna ['valid' => true] ou ['valid' => false, 'reason' => '...'].
+ */
+function validateAndRefreshUserSession(PDO $pdo): array
+{
+    $userId = (int)($_SESSION['user_id'] ?? 0);
+    if ($userId <= 0) {
+        return ['valid' => true];
+    }
+    initUserSessionsTable($pdo);
+    $sid = session_id();
+    if ($sid === '') {
+        return ['valid' => false, 'reason' => 'session_gone'];
+    }
+
+    $stmt = $pdo->prepare("SELECT session_id, created_at, last_activity FROM user_sessions WHERE user_id = ? LIMIT 1");
+    $stmt->execute([$userId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        return ['valid' => false, 'reason' => 'session_not_found'];
+    }
+    if ($row['session_id'] !== $sid) {
+        return ['valid' => false, 'reason' => 'other_device'];
+    }
+
+    $created = strtotime($row['created_at']);
+    $lastActivity = strtotime($row['last_activity']);
+    $now = time();
+    $maxAge = SESSION_MAX_HOURS * 3600;
+    $inactivityLimit = SESSION_INACTIVITY_MINUTES * 60;
+
+    if ($now - $created > $maxAge) {
+        $pdo->prepare("DELETE FROM user_sessions WHERE user_id = ?")->execute([$userId]);
+        return ['valid' => false, 'reason' => 'expired_max'];
+    }
+    if ($now - $lastActivity > $inactivityLimit) {
+        $pdo->prepare("DELETE FROM user_sessions WHERE user_id = ?")->execute([$userId]);
+        return ['valid' => false, 'reason' => 'expired_inactivity'];
+    }
+
+    $pdo->prepare("UPDATE user_sessions SET last_activity = NOW() WHERE user_id = ?")->execute([$userId]);
+    return ['valid' => true];
+}
+
+/** Remove o registro de sessão do usuário (ex.: no logout). */
+function removeUserSession(PDO $pdo, int $userId): void
+{
+    try {
+        $pdo->prepare("DELETE FROM user_sessions WHERE user_id = ?")->execute([$userId]);
+    } catch (Throwable $e) {
+        // ignora se a tabela não existir
+    }
 }
