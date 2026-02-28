@@ -191,23 +191,28 @@ function dashboardTopPrescritores(PDO $pdo): void
     list($whereCond, $paramsPresc) = buildDateFilter();
     $wherePresc = $whereCond === '1=1' ? '' : "WHERE $whereCond";
     $limit = safeLimit($_GET['limit'] ?? 10);
+    $anoPr = isset($paramsPresc['ano']) ? $paramsPresc['ano'] : date('Y');
 
     $stmt = $pdo->prepare("
-        SELECT 
-            COALESCE(NULLIF(prescritor, ''), 'My Pharm') as prescritor,
-            COUNT(*) as total_pedidos,
-            SUM(preco_liquido) as faturamento,
-            COUNT(DISTINCT cliente) as clientes_atendidos,
-            AVG(preco_liquido) as ticket_medio
-        FROM gestao_pedidos 
+        SELECT
+            COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') as prescritor,
+            SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN 1 ELSE 0 END) as total_pedidos,
+            COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) as faturamento,
+            COUNT(DISTINCT gp.cliente) as clientes_atendidos,
+            AVG(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido END) as ticket_medio,
+            (COALESCE(MAX(pr.valor_recusado), 0) + COALESCE(MAX(pr.valor_no_carrinho), 0)) as valor_recusado,
+            (COALESCE(MAX(pr.recusados), 0) + COALESCE(MAX(pr.no_carrinho), 0)) as qtd_recusados
+        FROM gestao_pedidos gp
+        LEFT JOIN prescritor_resumido pr ON pr.nome = COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') AND pr.ano_referencia = :ano_pr
         $wherePresc
-        GROUP BY COALESCE(NULLIF(prescritor, ''), 'My Pharm')
+        GROUP BY COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')
         ORDER BY faturamento DESC
         LIMIT $limit
     ");
     foreach ($paramsPresc as $k => $v) {
         $stmt->bindValue(":$k", $v);
     }
+    $stmt->bindValue(':ano_pr', $anoPr, PDO::PARAM_INT);
     $stmt->execute();
     echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC), JSON_UNESCAPED_UNICODE);
 }

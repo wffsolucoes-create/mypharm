@@ -101,6 +101,14 @@
                 return s;
             }
             function fmtMoney(v) { return 'R$ ' + (parseFloat(v) || 0).toFixed(2).replace('.', ','); }
+            function fmtQtdCalculada(qtd, unidade) {
+                if (qtd === null || qtd === undefined || qtd === '') return '—';
+                var n = parseFloat(qtd);
+                if (isNaN(n)) return String(qtd).trim() + (unidade ? ' ' + String(unidade).trim() : '');
+                var s = Number.isInteger(n) ? String(Math.round(n)) : String(n);
+                var u = (unidade && String(unidade).trim()) ? ' ' + String(unidade).trim() : '';
+                return s + u;
+            }
             function statusClass(s) {
                 if (!s) return 'badge-info';
                 var t = (s + '').toLowerCase();
@@ -167,7 +175,10 @@
                 }
             }
             function renderPedido(p) {
+                var numeroVal = (p.numero_pedido !== undefined && p.numero_pedido !== null && String(p.numero_pedido).trim() !== '') ? String(p.numero_pedido).trim() : '—';
+                var serieVal = (p.serie_pedido !== undefined && p.serie_pedido !== null && String(p.serie_pedido).trim() !== '') ? String(p.serie_pedido).trim() : '0';
                 var html = '';
+                html += '<div class="field"><label>Nº / Série</label><div class="value">' + esc(numeroVal) + ' / ' + esc(serieVal) + '</div></div>';
                 html += '<div class="field"><label>Cliente / Paciente</label><div class="value">' + esc(p.paciente) + '</div></div>';
                 html += '<div class="field"><label>Data</label><div class="value">' + esc(fmtDate(p.data)) + '</div></div>';
                 html += '<div class="field"><label>Prescritor</label><div class="value">' + esc(p.prescritor || '—') + '</div></div>';
@@ -176,8 +187,9 @@
                 document.getElementById('pedidoFields').innerHTML = html;
             }
             function renderItem(p) {
+                var serieItem = (p.serie !== undefined && p.serie !== null && String(p.serie).trim() !== '') ? String(p.serie).trim() : (p.serie_pedido !== undefined && p.serie_pedido !== null && String(p.serie_pedido).trim() !== '') ? String(p.serie_pedido).trim() : '0';
                 var html = '';
-                html += '<div class="field"><label>Série</label><div class="value">' + esc(p.serie) + '</div></div>';
+                html += '<div class="field"><label>Série</label><div class="value">' + esc(serieItem) + '</div></div>';
                 html += '<div class="field"><label>Descrição</label><div class="value">' + esc(p.descricao) + '</div></div>';
                 html += '<div class="field"><label>Forma farmacêutica</label><div class="value">' + esc(p.forma_farmaceutica) + '</div></div>';
                 html += '<div class="field"><label>Quantidade</label><div class="value">' + esc(p.quantidade) + ' ' + esc(p.unidade) + '</div></div>';
@@ -205,7 +217,7 @@
                     html += '<td>' + esc(c.quantidade) + '</td>';
                     html += '<td>' + esc(c.qsp || 'Não') + '</td>';
                     html += '<td>' + esc(c.tipo || 'Componente') + '</td>';
-                    html += '<td class="text-right">' + esc(c.qtd_calculada) + '</td>';
+                    html += '<td class="text-right">' + esc(fmtQtdCalculada(c.qtd_calculada, c.unidade)) + '</td>';
                     html += '</tr>';
                 });
                 tbody.innerHTML = html;

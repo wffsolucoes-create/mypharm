@@ -193,8 +193,8 @@ function readXlsx($filePath) {
     return $rows;
 }
 
-// ========== 1. Vínculo Prescritor → Visitador (só Nome + Visitador dos CSVs Prescritor Resumido) ==========
-// Esses CSVs servem apenas para ligar prescritor ao visitador em prescritores_cadastro. Não preenche prescritor_resumido.
+// ========== 1. Prescritor Resumido: só INSERIR novos prescritores; NUNCA alterar visitador dos existentes ==========
+// O vínculo prescritor→visitador é definitivo; só pode ser alterado pela tela (Ranking / transferência).
 if (!$onlyVisitas) {
 $pdo->exec("CREATE TABLE IF NOT EXISTS prescritores_cadastro (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(200) NOT NULL UNIQUE, visitador VARCHAR(150), usuario_id INT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, INDEX idx_nome (nome), INDEX idx_visitador (visitador), INDEX idx_usuario_id (usuario_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 try {
@@ -205,7 +205,7 @@ try {
 $totalLinks = 0;
 foreach ($anosPrescritor as $anoPrescritor) {
     $filePrescritor = $baseDir . "/Dados/Relatórios de Orçamentos e Pedidos por Prescritor Resumido {$anoPrescritor}.csv";
-    echo "\n[1/6] Vínculo prescritor→visitador ({$anoPrescritor})... ";
+    echo "\n[1/6] Prescritor Resumido ({$anoPrescritor}) – só novos; visitador não é alterado... ";
     if (!file_exists($filePrescritor)) {
         echo "arquivo não encontrado.\n";
         continue;
@@ -224,7 +224,7 @@ foreach ($anosPrescritor as $anoPrescritor) {
         $count++;
         if (count($batch) >= 500) {
             $placeholders = implode(',', array_fill(0, count($batch), '(?,?)'));
-            $sql = "INSERT INTO prescritores_cadastro (nome, visitador) VALUES {$placeholders} ON DUPLICATE KEY UPDATE visitador = VALUES(visitador)";
+            $sql = "INSERT INTO prescritores_cadastro (nome, visitador) VALUES {$placeholders} ON DUPLICATE KEY UPDATE visitador = visitador";
             $flat = [];
             foreach ($batch as $r) { $flat[] = $r[0]; $flat[] = $r[1]; }
             $pdo->prepare($sql)->execute($flat);
@@ -234,16 +234,16 @@ foreach ($anosPrescritor as $anoPrescritor) {
     }
     if (!empty($batch)) {
         $placeholders = implode(',', array_fill(0, count($batch), '(?,?)'));
-        $sql = "INSERT INTO prescritores_cadastro (nome, visitador) VALUES {$placeholders} ON DUPLICATE KEY UPDATE visitador = VALUES(visitador)";
+        $sql = "INSERT INTO prescritores_cadastro (nome, visitador) VALUES {$placeholders} ON DUPLICATE KEY UPDATE visitador = visitador";
         $flat = [];
         foreach ($batch as $r) { $flat[] = $r[0]; $flat[] = $r[1]; }
         $pdo->prepare($sql)->execute($flat);
         $totalLinks += count($batch);
     }
     fclose($handle);
-    echo "{$count} vínculos.\n";
+    echo "{$count} linhas.\n";
 }
-// Preencher usuario_id (ID do visitador em usuarios) para comparar prescritor responsável
+// Sincronizar usuario_id apenas (não altera visitador)
 $pdo->exec("
     UPDATE prescritores_cadastro pc
     INNER JOIN usuarios u ON TRIM(u.nome) = TRIM(pc.visitador) AND LOWER(TRIM(COALESCE(u.setor,''))) = 'visitador'
@@ -253,7 +253,7 @@ $pdo->exec("
     UPDATE prescritores_cadastro SET usuario_id = (SELECT id FROM usuarios WHERE TRIM(COALESCE(nome,'')) = 'My Pharm' AND LOWER(TRIM(COALESCE(setor,''))) = 'visitador' LIMIT 1)
     WHERE (visitador IS NULL OR TRIM(visitador) = '' OR TRIM(visitador) = 'My Pharm' OR UPPER(TRIM(visitador)) = 'MY PHARM')
 ");
-if ($totalLinks > 0) echo "  Total: {$totalLinks} vínculos (prescritor→visitador) atualizados; usuario_id preenchido.\n";
+if ($totalLinks > 0) echo "  Total: {$totalLinks} linhas; visitador dos existentes preservado.\n";
 }
 
 // ========== 2. Gestão de Pedidos (CSV) — anos 2022-2026 ==========
@@ -617,5 +617,8 @@ foreach ($anosVisitas as $anoV) {
     if (!empty($batch)) importBatch($pdo, $sqlVisitas, $batch);
     echo "  {$anoV}: {$count} visitas.\n";
 }
+
+// ========== Vínculo prescritor→visitador NÃO é mais alterado pela importação ==========
+// O vínculo é definitivo; só pode ser modificado pela tela (Ranking de Prescritores / transferência).
 
 echo "\n=== Todas as importações concluídas. ===\n";

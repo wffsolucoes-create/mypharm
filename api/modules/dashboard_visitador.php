@@ -22,10 +22,10 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                 $nomeLimpo = trim($nome);
                 $isMyPharm = (strcasecmp($nomeLimpo, 'My Pharm') === 0);
     
-                $visitadorWhere = "TRIM(COALESCE(visitador, '')) = TRIM(:nome)";
-                $visitadorWherePr = "TRIM(COALESCE(pr.visitador, '')) = TRIM(:nome)";
-                $visitadorWhereP = "TRIM(COALESCE(p.visitador, '')) = TRIM(:nome)";
-                $visitadorWhereVis = "TRIM(COALESCE(visitador, '')) = TRIM(:nome)";
+                $visitadorWhere = "visitador = :nome";
+                $visitadorWherePr = "pr.visitador = :nome";
+                $visitadorWhereP = "p.visitador = :nome";
+                $visitadorWhereVis = "visitador = :nome";
     
                 if ($isMyPharm) {
                     $visitadorWhere = "(visitador IS NULL OR TRIM(visitador) = '' OR LOWER(TRIM(visitador)) = 'my pharm')";
@@ -281,96 +281,80 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                 $stmtEsp->execute($paramsEsp);
                 $top_especialidades = $stmtEsp->fetchAll(PDO::FETCH_ASSOC);
     
-                // Alertas inteligentes: prescritores com potencial (valor aprovado) mas inativos OU abaixo da m%�dia do ano anterior
-                // M%�dia ano anterior = total comprado no ano anterior / 12. "Abaixo" = YTD atual < m%�dia * meses decorridos
+                // Alertas inteligentes: prescritores com potencial mas inativos OU abaixo da media
+                // Usa $visitasMap ja carregado para evitar subqueries correlacionadas lentas
                 $ano_anterior = (int)$ano - 1;
                 $mes_ytd = $mes ? (int)$mes : (int)date('n');
                 $sqlAlerts = "
                     SELECT 
-                        sub.prescritor,
-                        sub.valor_total_aprovado,
-                        sub.ultima_compra,
-                        sub.dias_sem_compra,
-                        sub.ultima_visita,
-                        sub.dias_sem_visita,
-                        sub.total_pedidos,
-                        sub.total_ano_anterior,
-                        sub.total_ano_atual_ytd,
-                        ROUND(
-                            (LEAST(sub.valor_total_aprovado, 100000) / 100000) * 40
-                            + LEAST(sub.dias_sem_compra, 365) / 365 * 35
-                            + LEAST(COALESCE(sub.dias_sem_visita, 365), 365) / 365 * 25
-                        , 1) as score
-                    FROM (
-                        SELECT 
-                            COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') as prescritor,
-                            SUM(gp.preco_liquido) as valor_total_aprovado,
-                            MAX(gp.data_aprovacao) as ultima_compra,
-                            DATEDIFF(NOW(), MAX(gp.data_aprovacao)) as dias_sem_compra,
-                            COUNT(*) as total_pedidos,
-                            (SELECT MAX(hv.data_visita) 
-                             FROM historico_visitas hv 
-                             WHERE hv.prescritor = COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')
-                               AND hv.data_visita IS NOT NULL
-                            ) as ultima_visita,
-                            DATEDIFF(NOW(), (
-                                SELECT MAX(hv2.data_visita) 
-                                FROM historico_visitas hv2 
-                                WHERE hv2.prescritor = COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')
-                                  AND hv2.data_visita IS NOT NULL
-                            )) as dias_sem_visita,
-                            SUM(CASE WHEN gp.ano_referencia = :ano_ant AND gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Or�amento') AND gp.preco_liquido > 0 THEN gp.preco_liquido ELSE 0 END) as total_ano_anterior,
-                            SUM(CASE WHEN gp.ano_referencia = :ano_ytd AND MONTH(gp.data_aprovacao) <= :mes_ytd AND gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Or�amento') AND gp.preco_liquido > 0 THEN gp.preco_liquido ELSE 0 END) as total_ano_atual_ytd
-                        FROM gestao_pedidos gp
-                        LEFT JOIN prescritor_resumido pr 
-                            ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pr.nome 
-                            AND pr.ano_referencia = :ano1
-                        WHERE gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Or�amento')
-                          AND gp.preco_liquido > 0
+                        COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') as prescritor,
+                        SUM(gp.preco_liquido) as valor_total_aprovado,
+                        MAX(gp.data_aprovacao) as ultima_compra,
+                        DATEDIFF(NOW(), MAX(gp.data_aprovacao)) as dias_sem_compra,
+                        COUNT(*) as total_pedidos,
+                        SUM(CASE WHEN gp.ano_referencia = :ano_ant THEN gp.preco_liquido ELSE 0 END) as total_ano_anterior,
+                        SUM(CASE WHEN gp.ano_referencia = :ano_ytd AND MONTH(gp.data_aprovacao) <= :mes_ytd THEN gp.preco_liquido ELSE 0 END) as total_ano_atual_ytd
+                    FROM gestao_pedidos gp
+                    INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome
+                    WHERE gp.status_financeiro NOT IN ('Recusado', 'Cancelado', CONCAT('Or', CHAR(231), 'amento'))
+                      AND gp.status_financeiro NOT LIKE '%carrinho%'
+                      AND gp.preco_liquido > 0
                 ";
                 if ($isMyPharm) {
-                    $sqlAlerts .= " AND ($visitadorWherePr OR pr.nome IS NULL)";
+                    $sqlAlerts .= " AND (pc.visitador IS NULL OR pc.visitador = '' OR pc.visitador = 'My Pharm' OR UPPER(pc.visitador) = 'MY PHARM')";
                 } else {
-                    $sqlAlerts .= " AND $visitadorWherePr";
+                    $sqlAlerts .= " AND pc.visitador = :nome";
                 }
                 $sqlAlerts .= "
-                        GROUP BY COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')
-                        HAVING (
-                            (
-                                (dias_sem_compra >= 15 OR dias_sem_visita >= 15 OR dias_sem_visita IS NULL)
-                                AND dias_sem_compra >= 7
-                            )
-                            OR (total_ano_anterior >= 1000 AND total_ano_atual_ytd * 12 < total_ano_anterior * :mes_ytd2)
-                        )
-                    ) sub
-                    WHERE sub.valor_total_aprovado >= 100
-                    ORDER BY ROUND(
-                        (LEAST(sub.valor_total_aprovado, 100000) / 100000) * 40
-                        + LEAST(sub.dias_sem_compra, 365) / 365 * 35
-                        + LEAST(COALESCE(sub.dias_sem_visita, 365), 365) / 365 * 25
-                    , 1) DESC
-                    LIMIT 12
+                    GROUP BY COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')
+                    HAVING valor_total_aprovado >= 100 AND dias_sem_compra >= 7
+                    ORDER BY valor_total_aprovado DESC
+                    LIMIT 30
                 ";
                 $stmt = $pdo->prepare($sqlAlerts);
-                $qAlerts = ['ano1' => $ano, 'ano_ant' => $ano_anterior, 'ano_ytd' => $ano, 'mes_ytd' => $mes_ytd, 'mes_ytd2' => $mes_ytd];
+                $qAlerts = ['ano_ant' => $ano_anterior, 'ano_ytd' => $ano, 'mes_ytd' => $mes_ytd];
                 if (!$isMyPharm) $qAlerts['nome'] = $nome;
                 $stmt->execute($qAlerts);
                 $alertasRaw = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                // Enriquecer cada alerta com m%�dia mensal ano anterior, m%�dia 2026 (YTD) e flag "abaixo_da_media"
+
                 $alertas = [];
                 foreach ($alertasRaw as $a) {
+                    $pNome = $a['prescritor'];
+                    $uv = $visitasMap[$pNome] ?? null;
+                    $diasSemVisita = null;
+                    if ($uv) {
+                        try { $diasSemVisita = (new DateTime($uv))->diff(new DateTime())->days; } catch (Exception $e) {}
+                    }
+                    $diasSemCompra = (int)($a['dias_sem_compra'] ?? 0);
                     $totAnt = (float)($a['total_ano_anterior'] ?? 0);
                     $totYtd = (float)($a['total_ano_atual_ytd'] ?? 0);
                     $mediaMensalAnoAnt = $totAnt > 0 ? $totAnt / 12 : 0;
                     $esperadoYtd = $mediaMensalAnoAnt * $mes_ytd;
+                    $abaixoMedia = $totAnt >= 1000 && $totYtd < $esperadoYtd;
+
+                    $passaFiltro = (($diasSemCompra >= 15 || ($diasSemVisita === null || $diasSemVisita >= 15)) && $diasSemCompra >= 7)
+                        || $abaixoMedia;
+                    if (!$passaFiltro) continue;
+
+                    $score = round(
+                        (min((float)$a['valor_total_aprovado'], 100000) / 100000) * 40
+                        + min($diasSemCompra, 365) / 365 * 35
+                        + min($diasSemVisita ?? 365, 365) / 365 * 25
+                    , 1);
+
+                    $a['ultima_visita'] = $uv;
+                    $a['dias_sem_visita'] = $diasSemVisita;
+                    $a['score'] = $score;
                     $a['media_mensal_ano_anterior'] = round($mediaMensalAnoAnt, 2);
                     $a['media_mensal_ano_atual'] = $mes_ytd > 0 ? round($totYtd / $mes_ytd, 2) : 0;
-                    $a['abaixo_da_media'] = $totAnt >= 1000 && $totYtd < $esperadoYtd;
+                    $a['abaixo_da_media'] = $abaixoMedia;
                     $a['ano_anterior_ref'] = $ano_anterior;
                     $a['ano_atual_ref'] = (int)$ano;
                     $alertas[] = $a;
                 }
-    
+                usort($alertas, function ($a, $b) { return $b['score'] <=> $a['score']; });
+                $alertas = array_slice($alertas, 0, 12);
+
                 // Metas de Visitas e Premia%�%�o (Usando valores reais do banco)
                 $metaVisitaSemana = $metaVisitaSemanaActual;
                 $metaVisitasMensal = $metaVisitasMensalActual;
@@ -386,24 +370,24 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                 $stmtVisitasMes->execute($qVMes);
                 $visitasMes = (int)$stmtVisitasMes->fetchColumn();
     
-                // Fallback m%�s: prescritores distintos com vendas aprovadas no m%�s
+                // Fallback mes: prescritores distintos com vendas aprovadas no mes
                 $sqlFallbackMes = "
                     SELECT COUNT(DISTINCT COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm'))
                     FROM gestao_pedidos gp
-                    LEFT JOIN prescritor_resumido pr ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pr.nome AND pr.ano_referencia = :ano1
+                    INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome
                     WHERE gp.ano_referencia = :ano2
-                      AND gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Or�amento')
+                      AND gp.status_financeiro NOT IN ('Recusado', 'Cancelado', CONCAT('Or', CHAR(231), 'amento'))
+                      AND gp.status_financeiro NOT LIKE '%carrinho%'
                       AND gp.data_aprovacao IS NOT NULL
                       AND MONTH(gp.data_aprovacao) = :m AND YEAR(gp.data_aprovacao) = :y
                 ";
                 if ($isMyPharm) {
-                    $sqlFallbackMes .= " AND ($visitadorWherePr OR pr.nome IS NULL)";
-                }
-                else {
-                    $sqlFallbackMes .= " AND $visitadorWherePr";
+                    $sqlFallbackMes .= " AND (pc.visitador IS NULL OR pc.visitador = '' OR pc.visitador = 'My Pharm' OR UPPER(pc.visitador) = 'MY PHARM')";
+                } else {
+                    $sqlFallbackMes .= " AND pc.visitador = :nome";
                 }
                 $stmtFallbackMes = $pdo->prepare($sqlFallbackMes);
-                $qFallbackMes = ['ano1' => $anoRefVisitas, 'ano2' => $anoRefVisitas, 'm' => $mesRefVisitas, 'y' => $anoRefVisitas];
+                $qFallbackMes = ['ano2' => $anoRefVisitas, 'm' => $mesRefVisitas, 'y' => $anoRefVisitas];
                 if (!$isMyPharm)
                     $qFallbackMes['nome'] = $nome;
                 $stmtFallbackMes->execute($qFallbackMes);
@@ -423,29 +407,29 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                 $stmtVisitasSemana->execute($qVSem);
                 $visitasSemana = (int)$stmtVisitasSemana->fetchColumn();
     
-                // Fallback: se historico_visitas vazio, usar prescritores distintos com vendas aprovadas na semana atual
+                // Fallback semana: prescritores distintos com vendas aprovadas na semana atual
                 $sqlFallbackSemana = "
                     SELECT COUNT(DISTINCT COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm'))
                     FROM gestao_pedidos gp
-                    LEFT JOIN prescritor_resumido pr ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pr.nome AND pr.ano_referencia = :ano1
+                    INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome
                     WHERE gp.ano_referencia = :ano2
-                      AND gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Or�amento')
+                      AND gp.status_financeiro NOT IN ('Recusado', 'Cancelado', CONCAT('Or', CHAR(231), 'amento'))
+                      AND gp.status_financeiro NOT LIKE '%carrinho%'
                       AND gp.data_aprovacao IS NOT NULL
                       AND YEARWEEK(gp.data_aprovacao, 1) = YEARWEEK(CURDATE(), 1)
                 ";
                 if ($isMyPharm) {
-                    $sqlFallbackSemana .= " AND ($visitadorWherePr OR pr.nome IS NULL)";
-                }
-                else {
-                    $sqlFallbackSemana .= " AND $visitadorWherePr";
+                    $sqlFallbackSemana .= " AND (pc.visitador IS NULL OR pc.visitador = '' OR pc.visitador = 'My Pharm' OR UPPER(pc.visitador) = 'MY PHARM')";
+                } else {
+                    $sqlFallbackSemana .= " AND pc.visitador = :nome";
                 }
                 $stmtFallback = $pdo->prepare($sqlFallbackSemana);
-                $stmtFallback->execute($isMyPharm ? ['ano1' => $ano, 'ano2' => $ano] : ['ano1' => $ano, 'ano2' => $ano, 'nome' => $nome]);
+                $qFallbackSem = ['ano2' => $ano];
+                if (!$isMyPharm) $qFallbackSem['nome'] = $nome;
+                $stmtFallback->execute($qFallbackSem);
                 $fallbackSemana = (int)$stmtFallback->fetchColumn();
                 $visitasSemana = max($visitasSemana, $fallbackSemana);
     
-                // M%�trica anal%�tica: visitas por semana
-                // - Se houver filtro de m%�s, listar apenas semanas que COME%�AM dentro do m%�s selecionado
                 // - Sem filtro de m%�s, mostrar as %Q%ltimas 4 semanas (cont%�nuo)
                 $stmtVps = $pdo->prepare("
                     SELECT COUNT(*) FROM historico_visitas 
@@ -870,7 +854,7 @@ function dashboardListPedidosVisitador(PDO $pdo): void
     $filtroMesGp = $mes ? " AND MONTH(gp.data_aprovacao) = :mes" : "";
     $filtroPrescritor = $prescritorFilter !== null ? " AND (COALESCE(NULLIF(TRIM(gp.prescritor),''), 'My Pharm') = :prescritor)" : "";
 
-    // Pedidos apenas dos prescritores da carteira do visitador (gestao_pedidos + prescritores_cadastro)
+    // Aprovados: gestao_pedidos (Relatório de Gestão de Pedidos)
     $sqlAprovados = "
         SELECT gp.numero_pedido, gp.serie_pedido, gp.data_aprovacao, gp.data_orcamento,
                COALESCE(NULLIF(TRIM(gp.prescritor),''), 'My Pharm') as prescritor,
@@ -890,20 +874,25 @@ function dashboardListPedidosVisitador(PDO $pdo): void
     $stmtA->execute($params);
     $aprovados = $stmtA->fetchAll(PDO::FETCH_ASSOC);
 
-    // Recusados/No carrinho: apenas prescritores da carteira do visitador
+    // Recusados/No carrinho: itens_orcamentos_pedidos (mesma fonte do prescritor_resumido; gestao_pedidos não traz esses status)
+    $filtroMesItens = $mes ? " AND MONTH(i.data) = :mes" : "";
+    $filtroPrescritorItens = $prescritorFilter !== null ? " AND (COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm') = :prescritor)" : "";
     $sqlRecusados = "
-        SELECT gp.numero_pedido, gp.serie_pedido, gp.data_aprovacao, gp.data_orcamento,
-               COALESCE(NULLIF(TRIM(gp.prescritor),''), 'My Pharm') as prescritor,
-               COALESCE(NULLIF(TRIM(gp.cliente),''), gp.paciente) as cliente,
-               gp.preco_liquido as valor, gp.status_financeiro
-        FROM gestao_pedidos gp
-        INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor),''), 'My Pharm') = pc.nome
+        SELECT i.numero as numero_pedido, i.serie as serie_pedido,
+               MAX(i.data) as data_aprovacao, MAX(i.data) as data_orcamento,
+               COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm') as prescritor,
+               COALESCE(MAX(NULLIF(TRIM(i.paciente),'')), '-') as cliente,
+               SUM(i.valor_liquido) as valor,
+               MAX(CASE WHEN i.status = 'Recusado' THEN 'Recusado' ELSE 'No carrinho' END) as status_financeiro
+        FROM itens_orcamentos_pedidos i
+        INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm') = pc.nome
            AND TRIM(COALESCE(pc.visitador, '')) = TRIM(:nome)
-        WHERE gp.ano_referencia = :ano
-          AND (gp.status_financeiro = 'Recusado' OR gp.status_financeiro LIKE '%carrinho%' OR gp.status_financeiro = 'No carrinho')
-          $filtroMesGp
-          $filtroPrescritor
-        ORDER BY gp.data_aprovacao DESC, gp.numero_pedido DESC, gp.serie_pedido DESC
+        WHERE i.ano_referencia = :ano
+          AND (i.status = 'Recusado' OR i.status = 'No carrinho')
+          $filtroMesItens
+          $filtroPrescritorItens
+        GROUP BY i.numero, i.serie, COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm')
+        ORDER BY data_aprovacao DESC, i.numero DESC, i.serie DESC
     ";
     $stmtR = $pdo->prepare($sqlRecusados);
     $stmtR->execute($params);

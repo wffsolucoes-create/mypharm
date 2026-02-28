@@ -817,13 +817,10 @@
                                     <div class="th-sort">Visitador <i class="fas fa-sort"></i></div>
                                 </th>
                                 <th onclick="sortTable('valor_aprovado')" style="text-align:right; cursor:pointer;">
-                                    <div class="th-sort">Valor Aprovado <i class="fas fa-sort"></i></div>
+                                    <div class="th-sort">Aprovados (valor + qtd) <i class="fas fa-sort"></i></div>
                                 </th>
                                 <th onclick="sortTable('valor_recusado')" style="text-align:right; cursor:pointer;">
-                                    <div class="th-sort">Valor Recusado <i class="fas fa-sort"></i></div>
-                                </th>
-                                <th onclick="sortTable('total_pedidos')" style="text-align:center; cursor:pointer;">
-                                    <div class="th-sort">Pedidos <i class="fas fa-sort"></i></div>
+                                    <div class="th-sort">Recusados (valor + qtd) <i class="fas fa-sort"></i></div>
                                 </th>
                                 <th onclick="sortTable('dias_sem_compra')" style="text-align:center; cursor:pointer;">
                                     <div class="th-sort">Dias s/ Compra <i class="fas fa-sort"></i></div>
@@ -836,7 +833,7 @@
                         </thead>
                         <tbody id="prescritoresBody">
                             <tr>
-                                <td colspan="9"
+                                <td colspan="8"
                                     style="text-align:center; padding: 100px; color: var(--text-secondary);">
                                     <i class="fas fa-circle-notch fa-spin fa-2x"></i><br><br>
                                     Carregando prescritores...
@@ -1039,13 +1036,14 @@
 
         let currentPage = 1;
         const itemsPerPage = 200;
+        let searchDebounceTimer = null;
 
         function setLoadingPrescritores(loading) {
             const body = document.getElementById('prescritoresBody');
             const btnAtualizar = document.getElementById('btnAtualizarPrescritores');
             const selects = document.querySelectorAll('#visitadorFilter, #anoFilter, #mesFilter');
             if (loading) {
-                body.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 80px 24px; color: var(--text-secondary);">
+                body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 80px 24px; color: var(--text-secondary);">
                     <i class="fas fa-circle-notch fa-spin" style="font-size: 2.5rem; margin-bottom: 16px; display: block; color: var(--primary);"></i>
                     <strong>Carregando prescritores...</strong><br>
                     <span style="font-size: 0.85rem; opacity: 0.8;">Aguarde alguns segundos.</span>
@@ -1063,13 +1061,15 @@
             const visitador = (document.getElementById('visitadorFilter') && document.getElementById('visitadorFilter').value) || '';
             const ano = document.getElementById('anoFilter').value;
             const mes = document.getElementById('mesFilter').value;
+            const searchTerm = (document.getElementById('searchTerm') && document.getElementById('searchTerm').value) || '';
             if (page !== undefined && page !== null) currentPage = Math.max(1, parseInt(page, 10) || 1);
             else currentPage = 1;
             const offset = (currentPage - 1) * itemsPerPage;
 
             setLoadingPrescritores(true);
 
-            const url = `api.php?action=all_prescritores&ano=${ano}&mes=${mes}&visitador=${encodeURIComponent(visitador)}&limit=${itemsPerPage}&offset=${offset}`;
+            const q = searchTerm.trim() ? '&q=' + encodeURIComponent(searchTerm.trim()) : '';
+            const url = `api.php?action=all_prescritores&ano=${ano}&mes=${mes}&visitador=${encodeURIComponent(visitador)}&limit=${itemsPerPage}&offset=${offset}${q}`;
             try {
                 const response = await fetch(url);
 
@@ -1084,7 +1084,7 @@
 
                 if (data.error) {
                     setLoadingPrescritores(false);
-                    body.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 100px; color: #EF476F;">
+                    body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 100px; color: #EF476F;">
                         <i class="fas fa-exclamation-triangle fa-2x"></i><br><br>
                         Erro do Sistema: ${data.error}
                     </td></tr>`;
@@ -1102,7 +1102,7 @@
             } catch (err) {
                 console.error('Erro prescritores:', err);
                 setLoadingPrescritores(false);
-                body.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 100px; color: #EF476F;">
+                body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 100px; color: #EF476F;">
                     <i class="fas fa-exclamation-triangle fa-2x"></i><br><br>
                     Erro ao carregar os dados.<br>
                     <small style="color: var(--text-secondary);">${err.message || 'Verifique a conexão.'}</small>
@@ -1146,7 +1146,7 @@
             if (!Array.isArray(data) || !data.length) {
                 const ano = document.getElementById('anoFilter').value || 'todos os anos';
                 const mes = document.getElementById('mesFilter').options[document.getElementById('mesFilter').selectedIndex].text;
-                body.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 100px; color: var(--text-secondary);">
+                body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 100px; color: var(--text-secondary);">
                     <i class="fas fa-search fa-2x"></i><br><br>
                     Nenhum resultado encontrado para <b>${mes}</b> de <b>${ano}</b>.<br>
                     Certifique-se de que os dados foram importados corretamente para este período.
@@ -1177,9 +1177,8 @@
                     <td style="color: var(--text-secondary); font-size: 0.85rem;">${globalIndex + 1}</td>
                     <td style="font-weight: 500;">${d.prescritor}</td>
                     <td style="color: var(--text-secondary);">${d.visitador || 'My Pharm'}</td>
-                    <td class="val-approved" style="text-align:right;">${formatMoney(d.valor_aprovado)}</td>
-                    <td class="val-refused" style="text-align:right;">${formatMoney(d.valor_recusado)}</td>
-                    <td style="text-align:center; color: var(--text-secondary);">${formatNumber(d.total_pedidos)}</td>
+                    <td class="val-approved" style="text-align:right;">${formatMoney(d.valor_aprovado)}<br><small style="opacity:0.9;">${formatNumber(d.total_pedidos ?? 0)} ped.</small></td>
+                    <td class="val-refused" style="text-align:right;">${formatMoney(d.valor_recusado)}<br><small style="opacity:0.9;">${formatNumber(d.qtd_recusados ?? 0)} ped.</small></td>
                     <td style="text-align:center;">
                         ${getDaysBadge(d.dias_sem_compra)}
                     </td>
@@ -1200,8 +1199,11 @@
         }
 
         function filterTable() {
-            currentPage = 1; // Reset to first page
-            renderTableWithCurrentState();
+            if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(function() {
+                currentPage = 1;
+                loadData(1);
+            }, 350);
         }
 
         function renderTableWithCurrentState() {
@@ -1277,9 +1279,9 @@
                 'visitador': 2,
                 'valor_aprovado': 3,
                 'valor_recusado': 4,
-                'total_pedidos': 5,
-                'dias_sem_compra': 6,
-                'dias_sem_visita': 7
+                'total_pedidos': 3,
+                'dias_sem_compra': 5,
+                'dias_sem_visita': 6
             };
 
             const index = headers[currentSort.column];

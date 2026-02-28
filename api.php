@@ -51,9 +51,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $pdo = getConnection();
 runUsuarioIdMigrationIfNeeded($pdo);
-try {
-    $pdo->exec("ALTER TABLE gestao_pedidos ADD INDEX idx_numero_serie (numero_pedido, serie_pedido)");
-} catch (Throwable $e) { /* índice já existe */ }
 $action = $_GET['action'] ?? '';
 
 try {
@@ -536,42 +533,94 @@ try {
         // TODOS OS PRESCRITORES
         // ============================================
         case 'all_prescritores':
+            try {
             $ano = !empty($_GET['ano']) ? $_GET['ano'] : null;
             $mes = !empty($_GET['mes']) ? $_GET['mes'] : null;
             $dia = !empty($_GET['dia']) ? $_GET['dia'] : null;
+            $dataDe = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : null;
+            $dataAte = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : null;
+            if ($dataDe === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDe)) $dataDe = null;
+            if ($dataAte === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAte)) $dataAte = null;
+            $useRange = $dataDe !== null && $dataAte !== null && $dataDe <= $dataAte;
             $visitadorFilter = isset($_GET['visitador']) ? trim((string)$_GET['visitador']) : null;
             if ($visitadorFilter === '') $visitadorFilter = null;
-            $anoUsar = $ano ?: date('Y');
+            $searchTerm = isset($_GET['q']) ? trim((string)$_GET['q']) : null;
+            if ($searchTerm === '') $searchTerm = null;
+            $anoUsar = $ano ?: ($dataDe ? substr($dataDe, 0, 4) : date('Y'));
             $useLimit = isset($_GET['limit']) && (int)$_GET['limit'] > 0;
             $limit = $useLimit ? min((int)$_GET['limit'], 2000) : 0;
             $offset = ($useLimit && isset($_GET['offset'])) ? max(0, (int)$_GET['offset']) : 0;
 
-            $filtroMesGp = $mes ? "AND MONTH(gp.data_aprovacao) = :mes" : "";
-            $filtroDiaGp = ($dia && $mes && $anoUsar) ? "AND DATE(gp.data_aprovacao) = :data_filtro" : "";
-            $dataFiltro = ($dia && $mes && $anoUsar) ? sprintf('%04d-%02d-%02d', (int)$anoUsar, (int)$mes, (int)$dia) : null;
+            $filtroMesGp = !$useRange && $mes ? "AND MONTH(gp.data_aprovacao) = :mes" : "";
+            $filtroDiaGp = !$useRange && ($dia && $mes && $anoUsar) ? "AND DATE(gp.data_aprovacao) = :data_filtro" : "";
+            $filtroDataGp = $useRange ? "AND DATE(gp.data_aprovacao) BETWEEN :data_de AND :data_ate" : "";
+            $dataFiltro = !$useRange && ($dia && $mes && $anoUsar) ? sprintf('%04d-%02d-%02d', (int)$anoUsar, (int)$mes, (int)$dia) : null;
+            $filtroSearch = $searchTerm !== null ? "AND (pc.nome LIKE :search)" : "";
+            $recMap = [];
 
-            // Com filtro de visitador: listar TODA a carteira (prescritores_cadastro), com indicadores do ano
+            // Com filtro de visitador: listar TODA a carteira (prescritores_cadastro), com indicadores do ano/período
             if ($visitadorFilter) {
                 $visWhere = ($visitadorFilter === 'My Pharm')
                     ? "(pc.visitador IS NULL OR pc.visitador = '' OR pc.visitador = 'My Pharm' OR UPPER(pc.visitador) = 'MY PHARM')"
                     : "pc.visitador = :vis";
 
                 if ($useLimit) {
-                    $countStmt = $pdo->prepare("SELECT COUNT(*) as total FROM prescritores_cadastro pc WHERE $visWhere");
+                    $countStmt = $pdo->prepare("SELECT COUNT(*) as total FROM prescritores_cadastro pc WHERE $visWhere $filtroSearch");
                     $countParams = [];
                     if ($visitadorFilter !== 'My Pharm') $countParams['vis'] = $visitadorFilter;
+                    if ($searchTerm !== null) $countParams['search'] = '%' . $searchTerm . '%';
                     $countStmt->execute($countParams);
                     $totalRows = (int)$countStmt->fetch(PDO::FETCH_ASSOC)['total'];
                 }
 
-                $sql = "
+                if ($useRange) {
+                    // Período: uma query para lista (aprovados por data); recusados do período em segunda query e merge em PHP
+                    $sql = "
                     SELECT 
                         pc.nome as prescritor,
                         pc.visitador as visitador,
                         pc.usuario_id as usuario_id,
-                        COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
+                        COALESCE(SUM(CASE WHEN gp.data_aprovacao IS NOT NULL
+                            AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+                            AND gp.status_financeiro NOT LIKE '%carrinho%'))
+                            THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
+                        0 as valor_recusado,
+                        0 as qtd_recusados,
+                        SUM(CASE WHEN gp.data_aprovacao IS NOT NULL
+                            AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+                            AND gp.status_financeiro NOT LIKE '%carrinho%'))
+                            THEN 1 ELSE 0 END) as total_pedidos,
+                        MAX(gp.data_aprovacao) as ultima_compra,
+                        DATEDIFF(CURDATE(), MAX(gp.data_aprovacao)) as dias_sem_compra,
+                        MAX(hv.ultima_visita) as ultima_visita
+                    FROM prescritores_cadastro pc
+                    LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome 
+                        AND gp.ano_referencia = :ano_gp
+                        $filtroDataGp
+                    LEFT JOIN (
+                        SELECT prescritor, MAX(data_visita) as ultima_visita 
+                        FROM historico_visitas GROUP BY prescritor
+                    ) hv ON pc.nome = hv.prescritor
+                    WHERE $visWhere $filtroSearch
+                    GROUP BY pc.nome, pc.visitador, pc.usuario_id
+                    ORDER BY valor_aprovado DESC
+                    ";
+                } else {
+                    $sql = "
+                    SELECT 
+                        pc.nome as prescritor,
+                        pc.visitador as visitador,
+                        pc.usuario_id as usuario_id,
+                        COALESCE(SUM(CASE WHEN gp.data_aprovacao IS NOT NULL
+                            AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+                            AND gp.status_financeiro NOT LIKE '%carrinho%'))
+                            THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
                         (COALESCE(MAX(pr.valor_recusado), 0) + COALESCE(MAX(pr.valor_no_carrinho), 0)) as valor_recusado,
-                        COUNT(gp.id) as total_pedidos,
+                        (COALESCE(MAX(pr.recusados), 0) + COALESCE(MAX(pr.no_carrinho), 0)) as qtd_recusados,
+                        SUM(CASE WHEN gp.data_aprovacao IS NOT NULL
+                            AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+                            AND gp.status_financeiro NOT LIKE '%carrinho%'))
+                            THEN 1 ELSE 0 END) as total_pedidos,
                         MAX(gp.data_aprovacao) as ultima_compra,
                         DATEDIFF(CURDATE(), MAX(gp.data_aprovacao)) as dias_sem_compra,
                         MAX(hv.ultima_visita) as ultima_visita
@@ -585,100 +634,125 @@ try {
                         SELECT prescritor, MAX(data_visita) as ultima_visita 
                         FROM historico_visitas GROUP BY prescritor
                     ) hv ON pc.nome = hv.prescritor
-                    WHERE $visWhere
+                    WHERE $visWhere $filtroSearch
                     GROUP BY pc.nome, pc.visitador, pc.usuario_id
                     ORDER BY valor_aprovado DESC
-                ";
+                    ";
+                }
                 if ($useLimit) $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
-                $stmt = $pdo->prepare($sql);
                 $paramsVis = ['ano_gp' => $anoUsar, 'ano_pr' => $anoUsar];
                 if ($visitadorFilter !== 'My Pharm')
                     $paramsVis['vis'] = $visitadorFilter;
-                if ($mes)
-                    $paramsVis['mes'] = (int)$mes;
-                if ($dataFiltro)
-                    $paramsVis['data_filtro'] = $dataFiltro;
-                $stmt->execute($paramsVis);
+                if ($searchTerm !== null)
+                    $paramsVis['search'] = '%' . $searchTerm . '%';
+                if ($useRange) {
+                    $paramsVis['data_de'] = $dataDe;
+                    $paramsVis['data_ate'] = $dataAte;
+                } else {
+                    if ($mes) $paramsVis['mes'] = (int)$mes;
+                    if ($dataFiltro) $paramsVis['data_filtro'] = $dataFiltro;
+                }
+                try {
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute($paramsVis);
+                } catch (Throwable $e) {
+                    http_response_code(500);
+                    echo json_encode(['error' => 'Erro ao listar prescritores: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+                if ($useRange) {
+                    try {
+                        $anoIo = (int) substr($dataDe, 0, 4);
+                        $visRecWhere = ($visitadorFilter === 'My Pharm')
+                            ? "(pc_io.visitador IS NULL OR pc_io.visitador = '' OR pc_io.visitador = 'My Pharm' OR UPPER(pc_io.visitador) = 'MY PHARM')"
+                            : "TRIM(COALESCE(pc_io.visitador,'')) = TRIM(:vis_io)";
+                        $sqlRec = "SELECT COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm') as nome,
+                            SUM(i.valor_liquido) as valor_recusado, COUNT(*) as qtd_recusados
+                            FROM itens_orcamentos_pedidos i
+                            INNER JOIN prescritores_cadastro pc_io ON COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm') = pc_io.nome AND " . $visRecWhere . "
+                            WHERE (i.status = 'Recusado' OR i.status = 'No carrinho') AND i.ano_referencia = :ano_io
+                            AND i.`data` BETWEEN :data_de_io AND :data_ate_io
+                            GROUP BY COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm')";
+                        $stmtRec = $pdo->prepare($sqlRec);
+                        $paramsRec = ['ano_io' => $anoIo, 'data_de_io' => $dataDe, 'data_ate_io' => $dataAte];
+                        if ($visitadorFilter !== 'My Pharm') $paramsRec['vis_io'] = $visitadorFilter;
+                        $stmtRec->execute($paramsRec);
+                        while ($r = $stmtRec->fetch(PDO::FETCH_ASSOC)) {
+                            $recMap[$r['nome']] = ['valor_recusado' => (float) $r['valor_recusado'], 'qtd_recusados' => (int) $r['qtd_recusados']];
+                        }
+                    } catch (Throwable $e) {
+                        // Se falhar (ex.: tabela inexistente), recMap fica vazio; lista segue com recusados 0
+                    }
+                }
             }
             else {
-                // Sem filtro de visitador: manter lógica original (gestao_pedidos)
-                $whereParts = [];
-                $params = [];
-                if ($ano) {
-                    $whereParts[] = "gp.ano_referencia = :ano_ref";
-                    $params['ano_ref'] = $ano;
-                }
-                if ($mes) {
-                    $whereParts[] = "MONTH(gp.data_aprovacao) = :mes";
-                    $params['mes'] = (int)$mes;
-                }
-                if ($dia && $mes && $ano) {
-                    $params['data_filtro'] = sprintf('%04d-%02d-%02d', (int)$ano, (int)$mes, (int)$dia);
-                    $whereParts[] = "DATE(gp.data_aprovacao) = :data_filtro";
-                }
-                if ($visitadorFilter) {
-                    $anoVisCond = $ano ? " AND ano_referencia = :ano_vis" : "";
-                    if ($visitadorFilter === 'My Pharm') {
-                        $whereParts[] = "COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') IN (
-                            SELECT nome FROM prescritor_resumido 
-                            WHERE (visitador IS NULL OR visitador = '' OR visitador = 'My Pharm') $anoVisCond
-                        )";
-                    }
-                    else {
-                        $whereParts[] = "COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') IN (
-                            SELECT nome FROM prescritor_resumido 
-                            WHERE visitador = :vis $anoVisCond
-                        )";
-                        $params['vis'] = $visitadorFilter;
-                    }
-                    if ($ano)
-                        $params['ano_vis'] = $ano;
-                }
-                $whereSql = count($whereParts) > 0 ? "WHERE " . implode(" AND ", $whereParts) : "";
-                $joinAno = $ano ? "AND pr.ano_referencia = :ano_join" : "";
-                if ($ano)
-                    $params['ano_join'] = $ano;
+                // Sem filtro de visitador: listar TODOS os prescritores (prescritores_cadastro)
+                // com indicadores do ano/mês, para que apareçam mesmo sem pedidos no período (ex.: Renata Cortes).
+                $filtroMesGp = $mes ? "AND MONTH(gp.data_aprovacao) = :mes" : "";
+                $filtroDiaGp = ($dia && $mes && $anoUsar) ? "AND DATE(gp.data_aprovacao) = :data_filtro" : "";
+                $dataFiltro = ($dia && $mes && $anoUsar) ? sprintf('%04d-%02d-%02d', (int)$anoUsar, (int)$mes, (int)$dia) : null;
 
                 if ($useLimit) {
-                    $countSql = "SELECT COUNT(*) as total FROM (
-                        SELECT COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') as p
-                        FROM gestao_pedidos gp
-                        LEFT JOIN prescritor_resumido pr ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pr.nome $joinAno
-                        $whereSql
-                        GROUP BY COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')
-                    ) _cnt";
+                    $countSql = "SELECT COUNT(*) as total FROM prescritores_cadastro pc WHERE 1=1 $filtroSearch";
                     $countStmt = $pdo->prepare($countSql);
-                    $countStmt->execute($params);
+                    $countParams = [];
+                    if ($searchTerm !== null) $countParams['search'] = '%' . $searchTerm . '%';
+                    $countStmt->execute($countParams);
                     $totalRows = (int)$countStmt->fetch(PDO::FETCH_ASSOC)['total'];
                 }
 
                 $sql = "
                     SELECT 
-                        COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') as prescritor,
-                        MAX(pr.visitador) as visitador,
-                        MAX(pc.usuario_id) as usuario_id,
-                        SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END) as valor_aprovado,
+                        pc.nome as prescritor,
+                        pc.visitador as visitador,
+                        pc.usuario_id as usuario_id,
+                        COALESCE(SUM(CASE WHEN gp.data_aprovacao IS NOT NULL
+                            AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+                            AND gp.status_financeiro NOT LIKE '%carrinho%'))
+                            THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
                         (COALESCE(MAX(pr.valor_recusado), 0) + COALESCE(MAX(pr.valor_no_carrinho), 0)) as valor_recusado,
-                        COUNT(*) as total_pedidos,
+                        (COALESCE(MAX(pr.recusados), 0) + COALESCE(MAX(pr.no_carrinho), 0)) as qtd_recusados,
+                        SUM(CASE WHEN gp.data_aprovacao IS NOT NULL
+                            AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+                            AND gp.status_financeiro NOT LIKE '%carrinho%'))
+                            THEN 1 ELSE 0 END) as total_pedidos,
                         MAX(gp.data_aprovacao) as ultima_compra,
                         DATEDIFF(CURDATE(), MAX(gp.data_aprovacao)) as dias_sem_compra,
                         MAX(hv.ultima_visita) as ultima_visita
-                    FROM gestao_pedidos gp
-                    LEFT JOIN prescritor_resumido pr ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pr.nome $joinAno
-                    LEFT JOIN prescritores_cadastro pc ON pc.nome = COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')
+                    FROM prescritores_cadastro pc
+                    LEFT JOIN prescritor_resumido pr ON pr.nome = pc.nome AND pr.ano_referencia = :ano_pr
+                    LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome 
+                        AND gp.ano_referencia = :ano_gp
+                        $filtroMesGp
+                        $filtroDiaGp
                     LEFT JOIN (
                         SELECT prescritor, MAX(data_visita) as ultima_visita 
                         FROM historico_visitas GROUP BY prescritor
-                    ) hv ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = hv.prescritor
-                    $whereSql
-                    GROUP BY COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')
+                    ) hv ON pc.nome = hv.prescritor
+                    WHERE 1=1 $filtroSearch
+                    GROUP BY pc.nome, pc.visitador, pc.usuario_id
                     ORDER BY valor_aprovado DESC
                 ";
                 if ($useLimit) $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
                 $stmt = $pdo->prepare($sql);
-                $stmt->execute($params);
+                $paramsTodos = ['ano_gp' => $anoUsar, 'ano_pr' => $anoUsar];
+                if ($searchTerm !== null) $paramsTodos['search'] = '%' . $searchTerm . '%';
+                if ($mes) $paramsTodos['mes'] = (int)$mes;
+                if ($dataFiltro) $paramsTodos['data_filtro'] = $dataFiltro;
+                $stmt->execute($paramsTodos);
             }
             $data = $stmt->fetchAll();
+
+            if ($visitadorFilter && $useRange && !empty($recMap)) {
+                foreach ($data as &$row) {
+                    $nome = $row['prescritor'] ?? '';
+                    if (isset($recMap[$nome])) {
+                        $row['valor_recusado'] = $recMap[$nome]['valor_recusado'];
+                        $row['qtd_recusados'] = $recMap[$nome]['qtd_recusados'];
+                    }
+                }
+                unset($row);
+            }
 
             $results = [];
             foreach ($data as $row) {
@@ -703,6 +777,13 @@ try {
                 echo json_encode($out, JSON_UNESCAPED_UNICODE);
             } else {
                 echo json_encode($results, JSON_UNESCAPED_UNICODE);
+            }
+            } catch (Throwable $e) {
+                if (ob_get_length()) ob_end_clean();
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(500);
+                echo json_encode(['error' => 'all_prescritores: ' . $e->getMessage(), 'line' => $e->getLine()], JSON_UNESCAPED_UNICODE);
+                exit;
             }
             break;
 

@@ -189,9 +189,9 @@ $ano = 2026;
 $startTime = microtime(true);
 
 // ============================================
-// REGRA: Prescritores e visitadores são gerenciados pelo SISTEMA (fonte da verdade).
-// Na importação: só adicionamos prescritores que ainda NÃO estão no banco.
-// Prescritores já cadastrados NUNCA têm nome/visitador alterados pelo relatório.
+// REGRA: O vínculo prescritor→visitador é DEFINITIVO e só é alterado pela tela (Ranking / transferência).
+// Na importação: só inserimos prescritores NOVOS (que ainda não estão no banco); nunca alteramos visitador dos existentes.
+// A importação traz apenas pedidos/dados; o cadastro de visitador permanece como está.
 // ============================================
 
 // ============================================
@@ -639,6 +639,10 @@ try {
 catch (Exception $e) {
     $errors[] = "Histórico Visitas: " . $e->getMessage();
 }
+
+// ========== Vínculo prescritor→visitador NÃO é mais alterado pela importação ==========
+// O vínculo é definitivo e só pode ser modificado pela tela (Ranking de Prescritores / transferência).
+// Apenas pedidos e dados são importados; prescritores_cadastro.visitador permanece como está.
 
 // ============================================
 // Limpeza

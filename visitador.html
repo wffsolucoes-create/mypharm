@@ -91,12 +91,12 @@
             font-weight: 600;
         }
 
-        /* Página Prescritores – layout profissional */
-        #paginaPrescritores .prescritores-page-header {
+        /* Página Prescritores – mesmo estilo da página Pedidos */
+        #paginaPrescritores .pedidos-page-header {
             margin-bottom: 24px;
         }
-        #paginaPrescritores .prescritores-page-header h2 {
-            margin: 0 0 6px 0;
+        #paginaPrescritores .pedidos-page-header h2 {
+            margin: 0 0 8px 0;
             font-size: 1.35rem;
             font-weight: 700;
             color: var(--text-primary);
@@ -104,7 +104,7 @@
             align-items: center;
             gap: 10px;
         }
-        #paginaPrescritores .prescritores-page-header h2 .prescritores-icon {
+        #paginaPrescritores .pedidos-page-header h2 .pedidos-icon {
             width: 42px;
             height: 42px;
             border-radius: 12px;
@@ -114,55 +114,72 @@
             justify-content: center;
             color: var(--primary);
         }
-        #paginaPrescritores .prescritores-page-header p {
+        #paginaPrescritores .pedidos-page-header p {
             margin: 0;
             font-size: 0.9rem;
             color: var(--text-secondary);
-            line-height: 1.4;
+            line-height: 1.45;
         }
-        #paginaPrescritores .prescritores-search-wrap {
-            position: relative;
-            max-width: 380px;
+        #paginaPrescritores .pedidos-filters {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 16px;
             margin-bottom: 20px;
-        }
-        #paginaPrescritores .prescritores-search-wrap input {
-            width: 100%;
-            padding: 12px 16px 12px 44px;
+            padding: 16px 20px;
+            background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 10px;
+            border-radius: 12px;
+        }
+        #paginaPrescritores .pedidos-filters label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        #paginaPrescritores .pedidos-search-wrap {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+            max-width: 400px;
+        }
+        #paginaPrescritores .pedidos-search-wrap input {
+            width: 100%;
+            padding: 10px 16px 10px 40px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
             background: var(--bg-body);
             color: var(--text-primary);
             font-size: 0.9rem;
             outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            transition: border-color 0.2s;
         }
-        #paginaPrescritores .prescritores-search-wrap input:focus {
+        #paginaPrescritores .pedidos-search-wrap input:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
         }
-        #paginaPrescritores .prescritores-search-wrap .prescritores-search-icon {
+        #paginaPrescritores .pedidos-search-wrap .pedidos-search-icon {
             position: absolute;
-            left: 16px;
+            left: 14px;
             top: 50%;
             transform: translateY(-50%);
             color: var(--text-secondary);
-            font-size: 0.95rem;
-            pointer-events: none;
+            font-size: 0.9rem;
         }
-        #paginaPrescritores .prescritores-table-card {
+        #paginaPrescritores .pedidos-table-card {
             border-radius: 12px;
             overflow: hidden;
             border: 1px solid var(--border);
             background: var(--bg-card);
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
         }
-        #paginaPrescritores .prescritores-table {
+        #paginaPrescritores .pedidos-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.9rem;
+            font-size: 0.88rem;
         }
-        #paginaPrescritores .prescritores-table thead th {
-            padding: 14px 20px;
+        #paginaPrescritores .pedidos-table thead th {
+            padding: 14px 16px;
             text-align: left;
             font-weight: 600;
             font-size: 0.7rem;
@@ -170,32 +187,73 @@
             letter-spacing: 0.05em;
             color: var(--text-secondary);
             background: var(--bg-body);
-            border-bottom: 1px solid var(--border);
+            border-bottom: 2px solid var(--border);
         }
-        #paginaPrescritores .prescritores-table thead th:last-child {
-            text-align: center;
+        #paginaPrescritores .pedidos-table thead th:nth-child(1) { width: auto; }
+        #paginaPrescritores .pedidos-table thead th:nth-child(2) { min-width: 100px; }
+        #paginaPrescritores .pedidos-table thead th:nth-child(3),
+        #paginaPrescritores .pedidos-table thead th:nth-child(4) { text-align: right; width: 140px; }
+        #paginaPrescritores .pedidos-table thead th:nth-child(5) { text-align: center; width: 180px; }
+        #paginaPrescritores .pedidos-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: var(--bg-body);
         }
-        #paginaPrescritores .prescritores-table tbody tr {
+        #paginaPrescritores .pedidos-pagination .prescritores-pag-btns {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #paginaPrescritores .pedidos-pagination button {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        #paginaPrescritores .pedidos-pagination button:hover:not(:disabled) {
+            background: var(--bg-body);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        #paginaPrescritores .pedidos-pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #paginaPrescritores .pedidos-table tbody tr {
             border-bottom: 1px solid var(--border);
             transition: background 0.15s ease;
         }
-        #paginaPrescritores .prescritores-table tbody tr:last-child {
+        #paginaPrescritores .pedidos-table tbody tr:last-child {
             border-bottom: none;
         }
-        #paginaPrescritores .prescritores-table tbody tr:hover {
-            background: rgba(59, 130, 246, 0.04);
+        #paginaPrescritores .pedidos-table tbody tr:hover {
+            background: rgba(59, 130, 246, 0.05);
         }
-        #paginaPrescritores .prescritores-table tbody td {
-            padding: 14px 20px;
+        #paginaPrescritores .pedidos-table tbody td {
+            padding: 12px 16px;
             color: var(--text-primary);
             vertical-align: middle;
         }
-        #paginaPrescritores .prescritores-table tbody td:last-child {
+        #paginaPrescritores .pedidos-table tbody td:nth-child(3),
+        #paginaPrescritores .pedidos-table tbody td:nth-child(4) {
+            text-align: right;
+        }
+        #paginaPrescritores .pedidos-table tbody td:nth-child(5) {
             text-align: center;
         }
-        #paginaPrescritores .prescritores-table tbody td:first-child {
+        #paginaPrescritores .pedidos-table tbody td:first-child {
             font-weight: 500;
-            color: var(--text-primary);
         }
         #paginaPrescritores .prescritores-actions {
             display: inline-flex;
@@ -251,43 +309,7 @@
             background: rgba(37, 99, 235, 0.18);
             transform: translateY(-1px);
         }
-        #paginaPrescritores .prescritores-pagination {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 12px;
-            padding: 14px 20px;
-            border-top: 1px solid var(--border);
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            background: var(--bg-body);
-        }
-        #paginaPrescritores .prescritores-pagination .prescritores-pag-btns {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        #paginaPrescritores .prescritores-pagination button {
-            padding: 8px 12px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background: var(--bg-card);
-            color: var(--text-primary);
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: background 0.2s, border-color 0.2s;
-        }
-        #paginaPrescritores .prescritores-pagination button:hover:not(:disabled) {
-            background: var(--bg-body);
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-        #paginaPrescritores .prescritores-pagination button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        #paginaPrescritores .prescritores-table a[href^="https://wa.me"] {
+        #paginaPrescritores .pedidos-table a[href^="https://wa.me"] {
             color: #25D366;
             text-decoration: none;
             font-weight: 500;
@@ -296,7 +318,7 @@
             gap: 4px;
             transition: opacity 0.2s;
         }
-        #paginaPrescritores .prescritores-table a[href^="https://wa.me"]:hover {
+        #paginaPrescritores .pedidos-table a[href^="https://wa.me"]:hover {
             opacity: 0.9;
             text-decoration: underline;
         }
@@ -986,34 +1008,55 @@
 
         <!-- Página Prescritores (ajustar dados da carteira) -->
         <div id="paginaPrescritores" class="visitador-page" style="display:none; padding:0 24px 32px;">
-            <div class="prescritores-page-header">
+            <div class="pedidos-page-header">
                 <h2>
-                    <span class="prescritores-icon"><i class="fas fa-user-md"></i></span>
+                    <span class="pedidos-icon"><i class="fas fa-user-md"></i></span>
                     Prescritores
                 </h2>
-                <p>Ajuste os dados dos prescritores da sua carteira (nome e WhatsApp).</p>
+                <p>Ajuste os dados dos prescritores da sua carteira (nome e WhatsApp). Valores e quantidades de aprovados/recusados nos botões da coluna Ações: todos, lista aprovados, lista recusados.</p>
             </div>
-            <div class="prescritores-search-wrap">
-                <i class="fas fa-search prescritores-search-icon"></i>
-                <input type="text" id="searchPrescritoresPage" placeholder="Buscar prescritor..." autocomplete="off">
+            <div class="pedidos-filters">
+                <div class="pedidos-search-wrap">
+                    <i class="fas fa-search pedidos-search-icon"></i>
+                    <input type="text" id="searchPrescritoresPage" placeholder="Buscar por prescritor..." autocomplete="off">
+                </div>
             </div>
-            <div class="prescritores-table-card">
+            <div id="paginaPrescritoresCards" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:20px;">
+                <div class="card" style="padding:16px 20px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-check-circle" style="margin-right:6px; color:var(--success);"></i>Valor aprovado</div>
+                    <div id="prescritoresCardValorAprovado" style="font-size:1.35rem; font-weight:800; color:var(--success);">R$ 0,00</div>
+                </div>
+                <div class="card" style="padding:16px 20px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-times-circle" style="margin-right:6px; color:var(--danger);"></i>Valor recusado</div>
+                    <div id="prescritoresCardValorRecusado" style="font-size:1.35rem; font-weight:800; color:var(--danger, #EF4444);">R$ 0,00</div>
+                </div>
+                <div class="card" style="padding:16px 20px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-list-ol" style="margin-right:6px; color:var(--primary);"></i>Qtd aprovados</div>
+                    <div id="prescritoresCardQtdAprovados" style="font-size:1.35rem; font-weight:800; color:var(--text-primary);">0 ped.</div>
+                </div>
+                <div class="card" style="padding:16px 20px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-list-ol" style="margin-right:6px; color:var(--danger);"></i>Qtd recusados</div>
+                    <div id="prescritoresCardQtdRecusados" style="font-size:1.35rem; font-weight:800; color:var(--text-primary);">0 ped.</div>
+                </div>
+            </div>
+            <div class="pedidos-table-card">
                 <div id="paginaPrescritoresBody" style="min-height:200px; overflow-x:auto;">
-                    <table class="prescritores-table">
+                    <table class="pedidos-table">
                         <thead>
                             <tr>
-                                <th>Prescritor</th>
+                                <th id="prescritoresThPrescritor" onclick="sortPaginaPrescritoresBy('prescritor')" style="cursor:pointer; user-select:none;" title="Ordenar">Prescritor <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
                                 <th>WhatsApp</th>
-                                <th style="text-align:right;">Valor dos aprovados</th>
-                                <th>Ações</th>
+                                <th id="prescritoresThValorAprovado" onclick="sortPaginaPrescritoresBy('valor_aprovado')" style="cursor:pointer; user-select:none; text-align:right;" title="Ordenar">Aprovados (valor + qtd) <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="prescritoresThValorRecusado" onclick="sortPaginaPrescritoresBy('valor_recusado')" style="cursor:pointer; user-select:none; text-align:right;" title="Ordenar">Recusados (valor + qtd) <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th style="text-align:center;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="paginaPrescritoresTbody">
-                            <tr><td colspan="4" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>
+                            <tr><td colspan="5" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
-                <div id="paginaPrescritoresPagination" class="prescritores-pagination"></div>
+                <div id="paginaPrescritoresPagination" class="pedidos-pagination"></div>
             </div>
         </div>
 
@@ -1275,10 +1318,10 @@
                                 Prescritor <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
                             <th onclick="sortTable('total_aprovado')"
                                 style="padding:12px 16px; text-align:right; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
-                                Valor Aprovado <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
-                            <th onclick="sortTable('qtd_aprovados')"
-                                style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
-                                Pedidos <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
+                                Aprovados (valor + qtd) <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
+                            <th onclick="sortTable('total_recusado')"
+                                style="padding:12px 16px; text-align:right; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
+                                Recusados (valor + qtd) <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
                             <th onclick="sortTable('dias_sem_compra')"
                                 style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
                                 Dias s/ Compra <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
@@ -1883,8 +1926,10 @@
         let modalPedidosPageSize = 20;
         let modalPedidosSortPedidos = { column: 'data_aprovacao', direction: 'desc' };
         let modalPedidosAno = '';
+        let modalPedidosTipoFilter = null;
 
-        async function openModalPedidosVisitador(prescritorNome) {
+        async function openModalPedidosVisitador(prescritorNome, tipoFilter) {
+            modalPedidosTipoFilter = tipoFilter || null;
             const modal = document.getElementById('modalPedidosVisitador');
             const titleEl = document.getElementById('modalPedidosVisitadorTitle');
             const subtitleEl = document.getElementById('modalPedidosVisitadorSubtitle');
@@ -1895,12 +1940,25 @@
             const nome = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '').trim() || (localStorage.getItem('userName') || '').trim();
             const anoEl = document.getElementById('anoSelect');
             const mesEl = document.getElementById('mesSelect');
-            const ano = anoEl ? anoEl.value : (new Date().getFullYear()).toString();
-            const mes = mesEl && mesEl.value ? mesEl.value : '';
+            let ano = (anoEl && anoEl.value) ? anoEl.value : (new Date().getFullYear()).toString();
+            let mes = mesEl && mesEl.value ? mesEl.value : '';
             if (prescritorNome) {
-                if (titleEl) titleEl.innerHTML = '<i class="fas fa-list-alt" style="color:var(--primary); margin-right:8px;"></i>Pedidos do prescritor';
-                if (subtitleEl) subtitleEl.textContent = prescritorNome + (mes ? ' — ' + mes + '/' + ano : ' — ' + ano);
+                // Na página Prescritores, os cards/lista são anuais; o modal não deve herdar mês.
+                mes = '';
+            }
+            if (prescritorNome) {
+                if (modalPedidosTipoFilter === 'recusados') {
+                    if (titleEl) titleEl.innerHTML = '<i class="fas fa-times-circle" style="color:var(--danger); margin-right:8px;"></i>Lista de recusados';
+                    if (subtitleEl) subtitleEl.textContent = prescritorNome + (mes ? ' — ' + mes + '/' + ano : ' — ' + ano);
+                } else if (modalPedidosTipoFilter === 'aprovados') {
+                    if (titleEl) titleEl.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success); margin-right:8px;"></i>Lista de aprovados';
+                    if (subtitleEl) subtitleEl.textContent = prescritorNome + (mes ? ' — ' + mes + '/' + ano : ' — ' + ano);
+                } else {
+                    if (titleEl) titleEl.innerHTML = '<i class="fas fa-list-alt" style="color:var(--primary); margin-right:8px;"></i>Pedidos do prescritor';
+                    if (subtitleEl) subtitleEl.textContent = prescritorNome + (mes ? ' — ' + mes + '/' + ano : ' — ' + ano);
+                }
             } else {
+                modalPedidosTipoFilter = null;
                 if (titleEl) titleEl.innerHTML = '<i class="fas fa-list-alt" style="color:var(--primary); margin-right:8px;"></i>Pedidos Aprovados e Recusados + Carrinho';
                 if (subtitleEl) subtitleEl.textContent = nome ? (mes ? 'Carteira: ' + nome + ' — ' + mes + '/' + ano : 'Carteira: ' + nome + ' — ' + ano) : 'Carregando...';
             }
@@ -1909,10 +1967,18 @@
             if (paginationEl) paginationEl.textContent = 'Mostrando 0-0 de 0';
             modal.style.display = 'flex';
             try {
+                if (!nome) {
+                    bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--danger);">Visitador não identificado. Faça login ou selecione a carteira.</div>';
+                    return;
+                }
                 const params = { nome: nome, ano: ano };
                 if (mes) params.mes = mes;
                 if (prescritorNome) params.prescritor = prescritorNome;
                 const res = await apiGet('list_pedidos_visitador', params);
+                if (res && res.error) {
+                    bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--danger);">' + (res.error || 'Erro ao carregar pedidos.') + '</div>';
+                    return;
+                }
                 modalPedidosAprovados = Array.isArray(res.aprovados) ? res.aprovados : [];
                 modalPedidosRecusados = Array.isArray(res.recusados_carrinho) ? res.recusados_carrinho : [];
                 modalPedidosAprovadosFiltered = [...modalPedidosAprovados];
@@ -1965,7 +2031,14 @@
         function changePagePedidosModal(delta) {
             const aprovados = modalPedidosAprovadosFiltered || [];
             const recusados = modalPedidosRecusadosFiltered || [];
-            const combined = aprovados.map(function (p) { return { ...p, tipo: 'Aprovado' }; }).concat(recusados.map(function (p) { return { ...p, tipo: 'Recusado' }; }));
+            let combined;
+            if (modalPedidosTipoFilter === 'aprovados') {
+                combined = aprovados.map(function (p) { return { ...p, tipo: 'Aprovado' }; });
+            } else if (modalPedidosTipoFilter === 'recusados') {
+                combined = recusados.map(function (p) { return { ...p, tipo: 'Recusado' }; });
+            } else {
+                combined = aprovados.map(function (p) { return { ...p, tipo: 'Aprovado' }; }).concat(recusados.map(function (p) { return { ...p, tipo: 'Recusado' }; }));
+            }
             const sorted = sortPedidosModal(combined, modalPedidosSortPedidos.column, modalPedidosSortPedidos.direction);
             const total = sorted.length;
             const totalPages = Math.max(1, Math.ceil(total / modalPedidosPageSize));
@@ -1989,7 +2062,14 @@
             const fmtMoney = typeof formatMoney === 'function' ? formatMoney : function (v) { return 'R$ ' + (parseFloat(v) || 0).toFixed(2).replace('.', ','); };
             const aprovados = modalPedidosAprovadosFiltered || [];
             const recusados = modalPedidosRecusadosFiltered || [];
-            const combined = aprovados.map(function (p) { return { ...p, tipo: 'Aprovado' }; }).concat(recusados.map(function (p) { return { ...p, tipo: 'Recusado' }; }));
+            let combined;
+            if (modalPedidosTipoFilter === 'aprovados') {
+                combined = aprovados.map(function (p) { return { ...p, tipo: 'Aprovado' }; });
+            } else if (modalPedidosTipoFilter === 'recusados') {
+                combined = recusados.map(function (p) { return { ...p, tipo: 'Recusado' }; });
+            } else {
+                combined = aprovados.map(function (p) { return { ...p, tipo: 'Aprovado' }; }).concat(recusados.map(function (p) { return { ...p, tipo: 'Recusado' }; }));
+            }
             const sorted = sortPedidosModal(combined, modalPedidosSortPedidos.column, modalPedidosSortPedidos.direction);
             const total = sorted.length;
             const totalPages = Math.max(1, Math.ceil(total / modalPedidosPageSize));
@@ -2011,16 +2091,24 @@
             html += '<th onclick="sortTablePedidosModal(\'valor\')" style="padding:12px 16px; text-align:right; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; cursor:pointer; user-select:none;">Valor ' + sortIcon('valor') + '</th>';
             html += '<th style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase;">Status</th></tr></thead><tbody>';
             if (pageRows.length === 0) {
-                html += '<tr><td colspan="8" style="padding:24px; text-align:center; color:var(--text-secondary);">Nenhum pedido encontrado.</td></tr>';
+                var emptyMsg = 'Nenhum pedido encontrado.';
+                if (modalPedidosTipoFilter === 'aprovados') emptyMsg = 'Nenhum pedido aprovado encontrado para este prescritor.';
+                if (modalPedidosTipoFilter === 'recusados') emptyMsg = 'Nenhum pedido recusado/no carrinho encontrado para este prescritor.';
+                html += '<tr><td colspan="8" style="padding:24px; text-align:center; color:var(--text-secondary);">' + emptyMsg + '</td></tr>';
             } else {
                 pageRows.forEach(function (p, i) {
                     const idx = start + i + 1;
                     const isAprovado = p.tipo === 'Aprovado';
-                    const n = p.numero_pedido, s = p.serie_pedido, a = modalPedidosAno || '';
-                    html += '<tr role="button" tabindex="0" onclick="openModalDetalhePedido(' + n + ',' + s + ',\'' + String(a).replace(/'/g, "\\'") + '\')" style="border-bottom:1px solid var(--border); background:' + (i % 2 === 0 ? 'var(--bg-body)' : 'transparent') + '; cursor:pointer;" title="Ver detalhes e componentes do pedido">';
+                    const n = p.numero_pedido;
+                    var sv = p.serie_pedido !== undefined ? p.serie_pedido : p.serie;
+                    var isEmpty = (sv === null || sv === undefined || sv === '' || (typeof sv === 'string' && String(sv).trim() === ''));
+                    var sVal = isEmpty ? 0 : sv;
+                    var serDisplay = isEmpty ? '0' : esc(String(sv));
+                    const a = modalPedidosAno || '';
+                    html += '<tr role="button" tabindex="0" onclick="openModalDetalhePedido(' + n + ',' + sVal + ',\'' + String(a).replace(/'/g, "\\'") + '\')" style="border-bottom:1px solid var(--border); background:' + (i % 2 === 0 ? 'var(--bg-body)' : 'transparent') + '; cursor:pointer;" title="Ver detalhes e componentes do pedido">';
                     html += '<td style="padding:12px 16px; color:var(--text-secondary);">' + idx + '</td>';
                     html += '<td style="padding:12px 16px;">' + esc(p.numero_pedido) + '</td>';
-                    html += '<td style="padding:12px 16px; text-align:center;">' + (p.serie_pedido != null && p.serie_pedido !== '' ? esc(p.serie_pedido) : '0') + '</td>';
+                    html += '<td style="padding:12px 16px; text-align:center;">' + serDisplay + '</td>';
                     html += '<td style="padding:12px 16px;">' + esc(fmtDate(p.data_aprovacao)) + '</td>';
                     html += '<td style="padding:12px 16px;">' + esc(p.prescritor) + '</td>';
                     html += '<td style="padding:12px 16px;">' + esc(p.cliente) + '</td>';
@@ -2061,6 +2149,14 @@
                 return s;
             }
             function fmtMoney(v) { return 'R$ ' + (parseFloat(v) || 0).toFixed(2).replace('.', ','); }
+            function fmtQtdCalculada(qtd, unidade) {
+                if (qtd === null || qtd === undefined || qtd === '') return '—';
+                var n = parseFloat(qtd);
+                if (isNaN(n)) return String(qtd).trim() + (unidade ? ' ' + String(unidade).trim() : '');
+                var s = Number.isInteger(n) ? String(Math.round(n)) : String(n);
+                var u = (unidade && String(unidade).trim()) ? ' ' + String(unidade).trim() : '';
+                return s + u;
+            }
             try {
                 var resDet = await apiGet('get_pedido_detalhe', params);
                 if (resDet.error && !resDet.pedido) {
@@ -2076,7 +2172,8 @@
                 loading.style.display = 'none';
                 content.style.display = 'block';
                 var fieldsHtml = '';
-                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Nº / Série</span><div style="font-weight:600;">' + esc(p.numero_pedido) + ' / ' + (p.serie_pedido != null && p.serie_pedido !== '' ? esc(p.serie_pedido) : '0') + '</div></div>';
+                var serieDetalhe = (p.serie_pedido !== undefined && p.serie_pedido !== null && String(p.serie_pedido).trim() !== '') ? String(p.serie_pedido).trim() : '0';
+                fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Nº / Série</span><div style="font-weight:600;">' + esc(p.numero_pedido) + ' / ' + esc(serieDetalhe) + '</div></div>';
                 fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Data aprovação</span><div style="font-weight:600;">' + esc(fmtDate(p.data_aprovacao)) + '</div></div>';
                 fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Data orçamento</span><div style="font-weight:600;">' + esc(fmtDate(p.data_orcamento)) + '</div></div>';
                 fieldsHtml += '<div><span style="font-size:0.7rem; color:var(--text-secondary);">Canal</span><div style="font-weight:600;">' + esc(p.canal_atendimento || '—') + '</div></div>';
@@ -2116,8 +2213,7 @@
                     emptyComp.style.display = 'none';
                     var ch = '';
                     componentes.forEach(function (c, i) {
-                        var qtdUn = esc(c.qtd_calculada);
-                        if (c.unidade) qtdUn += ' ' + esc(c.unidade);
+                        var qtdUn = esc(fmtQtdCalculada(c.qtd_calculada, c.unidade));
                         ch += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 12px;">' + (i + 1) + '</td><td style="padding:10px 12px;">' + esc(c.descricao || c.componente) + '</td><td style="padding:10px 12px; text-align:right;">' + qtdUn + '</td></tr>';
                     });
                     tbody.innerHTML = ch;
@@ -2405,8 +2501,8 @@
             const headers = document.querySelectorAll('th');
             let targetHeader;
             if (column === 'prescritor') targetHeader = headers[1];
-            if (column === 'total_aprovado') targetHeader = headers[2];
-            if (column === 'qtd_aprovados') targetHeader = headers[3];
+            if (column === 'total_aprovado' || column === 'qtd_aprovados') targetHeader = headers[2];
+            if (column === 'total_recusado') targetHeader = headers[3];
             if (column === 'dias_sem_compra') targetHeader = headers[4];
             if (column === 'ultima_visita') targetHeader = headers[5];
 
@@ -2499,8 +2595,8 @@
                     <tr style="border-bottom:1px solid var(--border); transition:background 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.03)'" onmouseout="this.style.background='transparent'">
                         <td style="padding:10px 16px; color:var(--text-secondary); font-weight:600;">${globalIndex}</td>
                         <td style="padding:10px 16px; font-weight:500; color:var(--text-primary); text-transform: capitalize;">${p.prescritor.toLowerCase()}</td>
-                        <td class="val-approved" style="padding:10px 16px; text-align:right;">${formatMoney(p.total_aprovado)}</td>
-                        <td style="padding:10px 16px; text-align:center;">${p.qtd_aprovados || 0}</td>
+                        <td class="val-approved" style="padding:10px 16px; text-align:right;">${formatMoney(p.total_aprovado)}<br><small style="opacity:0.9;">${p.qtd_aprovados ?? 0} ped.</small></td>
+                        <td class="val-refused" style="padding:10px 16px; text-align:right; color:var(--danger, #EF4444);">${formatMoney(p.total_recusado ?? p.valor_recusado ?? 0)}<br><small style="opacity:0.9;">${p.qtd_recusados ?? 0} ped.</small></td>
                         <td style="padding:10px 16px; text-align:center;">${diasCompraHTML}</td>
                         <td style="padding:10px 16px; text-align:center;">${diasVisitaHTML}</td>
                         <td style="padding:10px 16px; text-align:center;">
@@ -3437,15 +3533,11 @@
         async function loadPaginaPrescritores() {
             var tbody = document.getElementById('paginaPrescritoresTbody');
             if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>';
+            var anoAtual = (new Date().getFullYear()).toString();
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>';
             try {
                 var visitador = currentVisitadorName || localStorage.getItem('userName') || '';
-                var anoEl = document.getElementById('anoSelect');
-                var mesEl = document.getElementById('mesSelect');
-                var ano = anoEl ? anoEl.value : (new Date().getFullYear()).toString();
-                var mes = mesEl && mesEl.value ? mesEl.value : '';
-                var params = { visitador: visitador, ano: ano };
-                if (mes) params.mes = mes;
+                var params = { visitador: visitador, ano: anoAtual };
                 var list = await apiGet('all_prescritores', params) || [];
                 var contatos = {};
                 try { contatos = await apiGet('get_prescritor_contatos') || {}; } catch (e) {}
@@ -3454,35 +3546,87 @@
                         prescritor: p.prescritor || p.nome || '-',
                         whatsapp: contatos[p.prescritor] || contatos[p.nome] || '',
                         ultima_compra: p.ultima_compra || p.ultima_compra_aprovacao || '',
-                        valor_aprovado: p.valor_aprovado ?? p.total_aprovado ?? 0
+                        valor_aprovado: p.valor_aprovado ?? p.total_aprovado ?? 0,
+                        total_pedidos: p.total_pedidos ?? p.qtd_aprovados ?? 0,
+                        valor_recusado: p.valor_recusado ?? p.total_recusado ?? 0,
+                        qtd_recusados: p.qtd_recusados ?? 0
                     };
                 });
                 renderPaginaPrescritores();
                 var searchEl = document.getElementById('searchPrescritoresPage');
                 if (searchEl) searchEl.oninput = renderPaginaPrescritores;
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:48px 24px; color:var(--danger); font-size:0.9rem;"><i class="fas fa-exclamation-circle" style="margin-right:8px;"></i>Erro ao carregar prescritores.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:48px 24px; color:var(--danger); font-size:0.9rem;"><i class="fas fa-exclamation-circle" style="margin-right:8px;"></i>Erro ao carregar prescritores.</td></tr>';
             }
         }
 
         var __paginaPrescritoresPage = 1;
         var __paginaPrescritoresPageSize = 15;
+        var __paginaPrescritoresSort = { column: 'valor_aprovado', direction: 'desc' };
+
+        function sortPaginaPrescritoresBy(col) {
+            if (__paginaPrescritoresSort.column === col) __paginaPrescritoresSort.direction = __paginaPrescritoresSort.direction === 'asc' ? 'desc' : 'asc';
+            else { __paginaPrescritoresSort.column = col; __paginaPrescritoresSort.direction = (col === 'prescritor' ? 'asc' : 'desc'); }
+            __paginaPrescritoresPage = 1;
+            renderPaginaPrescritores();
+        }
+
+        function sortPaginaPrescritoresList(list, col, dir) {
+            var d = dir === 'asc' ? 1 : -1;
+            return list.slice().sort(function (a, b) {
+                var va = a[col], vb = b[col];
+                if (col === 'valor_aprovado' || col === 'valor_recusado') { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; return (va - vb) * d; }
+                if (col === 'prescritor') { va = String(va || '').toLowerCase(); vb = String(vb || '').toLowerCase(); return (va < vb ? -1 : (va > vb ? 1 : 0)) * d; }
+                va = String(va || '').toLowerCase(); vb = String(vb || '').toLowerCase();
+                return (va < vb ? -1 : (va > vb ? 1 : 0)) * d;
+            });
+        }
+
+        function updatePaginaPrescritoresSortIcons() {
+            var col = __paginaPrescritoresSort.column;
+            var dir = __paginaPrescritoresSort.direction;
+            var map = { prescritor: 'prescritoresThPrescritor', valor_aprovado: 'prescritoresThValorAprovado', valor_recusado: 'prescritoresThValorRecusado' };
+            for (var key in map) {
+                var el = document.getElementById(map[key]);
+                if (!el) continue;
+                var icon = el.querySelector('i');
+                if (!icon) continue;
+                icon.className = key === col ? (dir === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down') : 'fas fa-sort';
+                icon.style.opacity = key === col ? '1' : '0.4';
+            }
+        }
 
         function renderPaginaPrescritores() {
             var tbody = document.getElementById('paginaPrescritoresTbody');
             var pagEl = document.getElementById('paginaPrescritoresPagination');
             if (!tbody) return;
+            var fullList = __paginaPrescritoresList || [];
+            var totalAprovado = fullList.reduce(function (acc, p) { return acc + (parseFloat(p.valor_aprovado) || 0); }, 0);
+            var totalRecusado = fullList.reduce(function (acc, p) { return acc + (parseFloat(p.valor_recusado) || 0); }, 0);
+            var totalQtdAprovados = fullList.reduce(function (acc, p) { return acc + (parseInt(p.total_pedidos, 10) || 0); }, 0);
+            var totalQtdRecusados = fullList.reduce(function (acc, p) { return acc + (parseInt(p.qtd_recusados, 10) || 0); }, 0);
+            var fmtBr = function (v) { var n = (parseFloat(v) || 0).toFixed(2); var p = n.split('.'); return 'R$ ' + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + p[1]; };
+            var cardValorAprov = document.getElementById('prescritoresCardValorAprovado');
+            var cardValorRec = document.getElementById('prescritoresCardValorRecusado');
+            var cardQtdAprov = document.getElementById('prescritoresCardQtdAprovados');
+            var cardQtdRec = document.getElementById('prescritoresCardQtdRecusados');
+            if (cardValorAprov) cardValorAprov.textContent = fmtBr(totalAprovado);
+            if (cardValorRec) cardValorRec.textContent = fmtBr(totalRecusado);
+            if (cardQtdAprov) cardQtdAprov.textContent = totalQtdAprovados + ' ped.';
+            if (cardQtdRec) cardQtdRec.textContent = totalQtdRecusados + ' ped.';
             var q = (document.getElementById('searchPrescritoresPage') || {}).value || '';
-            var list = __paginaPrescritoresList;
+            var list = fullList;
             if (q) {
                 q = q.toLowerCase().trim();
                 list = list.filter(function (p) { return (p.prescritor || '').toLowerCase().indexOf(q) !== -1; });
             }
+            list = sortPaginaPrescritoresList(list, __paginaPrescritoresSort.column, __paginaPrescritoresSort.direction);
             var esc = function (x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
             var fmtMoney = function (v) { var n = parseFloat(v) || 0; return 'R$ ' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
             if (list.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-user-slash" style="margin-right:8px; opacity:0.6;"></i>Nenhum prescritor encontrado.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-user-slash" style="margin-right:8px; opacity:0.6;"></i>Nenhum prescritor encontrado.</td></tr>';
                 if (pagEl) pagEl.innerHTML = '';
+                updatePaginaPrescritoresSortIcons();
                 return;
             }
             var totalPages = Math.max(1, Math.ceil(list.length / __paginaPrescritoresPageSize));
@@ -3497,24 +3641,28 @@
                 var waNum = onlyDigits.length >= 10 && onlyDigits.length <= 11 ? '55' + onlyDigits : (onlyDigits.length >= 12 ? onlyDigits : '');
                 var whatsappCell = !waNum ? esc(whatsapp || '—') : '<a href="https://wa.me/' + esc(waNum) + '" target="_blank" rel="noopener noreferrer" style="color:#25D366; text-decoration:none; font-weight:500;" title="Enviar mensagem no WhatsApp"><i class="fab fa-whatsapp" style="margin-right:4px;"></i>' + esc(whatsapp || waNum) + '</a>';
                 var valorAprovado = (p.valor_aprovado != null && p.valor_aprovado !== '') ? fmtMoney(p.valor_aprovado) : '—';
+                var qtdAprov = (p.total_pedidos != null && p.total_pedidos !== '') ? parseInt(p.total_pedidos, 10) : 0;
+                var valorRecusado = (p.valor_recusado != null && p.valor_recusado !== '') ? fmtMoney(p.valor_recusado) : '—';
+                var qtdRec = (p.qtd_recusados != null && p.qtd_recusados !== '') ? parseInt(p.qtd_recusados, 10) : 0;
                 html += '<tr>' +
                     '<td>' + esc(nome) + '</td>' +
                     '<td>' + whatsappCell + '</td>' +
-                    '<td style="text-align:right; font-weight:600; color:var(--success);">' + valorAprovado + '</td>' +
+                    '<td style="text-align:right; font-weight:600; color:var(--success);">' + valorAprovado + '<br><small style="opacity:0.9; font-weight:500;">' + qtdAprov + ' ped.</small></td>' +
+                    '<td style="text-align:right; font-weight:600; color:var(--danger, #EF4444);">' + valorRecusado + '<br><small style="opacity:0.9; font-weight:500;">' + qtdRec + ' ped.</small></td>' +
                     '<td>' +
                     '<span class="prescritores-actions">' +
-                    '<button type="button" class="prescritores-btn btn-pedidos-prescritor-page" data-nome="' + esc(nome) + '" title="Ver pedidos do prescritor"><i class="fas fa-list-alt"></i></button>' +
+                    '<button type="button" class="prescritores-btn btn-pedidos-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista de todos os pedidos (aprovados + recusados)"><i class="fas fa-list-alt"></i></button>' +
                     '<button type="button" class="prescritores-btn prescritores-btn-editar btn-editar-prescritor-page" data-nome="' + esc(nome) + '" title="Editar prescritor"><i class="fas fa-user-edit"></i></button>' +
                     '<button type="button" class="prescritores-btn prescritores-btn-relatorio btn-relatorio-visitas-prescritor-page" data-nome="' + esc(nome) + '" title="Relatório de visitas"><i class="fas fa-clipboard-list"></i></button>' +
-                    '<button type="button" class="prescritores-btn prescritores-btn-aprovados btn-aprovados-prescritor-page" data-nome="' + esc(nome) + '" title="Aprovados"><i class="fas fa-check"></i></button>' +
-                    '<button type="button" class="prescritores-btn prescritores-btn-recusados btn-recusados-prescritor-page" data-nome="' + esc(nome) + '" title="Recusados"><i class="fas fa-times"></i></button>' +
+                    '<button type="button" class="prescritores-btn prescritores-btn-aprovados btn-aprovados-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista dos pedidos aprovados (valor verde acima)"><i class="fas fa-check"></i></button>' +
+                    '<button type="button" class="prescritores-btn prescritores-btn-recusados btn-recusados-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista dos pedidos recusados (valor vermelho acima)"><i class="fas fa-times"></i></button>' +
                     '</span></td></tr>';
             });
             tbody.innerHTML = html;
             if (pagEl) {
                 var from = start + 1;
                 var to = Math.min(start + __paginaPrescritoresPageSize, list.length);
-                var pagHtml = '<span style="font-weight:500;">' + from + ' – ' + to + ' de ' + list.length + ' prescritores</span>';
+                var pagHtml = '<span style="font-weight:500;">Mostrando ' + from + ' – ' + to + ' de ' + list.length + ' prescritores</span>';
                 pagHtml += '<span class="prescritores-pag-btns">';
                 pagHtml += '<button type="button" onclick="paginaPrescritoresGoTo(1)" ' + (__paginaPrescritoresPage <= 1 ? 'disabled' : '') + ' title="Primeira página"><i class="fas fa-angle-double-left"></i></button>';
                 pagHtml += '<button type="button" onclick="paginaPrescritoresGoTo(__paginaPrescritoresPage - 1)" ' + (__paginaPrescritoresPage <= 1 ? 'disabled' : '') + ' title="Anterior"><i class="fas fa-angle-left"></i></button>';
@@ -3525,6 +3673,7 @@
                 pagEl.innerHTML = pagHtml;
                 pagEl.style.display = 'flex';
             }
+            updatePaginaPrescritoresSortIcons();
             tbody.querySelectorAll('.btn-pedidos-prescritor-page').forEach(function (btn) {
                 btn.onclick = function () {
                     var nome = btn.getAttribute('data-nome');
@@ -3540,13 +3689,13 @@
             tbody.querySelectorAll('.btn-aprovados-prescritor-page').forEach(function (btn) {
                 btn.onclick = function () {
                     var nome = btn.getAttribute('data-nome');
-                    if (typeof openAprovadosRecusadosModal === 'function') openAprovadosRecusadosModal(nome, 'aprovados');
+                    if (typeof openModalPedidosVisitador === 'function') openModalPedidosVisitador(nome, 'aprovados');
                 };
             });
             tbody.querySelectorAll('.btn-recusados-prescritor-page').forEach(function (btn) {
                 btn.onclick = function () {
                     var nome = btn.getAttribute('data-nome');
-                    if (typeof openAprovadosRecusadosModal === 'function') openAprovadosRecusadosModal(nome, 'recusados');
+                    if (typeof openModalPedidosVisitador === 'function') openModalPedidosVisitador(nome, 'recusados');
                 };
             });
             tbody.querySelectorAll('.btn-relatorio-visitas-prescritor-page').forEach(function (btn) {
@@ -3571,13 +3720,16 @@
             var tbody = document.getElementById('paginaPedidosTbody');
             if (!tbody) return;
             var hoje = new Date();
-            var hojeStr = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
+            var primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            var fmt = function (d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
             var dataDeEl = document.getElementById('paginaPedidosDataDe');
             var dataAteEl = document.getElementById('paginaPedidosDataAte');
-            if (dataDeEl) dataDeEl.value = hojeStr;
-            if (dataAteEl) dataAteEl.value = hojeStr;
+            var filtroStatusEl = document.getElementById('paginaPedidosFiltroStatus');
+            if (dataDeEl) dataDeEl.value = fmt(primeiroDiaMes);
+            if (dataAteEl) dataAteEl.value = fmt(hoje);
+            if (filtroStatusEl) filtroStatusEl.value = 'Aprovado';
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>';
-            var ano = '2026';
+            var ano = String(new Date().getFullYear());
             var mes = '';
             // Sempre usar o visitador logado: se for admin visualizando outro, usa currentVisitadorName; senão usa nome da sessão/localStorage
             var nome = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '') || (localStorage.getItem('userName') || '');
@@ -3643,7 +3795,7 @@
             }
             if (dataDe || dataAte) {
                 list = list.filter(function (p) {
-                    var d = (p.data_aprovacao || '').trim().slice(0, 10);
+                    var d = (p.data_aprovacao || p.data_orcamento || '').trim().slice(0, 10);
                     if (!d) return false;
                     if (dataDe && d < dataDe) return false;
                     if (dataAte && d > dataAte) return false;
@@ -3669,8 +3821,14 @@
                 return s;
             }
             function fmtMoney(v) { return 'R$ ' + (parseFloat(v) || 0).toFixed(2).replace('.', ','); }
-            function serieStr(p) { return (p.serie_pedido === null || p.serie_pedido === undefined || p.serie_pedido === '') ? '0' : String(p.serie_pedido); }
-            var ano = '2026';
+            function serieStr(p) {
+                var v = p.serie_pedido;
+                if (v === null || v === undefined) return '0';
+                if (v === '') return '0';
+                if (typeof v === 'string' && v.trim() === '') return '0';
+                return String(v);
+            }
+            var ano = String(new Date().getFullYear());
             if (list.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-inbox" style="margin-right:8px; opacity:0.6;"></i>Nenhum pedido encontrado.</td></tr>';
                 if (pagEl) pagEl.innerHTML = '';
@@ -3734,7 +3892,7 @@
         async function loadAndRenderRelatorioPrescritores() {
             const tbody = document.getElementById('relatorioPrescritoresBody');
             if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px;"><i class="fas fa-spinner fa-spin"></i> Carregando...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px;"><i class="fas fa-spinner fa-spin"></i> Carregando...</td></tr>';
             const anoEl = document.getElementById('anoSelect');
             const mesEl = document.getElementById('mesSelect');
             const ano = anoEl ? anoEl.value : (new Date().getFullYear());
@@ -3751,6 +3909,7 @@
                 ...p,
                 total_aprovado: p.valor_aprovado ?? p.total_aprovado ?? 0,
                 total_recusado: p.valor_recusado ?? p.total_recusado ?? 0,
+                qtd_recusados: p.qtd_recusados ?? 0,
                 qtd_aprovados: p.total_pedidos ?? p.qtd_aprovados ?? 0
             }));
             relatorioPrescritoresFiltered = normalized;
@@ -3803,7 +3962,7 @@
             if (!tbody) return;
             if (subtitle) subtitle.textContent = currentVisitadorName ? 'Carteira: ' + currentVisitadorName + ' — ' + data.length + ' prescritor(es)' : data.length + ' prescritor(es)';
             if (!Array.isArray(data) || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);"><i class="fas fa-search" style="font-size:1.5rem; margin-bottom:8px; display:block; opacity:0.3;"></i>Nenhum prescritor encontrado</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px; color:var(--text-secondary);"><i class="fas fa-search" style="font-size:1.5rem; margin-bottom:8px; display:block; opacity:0.3;"></i>Nenhum prescritor encontrado</td></tr>';
                 if (pagInfo) pagInfo.textContent = 'Mostrando 0-0 de 0';
                 if (prevBtn) prevBtn.disabled = true;
                 if (nextBtn) nextBtn.disabled = true;
@@ -3833,11 +3992,13 @@
                     }
                 }
                 const valorAprovado = typeof formatMoney === 'function' ? formatMoney(p.total_aprovado || 0) : (p.total_aprovado || 0);
+                const valorRecusado = typeof formatMoney === 'function' ? formatMoney(p.total_recusado ?? p.valor_recusado ?? 0) : (p.total_recusado ?? p.valor_recusado ?? 0);
+                const qtdRec = p.qtd_recusados ?? 0;
                 return '<tr style="border-bottom:1px solid var(--border); transition:background 0.15s;" onmouseover="this.style.background=\'rgba(37,99,235,0.03)\'" onmouseout="this.style.background=\'transparent\'">' +
                     '<td style="padding:10px 16px; color:var(--text-secondary); font-weight:600;">' + globalIndex + '</td>' +
                     '<td style="padding:10px 16px; font-weight:500; color:var(--text-primary);">' + (p.prescritor || '').trim() + '</td>' +
-                    '<td class="val-approved" style="padding:10px 16px; text-align:right;">' + valorAprovado + '</td>' +
-                    '<td style="padding:10px 16px; text-align:center;">' + (p.qtd_aprovados || 0) + '</td>' +
+                    '<td class="val-approved" style="padding:10px 16px; text-align:right;">' + valorAprovado + '<br><small style="opacity:0.9;">' + (p.qtd_aprovados || 0) + ' ped.</small></td>' +
+                    '<td class="val-refused" style="padding:10px 16px; text-align:right; color:var(--danger, #EF4444);">' + valorRecusado + '<br><small style="opacity:0.9;">' + qtdRec + ' ped.</small></td>' +
                     '<td style="padding:10px 16px; text-align:center;">' + diasCompraHTML + '</td>' +
                     '<td style="padding:10px 16px; text-align:center;">' + diasVisitaHTML + '</td>' +
                     '<td style="padding:10px 16px; text-align:center;">' + renderVisitaActionCell(p.prescritor) + '</td>' +

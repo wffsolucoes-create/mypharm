@@ -1211,16 +1211,20 @@ function renderTableVisitadoresPage(data) {
 
 function renderTablePrescritores(data) {
     const tbody = document.querySelector('#tablePrescritores tbody');
-    tbody.innerHTML = data.map((d, i) => `
+    tbody.innerHTML = data.map((d, i) => {
+        const valorRec = parseFloat(d.valor_recusado) || 0;
+        const qtdRec = parseInt(d.qtd_recusados, 10) || 0;
+        const qtdAprov = parseInt(d.total_pedidos, 10) || 0;
+        return `
         <tr>
             <td><span class="rank-badge ${getRankClass(i)}">${i + 1}</span></td>
             <td style="color: var(--text-primary); font-weight: 500;">${truncateText(d.prescritor, 35)}</td>
-            <td>${formatNumber(d.total_pedidos)}</td>
-            <td class="money-value">${formatMoney(d.faturamento)}</td>
+            <td class="money-value">${formatMoney(d.faturamento)}<br><small style="opacity:0.9;">${formatNumber(qtdAprov)} ped.</small></td>
+            <td style="color: var(--danger, #EF4444);">${formatMoney(valorRec)}<br><small style="opacity:0.9;">${formatNumber(qtdRec)} ped.</small></td>
             <td>${formatMoney(d.ticket_medio)}</td>
             <td>${formatNumber(d.clientes_atendidos)}</td>
         </tr>
-    `).join('');
+    `}).join('');
 }
 
 function renderChartProfissoes(data) {
