@@ -85,6 +85,32 @@ async function savePrescritorWhatsApp() {
     btn.disabled = false;
 }
 
+function fillSelectFromList(selectEl, items, currentValue) {
+    if (!selectEl) return;
+    var options = [].slice.call(selectEl.options);
+    for (var i = options.length - 1; i >= 1; i--) { options[i].remove(); }
+    (items || []).forEach(function (item) {
+        var nome = (item.nome || item).toString().trim();
+        if (!nome) return;
+        var opt = document.createElement('option');
+        opt.value = nome;
+        opt.textContent = nome;
+        selectEl.appendChild(opt);
+    });
+    if (currentValue && typeof currentValue === 'string' && currentValue.trim() !== '') {
+        var hasMatch = [].some.call(selectEl.options, function (o) { return o.value === currentValue.trim(); });
+        if (!hasMatch) {
+            var opt = document.createElement('option');
+            opt.value = currentValue.trim();
+            opt.textContent = currentValue.trim();
+            selectEl.appendChild(opt);
+        }
+        selectEl.value = currentValue.trim();
+    } else {
+        selectEl.value = '';
+    }
+}
+
 async function openEditarPrescritorModal(nome) {
     var elNome = document.getElementById('edPrescritorNome');
     var elNomeLabel = document.getElementById('edPrescritorNomeLabel');
@@ -93,16 +119,24 @@ async function openEditarPrescritorModal(nome) {
     }
     elNome.value = nome;
     elNomeLabel.textContent = nome;
-    ['edPrescritorProfissao', 'edPrescritorRegistro', 'edPrescritorUfRegistro', 'edPrescritorDataNascimento', 'edPrescritorCep', 'edPrescritorRua', 'edPrescritorNumero', 'edPrescritorBairro', 'edPrescritorCidadeUf', 'edPrescritorCidade', 'edPrescritorUf', 'edPrescritorLocalAtendimento', 'edPrescritorWhatsapp', 'edPrescritorEmail'].forEach(function (id) {
+    ['edPrescritorProfissao', 'edPrescritorEspecialidade', 'edPrescritorRegistro', 'edPrescritorUfRegistro', 'edPrescritorDataNascimento', 'edPrescritorCep', 'edPrescritorRua', 'edPrescritorNumero', 'edPrescritorBairro', 'edPrescritorCidadeUf', 'edPrescritorCidade', 'edPrescritorUf', 'edPrescritorLocalAtendimento', 'edPrescritorWhatsapp', 'edPrescritorEmail'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) {
             el.value = '';
         }
     });
     try {
-        var res = await apiGet('get_prescritor_dados', { nome_prescritor: nome });
+        var resPresc = apiGet('get_prescritor_dados', { nome_prescritor: nome });
+        var resProf = apiGet('list_profissoes', {});
+        var resEsp = apiGet('list_especialidades', {});
+        var res = await resPresc;
+        var resP = await resProf;
+        var resE = await resEsp;
         var d = (res && res.dados) ? res.dados : {};
-        document.getElementById('edPrescritorProfissao').value = d.profissao || '';
+        var profissoes = (resP && resP.items) ? resP.items : [];
+        var especialidades = (resE && resE.items) ? resE.items : [];
+        fillSelectFromList(document.getElementById('edPrescritorProfissao'), profissoes, d.profissao);
+        fillSelectFromList(document.getElementById('edPrescritorEspecialidade'), especialidades, d.especialidade);
         document.getElementById('edPrescritorRegistro').value = d.registro || '';
         document.getElementById('edPrescritorUfRegistro').value = d.uf_registro || '';
         document.getElementById('edPrescritorDataNascimento').value = d.data_nascimento || '';
@@ -121,7 +155,7 @@ async function openEditarPrescritorModal(nome) {
         }
         document.getElementById('edPrescritorEmail').value = d.email || '';
     } catch (e) {
-        console.warn('get_prescritor_dados', e);
+        console.warn('get_prescritor_dados / list_profissoes / list_especialidades', e);
     }
 
     document.getElementById('modalEditarPrescritor').style.display = 'flex';
@@ -311,6 +345,7 @@ async function saveEditarPrescritorModal() {
     var payload = {
         nome_prescritor: nome,
         profissao: (document.getElementById('edPrescritorProfissao') || {}).value,
+        especialidade: (document.getElementById('edPrescritorEspecialidade') || {}).value,
         registro: (document.getElementById('edPrescritorRegistro') || {}).value,
         uf_registro: (document.getElementById('edPrescritorUfRegistro') || {}).value,
         data_nascimento: (document.getElementById('edPrescritorDataNascimento') || {}).value,

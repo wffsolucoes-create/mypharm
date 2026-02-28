@@ -81,6 +81,38 @@
             }
         }
 
+        /* Agenda – cabeçalho do calendário (estilo atual) */
+        #agendaCalendarioGrid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        #agendaCalendarioGrid .agenda-cal-header {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            background: linear-gradient(180deg, var(--bg-body) 0%, rgba(255,255,255,0.02) 100%);
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        #agendaCalendarioGrid .agenda-cal-header > div {
+            padding: 12px 8px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        #agendaCalendarioDias {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            min-height: 400px;
+        }
         /* Agenda – itens de visita (hover) */
         .agenda-visita-item:hover {
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
@@ -90,6 +122,25 @@
             color: #EF4444;
             font-weight: 600;
         }
+
+        /* Relatórios – tabelas com cores */
+        .relatorio-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .relatorio-table thead { position: sticky; top: 0; z-index: 1; }
+        .relatorio-table thead th {
+            padding: 12px 16px; text-align: left; font-weight: 600; font-size: 0.75rem; text-transform: uppercase;
+            letter-spacing: 0.02em; color: var(--text-secondary);
+        }
+        .relatorio-table thead th[data-theme="success"] { background: rgba(16, 185, 129, 0.15); color: #059669; border-bottom: 2px solid rgba(16, 185, 129, 0.4); }
+        .relatorio-table thead th[data-theme="danger"] { background: rgba(239, 68, 68, 0.12); color: #DC2626; border-bottom: 2px solid rgba(239, 68, 68, 0.4); }
+        .relatorio-table thead th[data-theme="neutral"] { background: var(--bg-body); border-bottom: 2px solid var(--border); }
+        .relatorio-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+        .relatorio-table tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
+        .relatorio-table tbody tr:hover { background: rgba(59, 130, 246, 0.06); }
+        .relatorio-table tbody tr.row-tema-success:hover { background: rgba(16, 185, 129, 0.08); }
+        .relatorio-table tbody tr.row-tema-danger:hover { background: rgba(239, 68, 68, 0.08); }
+        .badge-status { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-status.aprovado { background: rgba(16, 185, 129, 0.2); color: #10B981; }
+        .badge-status.recusado { background: rgba(239, 68, 68, 0.2); color: #EF4444; }
 
         /* Página Prescritores – mesmo estilo da página Pedidos */
         #paginaPrescritores .pedidos-page-header {
@@ -499,6 +550,124 @@
         #paginaPedidos .pedidos-table tbody td:nth-child(8) {
             text-align: center;
         }
+
+        /* Página Roteiro de Visitas – layout profissional */
+        .roteiro-page { max-width: 1280px; margin: 0 auto; }
+        .roteiro-header { margin-bottom: 24px; }
+        .roteiro-title {
+            margin: 0 0 6px 0;
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .roteiro-title-icon { color: var(--primary); font-size: 1.2rem; }
+        .roteiro-subtitle {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+        .roteiro-filters {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            padding: 14px 18px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+        .roteiro-filter-group { display: flex; align-items: center; gap: 8px; }
+        .roteiro-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .roteiro-input {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+        .roteiro-btn-atualizar {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        .roteiro-btn-atualizar:hover { opacity: 0.95; }
+        .roteiro-btn-atualizar:active { transform: scale(0.98); }
+        .roteiro-resumo {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+        .roteiro-direcoes {
+            margin-bottom: 20px;
+            padding: 14px 18px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-body);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+        .roteiro-direcoes strong { color: var(--text-secondary); font-weight: 700; }
+        .roteiro-map-card {
+            padding: 0;
+            overflow: hidden;
+            min-height: 400px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        .roteiro-map-container {
+            width: 100%;
+            height: 500px;
+            background: var(--bg-body);
+        }
+        .roteiro-map-empty {
+            padding: 56px 24px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        .roteiro-map-empty i { font-size: 2.5rem; margin-bottom: 16px; opacity: 0.4; display: block; }
+        .roteiro-map-empty p { margin: 0; }
+        .leaflet-popup-content-wrapper { border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+        .leaflet-popup-content { margin: 12px 16px; font-size: 0.88rem; line-height: 1.5; min-width: 180px; }
+        .roteiro-popup strong { display: block; }
+        .roteiro-tooltip {
+            font-size: 0.82rem;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            color: var(--text-primary);
+            line-height: 1.4;
+            text-align: left;
+        }
+        .roteiro-tooltip::before { border-top-color: var(--border); }
     </style>
     <link rel="stylesheet" href="css/visitador.css">
     <style>body{visibility:hidden;}</style>
@@ -546,6 +715,10 @@
                 <i class="fas fa-list-alt"></i>
                 <span>Pedidos</span>
             </a>
+            <a href="#" class="visitador-nav-link" data-page="roteiro" onclick="return goVisitadorPage('roteiro', event)">
+                <i class="fas fa-route"></i>
+                <span>Roteiro de Visitas</span>
+            </a>
         </nav>
         <div class="visitador-nav-drawer-overlay" id="visitadorNavDrawerOverlay" onclick="closeVisitadorNavDrawer()" aria-hidden="true"></div>
         <div class="visitador-nav-drawer" id="visitadorNavDrawer">
@@ -568,6 +741,10 @@
             <a href="#" class="visitador-nav-drawer-link" data-page="pedidos" onclick="return goVisitadorPageAndCloseDrawer('pedidos', event)">
                 <i class="fas fa-list-alt"></i>
                 <span>Pedidos</span>
+            </a>
+            <a href="#" class="visitador-nav-drawer-link" data-page="roteiro" onclick="return goVisitadorPageAndCloseDrawer('roteiro', event)">
+                <i class="fas fa-route"></i>
+                <span>Roteiro de Visitas</span>
             </a>
         </div>
         <div class="user-menu">
@@ -962,12 +1139,11 @@
                         <button type="button" id="agendaMesNext" onclick="agendaMesProximo()" style="padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer;"><i class="fas fa-chevron-right"></i></button>
                     </div>
                 </div>
-                <div id="agendaCalendarioGrid" style="display:grid; grid-template-columns:repeat(7, 1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden;">
-                    <!-- Cabeçalho dias da semana -->
-                    <div style="grid-column:1/8; display:grid; grid-template-columns:repeat(7, 1fr); background:var(--bg-body); font-size:0.7rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">
-                        <div style="padding:10px; text-align:center;">Dom</div><div style="padding:10px; text-align:center;">Seg</div><div style="padding:10px; text-align:center;">Ter</div><div style="padding:10px; text-align:center;">Qua</div><div style="padding:10px; text-align:center;">Qui</div><div style="padding:10px; text-align:center;">Sex</div><div style="padding:10px; text-align:center;">Sáb</div>
+                <div id="agendaCalendarioGrid">
+                    <div class="agenda-cal-header">
+                        <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
                     </div>
-                    <div id="agendaCalendarioDias" style="grid-column:1/8; display:grid; grid-template-columns:repeat(7, 1fr); min-height:400px;">
+                    <div id="agendaCalendarioDias">
                         <!-- preenchido por JS -->
                     </div>
                 </div>
@@ -1045,7 +1221,7 @@
                         <thead>
                             <tr>
                                 <th id="prescritoresThPrescritor" onclick="sortPaginaPrescritoresBy('prescritor')" style="cursor:pointer; user-select:none;" title="Ordenar">Prescritor <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
-                                <th>WhatsApp</th>
+                                <th>Profissão</th>
                                 <th id="prescritoresThValorAprovado" onclick="sortPaginaPrescritoresBy('valor_aprovado')" style="cursor:pointer; user-select:none; text-align:right;" title="Ordenar">Aprovados (valor + qtd) <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
                                 <th id="prescritoresThValorRecusado" onclick="sortPaginaPrescritoresBy('valor_recusado')" style="cursor:pointer; user-select:none; text-align:right;" title="Ordenar">Recusados (valor + qtd) <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
                                 <th style="text-align:center;">Ações</th>
@@ -1125,6 +1301,34 @@
             </div>
         </div>
 
+        <!-- Página Roteiro de Visitas (mapa com rotas e pontos) -->
+        <div id="paginaRoteiroVisitas" class="visitador-page roteiro-page" style="display:none; padding:0 24px 32px;">
+            <div class="roteiro-header">
+                <h2 class="roteiro-title"><i class="fas fa-route roteiro-title-icon"></i>Roteiro de Visitas</h2>
+                <p class="roteiro-subtitle">Visitas do período com confirmação de GPS. Mapa com rota percorrida e direção entre prescritores.</p>
+            </div>
+            <div class="roteiro-filters">
+                <div class="roteiro-filter-group">
+                    <label for="roteiroDataDe" class="roteiro-label">De</label>
+                    <input type="date" id="roteiroDataDe" class="roteiro-input">
+                </div>
+                <div class="roteiro-filter-group">
+                    <label for="roteiroDataAte" class="roteiro-label">Até</label>
+                    <input type="date" id="roteiroDataAte" class="roteiro-input">
+                </div>
+                <button type="button" onclick="loadRoteiroVisitas()" class="roteiro-btn-atualizar"><i class="fas fa-sync-alt"></i> Atualizar</button>
+            </div>
+            <div id="roteiroResumo" class="roteiro-resumo">—</div>
+            <div id="roteiroDirecoes" class="roteiro-direcoes" style="display:none;"></div>
+            <div class="roteiro-map-card">
+                <div id="roteiroMapContainer" class="roteiro-map-container"></div>
+                <div id="roteiroMapEmpty" class="roteiro-map-empty" style="display:none;">
+                    <i class="fas fa-map-marked-alt"></i>
+                    <p>Nenhuma visita com GPS no período. Ajuste as datas e clique em Atualizar.</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Página Relatório de Visitas (oculta por padrão) -->
         <div id="paginaRelatorioVisitas" class="visitador-page" style="display:none; padding:0 24px 24px;">
             <div style="margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
@@ -1198,7 +1402,7 @@
             <div class="card" style="margin-bottom:24px;">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">Mapa de Visitas</div>
+                        <div class="card-title">Roteiro de Visitas</div>
                         <div class="card-subtitle">Visitas efetuadas com confirmação de GPS</div>
             </div>
                     <button type="button" onclick="openMapaVisitasStatsModal()"
@@ -1452,13 +1656,14 @@
                 <input type="hidden" id="edPrescritorNome">
                 <p id="edPrescritorNomeLabel" style="font-weight:600; color:var(--text-primary); margin:0 0 16px 0; font-size:0.95rem;"></p>
                 <div style="display:grid; gap:14px;">
-                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Profissão</label><input type="text" id="edPrescritorProfissao" placeholder="Ex: Médico" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Profissão</label><select id="edPrescritorProfissao" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">Selecione</option></select></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Especialidade</label><select id="edPrescritorEspecialidade" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">Selecione</option></select></div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Registro</label><input type="text" id="edPrescritorRegistro" placeholder="Nº registro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">UF Registro</label><select id="edPrescritorUfRegistro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">UF</option><option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option><option value="AP">AP</option><option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option><option value="MA">MA</option><option value="MG">MG</option><option value="MS">MS</option><option value="MT">MT</option><option value="PA">PA</option><option value="PB">PB</option><option value="PE">PE</option><option value="PI">PI</option><option value="PR">PR</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RO">RO</option><option value="RR">RR</option><option value="RS">RS</option><option value="SC">SC</option><option value="SE">SE</option><option value="SP">SP</option><option value="TO">TO</option></select></div></div>
                     <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Data de nascimento</label><input type="date" id="edPrescritorDataNascimento" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
                     <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">CEP</label><input type="text" id="edPrescritorCep" placeholder="00000-000" maxlength="9" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
                     <div style="display:grid; grid-template-columns:1fr 80px; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Rua</label><input type="text" id="edPrescritorRua" placeholder="Logradouro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Nº</label><input type="text" id="edPrescritorNumero" placeholder="Nº" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div></div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Bairro</label><input type="text" id="edPrescritorBairro" placeholder="Bairro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Cidade / UF</label><input type="text" id="edPrescritorCidadeUf" placeholder="Cidade - UF" readonly style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-secondary); font-size:0.9rem; box-sizing:border-box;"><input type="hidden" id="edPrescritorCidade"><input type="hidden" id="edPrescritorUf"></div></div>
-                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Local de atendimento</label><select id="edPrescritorLocalAtendimento" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">Selecione</option><option value="Consultório">Consultório</option><option value="Residência">Residência</option><option value="Outros">Outros</option></select></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Local de atendimento</label><select id="edPrescritorLocalAtendimento" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">Selecione</option><option value="Clínica">Clínica</option><option value="Hospital">Hospital</option><option value="Telemedicina">Telemedicina</option><option value="Consultório">Consultório</option><option value="On line">On line</option><option value="Outros">Outros</option></select></div>
                     <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">WhatsApp</label><input type="tel" id="edPrescritorWhatsapp" placeholder="(00) 00000-0000" oninput="formatWhatsApp(this)" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
                     <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">E-mail</label><input type="email" id="edPrescritorEmail" placeholder="email@exemplo.com" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
                 </div>
@@ -1493,6 +1698,25 @@
                     <button type="button" id="btnPedidosNext" onclick="changePagePedidosModal(1)" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; transition:all 0.2s;">Próximo</button>
                     <button type="button" onclick="closeModalPedidosVisitador()" style="padding:8px 16px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Lista de componentes (aprovados ou recusados) por prescritor -->
+    <div id="modalComponentesPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:95vw; max-height:85vh; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <div>
+                    <h2 id="modalComponentesPrescritorTitle" style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:0;"><i class="fas fa-atom" style="color:var(--primary); margin-right:8px;"></i>Componentes</h2>
+                    <p id="modalComponentesPrescritorSubtitle" style="font-size:0.8rem; color:var(--text-secondary); margin:4px 0 0 0;">Carregando...</p>
+                </div>
+                <button type="button" onclick="closeModalComponentesPrescritor()" style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px; border-radius:6px;" onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#EF4444'" onmouseout="this.style.background='none';this.style.color='var(--text-secondary)'">&times;</button>
+            </div>
+            <div id="modalComponentesPrescritorBody" style="overflow-y:auto; flex:1; padding:16px 24px;">
+                <div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+            </div>
+            <div style="padding:12px 24px; border-top:1px solid var(--border); background:var(--bg-card); flex-shrink:0; text-align:right;">
+                <button type="button" onclick="closeModalComponentesPrescritor()" style="padding:8px 16px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
             </div>
         </div>
     </div>
@@ -2080,16 +2304,19 @@
                 if (modalPedidosSortPedidos.column !== col) return '<i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i>';
                 return modalPedidosSortPedidos.direction === 'asc' ? '<i class="fas fa-sort-up" style="margin-left:4px;"></i>' : '<i class="fas fa-sort-down" style="margin-left:4px;"></i>';
             };
-            let html = '<div style="padding:0;"><table style="width:100%; border-collapse:collapse; font-size:0.85rem;">';
-            html += '<thead style="position:sticky; top:0; background:var(--bg-card); z-index:1;"><tr style="border-bottom:2px solid var(--border);">';
-            html += '<th style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase;">#</th>';
-            html += '<th onclick="sortTablePedidosModal(\'numero_pedido\')" style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; cursor:pointer; user-select:none;">Nº Pedido ' + sortIcon('numero_pedido') + '</th>';
-            html += '<th onclick="sortTablePedidosModal(\'serie_pedido\')" style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; cursor:pointer; user-select:none;">Série ' + sortIcon('serie_pedido') + '</th>';
-            html += '<th onclick="sortTablePedidosModal(\'data_aprovacao\')" style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; cursor:pointer; user-select:none;">Data ' + sortIcon('data_aprovacao') + '</th>';
-            html += '<th onclick="sortTablePedidosModal(\'prescritor\')" style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; cursor:pointer; user-select:none;">Prescritor ' + sortIcon('prescritor') + '</th>';
-            html += '<th onclick="sortTablePedidosModal(\'cliente\')" style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; cursor:pointer; user-select:none;">Cliente ' + sortIcon('cliente') + '</th>';
-            html += '<th onclick="sortTablePedidosModal(\'valor\')" style="padding:12px 16px; text-align:right; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; cursor:pointer; user-select:none;">Valor ' + sortIcon('valor') + '</th>';
-            html += '<th style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase;">Status</th></tr></thead><tbody>';
+            var thTheme = 'neutral';
+            if (modalPedidosTipoFilter === 'aprovados') thTheme = 'success';
+            else if (modalPedidosTipoFilter === 'recusados') thTheme = 'danger';
+            let html = '<div style="padding:0;"><table class="relatorio-table">';
+            html += '<thead><tr>';
+            html += '<th data-theme="' + thTheme + '">#</th>';
+            html += '<th data-theme="' + thTheme + '" onclick="sortTablePedidosModal(\'numero_pedido\')" style="cursor:pointer; user-select:none;">Nº Pedido ' + sortIcon('numero_pedido') + '</th>';
+            html += '<th data-theme="' + thTheme + '" onclick="sortTablePedidosModal(\'serie_pedido\')" style="text-align:center; cursor:pointer; user-select:none;">Série ' + sortIcon('serie_pedido') + '</th>';
+            html += '<th data-theme="' + thTheme + '" onclick="sortTablePedidosModal(\'data_aprovacao\')" style="cursor:pointer; user-select:none;">Data ' + sortIcon('data_aprovacao') + '</th>';
+            html += '<th data-theme="' + thTheme + '" onclick="sortTablePedidosModal(\'prescritor\')" style="cursor:pointer; user-select:none;">Prescritor ' + sortIcon('prescritor') + '</th>';
+            html += '<th data-theme="' + thTheme + '" onclick="sortTablePedidosModal(\'cliente\')" style="cursor:pointer; user-select:none;">Cliente ' + sortIcon('cliente') + '</th>';
+            html += '<th data-theme="' + thTheme + '" onclick="sortTablePedidosModal(\'valor\')" style="text-align:right; cursor:pointer; user-select:none;">Valor ' + sortIcon('valor') + '</th>';
+            html += '<th data-theme="' + thTheme + '" style="text-align:center;">Status</th></tr></thead><tbody>';
             if (pageRows.length === 0) {
                 var emptyMsg = 'Nenhum pedido encontrado.';
                 if (modalPedidosTipoFilter === 'aprovados') emptyMsg = 'Nenhum pedido aprovado encontrado para este prescritor.';
@@ -2105,7 +2332,8 @@
                     var sVal = isEmpty ? 0 : sv;
                     var serDisplay = isEmpty ? '0' : esc(String(sv));
                     const a = modalPedidosAno || '';
-                    html += '<tr role="button" tabindex="0" onclick="openModalDetalhePedido(' + n + ',' + sVal + ',\'' + String(a).replace(/'/g, "\\'") + '\')" style="border-bottom:1px solid var(--border); background:' + (i % 2 === 0 ? 'var(--bg-body)' : 'transparent') + '; cursor:pointer;" title="Ver detalhes e componentes do pedido">';
+                    var rowClass = isAprovado ? 'row-tema-success' : 'row-tema-danger';
+                    html += '<tr class="' + rowClass + '" role="button" tabindex="0" onclick="openModalDetalhePedido(' + n + ',' + sVal + ',\'' + String(a).replace(/'/g, "\\'") + '\')" style="cursor:pointer;" title="Ver detalhes e componentes do pedido">';
                     html += '<td style="padding:12px 16px; color:var(--text-secondary);">' + idx + '</td>';
                     html += '<td style="padding:12px 16px;">' + esc(p.numero_pedido) + '</td>';
                     html += '<td style="padding:12px 16px; text-align:center;">' + serDisplay + '</td>';
@@ -2113,7 +2341,7 @@
                     html += '<td style="padding:12px 16px;">' + esc(p.prescritor) + '</td>';
                     html += '<td style="padding:12px 16px;">' + esc(p.cliente) + '</td>';
                     html += '<td style="padding:12px 16px; text-align:right; font-weight:600; color:' + (isAprovado ? 'var(--success)' : 'var(--danger)') + ';">' + esc(fmtMoney(p.valor)) + '</td>';
-                    html += '<td style="padding:12px 16px; text-align:center; font-size:0.8rem;">' + esc(p.tipo) + '</td></tr>';
+                    html += '<td style="padding:12px 16px; text-align:center;"><span class="badge-status ' + (isAprovado ? 'aprovado' : 'recusado') + '">' + esc(p.tipo) + '</span></td></tr>';
                 });
             }
             html += '</tbody></table></div>';
@@ -2127,6 +2355,79 @@
         function closeModalPedidosVisitador() {
             const modal = document.getElementById('modalPedidosVisitador');
             if (modal) modal.style.display = 'none';
+        }
+
+        function closeModalComponentesPrescritor() {
+            const modal = document.getElementById('modalComponentesPrescritor');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function fmtQtdComponente(qtd, unidade) {
+            if (qtd === null || qtd === undefined || qtd === '') return '—';
+            var n = parseFloat(qtd);
+            if (isNaN(n)) return String(qtd).trim() + (unidade ? ' ' + String(unidade).trim() : '');
+            var s = Number.isInteger(n) ? String(Math.round(n)) : String(n);
+            var u = (unidade && String(unidade).trim()) ? ' ' + String(unidade).trim() : '';
+            return s + u;
+        }
+
+        async function openModalComponentesPrescritor(prescritorNome, tipo) {
+            const modal = document.getElementById('modalComponentesPrescritor');
+            const titleEl = document.getElementById('modalComponentesPrescritorTitle');
+            const subtitleEl = document.getElementById('modalComponentesPrescritorSubtitle');
+            const bodyEl = document.getElementById('modalComponentesPrescritorBody');
+            if (!modal || !bodyEl) return;
+            const nome = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '').trim() || (localStorage.getItem('userName') || '').trim();
+            const anoEl = document.getElementById('anoSelect');
+            const ano = (anoEl && anoEl.value) ? anoEl.value : (new Date().getFullYear()).toString();
+            const isAprovados = (tipo || 'aprovados') === 'aprovados';
+            if (titleEl) titleEl.innerHTML = isAprovados
+                ? '<i class="fas fa-atom" style="color:var(--success); margin-right:8px;"></i>Componentes aprovados'
+                : '<i class="fas fa-atom" style="color:var(--danger); margin-right:8px;"></i>Componentes recusados';
+            if (subtitleEl) subtitleEl.textContent = (prescritorNome || '') + ' — ' + ano;
+            bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+            modal.style.display = 'flex';
+            function esc(x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+            try {
+                if (!prescritorNome) {
+                    bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--danger);">Prescritor não informado.</div>';
+                    return;
+                }
+                const params = { prescritor: prescritorNome, ano: ano, tipo: isAprovados ? 'aprovados' : 'recusados' };
+                if (nome) params.nome = nome;
+                const res = await apiGet('list_componentes_prescritor', params);
+                if (res && res.error) {
+                    bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--danger);">' + esc(res.error) + '</div>';
+                    return;
+                }
+                const componentes = Array.isArray(res.componentes) ? res.componentes : [];
+                if (componentes.length === 0) {
+                    bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--text-secondary);">' +
+                        (isAprovados ? 'Nenhum componente aprovado encontrado para este prescritor.' : 'Nenhum componente recusado encontrado para este prescritor.') + '</div>';
+                    return;
+                }
+                var thTheme = isAprovados ? 'success' : 'danger';
+                var rowClass = isAprovados ? 'row-tema-success' : 'row-tema-danger';
+                var html = '<table class="relatorio-table">' +
+                    '<thead><tr>' +
+                    '<th data-theme="' + thTheme + '" style="text-align:left;">Componente</th>' +
+                    '<th data-theme="' + thTheme + '" style="text-align:left;">Unidade</th>' +
+                    '<th data-theme="' + thTheme + '" style="text-align:right;">Quantidade total</th>' +
+                    '<th data-theme="' + thTheme + '" style="text-align:center;">Pedidos</th></tr></thead><tbody>';
+                componentes.forEach(function (c, idx) {
+                    var qtdStr = fmtQtdComponente(c.quantidade_total, c.unidade);
+                    var qtdPed = (c.qtd_pedidos != null && c.qtd_pedidos !== '') ? parseInt(c.qtd_pedidos, 10) : 0;
+                    html += '<tr class="' + rowClass + '">' +
+                        '<td style="padding:12px 16px;">' + esc(c.componente) + '</td>' +
+                        '<td style="padding:12px 16px; color:var(--text-secondary);">' + esc(c.unidade) + '</td>' +
+                        '<td style="padding:12px 16px; text-align:right; font-weight:600; color:' + (isAprovados ? 'var(--success)' : 'var(--danger)') + ';">' + esc(qtdStr) + '</td>' +
+                        '<td style="padding:12px 16px; text-align:center;">' + qtdPed + '</td></tr>';
+                });
+                html += '</tbody></table>';
+                bodyEl.innerHTML = html;
+            } catch (e) {
+                bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--danger);">Erro ao carregar componentes.</div>';
+            }
         }
 
         async function openModalDetalhePedido(numero, serie, ano) {
@@ -2658,6 +2959,7 @@
         let __dvGeoMap = null;
         let __dvGeoMarker = null;
         let __dvVisita = null;
+        let __dvPodeEditar = false;
 
         function openDetalheVisitaModal(visita) {
             if (!visita) return;
@@ -2788,6 +3090,12 @@
                 geoMapEl.style.display = 'none';
             }
 
+            var dataStr = (visita.data_visita || visita.data_agendada || '').toString().slice(0, 10);
+            var semana = typeof getSemanaAtualBounds === 'function' ? getSemanaAtualBounds() : { segunda: '', domingo: '' };
+            __dvPodeEditar = !!dataStr && semana.segunda && dataStr >= semana.segunda && dataStr <= semana.domingo;
+            var btnEditar = document.getElementById('dvBtnEditar');
+            if (btnEditar) btnEditar.style.display = __dvPodeEditar ? 'inline-block' : 'none';
+
             modal.style.display = 'flex';
         }
 
@@ -2813,7 +3121,7 @@
             } else {
                 viewEl.style.display = 'block';
                 editEl.style.display = 'none';
-                if (btnEditar) btnEditar.style.display = 'inline-block';
+                if (btnEditar) btnEditar.style.display = (typeof __dvPodeEditar !== 'undefined' && __dvPodeEditar) ? 'inline-block' : 'none';
                 if (footerEdit) footerEdit.style.display = 'none';
             }
         }
@@ -3222,16 +3530,122 @@
             var rel = document.getElementById('paginaRelatorioVisitas');
             var presc = document.getElementById('paginaPrescritores');
             var pedidos = document.getElementById('paginaPedidos');
+            var roteiro = document.getElementById('paginaRoteiroVisitas');
             if (dash) dash.style.display = (page === 'dashboard') ? 'block' : 'none';
             if (agenda) agenda.style.display = (page === 'agenda') ? 'block' : 'none';
             if (rel) rel.style.display = (page === 'relatorio') ? 'block' : 'none';
             if (presc) presc.style.display = (page === 'prescritores') ? 'block' : 'none';
             if (pedidos) pedidos.style.display = (page === 'pedidos') ? 'block' : 'none';
+            if (roteiro) roteiro.style.display = (page === 'roteiro') ? 'block' : 'none';
             setVisitadorNavActive(page);
+            if (page === 'roteiro') initRoteiroPage();
         }
 
         function closePaginaRelatorioVisitas() {
             showVisitadorPage('dashboard');
+        }
+
+        var __roteiroMap = null;
+        var __roteiroMarkers = [];
+        var __roteiroPolyline = null;
+        function initRoteiroPage() {
+            var deEl = document.getElementById('roteiroDataDe');
+            var ateEl = document.getElementById('roteiroDataAte');
+            if (deEl && !deEl.value) {
+                var hoje = new Date();
+                var y = hoje.getFullYear(), m = String(hoje.getMonth() + 1).padStart(2, '0'), d = String(hoje.getDate()).padStart(2, '0');
+                deEl.value = y + '-' + m + '-' + d;
+            }
+            if (ateEl && !ateEl.value) ateEl.value = deEl ? deEl.value : '';
+            loadRoteiroVisitas();
+        }
+        async function loadRoteiroVisitas() {
+            var deEl = document.getElementById('roteiroDataDe');
+            var ateEl = document.getElementById('roteiroDataAte');
+            var resumoEl = document.getElementById('roteiroResumo');
+            var dirEl = document.getElementById('roteiroDirecoes');
+            var container = document.getElementById('roteiroMapContainer');
+            var emptyEl = document.getElementById('roteiroMapEmpty');
+            if (!deEl || !ateEl) return;
+            var dataDe = deEl.value || new Date().toISOString().slice(0, 10);
+            var dataAte = ateEl.value || dataDe;
+            if (resumoEl) resumoEl.textContent = 'Carregando...';
+            if (dirEl) { dirEl.style.display = 'none'; dirEl.innerHTML = ''; }
+            try {
+                var visitador = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '') || (localStorage.getItem('userName') || '');
+                var res = await apiGet('get_visitas_mapa_periodo', { data_de: dataDe, data_ate: dataAte, visitador: visitador });
+                var visitas = (res && res.visitas) ? res.visitas : [];
+                if (resumoEl) resumoEl.textContent = visitas.length + ' visita(s) com GPS no período.';
+                renderRoteiroMapa(visitas, container, emptyEl, dirEl);
+            } catch (e) {
+                if (resumoEl) resumoEl.textContent = 'Erro ao carregar roteiro.';
+                if (emptyEl) { emptyEl.style.display = 'block'; emptyEl.innerHTML = '<p style="margin:0;">Erro ao carregar dados.</p>'; }
+                if (container) container.style.display = 'none';
+            }
+        }
+        function renderRoteiroMapa(visitas, containerEl, emptyEl, dirEl) {
+            if (!containerEl) return;
+            if (!visitas || visitas.length === 0) {
+                containerEl.style.display = 'none';
+                if (emptyEl) { emptyEl.style.display = 'block'; }
+                if (dirEl) dirEl.style.display = 'none';
+                if (typeof L !== 'undefined' && __roteiroMap) {
+                    __roteiroMap.remove();
+                    __roteiroMap = null;
+                }
+                __roteiroMarkers = [];
+                __roteiroPolyline = null;
+                return;
+            }
+            containerEl.style.display = 'block';
+            if (emptyEl) emptyEl.style.display = 'none';
+            var pts = visitas.map(function (v) {
+                var lat = parseFloat(v.lat);
+                var lng = parseFloat(v.lng);
+                var endereco = (v.local_visita || '').trim();
+                return { lat: lat, lng: lng, prescritor: v.prescritor || '—', data_visita: v.data_visita, horario: v.horario || '', endereco: endereco || '—' };
+            }).filter(function (p) { return Number.isFinite(p.lat) && Number.isFinite(p.lng); });
+            if (pts.length === 0) {
+                containerEl.style.display = 'none';
+                if (emptyEl) { emptyEl.style.display = 'block'; }
+                return;
+            }
+            var dirHtml = '<strong>Direção da rota:</strong> ';
+            dirHtml += pts.map(function (p, i) { return (i + 1) + '. ' + (p.prescritor || '—'); }).join(' → ');
+            if (dirEl) { dirEl.innerHTML = dirHtml; dirEl.style.display = 'block'; }
+            if (typeof L === 'undefined') {
+                if (emptyEl) { emptyEl.style.display = 'block'; emptyEl.innerHTML = '<p style="margin:0;">Mapa indisponível (Leaflet não carregou).</p>'; }
+                containerEl.style.display = 'none';
+                return;
+            }
+            if (__roteiroMap) {
+                __roteiroMap.remove();
+                __roteiroMarkers.forEach(function (m) { if (m && m.remove) m.remove(); });
+                if (__roteiroPolyline && __roteiroPolyline.remove) __roteiroPolyline.remove();
+            }
+            var latLngs = pts.map(function (p) { return [p.lat, p.lng]; });
+            var center = latLngs.length === 1 ? latLngs[0] : [latLngs[0][0] + (latLngs[latLngs.length - 1][0] - latLngs[0][0]) / 2, latLngs[0][1] + (latLngs[latLngs.length - 1][1] - latLngs[0][1]) / 2];
+            var zoom = 14;
+            __roteiroMap = L.map(containerEl, { zoomControl: true, attributionControl: false }).setView(center, zoom);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(__roteiroMap);
+            __roteiroMarkers = [];
+            pts.forEach(function (p, i) {
+                var tooltipText = (p.prescritor || '—') + (p.endereco && p.endereco !== '—' ? '<br><span style="font-weight:500; font-size:0.85em;">' + String(p.endereco).replace(/</g, '&lt;') + '</span>' : '');
+                var popupParts = ['<strong>' + String(p.prescritor || '—').replace(/</g, '&lt;') + '</strong>'];
+                if (p.endereco && p.endereco !== '—') popupParts.push('<div style="margin-top:6px; color:var(--text-secondary);">' + String(p.endereco).replace(/</g, '&lt;') + '</div>');
+                if (p.data_visita || p.horario) popupParts.push('<div style="margin-top:4px; font-size:0.85em;">' + (p.data_visita || '') + (p.horario ? ' ' + p.horario : '') + '</div>');
+                var popupHtml = '<div class="roteiro-popup">' + popupParts.join('') + '</div>';
+                var marker = L.marker([p.lat, p.lng]).addTo(__roteiroMap);
+                marker.bindTooltip(tooltipText, { direction: 'top', permanent: false, opacity: 0.95, className: 'roteiro-tooltip' });
+                marker.bindPopup(popupHtml, { minWidth: 200 });
+                __roteiroMarkers.push(marker);
+            });
+            if (latLngs.length > 1) {
+                __roteiroPolyline = L.polyline(latLngs, { color: '#2563EB', weight: 4, opacity: 0.8 }).addTo(__roteiroMap);
+                __roteiroMap.fitBounds(__roteiroPolyline.getBounds(), { padding: [30, 30] });
+            } else if (pts.length === 1) {
+                __roteiroMap.setView([pts[0].lat, pts[0].lng], 16);
+            }
         }
 
         var __agendaAno = new Date().getFullYear();
@@ -3265,6 +3679,14 @@
             }
         }
 
+        function getSemanaAtualBounds() {
+            var hoje = new Date();
+            var diff = (hoje.getDay() + 6) % 7;
+            var segunda = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - diff);
+            var domingo = new Date(segunda.getFullYear(), segunda.getMonth(), segunda.getDate() + 6);
+            var fmt = function (d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+            return { segunda: fmt(segunda), domingo: fmt(domingo) };
+        }
         function renderAgendaCalendario(visitas, ano, mes) {
             var container = document.getElementById('agendaCalendarioDias');
             if (!container) return;
@@ -3272,6 +3694,7 @@
             var diasNoMes = new Date(ano, mes, 0).getDate();
             var hoje = new Date();
             var hojeStr = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
+            var semana = getSemanaAtualBounds();
             var visitasPorDia = {};
             visitas.forEach(function (v) {
                 var d = (v.data_agendada || '').toString().slice(0, 10);
@@ -3279,7 +3702,7 @@
                 visitasPorDia[d].push(v);
             });
             var html = '';
-            var totalCells = 42;
+            var totalCells = Math.ceil((primeiroDia + diasNoMes) / 7) * 7;
             var diaAtual = 1;
             for (var i = 0; i < totalCells; i++) {
                 var vazio = i < primeiroDia || diaAtual > diasNoMes;
@@ -3297,18 +3720,7 @@
                         var isRealizada = (tipo === 'realizada');
                         var dataVisit = (v.data_agendada || '').toString().slice(0, 10);
                         var horaVisit = (v.hora || '').slice(0, 5);
-                        var isFuturo = false;
-                        if (!isRealizada && dataVisit) {
-                            if (dataVisit > hojeStr) isFuturo = true;
-                            else if (dataVisit === hojeStr) {
-                                if (!horaVisit) isFuturo = true;
-                                else {
-                                    var minVisit = parseInt(horaVisit.slice(0, 2), 10) * 60 + parseInt(horaVisit.slice(3, 5), 10);
-                                    var minAgora = hoje.getHours() * 60 + hoje.getMinutes();
-                                    isFuturo = minVisit > minAgora;
-                                }
-                            }
-                        }
+                        var isNaSemanaAtual = dataVisit && dataVisit >= semana.segunda && dataVisit <= semana.domingo;
                         var bordaCor = isRealizada ? '#16a34a' : 'var(--primary)';
                         var badgeCor = isRealizada ? '#16a34a' : 'var(--primary)';
                         var hora = (v.hora || '').slice(0, 5);
@@ -3323,7 +3735,7 @@
                         html += '<div class="agenda-visita-acoes" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">';
                         html += '<span style="font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; color:' + badgeCor + ';">' + (isRealizada ? 'Realizada' : 'Agendada') + '</span>';
                         if (hid) html += '<button type="button" class="agenda-btn-relatorio" data-historicoid="' + hid + '" onclick="event.stopPropagation();openRelatorioAgendamento(' + hid + ');" title="Ver relatório da visita" style="background:none; border:none; padding:2px; color:var(--primary); cursor:pointer; font-size:0.75rem;"><i class="fas fa-clipboard-list"></i></button>';
-                        if (!isRealizada && id && isFuturo) {
+                        if (id && isNaSemanaAtual) {
                             html += '<button type="button" class="agenda-btn-editar" data-id="' + id + '" onclick="event.stopPropagation();openEditarAgendamentoModal(this);" title="Editar" style="background:none; border:none; padding:2px; color:var(--primary); cursor:pointer; font-size:0.75rem;"><i class="fas fa-pen"></i></button>';
                             html += '<button type="button" class="agenda-btn-excluir" data-id="' + id + '" onclick="event.stopPropagation();excluirAgendamentoConfirm(' + id + ');" title="Excluir" style="background:none; border:none; padding:2px; color:var(--danger); cursor:pointer; font-size:0.75rem;"><i class="fas fa-trash-alt"></i></button>';
                         }
@@ -3525,6 +3937,10 @@
                 loadPaginaPedidos();
                 return false;
             }
+            if (page === 'roteiro') {
+                showVisitadorPage('roteiro');
+                return false;
+            }
             return false;
         }
 
@@ -3544,6 +3960,7 @@
                 __paginaPrescritoresList = list.map(function (p) {
                     return {
                         prescritor: p.prescritor || p.nome || '-',
+                        profissao: (p.profissao || '').trim() || '—',
                         whatsapp: contatos[p.prescritor] || contatos[p.nome] || '',
                         ultima_compra: p.ultima_compra || p.ultima_compra_aprovacao || '',
                         valor_aprovado: p.valor_aprovado ?? p.total_aprovado ?? 0,
@@ -3639,23 +4056,28 @@
                 var whatsapp = (p.whatsapp || '').trim();
                 var onlyDigits = whatsapp.replace(/\D/g, '');
                 var waNum = onlyDigits.length >= 10 && onlyDigits.length <= 11 ? '55' + onlyDigits : (onlyDigits.length >= 12 ? onlyDigits : '');
-                var whatsappCell = !waNum ? esc(whatsapp || '—') : '<a href="https://wa.me/' + esc(waNum) + '" target="_blank" rel="noopener noreferrer" style="color:#25D366; text-decoration:none; font-weight:500;" title="Enviar mensagem no WhatsApp"><i class="fab fa-whatsapp" style="margin-right:4px;"></i>' + esc(whatsapp || waNum) + '</a>';
                 var valorAprovado = (p.valor_aprovado != null && p.valor_aprovado !== '') ? fmtMoney(p.valor_aprovado) : '—';
                 var qtdAprov = (p.total_pedidos != null && p.total_pedidos !== '') ? parseInt(p.total_pedidos, 10) : 0;
                 var valorRecusado = (p.valor_recusado != null && p.valor_recusado !== '') ? fmtMoney(p.valor_recusado) : '—';
                 var qtdRec = (p.qtd_recusados != null && p.qtd_recusados !== '') ? parseInt(p.qtd_recusados, 10) : 0;
+                var btnWa = waNum
+                    ? '<a href="https://wa.me/' + esc(waNum) + '" target="_blank" rel="noopener noreferrer" class="prescritores-btn" style="color:#25D366; text-decoration:none; padding:6px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); display:inline-flex; align-items:center; justify-content:center;" title="Enviar mensagem no WhatsApp"><i class="fab fa-whatsapp"></i></a>'
+                    : '<button type="button" class="prescritores-btn btn-whatsapp-prescritor-page" data-nome="' + esc(nome) + '" title="Cadastrar WhatsApp para enviar mensagem" style="color:var(--text-secondary); padding:6px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); cursor:pointer;"><i class="fab fa-whatsapp"></i></button>';
                 html += '<tr>' +
                     '<td>' + esc(nome) + '</td>' +
-                    '<td>' + whatsappCell + '</td>' +
+                    '<td style="color:var(--text-secondary);">' + esc(p.profissao || '—') + '</td>' +
                     '<td style="text-align:right; font-weight:600; color:var(--success);">' + valorAprovado + '<br><small style="opacity:0.9; font-weight:500;">' + qtdAprov + ' ped.</small></td>' +
                     '<td style="text-align:right; font-weight:600; color:var(--danger, #EF4444);">' + valorRecusado + '<br><small style="opacity:0.9; font-weight:500;">' + qtdRec + ' ped.</small></td>' +
                     '<td>' +
                     '<span class="prescritores-actions">' +
+                    btnWa +
                     '<button type="button" class="prescritores-btn btn-pedidos-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista de todos os pedidos (aprovados + recusados)"><i class="fas fa-list-alt"></i></button>' +
                     '<button type="button" class="prescritores-btn prescritores-btn-editar btn-editar-prescritor-page" data-nome="' + esc(nome) + '" title="Editar prescritor"><i class="fas fa-user-edit"></i></button>' +
                     '<button type="button" class="prescritores-btn prescritores-btn-relatorio btn-relatorio-visitas-prescritor-page" data-nome="' + esc(nome) + '" title="Relatório de visitas"><i class="fas fa-clipboard-list"></i></button>' +
                     '<button type="button" class="prescritores-btn prescritores-btn-aprovados btn-aprovados-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista dos pedidos aprovados (valor verde acima)"><i class="fas fa-check"></i></button>' +
                     '<button type="button" class="prescritores-btn prescritores-btn-recusados btn-recusados-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista dos pedidos recusados (valor vermelho acima)"><i class="fas fa-times"></i></button>' +
+                    '<button type="button" class="prescritores-btn btn-componentes-aprovados-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista de componentes aprovados"><i class="fas fa-atom" style="color:var(--success);"></i></button>' +
+                    '<button type="button" class="prescritores-btn btn-componentes-recusados-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista de componentes recusados"><i class="fas fa-atom" style="color:var(--danger);"></i></button>' +
                     '</span></td></tr>';
             });
             tbody.innerHTML = html;
@@ -3674,6 +4096,12 @@
                 pagEl.style.display = 'flex';
             }
             updatePaginaPrescritoresSortIcons();
+            tbody.querySelectorAll('.btn-whatsapp-prescritor-page').forEach(function (btn) {
+                btn.onclick = function () {
+                    var nome = btn.getAttribute('data-nome');
+                    if (typeof openWhatsAppModal === 'function') openWhatsAppModal(nome, '');
+                };
+            });
             tbody.querySelectorAll('.btn-pedidos-prescritor-page').forEach(function (btn) {
                 btn.onclick = function () {
                     var nome = btn.getAttribute('data-nome');
@@ -3696,6 +4124,18 @@
                 btn.onclick = function () {
                     var nome = btn.getAttribute('data-nome');
                     if (typeof openModalPedidosVisitador === 'function') openModalPedidosVisitador(nome, 'recusados');
+                };
+            });
+            tbody.querySelectorAll('.btn-componentes-aprovados-prescritor-page').forEach(function (btn) {
+                btn.onclick = function () {
+                    var nome = btn.getAttribute('data-nome');
+                    if (typeof openModalComponentesPrescritor === 'function') openModalComponentesPrescritor(nome, 'aprovados');
+                };
+            });
+            tbody.querySelectorAll('.btn-componentes-recusados-prescritor-page').forEach(function (btn) {
+                btn.onclick = function () {
+                    var nome = btn.getAttribute('data-nome');
+                    if (typeof openModalComponentesPrescritor === 'function') openModalComponentesPrescritor(nome, 'recusados');
                 };
             });
             tbody.querySelectorAll('.btn-relatorio-visitas-prescritor-page').forEach(function (btn) {

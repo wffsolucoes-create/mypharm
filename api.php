@@ -69,6 +69,7 @@ try {
         'check_session',
         'visitador_dashboard',
         'list_pedidos_visitador',
+        'list_componentes_prescritor',
         'get_pedido_detalhe',
         'get_pedido_componentes',
         'all_prescritores',
@@ -76,6 +77,8 @@ try {
         'save_prescritor_whatsapp',
         'get_prescritor_dados',
         'update_prescritor_dados',
+        'list_profissoes',
+        'list_especialidades',
         'visita_ativa',
         'iniciar_visita',
         'encerrar_visita',
@@ -96,7 +99,8 @@ try {
         'excluir_agendamento',
         'get_detalhe_visita',
         'update_detalhe_visita',
-        'get_visitas_prescritor'
+        'get_visitas_prescritor',
+        'get_visitas_mapa_periodo'
     ];
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
 
@@ -171,8 +175,10 @@ try {
         case 'visitadores':
         case 'visitador_dashboard':
         case 'list_pedidos_visitador':
+        case 'list_componentes_prescritor':
         case 'get_pedido_detalhe':
         case 'get_pedido_componentes':
+        case 'get_visitas_mapa_periodo':
             handleDashboardModuleAction($action, $pdo);
                 break;
         case 'admin_visitas':
@@ -580,6 +586,7 @@ try {
                         pc.nome as prescritor,
                         pc.visitador as visitador,
                         pc.usuario_id as usuario_id,
+                        MAX(pd.profissao) as profissao,
                         COALESCE(SUM(CASE WHEN gp.data_aprovacao IS NOT NULL
                             AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
                             AND gp.status_financeiro NOT LIKE '%carrinho%'))
@@ -594,6 +601,7 @@ try {
                         DATEDIFF(CURDATE(), MAX(gp.data_aprovacao)) as dias_sem_compra,
                         MAX(hv.ultima_visita) as ultima_visita
                     FROM prescritores_cadastro pc
+                    LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pc.nome
                     LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome 
                         AND gp.ano_referencia = :ano_gp
                         $filtroDataGp
@@ -611,6 +619,7 @@ try {
                         pc.nome as prescritor,
                         pc.visitador as visitador,
                         pc.usuario_id as usuario_id,
+                        MAX(pd.profissao) as profissao,
                         COALESCE(SUM(CASE WHEN gp.data_aprovacao IS NOT NULL
                             AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
                             AND gp.status_financeiro NOT LIKE '%carrinho%'))
@@ -625,6 +634,7 @@ try {
                         DATEDIFF(CURDATE(), MAX(gp.data_aprovacao)) as dias_sem_compra,
                         MAX(hv.ultima_visita) as ultima_visita
                     FROM prescritores_cadastro pc
+                    LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pc.nome
                     LEFT JOIN prescritor_resumido pr ON pr.nome = pc.nome AND pr.ano_referencia = :ano_pr
                     LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome 
                         AND gp.ano_referencia = :ano_gp
@@ -706,6 +716,7 @@ try {
                         pc.nome as prescritor,
                         pc.visitador as visitador,
                         pc.usuario_id as usuario_id,
+                        MAX(pd.profissao) as profissao,
                         COALESCE(SUM(CASE WHEN gp.data_aprovacao IS NOT NULL
                             AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
                             AND gp.status_financeiro NOT LIKE '%carrinho%'))
@@ -720,6 +731,7 @@ try {
                         DATEDIFF(CURDATE(), MAX(gp.data_aprovacao)) as dias_sem_compra,
                         MAX(hv.ultima_visita) as ultima_visita
                     FROM prescritores_cadastro pc
+                    LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pc.nome
                     LEFT JOIN prescritor_resumido pr ON pr.nome = pc.nome AND pr.ano_referencia = :ano_pr
                     LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome 
                         AND gp.ano_referencia = :ano_gp
@@ -1277,6 +1289,8 @@ try {
         case 'get_prescritor_contatos':
         case 'get_prescritor_dados':
         case 'update_prescritor_dados':
+        case 'list_profissoes':
+        case 'list_especialidades':
             handlePrescritoresModuleAction($action, $pdo);
             break;
 
@@ -1794,10 +1808,20 @@ try {
             $visitadorWhere = $isMyPharm
                 ? "(visitador IS NULL OR TRIM(visitador) = '' OR LOWER(TRIM(visitador)) = 'my pharm')"
                 : "TRIM(COALESCE(visitador, '')) = TRIM(:v)";
-            $stmtGet = $pdo->prepare("SELECT id FROM historico_visitas WHERE id = :id AND data_visita IS NOT NULL AND $visitadorWhere LIMIT 1");
+            $stmtGet = $pdo->prepare("SELECT id, data_visita FROM historico_visitas WHERE id = :id AND data_visita IS NOT NULL AND $visitadorWhere LIMIT 1");
             $stmtGet->execute($isMyPharm ? ['id' => $historicoId] : ['id' => $historicoId, 'v' => $visitadorNome]);
-            if (!$stmtGet->fetch(PDO::FETCH_ASSOC)) {
+            $rowVisita = $stmtGet->fetch(PDO::FETCH_ASSOC);
+            if (!$rowVisita) {
                 echo json_encode(['success' => false, 'error' => 'Visita não encontrada ou sem permissão.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $agendaDate = isset($rowVisita['data_visita']) ? (is_object($rowVisita['data_visita']) ? $rowVisita['data_visita']->format('Y-m-d') : substr((string)$rowVisita['data_visita'], 0, 10)) : '';
+            $dt = new DateTime();
+            $dt->setISODate((int)$dt->format('o'), (int)$dt->format('W'));
+            $segundaSemana = $dt->format('Y-m-d');
+            $domingoSemana = (clone $dt)->modify('+6 days')->format('Y-m-d');
+            if ($agendaDate === '' || $agendaDate < $segundaSemana || $agendaDate > $domingoSemana) {
+                echo json_encode(['success' => false, 'error' => 'Só é possível editar visitas da semana atual (segunda a domingo).'], JSON_UNESCAPED_UNICODE);
                 break;
             }
             $data_visita = isset($input['data_visita']) ? trim($input['data_visita']) : null;
@@ -1910,18 +1934,14 @@ try {
                 echo json_encode(['success' => false, 'error' => 'Agendamento não encontrado.'], JSON_UNESCAPED_UNICODE);
                 break;
             }
-            $hoje = date('Y-m-d');
             $agendaDate = isset($row['data_agendada']) ? (is_object($row['data_agendada']) ? $row['data_agendada']->format('Y-m-d') : substr((string)$row['data_agendada'], 0, 10)) : '';
-            if ($agendaDate < $hoje) {
-                echo json_encode(['success' => false, 'error' => 'Só é possível editar visitas futuras.'], JSON_UNESCAPED_UNICODE);
+            $dt = new DateTime();
+            $dt->setISODate((int)$dt->format('o'), (int)$dt->format('W'));
+            $segundaSemana = $dt->format('Y-m-d');
+            $domingoSemana = (clone $dt)->modify('+6 days')->format('Y-m-d');
+            if ($agendaDate === '' || $agendaDate < $segundaSemana || $agendaDate > $domingoSemana) {
+                echo json_encode(['success' => false, 'error' => 'Só é possível editar visitas da semana atual (segunda a domingo).'], JSON_UNESCAPED_UNICODE);
                 break;
-            }
-            if ($agendaDate === $hoje && !empty($row['hora'])) {
-                $horaRow = is_object($row['hora']) ? $row['hora']->format('H:i') : substr((string)$row['hora'], 0, 5);
-                if ($horaRow && $horaRow < date('H:i')) {
-                    echo json_encode(['success' => false, 'error' => 'Só é possível editar visitas futuras.'], JSON_UNESCAPED_UNICODE);
-                    break;
-                }
             }
             $prescritor = trim($input['prescritor'] ?? '');
             $data_agendada = trim($input['data_agendada'] ?? '');
@@ -1971,18 +1991,14 @@ try {
                 echo json_encode(['success' => false, 'error' => 'Agendamento não encontrado.'], JSON_UNESCAPED_UNICODE);
                 break;
             }
-            $hoje = date('Y-m-d');
             $agendaDate = isset($row['data_agendada']) ? (is_object($row['data_agendada']) ? $row['data_agendada']->format('Y-m-d') : substr((string)$row['data_agendada'], 0, 10)) : '';
-            if ($agendaDate < $hoje) {
-                echo json_encode(['success' => false, 'error' => 'Só é possível excluir visitas futuras.'], JSON_UNESCAPED_UNICODE);
+            $dt = new DateTime();
+            $dt->setISODate((int)$dt->format('o'), (int)$dt->format('W'));
+            $segundaSemana = $dt->format('Y-m-d');
+            $domingoSemana = (clone $dt)->modify('+6 days')->format('Y-m-d');
+            if ($agendaDate === '' || $agendaDate < $segundaSemana || $agendaDate > $domingoSemana) {
+                echo json_encode(['success' => false, 'error' => 'Só é possível excluir visitas da semana atual (segunda a domingo).'], JSON_UNESCAPED_UNICODE);
                 break;
-            }
-            if ($agendaDate === $hoje && !empty($row['hora'])) {
-                $horaRow = is_object($row['hora']) ? $row['hora']->format('H:i') : substr((string)$row['hora'], 0, 5);
-                if ($horaRow && $horaRow < date('H:i')) {
-                    echo json_encode(['success' => false, 'error' => 'Só é possível excluir visitas futuras.'], JSON_UNESCAPED_UNICODE);
-                    break;
-                }
             }
             $stmt = $pdo->prepare("DELETE FROM visitas_agendadas WHERE id = :id AND TRIM(COALESCE(visitador, '')) = TRIM(:v)");
             $stmt->execute(['id' => $id, 'v' => $visitadorNome]);

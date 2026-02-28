@@ -917,6 +917,91 @@ function dashboardListPedidosVisitador(PDO $pdo): void
 }
 
 /**
+ * Lista componentes (agregados) por prescritor: aprovados ou recusados.
+ * Fonte: pedidos_detalhado_componentes, filtrando por pedidos do prescritor na carteira do visitador.
+ * Parâmetros: nome (visitador), ano, prescritor, tipo (aprovados | recusados).
+ */
+function dashboardListComponentesPrescritor(PDO $pdo): void
+{
+    $nome = trim($_GET['nome'] ?? '');
+    $ano = (int)($_GET['ano'] ?? date('Y'));
+    $prescritor = isset($_GET['prescritor']) ? trim((string)$_GET['prescritor']) : null;
+    $tipo = isset($_GET['tipo']) ? strtolower(trim((string)$_GET['tipo'])) : 'aprovados';
+    if ($prescritor === '' || $prescritor === null) {
+        echo json_encode(['error' => 'Prescritor não informado', 'componentes' => []], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
+    $sessionNome = trim($_SESSION['user_nome'] ?? '');
+    if ($userSetor === 'visitador' && $sessionNome !== '') {
+        $nome = $sessionNome;
+    }
+    if ($nome === '') {
+        echo json_encode(['error' => 'Nome do visitador não fornecido', 'componentes' => []], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $isMyPharm = (strcasecmp($nome, 'My Pharm') === 0);
+    $visWhere = $isMyPharm
+        ? "(pc.visitador IS NULL OR pc.visitador = '' OR pc.visitador = 'My Pharm' OR UPPER(pc.visitador) = 'MY PHARM')"
+        : "pc.visitador = :nome";
+
+    $params = ['ano_ord' => $ano, 'prescritor' => $prescritor];
+    if (!$isMyPharm) $params['nome'] = $nome;
+
+    try {
+        if ($tipo === 'recusados') {
+            $sql = "
+                SELECT
+                    COALESCE(NULLIF(TRIM(c.componente), ''), '(sem nome)') as componente,
+                    COALESCE(NULLIF(TRIM(c.unidade_componente), ''), '—') as unidade,
+                    SUM(CAST(c.quantidade_componente AS DECIMAL(20,6))) as quantidade_total,
+                    COUNT(DISTINCT CONCAT(CAST(c.numero AS CHAR), '-', CAST(c.serie AS CHAR))) as qtd_pedidos
+                FROM pedidos_detalhado_componentes c
+                INNER JOIN (
+                    SELECT DISTINCT i.numero, i.serie
+                    FROM itens_orcamentos_pedidos i
+                    INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm') = pc.nome AND " . $visWhere . "
+                    WHERE i.ano_referencia = :ano_ord
+                      AND (i.status = 'Recusado' OR i.status = 'No carrinho')
+                      AND (COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm') = :prescritor)
+                ) ord ON ord.numero = c.numero AND ord.serie = c.serie
+                GROUP BY COALESCE(NULLIF(TRIM(c.componente), ''), '(sem nome)'), COALESCE(NULLIF(TRIM(c.unidade_componente), ''), '—')
+                ORDER BY quantidade_total DESC, componente ASC
+            ";
+        } else {
+            $sql = "
+                SELECT
+                    COALESCE(NULLIF(TRIM(c.componente), ''), '(sem nome)') as componente,
+                    COALESCE(NULLIF(TRIM(c.unidade_componente), ''), '—') as unidade,
+                    SUM(CAST(c.quantidade_componente AS DECIMAL(20,6))) as quantidade_total,
+                    COUNT(DISTINCT CONCAT(CAST(c.numero AS CHAR), '-', CAST(c.serie AS CHAR))) as qtd_pedidos
+                FROM pedidos_detalhado_componentes c
+                INNER JOIN (
+                    SELECT DISTINCT gp.numero_pedido as numero, gp.serie_pedido as serie
+                    FROM gestao_pedidos gp
+                    INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') = pc.nome AND " . $visWhere . "
+                    WHERE gp.ano_referencia = :ano_ord
+                      AND gp.data_aprovacao IS NOT NULL
+                      AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orcamento') AND gp.status_financeiro NOT LIKE '%carrinho%'))
+                      AND (COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') = :prescritor)
+                ) ord ON ord.numero = c.numero AND ord.serie = c.serie
+                GROUP BY COALESCE(NULLIF(TRIM(c.componente), ''), '(sem nome)'), COALESCE(NULLIF(TRIM(c.unidade_componente), ''), '—')
+                ORDER BY quantidade_total DESC, componente ASC
+            ";
+        }
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $componentes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(['componentes' => $componentes], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Erro ao listar componentes: ' . $e->getMessage(), 'componentes' => []], JSON_UNESCAPED_UNICODE);
+    }
+}
+
+/**
  * Detalhe de um pedido (numero + serie): dados de gestao_pedidos e itens_orcamentos_pedidos.
  * Parâmetros: numero, serie, ano (opcional).
  * Retorna: resumo (cabeçalho), itens_gestao (linhas da gestão), itens_orcamento (linhas do orçamento).
@@ -1065,4 +1150,67 @@ function dashboardGetPedidoComponentes(PDO $pdo): void
         $componentes = [];
     }
     echo json_encode(['componentes' => $componentes], JSON_UNESCAPED_UNICODE);
+}
+
+/**
+ * Visitas com GPS para o Roteiro de Visitas (período: data_de até data_ate).
+ * Retorna pontos ordenados por data_visita e horário para desenhar rota e direção.
+ */
+function getVisitasMapaPeriodo(PDO $pdo): void
+{
+    $dataDe = trim($_GET['data_de'] ?? '');
+    $dataAte = trim($_GET['data_ate'] ?? '');
+    $nome = trim($_GET['visitador'] ?? '');
+    $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
+    if ($userSetor === 'visitador' && $nome === '') {
+        $nome = trim($_SESSION['user_nome'] ?? '');
+    }
+    if (!$nome) {
+        echo json_encode(['error' => 'Visitador não informado.', 'visitas' => []], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    if (!$dataDe || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDe)) {
+        $dataDe = date('Y-m-d');
+    }
+    if (!$dataAte || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAte)) {
+        $dataAte = $dataDe;
+    }
+    if ($dataAte < $dataDe) {
+        $dataAte = $dataDe;
+    }
+    $isMyPharm = (strcasecmp($nome, 'My Pharm') === 0 || $nome === '');
+    $visitadorWhereGeo = $isMyPharm
+        ? "(vg.visitador IS NULL OR TRIM(vg.visitador) = '' OR LOWER(TRIM(vg.visitador)) = 'my pharm')"
+        : "TRIM(COALESCE(vg.visitador, '')) = TRIM(:nome)";
+    $params = ['data_de' => $dataDe, 'data_ate' => $dataAte];
+    if (!$isMyPharm) {
+        $params['nome'] = $nome;
+    }
+    try {
+        $stmt = $pdo->prepare("
+            SELECT 
+                vg.lat,
+                vg.lng,
+                vg.accuracy_m,
+                vg.data_visita,
+                DATE_FORMAT(vg.horario, '%H:%i') as horario,
+                vg.prescritor,
+                hv.status_visita,
+                hv.local_visita,
+                hv.resumo_visita,
+                hv.id as historico_id
+            FROM visitas_geolocalizacao vg
+            LEFT JOIN historico_visitas hv ON hv.id = vg.historico_id
+            WHERE vg.data_visita >= :data_de AND vg.data_visita <= :data_ate
+              AND $visitadorWhereGeo
+              AND (hv.status_visita IS NULL OR hv.status_visita = 'Realizada')
+            ORDER BY vg.data_visita ASC, vg.horario ASC, vg.id ASC
+            LIMIT 500
+        ");
+        $stmt->execute($params);
+        $visitas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        $visitas = [];
+    }
+    echo json_encode(['visitas' => $visitas, 'data_de' => $dataDe, 'data_ate' => $dataAte], JSON_UNESCAPED_UNICODE);
 }

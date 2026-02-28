@@ -61,6 +61,7 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                 CREATE TABLE IF NOT EXISTS prescritor_dados (
                     nome_prescritor VARCHAR(255) PRIMARY KEY,
                     profissao VARCHAR(255) NULL,
+                    especialidade VARCHAR(255) NULL,
                     registro VARCHAR(100) NULL,
                     uf_registro VARCHAR(10) NULL,
                     data_nascimento DATE NULL,
@@ -78,6 +79,7 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                 )
             ");
             try { $pdo->exec("ALTER TABLE prescritor_dados ADD COLUMN usuario_id INT NULL"); } catch (Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE prescritor_dados ADD COLUMN especialidade VARCHAR(255) NULL"); } catch (Throwable $e) {}
             $stmt = $pdo->prepare("
                 SELECT pd.*, COALESCE(pd.usuario_id, pc.usuario_id) as usuario_id
                 FROM prescritor_dados pd
@@ -96,6 +98,7 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
             $dados = $row ?: [
                 'nome_prescritor' => $nome,
                 'profissao' => '',
+                'especialidade' => '',
                 'registro' => '',
                 'uf_registro' => '',
                 'data_nascimento' => null,
@@ -112,6 +115,7 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
             ];
             if ($row) {
                 $dados['profissao'] = $row['profissao'] ?? '';
+                $dados['especialidade'] = $row['especialidade'] ?? '';
                 $dados['registro'] = $row['registro'] ?? '';
                 $dados['uf_registro'] = $row['uf_registro'] ?? '';
                 $dados['data_nascimento'] = $row['data_nascimento'] ?? null;
@@ -181,6 +185,7 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                 CREATE TABLE IF NOT EXISTS prescritor_dados (
                     nome_prescritor VARCHAR(255) PRIMARY KEY,
                     profissao VARCHAR(255) NULL,
+                    especialidade VARCHAR(255) NULL,
                     registro VARCHAR(100) NULL,
                     uf_registro VARCHAR(10) NULL,
                     data_nascimento DATE NULL,
@@ -198,17 +203,19 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                 )
             ");
             try { $pdo->exec("ALTER TABLE prescritor_dados ADD COLUMN usuario_id INT NULL"); } catch (Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE prescritor_dados ADD COLUMN especialidade VARCHAR(255) NULL"); } catch (Throwable $e) {}
             $stmt = $pdo->prepare("
-                INSERT INTO prescritor_dados (nome_prescritor, profissao, registro, uf_registro, data_nascimento, endereco_rua, endereco_numero, endereco_bairro, endereco_cep, endereco_cidade, endereco_uf, local_atendimento, whatsapp, email, atualizado_em)
-                VALUES (:nome, :profissao, :registro, :uf_registro, :data_nascimento, :endereco_rua, :endereco_numero, :endereco_bairro, :endereco_cep, :endereco_cidade, :endereco_uf, :local_atendimento, :whatsapp, :email, NOW())
+                INSERT INTO prescritor_dados (nome_prescritor, profissao, especialidade, registro, uf_registro, data_nascimento, endereco_rua, endereco_numero, endereco_bairro, endereco_cep, endereco_cidade, endereco_uf, local_atendimento, whatsapp, email, atualizado_em)
+                VALUES (:nome, :profissao, :especialidade, :registro, :uf_registro, :data_nascimento, :endereco_rua, :endereco_numero, :endereco_bairro, :endereco_cep, :endereco_cidade, :endereco_uf, :local_atendimento, :whatsapp, :email, NOW())
                 ON DUPLICATE KEY UPDATE
-                    profissao = VALUES(profissao), registro = VALUES(registro), uf_registro = VALUES(uf_registro), data_nascimento = VALUES(data_nascimento),
+                    profissao = VALUES(profissao), especialidade = VALUES(especialidade), registro = VALUES(registro), uf_registro = VALUES(uf_registro), data_nascimento = VALUES(data_nascimento),
                     endereco_rua = VALUES(endereco_rua), endereco_numero = VALUES(endereco_numero), endereco_bairro = VALUES(endereco_bairro), endereco_cep = VALUES(endereco_cep),
                     endereco_cidade = VALUES(endereco_cidade), endereco_uf = VALUES(endereco_uf), local_atendimento = VALUES(local_atendimento), whatsapp = VALUES(whatsapp), email = VALUES(email), atualizado_em = NOW()
             ");
             $stmt->execute([
                 'nome' => $nome,
                 'profissao' => trim($input['profissao'] ?? ''),
+                'especialidade' => trim($input['especialidade'] ?? ''),
                 'registro' => trim($input['registro'] ?? ''),
                 'uf_registro' => trim($input['uf_registro'] ?? ''),
                 'data_nascimento' => !empty($input['data_nascimento']) ? $input['data_nascimento'] : null,
@@ -224,6 +231,24 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
             ]);
             $pdo->prepare("INSERT INTO prescritor_contatos (nome_prescritor, whatsapp) VALUES (:n, :w) ON DUPLICATE KEY UPDATE whatsapp = :w2, atualizado_em = NOW()")->execute(['n' => $nome, 'w' => trim($input['whatsapp'] ?? ''), 'w2' => trim($input['whatsapp'] ?? '')]);
             echo json_encode(['success' => true, 'message' => 'Dados salvos com sucesso!'], JSON_UNESCAPED_UNICODE);
+            return true;
+
+        case 'list_profissoes':
+            try {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS profissoes (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(255) NOT NULL, UNIQUE KEY uk_profissoes_nome (nome)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            } catch (Throwable $e) { /* tabela já existe */ }
+            $stmt = $pdo->query("SELECT id, nome FROM profissoes ORDER BY nome ASC");
+            $items = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            echo json_encode(['items' => $items], JSON_UNESCAPED_UNICODE);
+            return true;
+
+        case 'list_especialidades':
+            try {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS especialidades (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(255) NOT NULL, UNIQUE KEY uk_especialidades_nome (nome)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            } catch (Throwable $e) { /* tabela já existe */ }
+            $stmt = $pdo->query("SELECT id, nome FROM especialidades ORDER BY nome ASC");
+            $items = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            echo json_encode(['items' => $items], JSON_UNESCAPED_UNICODE);
             return true;
 
         case 'transfer_prescritor':

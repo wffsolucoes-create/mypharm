@@ -47,6 +47,12 @@ function handleDashboardModuleAction(string $action, PDO $pdo): void
         case 'get_pedido_componentes':
             dashboardGetPedidoComponentes($pdo);
             return;
+        case 'list_componentes_prescritor':
+            dashboardListComponentesPrescritor($pdo);
+            return;
+        case 'get_visitas_mapa_periodo':
+            getVisitasMapaPeriodo($pdo);
+            return;
         default:
             http_response_code(400);
             echo json_encode(['error' => 'Ação de dashboard desconhecida'], JSON_UNESCAPED_UNICODE);
