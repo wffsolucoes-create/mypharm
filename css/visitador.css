@@ -1455,6 +1455,19 @@ tr:last-child td {
     }
 }
 
+/* Ícone de visita no mapa do Roteiro */
+.roteiro-visita-icon {
+    background: #3B82F6;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 30px !important;
+    height: 30px !important;
+}
+
 /* KPIs do Roteiro de Visitas */
 .roteiro-kpis {
     display: grid;

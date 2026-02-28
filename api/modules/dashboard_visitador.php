@@ -1244,8 +1244,11 @@ function getRelatorioRotaCompleto(PDO $pdo): void
         $stmtV = $pdo->prepare("
             SELECT hv.prescritor, hv.inicio_visita, CONCAT(hv.data_visita, ' ', COALESCE(hv.horario, '00:00:00')) as fim_visita,
                    hv.status_visita, hv.local_visita, hv.resumo_visita, hv.amostra, hv.brinde, hv.artigo,
-                   TIMESTAMPDIFF(MINUTE, hv.inicio_visita, CONCAT(hv.data_visita, ' ', COALESCE(hv.horario, '00:00:00'))) as duracao_min
+                   hv.data_visita, DATE_FORMAT(hv.horario, '%H:%i') as hora_fim,
+                   TIMESTAMPDIFF(MINUTE, hv.inicio_visita, CONCAT(hv.data_visita, ' ', COALESCE(hv.horario, '00:00:00'))) as duracao_min,
+                   vg.lat as geo_lat, vg.lng as geo_lng
             FROM historico_visitas hv
+            LEFT JOIN visitas_geolocalizacao vg ON vg.historico_id = hv.id
             WHERE TRIM(hv.visitador) = TRIM(:v) AND hv.data_visita = :dia
             ORDER BY hv.inicio_visita ASC
         ");

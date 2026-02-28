@@ -3662,6 +3662,28 @@
             const msg = document.getElementById('encerrarVisitaMsg');
             if (msg) msg.style.display = 'none';
 
+            // Preencher "Local" automaticamente com os dados cadastrados do prescritor
+            (async function () {
+                try {
+                    var vis = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '') || '';
+                    var r = await apiGet('get_prescritor_dados', { nome: prescritor, visitador: vis });
+                    if (r && r.dados) {
+                        var partes = [];
+                        if (r.dados.local_atendimento) partes.push(r.dados.local_atendimento);
+                        if (r.dados.endereco_rua) {
+                            var end = r.dados.endereco_rua;
+                            if (r.dados.endereco_numero) end += ', ' + r.dados.endereco_numero;
+                            if (r.dados.endereco_bairro) end += ' - ' + r.dados.endereco_bairro;
+                            partes.push(end);
+                        }
+                        var localEl = document.getElementById('visitaLocal');
+                        if (localEl && partes.length > 0 && !localEl.value) {
+                            localEl.value = partes.join(' · ');
+                        }
+                    }
+                } catch (e) { /* sem problema se falhar */ }
+            })();
+
             document.getElementById('modalEncerrarVisita').style.display = 'flex';
             setTimeout(() => document.getElementById('visitaResumo').focus(), 50);
             // Captura automática do GPS ao abrir (sem depender de clique)
@@ -4037,8 +4059,12 @@
                 html += roteiroInfoCard('fa-user-clock', 'Tempo em visitas', fmtMinutos(r.tempo_visita_min));
                 html += roteiroInfoCard('fa-map-pin', 'Pontos GPS', r.qtd_pontos || 0);
                 if (r.pausado_em) html += roteiroInfoCard('fa-pause-circle', 'Pausada em', fmtDataHoraBr(r.pausado_em));
-                html += roteiroInfoCard('fa-map-marker-alt', 'Local de início', r.local_inicio_lat ? (r.local_inicio_lat.toFixed(5) + ', ' + r.local_inicio_lng.toFixed(5)) : '—');
-                html += roteiroInfoCard('fa-map-marker-alt', 'Local de encerramento', r.local_fim_lat ? (r.local_fim_lat.toFixed(5) + ', ' + r.local_fim_lng.toFixed(5)) : '—');
+                html += '<div style="padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);">' +
+                    '<div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>Local de início</div>' +
+                    '<div id="roteiroLocalInicio_' + idx + '" style="font-size:0.85rem; font-weight:600; color:var(--text-primary);">' + (r.local_inicio_lat ? '<i class="fas fa-spinner fa-spin" style="opacity:0.5;"></i> Buscando...' : '—') + '</div></div>';
+                html += '<div style="padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);">' +
+                    '<div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>Local de encerramento</div>' +
+                    '<div id="roteiroLocalFim_' + idx + '" style="font-size:0.85rem; font-weight:600; color:var(--text-primary);">' + (r.local_fim_lat ? '<i class="fas fa-spinner fa-spin" style="opacity:0.5;"></i> Buscando...' : '—') + '</div></div>';
                 html += '</div>';
                 // Visitas da rota
                 if (r.visitas && r.visitas.length > 0) {
@@ -4072,6 +4098,44 @@
             });
             el.innerHTML = html;
             el.style.display = 'block';
+            // Geocodificação reversa para preencher endereços
+            rotas.forEach(function (r, idx) {
+                if (r.local_inicio_lat) roteiroReverseGeocode(r.local_inicio_lat, r.local_inicio_lng, 'roteiroLocalInicio_' + idx);
+                if (r.local_fim_lat) roteiroReverseGeocode(r.local_fim_lat, r.local_fim_lng, 'roteiroLocalFim_' + idx);
+            });
+        }
+        var __roteiroGeoCache = {};
+        function roteiroReverseGeocode(lat, lng, elId) {
+            var key = lat.toFixed(5) + ',' + lng.toFixed(5);
+            if (__roteiroGeoCache[key]) {
+                var el = document.getElementById(elId);
+                if (el) el.textContent = __roteiroGeoCache[key];
+                return;
+            }
+            fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=18&addressdetails=1', { headers: { 'Accept-Language': 'pt-BR' } })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var addr = '';
+                    if (data && data.address) {
+                        var a = data.address;
+                        var partes = [];
+                        if (a.road) partes.push(a.road + (a.house_number ? ', ' + a.house_number : ''));
+                        if (a.suburb || a.neighbourhood) partes.push(a.suburb || a.neighbourhood);
+                        if (a.city || a.town || a.village) partes.push(a.city || a.town || a.village);
+                        addr = partes.join(' - ');
+                    }
+                    if (!addr && data && data.display_name) {
+                        addr = data.display_name.split(',').slice(0, 3).join(',');
+                    }
+                    if (!addr) addr = lat.toFixed(5) + ', ' + lng.toFixed(5);
+                    __roteiroGeoCache[key] = addr;
+                    var el = document.getElementById(elId);
+                    if (el) el.textContent = addr;
+                })
+                .catch(function () {
+                    var el = document.getElementById(elId);
+                    if (el) el.textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+                });
         }
         function roteiroInfoCard(icon, label, value) {
             return '<div style="padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);">' +
@@ -4080,18 +4144,13 @@
         }
         function renderRoteiroMapaCompleto(rotas, containerEl, emptyEl, dirEl) {
             if (!containerEl) return;
-            var allPts = [];
+            var temPontos = false;
+            rotas.forEach(function (r) { if (r.pontos && r.pontos.length > 0) temPontos = true; });
+            var temVisitasGeo = false;
             rotas.forEach(function (r) {
-                if (r.pontos && r.pontos.length > 0) {
-                    r.pontos.forEach(function (p) { allPts.push({ lat: p.lat, lng: p.lng }); });
-                }
-                if (r.visitas) {
-                    r.visitas.forEach(function (v) {
-                        if (v.prescritor) allPts.push({ prescritor: v.prescritor, inicio: v.inicio_visita, fim: v.fim_visita, status: v.status_visita, local: v.local_visita });
-                    });
-                }
+                if (r.visitas) r.visitas.forEach(function (v) { if (v.geo_lat) temVisitasGeo = true; });
             });
-            if (allPts.length === 0 && rotas.length === 0) {
+            if (!temPontos && !temVisitasGeo) {
                 containerEl.style.display = 'none';
                 if (emptyEl) emptyEl.style.display = 'block';
                 if (dirEl) dirEl.style.display = 'none';
@@ -4117,7 +4176,8 @@
             __roteiroMarkers = [];
             __roteiroPolylines = [];
             var allLatLngs = [];
-            var colors = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+            var colors = ['#2563EB', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4'];
+            // Traçar rotas
             rotas.forEach(function (r, rIdx) {
                 if (!r.pontos || r.pontos.length === 0) return;
                 var latLngs = r.pontos.map(function (p) { return [p.lat, p.lng]; });
@@ -4125,17 +4185,55 @@
                 var cor = colors[rIdx % colors.length];
                 var poly = L.polyline(latLngs, { color: cor, weight: 4, opacity: 0.8 }).addTo(__roteiroMap);
                 __roteiroPolylines.push(poly);
-                // Marcador de início
-                var startM = L.circleMarker(latLngs[0], { radius: 8, color: cor, fillColor: cor, fillOpacity: 1 }).addTo(__roteiroMap);
-                startM.bindTooltip('Início rota #' + (rIdx + 1) + '<br>' + fmtDataHoraBr(r.data_inicio), { direction: 'top', className: 'roteiro-tooltip' });
+                var startM = L.circleMarker(latLngs[0], { radius: 7, color: '#10B981', fillColor: '#10B981', fillOpacity: 1 }).addTo(__roteiroMap);
+                startM.bindTooltip('<b>Início rota</b><br>' + fmtDataHoraBr(r.data_inicio), { direction: 'top', className: 'roteiro-tooltip' });
                 __roteiroMarkers.push(startM);
-                // Marcador de fim
                 if (latLngs.length > 1) {
-                    var endM = L.circleMarker(latLngs[latLngs.length - 1], { radius: 8, color: '#EF4444', fillColor: '#EF4444', fillOpacity: 1 }).addTo(__roteiroMap);
-                    endM.bindTooltip('Fim rota #' + (rIdx + 1) + '<br>' + (r.data_fim ? fmtDataHoraBr(r.data_fim) : 'Em andamento'), { direction: 'top', className: 'roteiro-tooltip' });
+                    var endM = L.circleMarker(latLngs[latLngs.length - 1], { radius: 7, color: '#EF4444', fillColor: '#EF4444', fillOpacity: 1 }).addTo(__roteiroMap);
+                    endM.bindTooltip('<b>Fim rota</b><br>' + (r.data_fim ? fmtDataHoraBr(r.data_fim) : 'Em andamento'), { direction: 'top', className: 'roteiro-tooltip' });
                     __roteiroMarkers.push(endM);
                 }
             });
+            // Marcadores de visitas com GPS
+            var visitaIcon = L.divIcon({
+                className: 'roteiro-visita-icon',
+                html: '<i class="fas fa-user-md" style="color:#fff; font-size:14px;"></i>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15],
+                popupAnchor: [0, -15]
+            });
+            // Sequência de visitas para direção da rota
+            var visitasPts = [];
+            rotas.forEach(function (r) {
+                if (!r.visitas) return;
+                r.visitas.forEach(function (v) {
+                    var lat = parseFloat(v.geo_lat);
+                    var lng = parseFloat(v.geo_lng);
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+                    allLatLngs.push([lat, lng]);
+                    visitasPts.push({ prescritor: v.prescritor, lat: lat, lng: lng });
+                    var popupParts = [];
+                    popupParts.push('<div style="font-weight:800; font-size:0.95rem; margin-bottom:4px;">' + escNotif(v.prescritor || '—') + '</div>');
+                    if (v.local_visita) popupParts.push('<div style="font-size:0.82rem; color:#555; margin-bottom:3px;"><i class="fas fa-map-marker-alt" style="margin-right:4px; color:#EF4444;"></i>' + escNotif(v.local_visita) + '</div>');
+                    var dataStr = v.data_visita ? v.data_visita.split('-').reverse().join('/') : '';
+                    var horaInicio = fmtHoraBr(v.inicio_visita);
+                    var horaFim = v.hora_fim || fmtHoraBr(v.fim_visita);
+                    popupParts.push('<div style="font-size:0.8rem; color:#666;"><i class="far fa-calendar" style="margin-right:4px;"></i>' + dataStr + '</div>');
+                    popupParts.push('<div style="font-size:0.8rem; color:#666;"><i class="far fa-clock" style="margin-right:4px;"></i>' + horaInicio + ' → ' + horaFim + '</div>');
+                    if (v.status_visita) popupParts.push('<div style="font-size:0.78rem; margin-top:3px;"><b>Status:</b> ' + escNotif(v.status_visita) + '</div>');
+                    var marker = L.marker([lat, lng], { icon: visitaIcon }).addTo(__roteiroMap);
+                    marker.bindPopup('<div style="min-width:180px;">' + popupParts.join('') + '</div>', { minWidth: 200 });
+                    marker.bindTooltip(escNotif(v.prescritor || '—'), { direction: 'top', className: 'roteiro-tooltip' });
+                    __roteiroMarkers.push(marker);
+                });
+            });
+            // Direção da rota (visitas)
+            if (dirEl && visitasPts.length > 0) {
+                var dirHtml = '<strong>Ordem das visitas:</strong> ';
+                dirHtml += visitasPts.map(function (p, i) { return (i + 1) + '. ' + (p.prescritor || '—'); }).join(' → ');
+                dirEl.innerHTML = dirHtml;
+                dirEl.style.display = 'block';
+            }
             if (allLatLngs.length > 1) {
                 __roteiroMap.fitBounds(allLatLngs, { padding: [30, 30] });
             } else if (allLatLngs.length === 1) {
@@ -5007,7 +5105,15 @@
             if (!currentVisitadorName) return;
             try {
                 if (rotaState === 'idle') {
-                    const res = await apiPost('start_rota', { visitador_nome: currentVisitadorName });
+                    var res = await apiPost('start_rota', { visitador_nome: currentVisitadorName });
+                    // Se já existe rota finalizada hoje, perguntar se quer reabrir
+                    if (res && res.rota_existente) {
+                        if (confirm('Você já finalizou uma rota hoje. Deseja reabrir a rota existente ao invés de criar uma nova?')) {
+                            res = await apiPost('start_rota', { visitador_nome: currentVisitadorName, reabrir: true });
+                        } else {
+                            return;
+                        }
+                    }
                     if (res && res.success) {
                         rotaState = 'em_andamento';
                         updateRotaButton();

@@ -2172,6 +2172,35 @@ try {
                 echo json_encode(['success' => false, 'error' => 'Já existe uma rota ativa. Pause ou finalize antes de iniciar outra.'], JSON_UNESCAPED_UNICODE);
                 break;
             }
+            // Verificar se já existe rota finalizada hoje (evitar múltiplas rotas no dia)
+            $reabrir = filter_var($input['reabrir'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $stmt = $pdo->prepare("
+                SELECT id, data_inicio, data_fim FROM rotas_diarias
+                WHERE visitador_nome = :v AND DATE(data_inicio) = CURDATE() AND status = 'finalizada'
+                ORDER BY data_inicio DESC LIMIT 1
+            ");
+            $stmt->execute(['v' => $visitadorNome]);
+            $rotaHoje = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($rotaHoje && !$reabrir) {
+                echo json_encode([
+                    'success' => false,
+                    'rota_existente' => true,
+                    'rota_id' => (int)$rotaHoje['id'],
+                    'data_inicio' => $rotaHoje['data_inicio'],
+                    'data_fim' => $rotaHoje['data_fim'],
+                    'error' => 'Você já finalizou uma rota hoje. Deseja reabrir a rota existente?'
+                ], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            if ($rotaHoje && $reabrir) {
+                $stmt = $pdo->prepare("
+                    UPDATE rotas_diarias SET status = 'em_andamento', data_fim = NULL, pausado_em = NULL
+                    WHERE id = :id
+                ");
+                $stmt->execute(['id' => (int)$rotaHoje['id']]);
+                echo json_encode(['success' => true, 'rota_id' => (int)$rotaHoje['id'], 'reaberta' => true], JSON_UNESCAPED_UNICODE);
+                break;
+            }
             $stmt = $pdo->prepare("
                 INSERT INTO rotas_diarias (visitador_nome, data_inicio, status)
                 VALUES (:v, NOW(), 'em_andamento')
