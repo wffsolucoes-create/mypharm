@@ -787,15 +787,41 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                     foreach ($rotasIds as $ridRaw) {
                         $rid = (int)$ridRaw;
                         if ($rid <= 0) continue;
-                        $stmtP = $pdo->prepare("SELECT lat, lng FROM rotas_pontos WHERE rota_id = :rid ORDER BY criado_em ASC");
+
+                        $stmtP = $pdo->prepare("SELECT lat, lng, criado_em FROM rotas_pontos WHERE rota_id = :rid ORDER BY criado_em ASC");
                         $stmtP->execute(['rid' => $rid]);
                         $pts = $stmtP->fetchAll(PDO::FETCH_ASSOC);
-                        $n = count($pts);
-                        for ($i = 1; $i < $n; $i++) {
-                            $km_rotas_periodo += $haversine(
-                                $pts[$i - 1]['lat'], $pts[$i - 1]['lng'],
-                                $pts[$i]['lat'], $pts[$i]['lng']
-                            );
+
+                        $stmtRD = $pdo->prepare("SELECT DATE(data_inicio) as dia FROM rotas_diarias WHERE id = :rid LIMIT 1");
+                        $stmtRD->execute(['rid' => $rid]);
+                        $diaRota = $stmtRD->fetchColumn();
+
+                        $allGps = [];
+                        foreach ($pts as $p) {
+                            $allGps[] = ['lat' => (float)$p['lat'], 'lng' => (float)$p['lng'], 'ts' => strtotime($p['criado_em'])];
+                        }
+                        if ($diaRota) {
+                            $stmtVG = $pdo->prepare("
+                                SELECT vg.lat, vg.lng, COALESCE(hv.inicio_visita, CONCAT(hv.data_visita,' ',COALESCE(hv.horario,'00:00:00'))) as ts_ref
+                                FROM visitas_geolocalizacao vg
+                                INNER JOIN historico_visitas hv ON hv.id = vg.historico_id
+                                WHERE TRIM(vg.visitador) = TRIM(:v) AND vg.data_visita = :dia
+                            ");
+                            $stmtVG->execute(['v' => $nome, 'dia' => $diaRota]);
+                            foreach ($stmtVG->fetchAll(PDO::FETCH_ASSOC) as $vg) {
+                                if ($vg['lat'] && $vg['lng']) {
+                                    $allGps[] = ['lat' => (float)$vg['lat'], 'lng' => (float)$vg['lng'], 'ts' => strtotime($vg['ts_ref'])];
+                                }
+                            }
+                        }
+                        usort($allGps, function ($a, $b) { return $a['ts'] - $b['ts']; });
+
+                        $allCount = count($allGps);
+                        for ($i = 1; $i < $allCount; $i++) {
+                            $segKm = $haversine($allGps[$i - 1]['lat'], $allGps[$i - 1]['lng'], $allGps[$i]['lat'], $allGps[$i]['lng']);
+                            if ($segKm < 50) {
+                                $km_rotas_periodo += $segKm;
+                            }
                         }
                     }
                 } catch (Exception $e) {
@@ -1213,17 +1239,11 @@ function getRelatorioRotaCompleto(PDO $pdo): void
     foreach ($rotas as $rota) {
         $rid = (int)$rota['id'];
 
-        // Pontos GPS da rota
+        // Pontos GPS da rota (rastreamento contínuo)
         $stmtP = $pdo->prepare("SELECT lat, lng, criado_em FROM rotas_pontos WHERE rota_id = :rid ORDER BY criado_em ASC");
         $stmtP->execute(['rid' => $rid]);
         $pontos = $stmtP->fetchAll(PDO::FETCH_ASSOC);
         $qtd = count($pontos);
-
-        $km = 0;
-        for ($i = 1; $i < $qtd; $i++) {
-            $km += $haversineKm($pontos[$i - 1]['lat'], $pontos[$i - 1]['lng'], $pontos[$i]['lat'], $pontos[$i]['lng']);
-        }
-        $totalKm += $km;
 
         $primeiroPonto = $qtd > 0 ? $pontos[0] : null;
         $ultimoPonto = $qtd > 0 ? $pontos[$qtd - 1] : null;
@@ -1256,11 +1276,38 @@ function getRelatorioRotaCompleto(PDO $pdo): void
         $visitas = $stmtV->fetchAll(PDO::FETCH_ASSOC);
 
         $tempoVisitaMin = 0;
-        foreach ($visitas as $vis) {
+        foreach ($visitas as &$vis) {
             $d = (int)($vis['duracao_min'] ?? 0);
             if ($d > 0 && $d < 720) $tempoVisitaMin += $d;
+            if (!empty($vis['geo_lat']) && !empty($vis['geo_lng'])) {
+                $vis['geo_endereco'] = reverseGeocode($pdo, (float)$vis['geo_lat'], (float)$vis['geo_lng']);
+            }
         }
+        unset($vis);
         $totalTempoVisita += $tempoVisitaMin;
+
+        // Combinar pontos de rastreamento + pontos GPS das visitas em uma timeline unificada
+        $allGps = [];
+        foreach ($pontos as $p) {
+            $allGps[] = ['lat' => (float)$p['lat'], 'lng' => (float)$p['lng'], 'ts' => strtotime($p['criado_em'])];
+        }
+        foreach ($visitas as $vis) {
+            if (!empty($vis['geo_lat']) && !empty($vis['geo_lng'])) {
+                $ts = $vis['inicio_visita'] ? strtotime($vis['inicio_visita']) : strtotime($vis['fim_visita']);
+                $allGps[] = ['lat' => (float)$vis['geo_lat'], 'lng' => (float)$vis['geo_lng'], 'ts' => $ts];
+            }
+        }
+        usort($allGps, function ($a, $b) { return $a['ts'] - $b['ts']; });
+
+        $km = 0;
+        $allCount = count($allGps);
+        for ($i = 1; $i < $allCount; $i++) {
+            $segKm = $haversineKm($allGps[$i - 1]['lat'], $allGps[$i - 1]['lng'], $allGps[$i]['lat'], $allGps[$i]['lng']);
+            if ($segKm < 50) {
+                $km += $segKm;
+            }
+        }
+        $totalKm += $km;
 
         $resultado[] = [
             'rota_id' => $rid,
@@ -1275,9 +1322,11 @@ function getRelatorioRotaCompleto(PDO $pdo): void
             'local_inicio_lat' => $primeiroPonto ? (float)$primeiroPonto['lat'] : null,
             'local_inicio_lng' => $primeiroPonto ? (float)$primeiroPonto['lng'] : null,
             'local_inicio_hora' => $primeiroPonto ? $primeiroPonto['criado_em'] : null,
+            'local_inicio_endereco' => $primeiroPonto ? reverseGeocode($pdo, (float)$primeiroPonto['lat'], (float)$primeiroPonto['lng']) : null,
             'local_fim_lat' => $ultimoPonto ? (float)$ultimoPonto['lat'] : null,
             'local_fim_lng' => $ultimoPonto ? (float)$ultimoPonto['lng'] : null,
             'local_fim_hora' => $ultimoPonto ? $ultimoPonto['criado_em'] : null,
+            'local_fim_endereco' => $ultimoPonto ? reverseGeocode($pdo, (float)$ultimoPonto['lat'], (float)$ultimoPonto['lng']) : null,
             'visitas' => $visitas,
             'pontos' => array_map(function ($p) { return ['lat' => (float)$p['lat'], 'lng' => (float)$p['lng']]; }, $pontos),
         ];

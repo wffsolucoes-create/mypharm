@@ -4051,20 +4051,20 @@
                 html += '<h3 style="margin:0; font-size:1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-route" style="color:var(--primary); margin-right:8px;"></i>Rota #' + (idx + 1) + '</h3>';
                 html += '<span style="padding:4px 12px; border-radius:999px; font-size:0.75rem; font-weight:700; color:white; background:' + statusBg + ';">' + statusLabel + '</span>';
                 html += '</div>';
-                html += '<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:14px;">';
+                var endInicio = r.local_inicio_endereco || (r.local_inicio_lat ? (r.local_inicio_lat.toFixed(5) + ', ' + r.local_inicio_lng.toFixed(5)) : '—');
+                var endFim = r.local_fim_endereco || (r.local_fim_lat ? (r.local_fim_lat.toFixed(5) + ', ' + r.local_fim_lng.toFixed(5)) : '—');
+                html += '<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:12px;">';
                 html += roteiroInfoCard('fa-play-circle', 'Início da rota', fmtDataHoraBr(r.data_inicio));
                 html += roteiroInfoCard('fa-flag-checkered', 'Fim da rota', r.data_fim ? fmtDataHoraBr(r.data_fim) : '—');
                 html += roteiroInfoCard('fa-road', 'Distância', (r.km || 0).toFixed(1) + ' km');
                 html += roteiroInfoCard('fa-clock', 'Tempo de percurso', fmtMinutos(r.tempo_rota_min));
+                html += '</div>';
+                html += '<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px;">';
                 html += roteiroInfoCard('fa-user-clock', 'Tempo em visitas', fmtMinutos(r.tempo_visita_min));
                 html += roteiroInfoCard('fa-map-pin', 'Pontos GPS', r.qtd_pontos || 0);
+                html += roteiroInfoCard('fa-map-marker-alt', 'Local de início', endInicio);
+                html += roteiroInfoCard('fa-map-marker-alt', 'Local de encerramento', endFim);
                 if (r.pausado_em) html += roteiroInfoCard('fa-pause-circle', 'Pausada em', fmtDataHoraBr(r.pausado_em));
-                html += '<div style="padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);">' +
-                    '<div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>Local de início</div>' +
-                    '<div id="roteiroLocalInicio_' + idx + '" style="font-size:0.85rem; font-weight:600; color:var(--text-primary);">' + (r.local_inicio_lat ? '<i class="fas fa-spinner fa-spin" style="opacity:0.5;"></i> Buscando...' : '—') + '</div></div>';
-                html += '<div style="padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);">' +
-                    '<div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>Local de encerramento</div>' +
-                    '<div id="roteiroLocalFim_' + idx + '" style="font-size:0.85rem; font-weight:600; color:var(--text-primary);">' + (r.local_fim_lat ? '<i class="fas fa-spinner fa-spin" style="opacity:0.5;"></i> Buscando...' : '—') + '</div></div>';
                 html += '</div>';
                 // Visitas da rota
                 if (r.visitas && r.visitas.length > 0) {
@@ -4098,44 +4098,6 @@
             });
             el.innerHTML = html;
             el.style.display = 'block';
-            // Geocodificação reversa para preencher endereços
-            rotas.forEach(function (r, idx) {
-                if (r.local_inicio_lat) roteiroReverseGeocode(r.local_inicio_lat, r.local_inicio_lng, 'roteiroLocalInicio_' + idx);
-                if (r.local_fim_lat) roteiroReverseGeocode(r.local_fim_lat, r.local_fim_lng, 'roteiroLocalFim_' + idx);
-            });
-        }
-        var __roteiroGeoCache = {};
-        function roteiroReverseGeocode(lat, lng, elId) {
-            var key = lat.toFixed(5) + ',' + lng.toFixed(5);
-            if (__roteiroGeoCache[key]) {
-                var el = document.getElementById(elId);
-                if (el) el.textContent = __roteiroGeoCache[key];
-                return;
-            }
-            fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=18&addressdetails=1', { headers: { 'Accept-Language': 'pt-BR' } })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    var addr = '';
-                    if (data && data.address) {
-                        var a = data.address;
-                        var partes = [];
-                        if (a.road) partes.push(a.road + (a.house_number ? ', ' + a.house_number : ''));
-                        if (a.suburb || a.neighbourhood) partes.push(a.suburb || a.neighbourhood);
-                        if (a.city || a.town || a.village) partes.push(a.city || a.town || a.village);
-                        addr = partes.join(' - ');
-                    }
-                    if (!addr && data && data.display_name) {
-                        addr = data.display_name.split(',').slice(0, 3).join(',');
-                    }
-                    if (!addr) addr = lat.toFixed(5) + ', ' + lng.toFixed(5);
-                    __roteiroGeoCache[key] = addr;
-                    var el = document.getElementById(elId);
-                    if (el) el.textContent = addr;
-                })
-                .catch(function () {
-                    var el = document.getElementById(elId);
-                    if (el) el.textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
-                });
         }
         function roteiroInfoCard(icon, label, value) {
             return '<div style="padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);">' +
@@ -4194,36 +4156,41 @@
                     __roteiroMarkers.push(endM);
                 }
             });
-            // Marcadores de visitas com GPS
-            var visitaIcon = L.divIcon({
-                className: 'roteiro-visita-icon',
-                html: '<i class="fas fa-user-md" style="color:#fff; font-size:14px;"></i>',
-                iconSize: [30, 30],
-                iconAnchor: [15, 15],
-                popupAnchor: [0, -15]
-            });
-            // Sequência de visitas para direção da rota
+            // Marcadores de visitas com GPS (numerados)
             var visitasPts = [];
+            var visitaNumGlobal = 0;
             rotas.forEach(function (r) {
                 if (!r.visitas) return;
                 r.visitas.forEach(function (v) {
                     var lat = parseFloat(v.geo_lat);
                     var lng = parseFloat(v.geo_lng);
                     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+                    visitaNumGlobal++;
+                    var num = visitaNumGlobal;
                     allLatLngs.push([lat, lng]);
                     visitasPts.push({ prescritor: v.prescritor, lat: lat, lng: lng });
-                    var popupParts = [];
-                    popupParts.push('<div style="font-weight:800; font-size:0.95rem; margin-bottom:4px;">' + escNotif(v.prescritor || '—') + '</div>');
-                    if (v.local_visita) popupParts.push('<div style="font-size:0.82rem; color:#555; margin-bottom:3px;"><i class="fas fa-map-marker-alt" style="margin-right:4px; color:#EF4444;"></i>' + escNotif(v.local_visita) + '</div>');
-                    var dataStr = v.data_visita ? v.data_visita.split('-').reverse().join('/') : '';
+                    var numIcon = L.divIcon({
+                        className: 'roteiro-visita-icon',
+                        html: '<span style="font-size:13px; font-weight:800; color:#fff; line-height:30px;">' + num + '</span>',
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 15],
+                        popupAnchor: [0, -15]
+                    });
+                    var dataStr = v.data_visita ? v.data_visita.split('-').reverse().join('/') : '—';
                     var horaInicio = fmtHoraBr(v.inicio_visita);
                     var horaFim = v.hora_fim || fmtHoraBr(v.fim_visita);
-                    popupParts.push('<div style="font-size:0.8rem; color:#666;"><i class="far fa-calendar" style="margin-right:4px;"></i>' + dataStr + '</div>');
-                    popupParts.push('<div style="font-size:0.8rem; color:#666;"><i class="far fa-clock" style="margin-right:4px;"></i>' + horaInicio + ' → ' + horaFim + '</div>');
-                    if (v.status_visita) popupParts.push('<div style="font-size:0.78rem; margin-top:3px;"><b>Status:</b> ' + escNotif(v.status_visita) + '</div>');
-                    var marker = L.marker([lat, lng], { icon: visitaIcon }).addTo(__roteiroMap);
-                    marker.bindPopup('<div style="min-width:180px;">' + popupParts.join('') + '</div>', { minWidth: 200 });
-                    marker.bindTooltip(escNotif(v.prescritor || '—'), { direction: 'top', className: 'roteiro-tooltip' });
+                    var enderecoVisita = v.geo_endereco || v.local_visita || '—';
+                    var popupHtml = '<div style="min-width:200px;">';
+                    popupHtml += '<div style="font-weight:800; font-size:0.95rem; margin-bottom:6px; color:#1e293b;">' + num + '. ' + escNotif(v.prescritor || '—') + '</div>';
+                    popupHtml += '<div style="font-size:0.82rem; color:#555; margin-bottom:5px;"><i class="fas fa-map-marker-alt" style="margin-right:4px; color:#EF4444;"></i>' + escNotif(enderecoVisita) + '</div>';
+                    popupHtml += '<div style="font-size:0.82rem; color:#555; margin-bottom:3px;"><i class="far fa-calendar" style="margin-right:4px; color:#2563EB;"></i>' + dataStr + '</div>';
+                    popupHtml += '<div style="font-size:0.82rem; color:#555; margin-bottom:3px;"><i class="far fa-clock" style="margin-right:4px; color:#2563EB;"></i>' + horaInicio + ' → ' + horaFim + '</div>';
+                    if (v.duracao_min > 0) popupHtml += '<div style="font-size:0.82rem; color:#555; margin-bottom:3px;"><i class="fas fa-hourglass-half" style="margin-right:4px; color:#F59E0B;"></i>' + fmtMinutos(v.duracao_min) + '</div>';
+                    if (v.status_visita) popupHtml += '<div style="font-size:0.78rem; margin-top:4px; padding:2px 8px; display:inline-block; border-radius:999px; background:' + (v.status_visita === 'Realizada' ? '#10B981' : '#94a3b8') + '; color:#fff; font-weight:700;">' + escNotif(v.status_visita) + '</div>';
+                    popupHtml += '</div>';
+                    var marker = L.marker([lat, lng], { icon: numIcon }).addTo(__roteiroMap);
+                    marker.bindPopup(popupHtml, { minWidth: 220 });
+                    marker.bindTooltip('<b>' + num + '</b> — ' + escNotif(v.prescritor || '—'), { direction: 'top', className: 'roteiro-tooltip' });
                     __roteiroMarkers.push(marker);
                 });
             });

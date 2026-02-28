@@ -330,3 +330,83 @@ function removeUserSession(PDO $pdo, int $userId): void
         // ignora se a tabela não existir
     }
 }
+
+function initGeocacheTable(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) return;
+    $pdo->exec("CREATE TABLE IF NOT EXISTS geocache (
+        lat_key DECIMAL(7,5) NOT NULL,
+        lng_key DECIMAL(7,5) NOT NULL,
+        endereco VARCHAR(500) NOT NULL DEFAULT '',
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (lat_key, lng_key)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $done = true;
+}
+
+/**
+ * Reverse geocoding via Nominatim com cache no banco.
+ * Retorna endereço legível ou coordenadas formatadas como fallback.
+ */
+function reverseGeocode(PDO $pdo, ?float $lat, ?float $lng): string
+{
+    if ($lat === null || $lng === null) return '—';
+
+    $latKey = round($lat, 5);
+    $lngKey = round($lng, 5);
+
+    initGeocacheTable($pdo);
+
+    $stmt = $pdo->prepare("SELECT endereco FROM geocache WHERE lat_key = :lat AND lng_key = :lng LIMIT 1");
+    $stmt->execute(['lat' => $latKey, 'lng' => $lngKey]);
+    $cached = $stmt->fetchColumn();
+    if ($cached !== false && $cached !== '') {
+        return $cached;
+    }
+
+    $url = 'https://nominatim.openstreetmap.org/reverse?format=json'
+         . '&lat=' . $lat . '&lon=' . $lng
+         . '&zoom=18&addressdetails=1&accept-language=pt-BR';
+
+    $ctx = stream_context_create([
+        'http' => [
+            'timeout' => 5,
+            'header' => "User-Agent: MyPharm/1.0\r\nAccept-Language: pt-BR\r\n",
+        ],
+    ]);
+
+    $addr = '';
+    try {
+        $json = @file_get_contents($url, false, $ctx);
+        if ($json) {
+            $data = json_decode($json, true);
+            if (!empty($data['address'])) {
+                $a = $data['address'];
+                $partes = [];
+                if (!empty($a['road'])) $partes[] = $a['road'] . (!empty($a['house_number']) ? ', ' . $a['house_number'] : '');
+                if (!empty($a['suburb'] ?? $a['neighbourhood'] ?? '')) $partes[] = $a['suburb'] ?? $a['neighbourhood'];
+                if (!empty($a['city'] ?? $a['town'] ?? $a['village'] ?? '')) $partes[] = $a['city'] ?? $a['town'] ?? $a['village'];
+                $addr = implode(' - ', $partes);
+            }
+            if (!$addr && !empty($data['display_name'])) {
+                $addr = implode(', ', array_slice(explode(', ', $data['display_name']), 0, 3));
+            }
+        }
+    } catch (Throwable $e) {
+        // fallback silencioso
+    }
+
+    if (!$addr) {
+        $addr = number_format($lat, 5, '.', '') . ', ' . number_format($lng, 5, '.', '');
+    }
+
+    try {
+        $ins = $pdo->prepare("INSERT IGNORE INTO geocache (lat_key, lng_key, endereco) VALUES (:lat, :lng, :end)");
+        $ins->execute(['lat' => $latKey, 'lng' => $lngKey, 'end' => $addr]);
+    } catch (Throwable $e) {
+        // ignora erro de insert
+    }
+
+    return $addr;
+}
