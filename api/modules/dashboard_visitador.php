@@ -1191,10 +1191,10 @@ function dashboardAnalisePrescritor(PDO $pdo): void
 
     try {
         // ── 1) Evolução mensal de VENDAS (valores R$) ──
+        // Aprovados: gestao_pedidos (pedidos efetivamente aprovados)
         $sqlVendas = "
             SELECT MONTH(gp.data_aprovacao) as mes,
-                COALESCE(SUM(CASE WHEN gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado','Cancelado','Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%') THEN gp.preco_liquido ELSE 0 END),0) as valor_aprovado,
-                COALESCE(SUM(CASE WHEN gp.status_financeiro IN ('Recusado','Cancelado','Orçamento') OR gp.status_financeiro LIKE '%carrinho%' THEN gp.preco_liquido ELSE 0 END),0) as valor_reprovado
+                COALESCE(SUM(CASE WHEN gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado','Cancelado','Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%') THEN gp.preco_liquido ELSE 0 END),0) as valor_aprovado
             FROM gestao_pedidos gp
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = pc.nome AND $visWhere
             WHERE gp.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = :prescritor AND gp.data_aprovacao IS NOT NULL
@@ -1202,13 +1202,29 @@ function dashboardAnalisePrescritor(PDO $pdo): void
         $stmtV = $pdo->prepare($sqlVendas);
         $stmtV->execute($paramsBase);
         $vendasMap = [];
-        while ($r = $stmtV->fetch(PDO::FETCH_ASSOC)) $vendasMap[(int)$r['mes']] = $r;
+        while ($r = $stmtV->fetch(PDO::FETCH_ASSOC)) {
+            $vendasMap[(int)$r['mes']] = ['valor_aprovado' => (float)$r['valor_aprovado']];
+        }
+        // Reprovados: itens_orcamentos_pedidos (pedidos recusados ou no carrinho não estão em gestao_pedidos)
+        $sqlVendasRepr = "
+            SELECT MONTH(i.`data`) as mes, COALESCE(SUM(i.valor_liquido),0) as valor_reprovado
+            FROM itens_orcamentos_pedidos i
+            INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = pc.nome AND $visWhere
+            WHERE i.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = :prescritor
+              AND (i.status = 'Recusado' OR i.status = 'No carrinho')
+            GROUP BY MONTH(i.`data`) ORDER BY mes";
+        $stmtVR = $pdo->prepare($sqlVendasRepr);
+        $stmtVR->execute($paramsBase);
+        $vendasReprMap = [];
+        while ($r = $stmtVR->fetch(PDO::FETCH_ASSOC)) {
+            $vendasReprMap[(int)$r['mes']] = (float)$r['valor_reprovado'];
+        }
         $vendas_mensal = [];
         for ($m = 1; $m <= 12; $m++) {
             $vendas_mensal[] = [
                 'mes' => $m,
                 'valor_aprovado' => (float)($vendasMap[$m]['valor_aprovado'] ?? 0),
-                'valor_reprovado' => (float)($vendasMap[$m]['valor_reprovado'] ?? 0),
+                'valor_reprovado' => $vendasReprMap[$m] ?? 0.0,
             ];
         }
 
@@ -1412,7 +1428,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
         $stmtCn->execute($paramsBase);
         $dist_canal = $stmtCn->fetchAll(PDO::FETCH_ASSOC);
 
-        // ── 9) Top componentes ──
+        // ── 9) Top 10 componentes aprovados (por pedido: ordenado por qtd de pedidos, depois qtd) ──
         $sqlTopComp = "
             SELECT c.componente, COALESCE(SUM(CAST(c.quantidade_componente AS DECIMAL(20,6))),0) as qtd, COUNT(DISTINCT gp.numero_pedido, gp.serie_pedido) as pedidos
             FROM pedidos_detalhado_componentes c
@@ -1421,10 +1437,24 @@ function dashboardAnalisePrescritor(PDO $pdo): void
             WHERE gp.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = :prescritor
               AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado','Cancelado','Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%'))
               AND c.componente IS NOT NULL AND c.componente != ''
-            GROUP BY c.componente ORDER BY qtd DESC LIMIT 7";
+            GROUP BY c.componente ORDER BY pedidos DESC, qtd DESC LIMIT 10";
         $stmtTC = $pdo->prepare($sqlTopComp);
         $stmtTC->execute($paramsBase);
         $top_componentes = $stmtTC->fetchAll(PDO::FETCH_ASSOC);
+
+        // ── 9b) Top 10 componentes reprovados (por pedido: itens_orcamentos_pedidos Recusado/No carrinho) ──
+        $sqlTopCompRepr = "
+            SELECT c.componente, COALESCE(SUM(CAST(c.quantidade_componente AS DECIMAL(20,6))),0) as qtd, COUNT(DISTINCT i.numero, i.serie) as pedidos
+            FROM pedidos_detalhado_componentes c
+            INNER JOIN itens_orcamentos_pedidos i ON c.numero = i.numero AND c.serie = i.serie AND c.ano_referencia = i.ano_referencia
+            INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = pc.nome AND $visWhere
+            WHERE i.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = :prescritor
+              AND (i.status = 'Recusado' OR i.status = 'No carrinho')
+              AND c.componente IS NOT NULL AND c.componente != ''
+            GROUP BY c.componente ORDER BY pedidos DESC, qtd DESC LIMIT 10";
+        $stmtTCR = $pdo->prepare($sqlTopCompRepr);
+        $stmtTCR->execute($paramsBase);
+        $top_componentes_reprovados = $stmtTCR->fetchAll(PDO::FETCH_ASSOC);
 
         // ── 10) Dados de visitas ──
         $sqlVis = "
@@ -1497,6 +1527,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
             'top_formas' => $top_formas,
             'distribuicao_canal' => $dist_canal,
             'top_componentes' => $top_componentes,
+            'top_componentes_reprovados' => $top_componentes_reprovados,
             'visitas' => $visitas,
             'recorrencia' => $recorrencia,
             'tendencia' => $tendencia,

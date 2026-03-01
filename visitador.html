@@ -207,6 +207,33 @@
         .badge-status.aprovado { background: rgba(16, 185, 129, 0.2); color: #10B981; }
         .badge-status.recusado { background: rgba(239, 68, 68, 0.2); color: #EF4444; }
 
+        /* Modal Componentes – responsivo (tablet já ok; celular) */
+        @media (max-width: 640px) {
+            .modal-componentes-overlay { padding: 8px !important; align-items: flex-start !important; }
+            .modal-componentes-card { max-width: 100% !important; max-height: 100% !important; border-radius: 10px; }
+            .modal-componentes-header { padding: 12px 14px !important; flex-wrap: wrap; gap: 8px; }
+            .modal-componentes-title-wrap { width: 100%; }
+            #modalComponentesPrescritorTitle { font-size: 1rem !important; }
+            #modalComponentesPrescritorSubtitle { font-size: 0.75rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .modal-componentes-body { padding: 12px 14px !important; }
+            #modalComponentesPrescritor .pedidos-filters { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px !important; margin-bottom: 12px !important; }
+            #modalComponentesPrescritor .pedidos-filters > div { width: 100%; }
+            #modalComponentesPrescritor .pedidos-filters > div:not(.pedidos-search-wrap) { flex-wrap: wrap; }
+            #modalComponentesPrescritor .pedidos-filters label { min-width: 32px; }
+            #modalComponentesPrescritor .pedidos-filters input[type="date"] { flex: 1; min-width: 0; }
+            #modalComponentesPrescritor .pedidos-filters .btn-aplicar { width: 100%; }
+            #modalComponentesPrescritor .pedidos-filters .pedidos-search-wrap { max-width: none !important; min-width: 0 !important; }
+            .modal-componentes-cards { grid-template-columns: 1fr !important; gap: 8px !important; margin-bottom: 12px !important; }
+            .modal-componentes-cards .card-mini { padding: 10px 14px !important; }
+            .modal-componentes-cards .card-mini .card-mini-value { font-size: 1.2rem !important; }
+            .modal-componentes-table-wrap { max-height: min(65vh, 400px) !important; min-height: 120px !important; border-radius: 8px; -webkit-overflow-scrolling: touch; }
+            .modal-componentes-table-wrap .relatorio-table { font-size: 0.8rem; }
+            .modal-componentes-table-wrap .relatorio-table thead th { padding: 8px 10px !important; font-size: 0.7rem !important; }
+            .modal-componentes-table-wrap .relatorio-table tbody td { padding: 8px 10px !important; }
+            #modalComponentesPrescritorBody .modal-componentes-table-wrap .relatorio-table th:first-child,
+            #modalComponentesPrescritorBody .modal-componentes-table-wrap .relatorio-table td:first-child { min-width: 100px; max-width: 140px; word-break: break-word; white-space: normal; }
+        }
+
         /* Página Prescritores – mesmo estilo da página Pedidos */
         #paginaPrescritores .pedidos-page-header {
             margin-bottom: 24px;
@@ -898,8 +925,55 @@
                 padding: 12px;
             }
         }
+
+        /* Página Pedidos – celular: tabela e paginação */
+        @media (max-width: 640px) {
+            #paginaPedidos { padding: 0 10px 16px !important; }
+            #paginaPedidos .pedidos-page-header { margin-bottom: 14px; }
+            #paginaPedidos .pedidos-page-header h2 { font-size: 1.1rem; flex-wrap: wrap; }
+            #paginaPedidos .pedidos-page-header h2 .pedidos-icon { width: 36px; height: 36px; font-size: 0.9rem; }
+            #paginaPedidos .pedidos-page-header p { font-size: 0.8rem; }
+            #paginaPedidos .pedidos-filters { padding: 12px 14px !important; gap: 10px; margin-bottom: 14px; }
+            #paginaPedidos .pedidos-filters > div { flex-wrap: wrap; }
+            #paginaPedidos .pedidos-filters label { min-width: 28px; font-size: 0.75rem; }
+            #paginaPedidos .pedidos-filters input[type="date"],
+            #paginaPedidos .pedidos-filters select { font-size: 0.85rem; padding: 8px 10px; }
+            #paginaPedidosCards { grid-template-columns: 1fr !important; gap: 10px; margin-bottom: 14px; }
+            #paginaPedidosCards .card { padding: 12px 14px; }
+            #paginaPedidosCards .card > div:last-child { font-size: 1.2rem; }
+            #paginaPedidosBody { overflow-x: auto; -webkit-overflow-scrolling: touch; min-height: 180px; }
+            #paginaPedidos .pedidos-table { font-size: 0.8rem; min-width: 560px; }
+            #paginaPedidos .pedidos-table thead th { padding: 8px 10px; font-size: 0.75rem; white-space: nowrap; }
+            #paginaPedidos .pedidos-table tbody td { padding: 8px 10px; }
+            #paginaPedidos .pedidos-table thead th:nth-child(1) { width: 70px; }
+            #paginaPedidos .pedidos-table thead th:nth-child(2) { width: 44px; }
+            #paginaPedidos .pedidos-table thead th:nth-child(3),
+            #paginaPedidos .pedidos-table thead th:nth-child(4) { width: 82px; }
+            #paginaPedidos .pedidos-table thead th:nth-child(5),
+            #paginaPedidos .pedidos-table thead th:nth-child(6) { max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+            #paginaPedidos .pedidos-pagination { flex-direction: column; align-items: stretch; gap: 10px; padding: 10px 14px; font-size: 0.8rem; }
+            #paginaPedidos .pedidos-pagination .prescritores-pag-btns { justify-content: center; flex-wrap: wrap; }
+            #paginaPedidos .pedidos-pagination button { padding: 10px 14px; min-width: 40px; }
+        }
     </style>
     <link rel="stylesheet" href="css/visitador.css">
+    <!-- Fallback: painel Mensagens e Enviar mensagem (funciona mesmo se visitador.css não carregar no servidor/hosting) -->
+    <style>
+        #notificationsPanel.notifications-panel { display: none; position: absolute; top: calc(100% + 10px); right: 0; width: 380px; max-width: calc(100vw - 2rem); max-height: 540px; min-height: 320px; background: var(--bg-card, #1e1e2e); border: 1px solid var(--border, #333); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); z-index: 1100; flex-direction: column; overflow: hidden; }
+        #notificationsPanel.notifications-panel.open { display: flex !important; }
+        .notifications-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border, #333); flex-shrink: 0; }
+        .notifications-body { display: flex; flex-direction: column; overflow: hidden; flex: 1; min-height: 0; }
+        .notifications-list { flex: 1; overflow-y: auto; padding: 12px; }
+        @media (max-width: 1024px) {
+            #notificationsPanel.notifications-panel { position: fixed; left: 50%; top: 50%; right: auto; transform: translate(-50%, -50%); width: 90vw; max-width: 420px; max-height: 88vh; min-height: 380px; }
+        }
+        .notifications-send-wrap { display: block; padding: 14px 18px; border-top: 1px solid var(--border, #333); background: var(--bg-card, #1e1e2e); box-sizing: border-box; flex-shrink: 0; }
+        .notifications-send-label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary, #94a3b8); margin-bottom: 8px; }
+        .notifications-send-select, .notifications-send-textarea { display: block; width: 100%; padding: 10px 12px; margin-bottom: 10px; border: 1px solid var(--border, #333); border-radius: 8px; font-size: 0.9rem; box-sizing: border-box; background: var(--bg-body, #252530); color: var(--text-primary, #f1f5f9); }
+        .notifications-send-textarea { resize: vertical; min-height: 72px; }
+        .notifications-send-btn { display: block; width: 100%; padding: 10px 14px; margin-top: 4px; border: none; border-radius: 8px; background: var(--primary, #3b82f6); color: #fff; font-weight: 600; font-size: 0.9rem; cursor: pointer; box-sizing: border-box; }
+        .notifications-send-btn i { margin-right: 6px; }
+    </style>
     <style>body{visibility:hidden;}</style>
 </head>
 
@@ -1979,16 +2053,16 @@
     </div>
 
     <!-- Modal Lista de componentes (aprovados ou recusados) por prescritor -->
-    <div id="modalComponentesPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
-        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
-            <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
-                <div>
+    <div id="modalComponentesPrescritor" class="modal-componentes-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div class="modal-componentes-card" style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div class="modal-componentes-header" style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <div class="modal-componentes-title-wrap" style="min-width:0;">
                     <h2 id="modalComponentesPrescritorTitle" style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:0;"><i class="fas fa-atom" style="color:var(--primary); margin-right:8px;"></i>Componentes</h2>
                     <p id="modalComponentesPrescritorSubtitle" style="font-size:0.8rem; color:var(--text-secondary); margin:4px 0 0 0;">Carregando...</p>
                 </div>
-                <button type="button" onclick="closeModalComponentesPrescritor()" style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px; border-radius:6px;" onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#EF4444'" onmouseout="this.style.background='none';this.style.color='var(--text-secondary)'">&times;</button>
+                <button type="button" onclick="closeModalComponentesPrescritor()" style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px; border-radius:6px; flex-shrink:0;" onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#EF4444'" onmouseout="this.style.background='none';this.style.color='var(--text-secondary)'">&times;</button>
             </div>
-            <div id="modalComponentesPrescritorBody" style="overflow:visible; flex:1; min-height:0; padding:16px 24px;">
+            <div id="modalComponentesPrescritorBody" class="modal-componentes-body" style="overflow:visible; flex:1; min-height:0; padding:16px 24px;">
                 <div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
             </div>
             <div style="padding:12px 24px; border-top:1px solid var(--border); background:var(--bg-card); flex-shrink:0; text-align:right;">
@@ -2030,24 +2104,57 @@
     </div>
 
     <!-- Modal Análises do prescritor (painel de inteligência completo) -->
-    <div id="modalAnalisesPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3100; justify-content:center; align-items:flex-start; padding:16px; box-sizing:border-box; overflow-y:auto;">
-        <div style="background:var(--bg-card); border-radius:12px; width:100%; max-width:960px; margin:auto; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.25); border:1px solid var(--border); overflow:hidden;">
-            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
-                <div>
+    <div id="modalAnalisesPrescritor" class="modal-analise-prescritor-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3100; justify-content:center; align-items:flex-start; padding:16px; box-sizing:border-box; overflow-y:auto;">
+        <div class="modal-analise-prescritor-card" style="background:var(--bg-card); border-radius:12px; width:100%; max-width:960px; margin:auto; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.25); border:1px solid var(--border); overflow:hidden;">
+            <div class="modal-analise-prescritor-header" style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; flex-wrap:wrap; gap:10px;">
+                <div class="modal-analise-prescritor-title-wrap" style="min-width:0;">
                     <h3 id="modalAnalisesPrescritorTitle" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-brain" style="margin-right:8px; color:#8b5cf6;"></i>Inteligência do Prescritor</h3>
                     <p id="modalAnalisesPrescritorSubtitle" style="font-size:0.8rem; color:var(--text-secondary); margin:4px 0 0 0;">Prescritor</p>
                 </div>
-                <div style="display:flex; align-items:center; gap:10px;">
+                <div class="modal-analise-prescritor-actions" style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
                     <label style="font-size:0.8rem; color:var(--text-secondary); font-weight:600;">Ano</label>
                     <select id="modalAnalisesPrescritorAno" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;"></select>
                     <button type="button" onclick="closeModalAnalisesPrescritor()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px;">&times;</button>
                 </div>
             </div>
-            <div id="modalAnalisesPrescritorBody" style="padding:18px 22px; overflow-y:auto; max-height:calc(90vh - 110px); min-height:0;">
+            <div id="modalAnalisesPrescritorBody" class="modal-analise-prescritor-body" style="padding:18px 22px; overflow-y:auto; max-height:calc(90vh - 110px); min-height:0;">
                 <div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
             </div>
         </div>
     </div>
+    <style>
+        /* Modal Inteligência do Prescritor — responsivo */
+        @media (max-width: 1024px) {
+            .modal-analise-prescritor-overlay { padding: 12px; }
+            .modal-analise-prescritor-body { padding: 14px 16px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-grid-2col { grid-template-columns: 1fr !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-chart-section h4 { font-size: 0.8rem !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-chart-wrap { height: 180px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-score-row { flex-wrap: wrap; gap: 12px; }
+            #modalAnalisesPrescritorBody.analise-content .analise-insight-item { min-width: 100% !important; }
+        }
+        @media (max-width: 640px) {
+            .modal-analise-prescritor-overlay { padding: 8px; align-items: stretch !important; }
+            .modal-analise-prescritor-card { max-height: 100% !important; border-radius: 10px; }
+            .modal-analise-prescritor-header { padding: 12px 14px !important; flex-direction: column; align-items: flex-start !important; }
+            .modal-analise-prescritor-title-wrap { width: 100%; }
+            #modalAnalisesPrescritorTitle { font-size: 1rem !important; }
+            #modalAnalisesPrescritorSubtitle { font-size: 0.75rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .modal-analise-prescritor-actions { width: 100%; justify-content: space-between; }
+            .modal-analise-prescritor-body { padding: 12px 14px !important; max-height: none !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-kpi-grid { grid-template-columns: 1fr !important; gap: 6px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-grid-2col { grid-template-columns: 1fr !important; gap: 12px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-score-row { flex-direction: column; align-items: stretch; }
+            #modalAnalisesPrescritorBody.analise-content .analise-score-circle { width: 56px !important; height: 56px !important; margin: 0 auto; }
+            #modalAnalisesPrescritorBody.analise-content .analise-score-circle svg { width: 100% !important; height: 100% !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-insight-item { min-width: 100% !important; font-size: 0.7rem !important; padding: 6px 10px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-chart-section { margin-bottom: 14px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-chart-wrap { height: 160px !important; min-height: 160px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-doughnut-wrap { height: 160px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-bar-wrap { min-height: 120px !important; }
+        }
+    </style>
 
     <!-- Modal para Encerrar Visita (Relatório + Próxima Visita) -->
     <div id="modalEncerrarVisita" class="modal-encerrar-visita-overlay"
@@ -2743,8 +2850,8 @@
             var html = '';
 
             // ── Score ──
-            html += '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:14px 18px;background:var(--bg-body);border:1px solid var(--border);border-radius:12px;">';
-            html += '<div style="position:relative;width:70px;height:70px;flex-shrink:0;">';
+            html += '<div class="analise-score-row" style="display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:14px 18px;background:var(--bg-body);border:1px solid var(--border);border-radius:12px;">';
+            html += '<div class="analise-score-circle" style="position:relative;width:70px;height:70px;flex-shrink:0;">';
             html += '<svg viewBox="0 0 36 36" style="width:70px;height:70px;transform:rotate(-90deg);">';
             html += '<circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(128,128,128,0.15)" stroke-width="3"/>';
             html += '<circle cx="18" cy="18" r="15.5" fill="none" stroke="' + scoreCor + '" stroke-width="3" stroke-dasharray="' + (score * 97.4 / 100) + ' 97.4" stroke-linecap="round"/>';
@@ -2759,13 +2866,13 @@
             if (insights.length > 0) {
                 html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">';
                 insights.forEach(function(ins) {
-                    html += '<div style="flex:1;min-width:220px;padding:8px 12px;background:var(--bg-body);border:1px solid var(--border);border-radius:8px;font-size:0.75rem;color:var(--text-secondary);line-height:1.4;">' + ins + '</div>';
+                    html += '<div class="analise-insight-item" style="flex:1;min-width:220px;padding:8px 12px;background:var(--bg-body);border:1px solid var(--border);border-radius:8px;font-size:0.75rem;color:var(--text-secondary);line-height:1.4;">' + ins + '</div>';
                 });
                 html += '</div>';
             }
 
             // ── KPI Cards ──
-            html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px;">';
+            html += '<div class="analise-kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px;">';
             html += kpiCard('fa-check-circle', 'Faturamento aprovado', __fmtR$(kpis.total_aprovado), '');
             html += kpiCard('fa-times-circle', 'Total reprovado', __fmtR$(kpis.total_reprovado), '');
             html += kpiCard('fa-percentage', 'Taxa aprovação', __fmtPct(kpis.taxa_aprovacao), compSub(kpis.taxa_aprovacao, comp.media_taxa_aprovacao_carteira, 'pct'));
@@ -2779,7 +2886,7 @@
             // ── Gráficos de evolução (3 linhas) ──
             var meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
             function chartSection(id, titulo) {
-                return '<div style="margin-bottom:18px;"><h4 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px 0;font-weight:600;">' + titulo + '</h4><div style="height:200px;position:relative;"><canvas id="' + id + '"></canvas></div></div>';
+                return '<div class="analise-chart-section" style="margin-bottom:18px;"><h4 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px 0;font-weight:600;">' + titulo + '</h4><div class="analise-chart-wrap" style="height:200px;position:relative;"><canvas id="' + id + '"></canvas></div></div>';
             }
             html += chartSection('chartAnalVendas', 'Evolução mensal — Valores aprovados x reprovados (R$)');
             html += chartSection('chartAnalPedidos', 'Evolução mensal — Pedidos aprovados x reprovados (qtd)');
@@ -2788,31 +2895,39 @@
             // ── Distribuições (doughnuts + top componentes) ──
             var topFormas = data.top_formas || [];
             var distCanal = data.distribuicao_canal || [];
-            var topComp = data.top_componentes || [];
+            var topCompAprov = data.top_componentes || [];
+            var topCompReprov = data.top_componentes_reprovados || [];
 
             if (topFormas.length > 0 || distCanal.length > 0) {
-                html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;">';
+                html += '<div class="analise-grid-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;">';
                 if (topFormas.length > 0) {
                     html += '<div style="background:var(--bg-body);border:1px solid var(--border);border-radius:10px;padding:14px;">';
                     html += '<h4 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px 0;font-weight:600;">Top formas farmacêuticas</h4>';
-                    html += '<div style="height:180px;position:relative;"><canvas id="chartAnalFormas"></canvas></div></div>';
+                    html += '<div class="analise-doughnut-wrap" style="height:180px;position:relative;"><canvas id="chartAnalFormas"></canvas></div></div>';
                 }
                 if (distCanal.length > 0) {
                     html += '<div style="background:var(--bg-body);border:1px solid var(--border);border-radius:10px;padding:14px;">';
                     html += '<h4 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px 0;font-weight:600;">Canais de atendimento</h4>';
-                    html += '<div style="height:180px;position:relative;"><canvas id="chartAnalCanais"></canvas></div></div>';
+                    html += '<div class="analise-doughnut-wrap" style="height:180px;position:relative;"><canvas id="chartAnalCanais"></canvas></div></div>';
                 }
                 html += '</div>';
             }
 
-            if (topComp.length > 0) {
-                html += '<div style="background:var(--bg-body);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:18px;">';
-                html += '<h4 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px 0;font-weight:600;">Top componentes mais prescritos</h4>';
-                html += '<div style="height:' + Math.max(140, topComp.length * 28) + 'px;position:relative;"><canvas id="chartAnalTopComp"></canvas></div></div>';
-            }
+            html += '<div class="analise-grid-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;">';
+            html += '<div style="background:var(--bg-body);border:1px solid var(--border);border-radius:10px;padding:14px;">';
+            html += '<h4 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px 0;font-weight:600;"><i class="fas fa-check-circle" style="color:#059669;margin-right:6px;"></i>Top 10 componentes aprovados (por pedido)</h4>';
+            html += '<div class="analise-bar-wrap" style="height:' + Math.max(140, Math.min(10, topCompAprov.length) * 28) + 'px;position:relative;min-height:140px;"><canvas id="chartAnalTopCompAprov"></canvas></div>';
+            if (topCompAprov.length === 0) html += '<p style="font-size:0.8rem;color:var(--text-secondary);margin:8px 0 0 0;">Nenhum componente aprovado no período.</p>';
+            html += '</div>';
+            html += '<div style="background:var(--bg-body);border:1px solid var(--border);border-radius:10px;padding:14px;">';
+            html += '<h4 style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px 0;font-weight:600;"><i class="fas fa-times-circle" style="color:#dc2626;margin-right:6px;"></i>Top 10 componentes reprovados (por pedido)</h4>';
+            html += '<div class="analise-bar-wrap" style="height:' + Math.max(140, Math.min(10, topCompReprov.length) * 28) + 'px;position:relative;min-height:140px;"><canvas id="chartAnalTopCompReprov"></canvas></div>';
+            if (topCompReprov.length === 0) html += '<p style="font-size:0.8rem;color:var(--text-secondary);margin:8px 0 0 0;">Nenhum componente reprovado no período.</p>';
+            html += '</div>';
+            html += '</div>';
 
             // ── Visitas e recorrência ──
-            html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;">';
+            html += '<div class="analise-kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;">';
             html += kpiCard('fa-map-marker-alt', 'Visitas realizadas', __fmtInt(vis.total_visitas), '');
             html += kpiCard('fa-calendar-check', 'Última visita', __fmtData(vis.ultima_visita), vis.dias_sem_visita !== null ? vis.dias_sem_visita + ' dias atrás' : '');
             html += kpiCard('fa-redo', 'Recorrência', __fmtPct(rec.taxa_recorrencia), rec.pacientes_recorrentes + ' de ' + rec.total_pacientes + ' pacientes');
@@ -2822,6 +2937,7 @@
             // ── Botão fechar ──
             html += '<div style="text-align:right;padding-top:12px;border-top:1px solid var(--border);margin-top:8px;"><button type="button" onclick="closeModalAnalisesPrescritor()" style="padding:10px 20px;border-radius:8px;border:1px solid var(--border);background:var(--bg-body);color:var(--text-primary);font-weight:600;cursor:pointer;">Fechar</button></div>';
 
+            bodyEl.classList.add('analise-content');
             bodyEl.innerHTML = html;
 
             // ── Criar gráficos Chart.js ──
@@ -2880,11 +2996,20 @@
                     });
                 }
             }
-            if (topComp.length > 0) {
-                var tcEl = document.getElementById('chartAnalTopComp');
-                if (tcEl) {
-                    __modalAnalisesCharts.topComp = new Chart(tcEl.getContext('2d'), {
-                        type: 'bar', data: { labels: topComp.map(function(c){return c.componente||'—';}), datasets: [{ label: 'Quantidade', data: topComp.map(function(c){return parseFloat(c.qtd)||0;}), backgroundColor: '#6366f1', borderRadius: 4 }] },
+            if (topCompAprov.length > 0) {
+                var tcAEl = document.getElementById('chartAnalTopCompAprov');
+                if (tcAEl) {
+                    __modalAnalisesCharts.topCompAprov = new Chart(tcAEl.getContext('2d'), {
+                        type: 'bar', data: { labels: topCompAprov.map(function(c){return c.componente||'—';}), datasets: [{ label: 'Quantidade', data: topCompAprov.map(function(c){return parseFloat(c.qtd)||0;}), backgroundColor: '#059669', borderRadius: 4 }] },
+                        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+                    });
+                }
+            }
+            if (topCompReprov.length > 0) {
+                var tcREl = document.getElementById('chartAnalTopCompReprov');
+                if (tcREl) {
+                    __modalAnalisesCharts.topCompReprov = new Chart(tcREl.getContext('2d'), {
+                        type: 'bar', data: { labels: topCompReprov.map(function(c){return c.componente||'—';}), datasets: [{ label: 'Qtd', data: topCompReprov.map(function(c){return parseFloat(c.qtd)||0;}), backgroundColor: '#dc2626', borderRadius: 4 }] },
                         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
                     });
                 }
@@ -2907,16 +3032,37 @@
                 anoEl.innerHTML = opts.join('');
                 anoEl.onchange = function () { if (__modalAnalisesPrescritorNome) openModalAnalisesPrescritor(__modalAnalisesPrescritorNome); };
             }
-            bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando análise completa...</div>';
+            var jaTinhaConteudo = bodyEl.classList.contains('analise-content') && bodyEl.children.length > 0;
+            if (!jaTinhaConteudo) {
+                bodyEl.innerHTML = '<div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando análise completa...</div>';
+            } else {
+                var overlay = document.getElementById('analiseLoadingOverlay');
+                if (overlay) overlay.remove();
+                overlay = document.createElement('div');
+                overlay.id = 'analiseLoadingOverlay';
+                overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:100;border-radius:0 0 12px 12px;';
+                overlay.innerHTML = '<div style="background:var(--bg-card);padding:16px 24px;border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;gap:12px;"><i class="fas fa-spinner fa-spin" style="font-size:1.2rem;color:var(--primary);"></i><span style="color:var(--text-primary);font-weight:600;">Atualizando...</span></div>';
+                bodyEl.style.position = 'relative';
+                bodyEl.appendChild(overlay);
+                if (anoEl) anoEl.disabled = true;
+            }
             modal.style.display = 'flex';
             try {
                 var res = await apiGet('analise_prescritor', { prescritor: __modalAnalisesPrescritorNome, ano: ano });
+                var overlay2 = document.getElementById('analiseLoadingOverlay');
+                if (overlay2) overlay2.remove();
+                if (anoEl) anoEl.disabled = false;
                 if (res && res.error) {
+                    bodyEl.classList.remove('analise-content');
                     bodyEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--danger);">' + String(res.error).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>';
                     return;
                 }
                 __renderAnaliseCompleta(bodyEl, res);
             } catch (e) {
+                var overlay3 = document.getElementById('analiseLoadingOverlay');
+                if (overlay3) overlay3.remove();
+                if (anoEl) anoEl.disabled = false;
+                bodyEl.classList.remove('analise-content');
                 bodyEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--danger);">Erro ao carregar análises.</div>';
             }
         }
@@ -5008,6 +5154,10 @@
             var tbody = document.getElementById('paginaPrescritoresTbody');
             var pagEl = document.getElementById('paginaPrescritoresPagination');
             if (!tbody) return;
+            var searchInput = document.getElementById('searchPrescritoresPage');
+            var hadFocus = searchInput && document.activeElement === searchInput;
+            var savedSelStart = searchInput ? searchInput.selectionStart : 0;
+            var savedSelEnd = searchInput ? searchInput.selectionEnd : 0;
             var fullList = __paginaPrescritoresList || [];
             var totalAprovado = fullList.reduce(function (acc, p) { return acc + (parseFloat(p.valor_aprovado) || 0); }, 0);
             var totalRecusado = fullList.reduce(function (acc, p) { return acc + (parseFloat(p.valor_recusado) || 0); }, 0);
@@ -5035,6 +5185,10 @@
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-user-slash" style="margin-right:8px; opacity:0.6;"></i>Nenhum prescritor encontrado.</td></tr>';
                 if (pagEl) pagEl.innerHTML = '';
                 updatePaginaPrescritoresSortIcons();
+                if (hadFocus && searchInput) {
+                    searchInput.focus();
+                    try { searchInput.setSelectionRange(savedSelStart, savedSelEnd); } catch (e) { }
+                }
                 return;
             }
             var totalPages = Math.max(1, Math.ceil(list.length / __paginaPrescritoresPageSize));
@@ -5142,6 +5296,10 @@
                     if (typeof openModalAnalisesPrescritor === 'function') openModalAnalisesPrescritor(nome);
                 };
             });
+            if (hadFocus && searchInput) {
+                searchInput.focus();
+                try { searchInput.setSelectionRange(savedSelStart, savedSelEnd); } catch (e) { }
+            }
         }
 
         function paginaPrescritoresGoTo(page) {
@@ -5217,7 +5375,11 @@
             var tbody = document.getElementById('paginaPedidosTbody');
             var pagEl = document.getElementById('paginaPedidosPagination');
             if (!tbody) return;
-            var q = (document.getElementById('searchPedidosPage') || {}).value || '';
+            var searchInput = document.getElementById('searchPedidosPage');
+            var hadFocus = searchInput && document.activeElement === searchInput;
+            var savedSelStart = searchInput ? searchInput.selectionStart : 0;
+            var savedSelEnd = searchInput ? searchInput.selectionEnd : 0;
+            var q = (searchInput || {}).value || '';
             var dataDe = (document.getElementById('paginaPedidosDataDe') || {}).value || '';
             var dataAte = (document.getElementById('paginaPedidosDataAte') || {}).value || '';
             var filtroStatus = (document.getElementById('paginaPedidosFiltroStatus') || {}).value || '';
@@ -5271,6 +5433,10 @@
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-inbox" style="margin-right:8px; opacity:0.6;"></i>Nenhum pedido encontrado.</td></tr>';
                 if (pagEl) pagEl.innerHTML = '';
                 updatePaginaPedidosSortIcons();
+                if (hadFocus && searchInput) {
+                    searchInput.focus();
+                    try { searchInput.setSelectionRange(savedSelStart, savedSelEnd); } catch (e) { }
+                }
                 return;
             }
             var totalPages = Math.max(1, Math.ceil(list.length / __paginaPedidosPageSize));
@@ -5305,6 +5471,10 @@
                 pagHtml += '</span>';
                 pagEl.innerHTML = pagHtml;
                 pagEl.style.display = 'flex';
+            }
+            if (hadFocus && searchInput) {
+                searchInput.focus();
+                try { searchInput.setSelectionRange(savedSelStart, savedSelEnd); } catch (e) { }
             }
             updatePaginaPedidosSortIcons();
         }
