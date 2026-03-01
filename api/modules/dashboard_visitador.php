@@ -1068,10 +1068,12 @@ function dashboardEvolucaoPrescritor(PDO $pdo): void
         echo json_encode(['error' => 'Prescritor não informado', 'vendas_mensal' => [], 'componentes_mensal' => []], JSON_UNESCAPED_UNICODE);
         return;
     }
+    $prescritor = preg_replace('/\s+/', ' ', $prescritor);
+    $nome = preg_replace('/\s+/', ' ', $nome);
     $isMyPharm = (strcasecmp($nome, 'My Pharm') === 0);
     $visWhere = $isMyPharm
-        ? "(pc.visitador IS NULL OR pc.visitador = '' OR pc.visitador = 'My Pharm' OR UPPER(pc.visitador) = 'MY PHARM')"
-        : "pc.visitador = :nome";
+        ? "(pc.visitador IS NULL OR TRIM(pc.visitador) = '' OR LOWER(TRIM(pc.visitador)) = 'my pharm')"
+        : "LOWER(TRIM(pc.visitador)) = LOWER(TRIM(:nome))";
     $paramsBase = ['ano' => $ano, 'prescritor' => $prescritor];
     if (!$isMyPharm) {
         $paramsBase['nome'] = $nome;
@@ -1087,7 +1089,7 @@ function dashboardEvolucaoPrescritor(PDO $pdo): void
             FROM gestao_pedidos gp
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') = pc.nome AND " . $visWhere . "
             WHERE gp.ano_referencia = :ano
-              AND (COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') = :prescritor)
+              AND (LOWER(TRIM(COALESCE(NULLIF(gp.prescritor), ''), 'My Pharm')) = LOWER(TRIM(:prescritor)))
               AND gp.data_aprovacao IS NOT NULL
             GROUP BY MONTH(gp.data_aprovacao)
             ORDER BY mes
@@ -1115,7 +1117,7 @@ function dashboardEvolucaoPrescritor(PDO $pdo): void
             INNER JOIN gestao_pedidos gp ON c.numero = gp.numero_pedido AND c.serie = gp.serie_pedido
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') = pc.nome AND " . $visWhere . "
             WHERE gp.ano_referencia = :ano
-              AND (COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') = :prescritor)
+              AND (LOWER(TRIM(COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm'))) = LOWER(TRIM(:prescritor)))
               AND gp.data_aprovacao IS NOT NULL
               AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%'))
             GROUP BY MONTH(gp.data_aprovacao)
@@ -1134,7 +1136,7 @@ function dashboardEvolucaoPrescritor(PDO $pdo): void
             INNER JOIN itens_orcamentos_pedidos i ON c.numero = i.numero AND c.serie = i.serie
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm') = pc.nome AND " . $visWhere . "
             WHERE i.ano_referencia = :ano
-              AND (COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm') = :prescritor)
+              AND (LOWER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm'))) = LOWER(TRIM(:prescritor)))
               AND (i.status = 'Recusado' OR i.status = 'No carrinho')
             GROUP BY MONTH(i.`data`)
         ";
@@ -1180,10 +1182,12 @@ function dashboardAnalisePrescritor(PDO $pdo): void
         echo json_encode(['error' => 'Prescritor não informado'], JSON_UNESCAPED_UNICODE);
         return;
     }
+    $prescritor = preg_replace('/\s+/', ' ', $prescritor);
+    $nome = preg_replace('/\s+/', ' ', $nome);
     $isMyPharm = (strcasecmp($nome, 'My Pharm') === 0);
     $visWhere = $isMyPharm
-        ? "(pc.visitador IS NULL OR pc.visitador = '' OR pc.visitador = 'My Pharm' OR UPPER(pc.visitador) = 'MY PHARM')"
-        : "pc.visitador = :nome";
+        ? "(pc.visitador IS NULL OR TRIM(pc.visitador) = '' OR LOWER(TRIM(pc.visitador)) = 'my pharm')"
+        : "LOWER(TRIM(pc.visitador)) = LOWER(TRIM(:nome))";
     $paramsBase = ['ano' => $ano, 'prescritor' => $prescritor];
     if (!$isMyPharm) {
         $paramsBase['nome'] = $nome;
@@ -1197,7 +1201,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
                 COALESCE(SUM(CASE WHEN gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado','Cancelado','Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%') THEN gp.preco_liquido ELSE 0 END),0) as valor_aprovado
             FROM gestao_pedidos gp
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = pc.nome AND $visWhere
-            WHERE gp.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = :prescritor AND gp.data_aprovacao IS NOT NULL
+            WHERE gp.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor)) AND gp.data_aprovacao IS NOT NULL
             GROUP BY MONTH(gp.data_aprovacao) ORDER BY mes";
         $stmtV = $pdo->prepare($sqlVendas);
         $stmtV->execute($paramsBase);
@@ -1210,7 +1214,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
             SELECT MONTH(i.`data`) as mes, COALESCE(SUM(i.valor_liquido),0) as valor_reprovado
             FROM itens_orcamentos_pedidos i
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = pc.nome AND $visWhere
-            WHERE i.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = :prescritor
+            WHERE i.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
               AND (i.status = 'Recusado' OR i.status = 'No carrinho')
             GROUP BY MONTH(i.`data`) ORDER BY mes";
         $stmtVR = $pdo->prepare($sqlVendasRepr);
@@ -1233,7 +1237,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
             SELECT MONTH(gp.data_aprovacao) as mes, COUNT(DISTINCT gp.numero_pedido, gp.serie_pedido) as qtd
             FROM gestao_pedidos gp
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = pc.nome AND $visWhere
-            WHERE gp.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = :prescritor
+            WHERE gp.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
               AND gp.data_aprovacao IS NOT NULL
               AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado','Cancelado','Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%'))
             GROUP BY MONTH(gp.data_aprovacao)";
@@ -1246,7 +1250,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
             SELECT MONTH(i.`data`) as mes, COUNT(DISTINCT i.numero, i.serie) as qtd
             FROM itens_orcamentos_pedidos i
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = pc.nome AND $visWhere
-            WHERE i.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = :prescritor
+            WHERE i.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
               AND (i.status = 'Recusado' OR i.status = 'No carrinho')
             GROUP BY MONTH(i.`data`)";
         $stmtPR = $pdo->prepare($sqlPedRec);
@@ -1265,7 +1269,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
             FROM pedidos_detalhado_componentes c
             INNER JOIN gestao_pedidos gp ON c.numero = gp.numero_pedido AND c.serie = gp.serie_pedido
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = pc.nome AND $visWhere
-            WHERE gp.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = :prescritor
+            WHERE gp.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
               AND gp.data_aprovacao IS NOT NULL
               AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado','Cancelado','Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%'))
             GROUP BY MONTH(gp.data_aprovacao)";
@@ -1279,7 +1283,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
             FROM pedidos_detalhado_componentes c
             INNER JOIN itens_orcamentos_pedidos i ON c.numero = i.numero AND c.serie = i.serie
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = pc.nome AND $visWhere
-            WHERE i.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = :prescritor
+            WHERE i.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
               AND (i.status = 'Recusado' OR i.status = 'No carrinho')
             GROUP BY MONTH(i.`data`)";
         $stmtCR = $pdo->prepare($sqlCR);
@@ -1308,7 +1312,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
                 COUNT(DISTINCT CASE WHEN gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado','Cancelado','Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%') THEN MONTH(gp.data_aprovacao) END) as meses_ativos
             FROM gestao_pedidos gp
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = pc.nome AND $visWhere
-            WHERE gp.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = :prescritor";
+            WHERE gp.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))";
         $stmtK = $pdo->prepare($sqlKpis);
         $stmtK->execute($paramsBase);
         $kr = $stmtK->fetch(PDO::FETCH_ASSOC);
@@ -1326,7 +1330,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
                    COUNT(DISTINCT CONCAT(i.numero,'-',i.serie)) as pedidos_reprovados
             FROM itens_orcamentos_pedidos i
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = pc.nome AND $visWhere
-            WHERE i.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = :prescritor
+            WHERE i.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
               AND (i.status = 'Recusado' OR i.status = 'No carrinho')";
         $stmtR = $pdo->prepare($sqlRepr);
         $stmtR->execute($paramsBase);
@@ -1407,7 +1411,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
             SELECT gp.forma_farmaceutica as forma, COALESCE(SUM(gp.preco_liquido),0) as total, COUNT(*) as qtd
             FROM gestao_pedidos gp
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = pc.nome AND $visWhere
-            WHERE gp.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = :prescritor
+            WHERE gp.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
               AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado','Cancelado','Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%'))
               AND gp.forma_farmaceutica IS NOT NULL AND gp.forma_farmaceutica != ''
             GROUP BY gp.forma_farmaceutica ORDER BY total DESC LIMIT 5";
@@ -1420,7 +1424,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
             SELECT gp.canal_atendimento as canal, COALESCE(SUM(gp.preco_liquido),0) as total, COUNT(*) as qtd
             FROM gestao_pedidos gp
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = pc.nome AND $visWhere
-            WHERE gp.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = :prescritor
+            WHERE gp.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
               AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado','Cancelado','Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%'))
               AND gp.canal_atendimento IS NOT NULL AND gp.canal_atendimento != ''
             GROUP BY gp.canal_atendimento ORDER BY total DESC LIMIT 5";
@@ -1434,7 +1438,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
             FROM pedidos_detalhado_componentes c
             INNER JOIN gestao_pedidos gp ON c.numero = gp.numero_pedido AND c.serie = gp.serie_pedido
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = pc.nome AND $visWhere
-            WHERE gp.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = :prescritor
+            WHERE gp.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
               AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado','Cancelado','Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%'))
               AND c.componente IS NOT NULL AND c.componente != ''
             GROUP BY c.componente ORDER BY pedidos DESC, qtd DESC LIMIT 10";
@@ -1448,7 +1452,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
             FROM pedidos_detalhado_componentes c
             INNER JOIN itens_orcamentos_pedidos i ON c.numero = i.numero AND c.serie = i.serie AND c.ano_referencia = i.ano_referencia
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = pc.nome AND $visWhere
-            WHERE i.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = :prescritor
+            WHERE i.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
               AND (i.status = 'Recusado' OR i.status = 'No carrinho')
               AND c.componente IS NOT NULL AND c.componente != ''
             GROUP BY c.componente ORDER BY pedidos DESC, qtd DESC LIMIT 10";
@@ -1482,7 +1486,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
                 SELECT TRIM(gp.paciente) as pac, COUNT(DISTINCT gp.numero_pedido, gp.serie_pedido) as cnt
                 FROM gestao_pedidos gp
                 INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = pc.nome AND $visWhere
-                WHERE gp.ano_referencia = :ano AND COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = :prescritor
+                WHERE gp.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
                   AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado','Cancelado','Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%'))
                   AND gp.paciente IS NOT NULL AND TRIM(gp.paciente) != ''
                 GROUP BY TRIM(gp.paciente)

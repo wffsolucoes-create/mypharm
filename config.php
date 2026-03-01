@@ -245,9 +245,106 @@ function getClientIp(): string
     return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 }
 
+function initAuthAuditTable(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) return;
+    $pdo->exec("CREATE TABLE IF NOT EXISTS auth_audit_logs (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        evento VARCHAR(50) NOT NULL,
+        sucesso TINYINT(1) NOT NULL DEFAULT 0,
+        user_id INT NULL,
+        usuario VARCHAR(120) NULL,
+        nome_usuario VARCHAR(255) NULL,
+        ip_address VARCHAR(45) NOT NULL DEFAULT '',
+        ip_forwarded VARCHAR(255) NULL,
+        host_reverse VARCHAR(255) NULL,
+        session_id VARCHAR(255) NULL,
+        request_method VARCHAR(10) NULL,
+        request_path VARCHAR(255) NULL,
+        origin VARCHAR(255) NULL,
+        referer VARCHAR(500) NULL,
+        user_agent VARCHAR(500) NULL,
+        accept_language VARCHAR(120) NULL,
+        mac_info VARCHAR(120) NULL,
+        detalhes_json TEXT NULL,
+        criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_evento_data (evento, criado_em),
+        INDEX idx_user_data (user_id, criado_em),
+        INDEX idx_ip_data (ip_address, criado_em)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $done = true;
+}
+
+function getReverseHostFromIp(string $ip): string
+{
+    if ($ip === '' || $ip === '0.0.0.0' || !filter_var($ip, FILTER_VALIDATE_IP)) {
+        return '';
+    }
+    $host = @gethostbyaddr($ip);
+    if (!$host || $host === $ip) {
+        return '';
+    }
+    return $host;
+}
+
+function getRequestPathForAudit(): string
+{
+    $uri = $_SERVER['REQUEST_URI'] ?? '';
+    if ($uri === '') return '';
+    $parts = explode('?', $uri, 2);
+    return trim($parts[0]);
+}
+
+function logAuthEvent(PDO $pdo, string $evento, bool $sucesso, array $ctx = []): void
+{
+    try {
+        initAuthAuditTable($pdo);
+        $ip = getClientIp();
+        $forwarded = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+        $hostReverse = getReverseHostFromIp($ip);
+        $sid = session_id();
+        if ($sid === '') $sid = null;
+        $detalhes = $ctx['detalhes'] ?? null;
+        $detalhesJson = null;
+        if (is_array($detalhes)) {
+            $detalhesJson = json_encode($detalhes, JSON_UNESCAPED_UNICODE);
+        } elseif (is_string($detalhes) && $detalhes !== '') {
+            $detalhesJson = $detalhes;
+        }
+        // Navegadores não expõem MAC Address por segurança.
+        $macInfo = 'indisponivel_via_web';
+        $stmt = $pdo->prepare("INSERT INTO auth_audit_logs
+            (evento, sucesso, user_id, usuario, nome_usuario, ip_address, ip_forwarded, host_reverse, session_id, request_method, request_path, origin, referer, user_agent, accept_language, mac_info, detalhes_json, criado_em)
+            VALUES
+            (:evento, :sucesso, :user_id, :usuario, :nome_usuario, :ip_address, :ip_forwarded, :host_reverse, :session_id, :request_method, :request_path, :origin, :referer, :user_agent, :accept_language, :mac_info, :detalhes_json, NOW())");
+        $stmt->execute([
+            'evento' => $evento,
+            'sucesso' => $sucesso ? 1 : 0,
+            'user_id' => $ctx['user_id'] ?? null,
+            'usuario' => $ctx['usuario'] ?? null,
+            'nome_usuario' => $ctx['nome_usuario'] ?? null,
+            'ip_address' => $ip,
+            'ip_forwarded' => $forwarded !== '' ? $forwarded : null,
+            'host_reverse' => $hostReverse !== '' ? $hostReverse : null,
+            'session_id' => $sid,
+            'request_method' => $_SERVER['REQUEST_METHOD'] ?? null,
+            'request_path' => getRequestPathForAudit(),
+            'origin' => $_SERVER['HTTP_ORIGIN'] ?? null,
+            'referer' => $_SERVER['HTTP_REFERER'] ?? null,
+            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null,
+            'accept_language' => $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? null,
+            'mac_info' => $macInfo,
+            'detalhes_json' => $detalhesJson
+        ]);
+    } catch (Throwable $e) {
+        // Nunca interromper fluxo principal por falha de auditoria.
+    }
+}
+
 // ========== Controle de sessão única (um aparelho por usuário, 12h máx, inatividade) ==========
 define('SESSION_MAX_HOURS', 12);
-define('SESSION_INACTIVITY_MINUTES', 30);
+define('SESSION_INACTIVITY_MINUTES', 300); // 5 horas sem atividade
 
 function initUserSessionsTable(PDO $pdo): void
 {

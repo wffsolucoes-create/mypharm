@@ -97,12 +97,19 @@ try {
         $sessionCheck = validateAndRefreshUserSession($pdo);
         if (!($sessionCheck['valid'] ?? true)) {
             $reason = $sessionCheck['reason'] ?? 'session_invalid';
+            $invalidUserId = (int)($_SESSION['user_id'] ?? 0);
+            $invalidUserName = $_SESSION['user_nome'] ?? null;
             $_SESSION = [];
             if (ini_get('session.use_cookies')) {
                 $params = session_get_cookie_params();
                 setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
             }
             session_destroy();
+            logAuthEvent($pdo, 'session_invalid', false, [
+                'user_id' => $invalidUserId > 0 ? $invalidUserId : null,
+                'nome_usuario' => $invalidUserName,
+                'detalhes' => ['reason' => $reason]
+            ]);
             http_response_code(401);
             $msg = 'Sessão encerrada. Faça login novamente.';
             if ($reason === 'other_device') {
@@ -1096,6 +1103,13 @@ try {
             $rateCheck = checkLoginRateLimit($pdo, $clientIp);
             if ($rateCheck['blocked']) {
                 $minutos = ceil($rateCheck['remaining'] / 60);
+                logAuthEvent($pdo, 'login_blocked', false, [
+                    'usuario' => $usuario,
+                    'detalhes' => [
+                        'remaining_seconds' => $rateCheck['remaining'],
+                        'attempts' => (int)($rateCheck['attempts'] ?? 0)
+                    ]
+                ]);
                 echo json_encode([
                     'success' => false,
                     'error' => "Muitas tentativas. Tente novamente em {$minutos} minuto(s).",
@@ -1141,6 +1155,12 @@ try {
                     ->execute(['id' => $user['id']]);
 
                 $requirePasswordChange = !isStrongPassword($senha);
+                logAuthEvent($pdo, 'login_success', true, [
+                    'user_id' => (int)$user['id'],
+                    'usuario' => $user['usuario'] ?? $usuario,
+                    'nome_usuario' => $user['nome'] ?? null,
+                    'detalhes' => ['require_password_change' => $requirePasswordChange]
+                ]);
 
                 $fotoPerfil = null;
                 if (!empty($user['foto_perfil'])) {
@@ -1157,6 +1177,13 @@ try {
                 ]);
             } else {
                 recordLoginAttempt($pdo, $clientIp);
+                logAuthEvent($pdo, 'login_failed', false, [
+                    'usuario' => $usuario,
+                    'detalhes' => [
+                        'reason' => 'invalid_credentials',
+                        'attempts_after' => ((int)($rateCheck['attempts'] ?? 0)) + 1
+                    ]
+                ]);
                 usleep(500000);
                 $attemptsLeft = MAX_LOGIN_ATTEMPTS - $rateCheck['attempts'] - 1;
                 $msg = 'Usuário ou senha inválidos';
@@ -1377,13 +1404,32 @@ try {
             $newHash = password_hash($senhaNova, PASSWORD_BCRYPT);
             $upd = $pdo->prepare("UPDATE usuarios SET senha = :senha WHERE id = :id");
             $upd->execute(['senha' => $newHash, 'id' => $userId]);
+            logAuthEvent($pdo, 'password_changed', true, [
+                'user_id' => $userId,
+                'nome_usuario' => $_SESSION['user_nome'] ?? null,
+                'detalhes' => ['source' => 'update_my_password']
+            ]);
             echo json_encode(['success' => true, 'message' => 'Senha atualizada com sucesso.'], JSON_UNESCAPED_UNICODE);
             break;
         }
 
         case 'logout': {
             $logoutUserId = (int)($_SESSION['user_id'] ?? 0);
+            $logoutNome = $_SESSION['user_nome'] ?? null;
+            $logoutUsuario = null;
+            if ($logoutUserId > 0) {
+                try {
+                    $stUser = $pdo->prepare("SELECT usuario FROM usuarios WHERE id = :id LIMIT 1");
+                    $stUser->execute(['id' => $logoutUserId]);
+                    $logoutUsuario = $stUser->fetchColumn() ?: null;
+                } catch (Throwable $e) {}
+            }
             removeUserSession($pdo, $logoutUserId);
+            logAuthEvent($pdo, 'logout', true, [
+                'user_id' => $logoutUserId > 0 ? $logoutUserId : null,
+                'usuario' => $logoutUsuario,
+                'nome_usuario' => $logoutNome
+            ]);
             $_SESSION = [];
             if (ini_get("session.use_cookies")) {
                 $params = session_get_cookie_params();
@@ -1411,6 +1457,84 @@ try {
                 DATE_FORMAT(ultimo_acesso, '%d/%m/%Y %H:%i') as ultimo_acesso
                 FROM usuarios ORDER BY id");
             echo json_encode(['success' => true, 'users' => $stmt->fetchAll()], JSON_UNESCAPED_UNICODE);
+            break;
+
+        // ============================================
+        // ADMIN - LOGS DE AUTENTICAÇÃO
+        // ============================================
+        case 'list_auth_logs':
+            if (($_SESSION['user_tipo'] ?? '') !== 'admin') {
+                echo json_encode(['success' => false, 'error' => 'Acesso negado'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            initAuthAuditTable($pdo);
+            $limit = max(1, min(500, (int)($_GET['limit'] ?? 100)));
+            $offset = max(0, (int)($_GET['offset'] ?? 0));
+            $evento = trim((string)($_GET['evento'] ?? ''));
+            $usuarioFilter = trim((string)($_GET['usuario'] ?? ''));
+            $ipFilter = trim((string)($_GET['ip'] ?? ''));
+            $from = trim((string)($_GET['from'] ?? ''));
+            $to = trim((string)($_GET['to'] ?? ''));
+
+            $where = ["1=1"];
+            $params = [];
+            if ($evento !== '') {
+                $where[] = "evento = :evento";
+                $params['evento'] = $evento;
+            }
+            if ($usuarioFilter !== '') {
+                $where[] = "(usuario LIKE :usuario OR nome_usuario LIKE :usuario)";
+                $params['usuario'] = '%' . $usuarioFilter . '%';
+            }
+            if ($ipFilter !== '') {
+                $where[] = "ip_address LIKE :ip";
+                $params['ip'] = '%' . $ipFilter . '%';
+            }
+            if ($from !== '') {
+                $where[] = "criado_em >= :from";
+                $params['from'] = $from . ' 00:00:00';
+            }
+            if ($to !== '') {
+                $where[] = "criado_em <= :to";
+                $params['to'] = $to . ' 23:59:59';
+            }
+            $sqlWhere = implode(' AND ', $where);
+            $sqlCount = "SELECT COUNT(*) FROM auth_audit_logs WHERE $sqlWhere";
+            $stmtCount = $pdo->prepare($sqlCount);
+            $stmtCount->execute($params);
+            $total = (int)$stmtCount->fetchColumn();
+
+            $sql = "SELECT id, evento, sucesso, user_id, usuario, nome_usuario, ip_address, ip_forwarded, host_reverse, session_id, request_method, request_path, origin, referer, user_agent, accept_language, mac_info, detalhes_json, criado_em
+                    FROM auth_audit_logs
+                    WHERE $sqlWhere
+                    ORDER BY id DESC
+                    LIMIT :limit OFFSET :offset";
+            $stmt = $pdo->prepare($sql);
+            foreach ($params as $k => $v) {
+                $stmt->bindValue(':' . $k, $v, PDO::PARAM_STR);
+            }
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+            $stmt->execute();
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as &$r) {
+                if (!empty($r['detalhes_json'])) {
+                    $decoded = json_decode($r['detalhes_json'], true);
+                    $r['detalhes'] = (json_last_error() === JSON_ERROR_NONE) ? $decoded : $r['detalhes_json'];
+                } else {
+                    $r['detalhes'] = null;
+                }
+                unset($r['detalhes_json']);
+            }
+            unset($r);
+
+            echo json_encode([
+                'success' => true,
+                'total' => $total,
+                'limit' => $limit,
+                'offset' => $offset,
+                'data' => $rows
+            ], JSON_UNESCAPED_UNICODE);
             break;
 
         // ============================================

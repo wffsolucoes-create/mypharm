@@ -28,6 +28,119 @@
             transform: translateY(0);
         }
     </style>
+    <style>
+        .force-pass-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 12000;
+            padding: 16px;
+        }
+
+        .force-pass-card {
+            width: 100%;
+            max-width: 520px;
+            border-radius: 16px;
+            background: #ffffff;
+            box-shadow: 0 24px 70px rgba(2, 6, 23, 0.35);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            overflow: hidden;
+        }
+
+        .force-pass-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 18px;
+            border-bottom: 1px solid #eef2f7;
+            background: linear-gradient(90deg, #fff8f8 0%, #ffffff 100%);
+        }
+
+        .force-pass-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #991b1b;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .force-pass-close {
+            border: 0;
+            background: transparent;
+            color: #64748b;
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+
+        .force-pass-body {
+            padding: 18px;
+            color: #334155;
+        }
+
+        .force-pass-body p {
+            margin: 0 0 14px;
+            line-height: 1.5;
+            font-size: 0.92rem;
+        }
+
+        .force-pass-input {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid #dbe2ea;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            font-size: 0.92rem;
+            box-sizing: border-box;
+        }
+
+        .force-pass-input:focus {
+            outline: none;
+            border-color: #e63946;
+            box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.12);
+        }
+
+        .force-pass-error {
+            display: none;
+            margin-top: 4px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 0.86rem;
+        }
+
+        .force-pass-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 14px 18px 18px;
+            border-top: 1px solid #eef2f7;
+            background: #ffffff;
+        }
+
+        .force-pass-btn {
+            border: 0;
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .force-pass-btn.cancel {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .force-pass-btn.save {
+            background: #0f62fe;
+            color: #ffffff;
+        }
+    </style>
     <style>body{visibility:hidden;}</style>
 </head>
 
@@ -279,6 +392,32 @@
                     <i class="fas fa-lock"></i> Conexão Segura
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="forcePasswordModal" class="force-pass-overlay" aria-hidden="true">
+        <div class="force-pass-card" role="dialog" aria-modal="true" aria-labelledby="forcePassTitle">
+            <div class="force-pass-header">
+                <div id="forcePassTitle" class="force-pass-title">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Atualização obrigatória de senha</span>
+                </div>
+                <button type="button" id="forcePassClose" class="force-pass-close" aria-label="Fechar">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="forcePasswordForm">
+                <div class="force-pass-body">
+                    <p>Sua senha atual não atende à política de segurança. Para continuar, defina uma nova senha com <strong>mínimo 8 caracteres, 1 letra maiúscula e 1 caractere especial</strong>.</p>
+                    <input type="password" id="forcePasswordNew" class="force-pass-input" placeholder="Nova senha forte" autocomplete="new-password" required>
+                    <input type="password" id="forcePasswordConfirm" class="force-pass-input" placeholder="Confirmar nova senha" autocomplete="new-password" required>
+                    <div id="forcePasswordError" class="force-pass-error"></div>
+                </div>
+                <div class="force-pass-footer">
+                    <button type="button" id="forcePassCancel" class="force-pass-btn cancel">Cancelar</button>
+                    <button type="submit" id="forcePassSave" class="force-pass-btn save">Salvar e continuar</button>
+                </div>
+            </form>
         </div>
     </div>
 

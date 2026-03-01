@@ -219,44 +219,118 @@ function strongPasswordRuleText() {
 
 async function enforceStrongPasswordChangeOnLogin(senhaAtual) {
     const errorEl = document.getElementById('loginError');
-    const aviso = 'Sua senha atual não atende à política de segurança. Você precisa definir uma senha forte para continuar (' + strongPasswordRuleText() + ')';
-    for (let tentativas = 0; tentativas < 5; tentativas++) {
-        const nova = window.prompt(aviso, '');
-        if (nova === null) break;
-        const confirmacao = window.prompt('Confirme a nova senha:', '');
-        if (confirmacao === null) break;
-        if (nova !== confirmacao) {
-            alert('A confirmação não confere.');
-            continue;
+    const modal = document.getElementById('forcePasswordModal');
+    const form = document.getElementById('forcePasswordForm');
+    const inputNova = document.getElementById('forcePasswordNew');
+    const inputConfirma = document.getElementById('forcePasswordConfirm');
+    const modalError = document.getElementById('forcePasswordError');
+    const btnSave = document.getElementById('forcePassSave');
+    const btnCancel = document.getElementById('forcePassCancel');
+    const btnClose = document.getElementById('forcePassClose');
+
+    // Fallback mínimo caso o HTML do modal não esteja disponível.
+    if (!modal || !form || !inputNova || !inputConfirma || !modalError || !btnSave || !btnCancel || !btnClose) {
+        if (errorEl) {
+            errorEl.textContent = 'Atualize a página para concluir a troca obrigatória de senha.';
+            errorEl.style.display = 'block';
         }
-        if (!validateStrongPasswordClientSide(nova)) {
-            alert('Senha inválida: ' + strongPasswordRuleText());
-            continue;
-        }
-        if (nova === senhaAtual) {
-            alert('A nova senha deve ser diferente da senha atual.');
-            continue;
-        }
-        try {
-            const res = await apiPost('update_my_password', { senha_atual: senhaAtual, senha_nova: nova });
-            if (res && res.success) {
-                alert('Senha atualizada com sucesso.');
-                return true;
-            }
-            alert((res && res.error) ? res.error : 'Não foi possível atualizar sua senha.');
-        } catch (err) {
-            alert('Erro de conexão ao atualizar senha.');
-        }
+        return false;
     }
-    try { await apiPost('logout', {}); } catch (e) {}
-    localStorage.removeItem('loggedIn');
-    localStorage.removeItem('userName');
-    localStorage.removeItem('userType');
-    localStorage.removeItem('userSetor');
-    localStorage.removeItem('foto_perfil');
-    if (errorEl) {
-        errorEl.textContent = 'Login bloqueado até definir uma senha forte.';
-        errorEl.style.display = 'block';
+
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+    inputNova.value = '';
+    inputConfirma.value = '';
+    modalError.style.display = 'none';
+    modalError.textContent = '';
+    setTimeout(() => inputNova.focus(), 30);
+
+    const showModalError = (msg) => {
+        modalError.textContent = msg;
+        modalError.style.display = 'block';
+    };
+
+    const closeAndBlockLogin = async () => {
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+        try { await apiPost('logout', {}); } catch (e) {}
+        localStorage.removeItem('loggedIn');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userType');
+        localStorage.removeItem('userSetor');
+        localStorage.removeItem('foto_perfil');
+        if (errorEl) {
+            errorEl.textContent = 'Login bloqueado até definir uma senha forte.';
+            errorEl.style.display = 'block';
+        }
+    };
+
+    const result = await new Promise((resolve) => {
+        const cleanup = () => {
+            form.removeEventListener('submit', onSubmit);
+            btnCancel.removeEventListener('click', onCancel);
+            btnClose.removeEventListener('click', onCancel);
+            document.removeEventListener('keydown', onEsc);
+        };
+
+        const onEsc = (e) => {
+            if (e.key === 'Escape') onCancel();
+        };
+
+        const onCancel = async () => {
+            cleanup();
+            await closeAndBlockLogin();
+            resolve(false);
+        };
+
+        const onSubmit = async (e) => {
+            e.preventDefault();
+            const nova = inputNova.value || '';
+            const confirmacao = inputConfirma.value || '';
+            modalError.style.display = 'none';
+            modalError.textContent = '';
+
+            if (nova !== confirmacao) {
+                showModalError('A confirmação da nova senha não confere.');
+                return;
+            }
+            if (!validateStrongPasswordClientSide(nova)) {
+                showModalError('Senha inválida: ' + strongPasswordRuleText());
+                return;
+            }
+            if (nova === senhaAtual) {
+                showModalError('A nova senha deve ser diferente da senha atual.');
+                return;
+            }
+
+            btnSave.disabled = true;
+            btnSave.textContent = 'Salvando...';
+            try {
+                const res = await apiPost('update_my_password', { senha_atual: senhaAtual, senha_nova: nova });
+                if (res && res.success) {
+                    cleanup();
+                    modal.style.display = 'none';
+                    modal.setAttribute('aria-hidden', 'true');
+                    resolve(true);
+                    return;
+                }
+                showModalError((res && res.error) ? res.error : 'Não foi possível atualizar sua senha.');
+            } catch (err) {
+                showModalError('Erro de conexão ao atualizar senha.');
+            } finally {
+                btnSave.disabled = false;
+                btnSave.textContent = 'Salvar e continuar';
+            }
+        };
+
+        form.addEventListener('submit', onSubmit);
+        btnCancel.addEventListener('click', onCancel);
+        btnClose.addEventListener('click', onCancel);
+        document.addEventListener('keydown', onEsc);
+    });
+
+    if (result) {
+        return true;
     }
     return false;
 }
