@@ -1,0 +1,983 @@
+/* --- Status Badges (Premium) --- */
+        .days-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px 3px 3px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.05);
+            white-space: nowrap;
+        }
+
+        .days-badge .circle {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .days-badge.success {
+            color: #10B981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .days-badge.success .circle {
+            background: #10B981;
+        }
+
+        .days-badge.warning {
+            color: #EAB308;
+            background: rgba(234, 179, 8, 0.15);
+        }
+
+        .days-badge.warning .circle {
+            background: #EAB308;
+        }
+
+        .days-badge.danger {
+            color: #EF4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .days-badge.danger .circle {
+            background: #EF4444;
+        }
+
+        .val-approved {
+            color: #10B981;
+            font-weight: 600;
+        }
+
+        /* Relatórios responsivos */
+        @media (max-width: 900px) {
+            .relatorios-visitas-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        /* Agenda – calendário mais largo com rolagem horizontal em telas pequenas */
+        .agenda-calendario-scroll {
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+            margin: 0 -4px;
+            width: 100%;
+            min-width: 0;
+        }
+        .agenda-calendario-scroll::-webkit-scrollbar {
+            height: 8px;
+        }
+        .agenda-calendario-scroll::-webkit-scrollbar-track {
+            background: var(--bg-body);
+            border-radius: 4px;
+        }
+        .agenda-calendario-scroll::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+        #agendaCalendarioGrid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        #agendaCalendarioGrid .agenda-cal-header {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            background: linear-gradient(180deg, var(--bg-body) 0%, rgba(255,255,255,0.02) 100%);
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        #agendaCalendarioGrid .agenda-cal-header > div {
+            padding: 12px 8px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        #agendaCalendarioDias {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            min-height: 400px;
+        }
+        #agendaCalendarioDias .agenda-dia-cell {
+            max-height: 220px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+        #agendaCalendarioDias .agenda-dia-cell::-webkit-scrollbar {
+            width: 6px;
+        }
+        #agendaCalendarioDias .agenda-dia-cell::-webkit-scrollbar-track {
+            background: var(--bg-body);
+            border-radius: 3px;
+        }
+        #agendaCalendarioDias .agenda-dia-cell::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+        /* Agenda – itens de visita (hover) */
+        .agenda-visita-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .val-refused {
+            color: #EF4444;
+            font-weight: 600;
+        }
+
+        /* Relatórios – tabelas com cores */
+        .relatorio-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .relatorio-table thead { position: sticky; top: 0; z-index: 1; }
+        .relatorio-table thead th {
+            padding: 12px 16px; text-align: left; font-weight: 600; font-size: 0.75rem; text-transform: uppercase;
+            letter-spacing: 0.02em; color: var(--text-secondary);
+        }
+        .relatorio-table thead th[data-theme="success"] { background: #059669; color: #fff; border-bottom: 2px solid #047857; }
+        .relatorio-table thead th[data-theme="danger"] { background: #DC2626; color: #fff; border-bottom: 2px solid #B91C1C; }
+        .relatorio-table thead th[data-theme="neutral"] { background: var(--bg-body); border-bottom: 2px solid var(--border); }
+        .relatorio-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+        .relatorio-table tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
+        .relatorio-table tbody tr:hover { background: rgba(59, 130, 246, 0.06); }
+        .relatorio-table tbody tr.row-tema-success:hover { background: rgba(16, 185, 129, 0.08); }
+        .relatorio-table tbody tr.row-tema-danger:hover { background: rgba(239, 68, 68, 0.08); }
+        /* Modal Componentes – cards de resumo e tabela */
+        #modalComponentesPrescritor .pedidos-filters {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+        #modalComponentesPrescritor .pedidos-filters > div { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        #modalComponentesPrescritor .pedidos-filters label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; flex-shrink: 0; }
+        #modalComponentesPrescritor .pedidos-filters input[type="date"] { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-body); color: var(--text-primary); font-size: 0.9rem; min-width: 0; }
+        #modalComponentesPrescritor .pedidos-filters .btn-aplicar { padding: 10px 16px; border: none; border-radius: 8px; background: var(--primary); color: #fff; font-size: 0.9rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        #modalComponentesPrescritor .pedidos-filters .pedidos-search-wrap { position: relative; flex: 1; min-width: 220px; max-width: 400px; }
+        #modalComponentesPrescritor .pedidos-filters .pedidos-search-wrap input { width: 100%; padding: 10px 16px 10px 40px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-body); color: var(--text-primary); font-size: 0.9rem; box-sizing: border-box; }
+        #modalComponentesPrescritor .pedidos-filters .pedidos-search-wrap .pedidos-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 0.85rem; pointer-events: none; }
+        .modal-componentes-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .modal-componentes-cards .card-mini { padding: 14px 18px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-body); }
+        .modal-componentes-cards .card-mini .card-mini-label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+        .modal-componentes-cards .card-mini .card-mini-value { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); }
+        .modal-componentes-cards .card-mini.card-success .card-mini-value { color: var(--success); }
+        .modal-componentes-cards .card-mini.card-danger .card-mini-value { color: var(--danger); }
+        .modal-componentes-table-wrap { overflow-y: auto; overflow-x: auto; max-height: min(72vh, 520px); min-height: 160px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-body); }
+        .modal-componentes-table-wrap .relatorio-table { margin: 0; }
+        .modal-componentes-table-wrap .relatorio-table thead th { white-space: nowrap; }
+        .modal-componentes-table-wrap .relatorio-table tbody td { vertical-align: middle; }
+        .badge-status { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-status.aprovado { background: rgba(16, 185, 129, 0.2); color: #10B981; }
+        .badge-status.recusado { background: rgba(239, 68, 68, 0.2); color: #EF4444; }
+
+        /* Modal Componentes – responsivo (tablet já ok; celular) */
+        @media (max-width: 640px) {
+            .modal-componentes-overlay { padding: 8px !important; align-items: flex-start !important; }
+            .modal-componentes-card { max-width: 100% !important; max-height: 100% !important; border-radius: 10px; }
+            .modal-componentes-header { padding: 12px 14px !important; flex-wrap: wrap; gap: 8px; }
+            .modal-componentes-title-wrap { width: 100%; }
+            #modalComponentesPrescritorTitle { font-size: 1rem !important; }
+            #modalComponentesPrescritorSubtitle { font-size: 0.75rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .modal-componentes-body { padding: 12px 14px !important; }
+            #modalComponentesPrescritor .pedidos-filters { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px !important; margin-bottom: 12px !important; }
+            #modalComponentesPrescritor .pedidos-filters > div { width: 100%; }
+            #modalComponentesPrescritor .pedidos-filters > div:not(.pedidos-search-wrap) { flex-wrap: wrap; }
+            #modalComponentesPrescritor .pedidos-filters label { min-width: 32px; }
+            #modalComponentesPrescritor .pedidos-filters input[type="date"] { flex: 1; min-width: 0; }
+            #modalComponentesPrescritor .pedidos-filters .btn-aplicar { width: 100%; }
+            #modalComponentesPrescritor .pedidos-filters .pedidos-search-wrap { max-width: none !important; min-width: 0 !important; }
+            .modal-componentes-cards { grid-template-columns: 1fr !important; gap: 8px !important; margin-bottom: 12px !important; }
+            .modal-componentes-cards .card-mini { padding: 10px 14px !important; }
+            .modal-componentes-cards .card-mini .card-mini-value { font-size: 1.2rem !important; }
+            .modal-componentes-table-wrap { max-height: min(65vh, 400px) !important; min-height: 120px !important; border-radius: 8px; -webkit-overflow-scrolling: touch; }
+            .modal-componentes-table-wrap .relatorio-table { font-size: 0.8rem; }
+            .modal-componentes-table-wrap .relatorio-table thead th { padding: 8px 10px !important; font-size: 0.7rem !important; }
+            .modal-componentes-table-wrap .relatorio-table tbody td { padding: 8px 10px !important; }
+            #modalComponentesPrescritorBody .modal-componentes-table-wrap .relatorio-table th:first-child,
+            #modalComponentesPrescritorBody .modal-componentes-table-wrap .relatorio-table td:first-child { min-width: 100px; max-width: 140px; word-break: break-word; white-space: normal; }
+        }
+
+        /* Página Prescritores – mesmo estilo da página Pedidos */
+        #paginaPrescritores .pedidos-page-header {
+            margin-bottom: 24px;
+        }
+        #paginaPrescritores .pedidos-page-header h2 {
+            margin: 0 0 8px 0;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #paginaPrescritores .pedidos-page-header h2 .pedidos-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.08));
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+        #paginaPrescritores .pedidos-page-header p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+        #paginaPrescritores .pedidos-filters {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+        #paginaPrescritores .pedidos-filters label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        #paginaPrescritores .pedidos-search-wrap {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+            max-width: 400px;
+        }
+        #paginaPrescritores .pedidos-search-wrap input {
+            width: 100%;
+            padding: 10px 16px 10px 40px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        #paginaPrescritores .pedidos-search-wrap input:focus {
+            border-color: var(--primary);
+        }
+        #paginaPrescritores .pedidos-search-wrap .pedidos-search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        #paginaPrescritores .pedidos-table-card {
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        #paginaPrescritores .pedidos-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+        #paginaPrescritores .pedidos-table thead th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            background: var(--bg-body);
+            border-bottom: 2px solid var(--border);
+        }
+        #paginaPrescritores .pedidos-table thead th:nth-child(1) { width: auto; }
+        #paginaPrescritores .pedidos-table thead th:nth-child(2) { min-width: 100px; }
+        #paginaPrescritores .pedidos-table thead th:nth-child(3),
+        #paginaPrescritores .pedidos-table thead th:nth-child(4) { text-align: right; width: 140px; }
+        #paginaPrescritores .pedidos-table thead th:nth-child(5) { text-align: center; width: 180px; }
+        #paginaPrescritores .pedidos-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: var(--bg-body);
+        }
+        #paginaPrescritores .pedidos-pagination .prescritores-pag-btns {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #paginaPrescritores .pedidos-pagination button {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        #paginaPrescritores .pedidos-pagination button:hover:not(:disabled) {
+            background: var(--bg-body);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        #paginaPrescritores .pedidos-pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #paginaPrescritores .pedidos-table tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s ease;
+        }
+        #paginaPrescritores .pedidos-table tbody tr:last-child {
+            border-bottom: none;
+        }
+        #paginaPrescritores .pedidos-table tbody tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+        #paginaPrescritores .pedidos-table tbody td {
+            padding: 12px 16px;
+            color: var(--text-primary);
+            vertical-align: middle;
+        }
+        #paginaPrescritores .pedidos-table tbody td:nth-child(3),
+        #paginaPrescritores .pedidos-table tbody td:nth-child(4) {
+            text-align: right;
+        }
+        #paginaPrescritores .pedidos-table tbody td:nth-child(5) {
+            text-align: center;
+        }
+        #paginaPrescritores .pedidos-table tbody td:first-child {
+            font-weight: 500;
+        }
+        #paginaPrescritores .prescritores-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #paginaPrescritores .prescritores-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        #paginaPrescritores .prescritores-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        }
+        #paginaPrescritores .prescritores-btn-editar {
+            background: var(--primary);
+            color: white;
+        }
+        #paginaPrescritores .prescritores-btn-aprovados {
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        #paginaPrescritores .prescritores-btn-relatorio {
+            background: rgba(14, 165, 233, 0.15);
+            color: #0ea5e9;
+        }
+        #paginaPrescritores .prescritores-btn-recusados {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+        #paginaPrescritores .prescritores-btn-analises {
+            background: rgba(139, 92, 246, 0.12);
+            color: #8b5cf6;
+            border: 1px solid rgba(139, 92, 246, 0.25);
+        }
+        .btn-sugestao-proxima {
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--primary);
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s;
+        }
+        .btn-sugestao-proxima:hover {
+            background: rgba(37, 99, 235, 0.18);
+            transform: translateY(-1px);
+        }
+        #paginaPrescritores .pedidos-table a[href^="https://wa.me"] {
+            color: #25D366;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: opacity 0.2s;
+        }
+        #paginaPrescritores .pedidos-table a[href^="https://wa.me"]:hover {
+            opacity: 0.9;
+            text-decoration: underline;
+        }
+
+        /* Página Pedidos – layout dedicado */
+        #paginaPedidos {
+            max-width: 1280px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+        #paginaPedidos .pedidos-page-header {
+            margin-bottom: 24px;
+        }
+        #paginaPedidos .pedidos-page-header h2 {
+            margin: 0 0 8px 0;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #paginaPedidos .pedidos-page-header h2 .pedidos-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.08));
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+        #paginaPedidos .pedidos-page-header p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+        #paginaPedidos .pedidos-filters {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        #paginaPedidos .pedidos-filters > div {
+            min-width: 0;
+            max-width: 100%;
+        }
+        #paginaPedidos .pedidos-filters > div input[type="date"],
+        #paginaPedidos .pedidos-filters > div select {
+            flex: 1;
+        }
+        #paginaPedidos .pedidos-filters label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        #paginaPedidos .pedidos-filters input[type="date"],
+        #paginaPedidos .pedidos-filters select,
+        #paginaPedidos .pedidos-select-status {
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        #paginaPedidos .pedidos-filters select,
+        #paginaPedidos .pedidos-select-status {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+        #paginaPedidos .pedidos-search-wrap {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            max-width: 400px;
+        }
+        #paginaPedidos .pedidos-search-wrap input {
+            width: 100%;
+            padding: 10px 16px 10px 40px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        #paginaPedidos .pedidos-search-wrap input:focus {
+            border-color: var(--primary);
+        }
+        #paginaPedidos .pedidos-search-wrap .pedidos-search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        #paginaPedidos .pedidos-table-card {
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        #paginaPedidos .pedidos-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+        #paginaPedidos .pedidos-table thead th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            background: var(--bg-body);
+            border-bottom: 2px solid var(--border);
+        }
+        #paginaPedidos .pedidos-table thead th:nth-child(1) { width: 90px; }
+        #paginaPedidos .pedidos-table thead th:nth-child(2) { width: 56px; text-align: center; }
+        #paginaPedidos .pedidos-table thead th:nth-child(3) { width: 95px; }
+        #paginaPedidos .pedidos-table thead th:nth-child(4) { width: 95px; }
+        #paginaPedidos .pedidos-table thead th:nth-child(7) { text-align: right; width: 120px; }
+        #paginaPedidos .pedidos-table thead th:nth-child(8) { text-align: center; width: 100px; }
+        #paginaPedidos .pedidos-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: var(--bg-body);
+        }
+        #paginaPedidos .pedidos-pagination .prescritores-pag-btns {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #paginaPedidos .pedidos-pagination button {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        #paginaPedidos .pedidos-pagination button:hover:not(:disabled) {
+            background: var(--bg-body);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        #paginaPedidos .pedidos-pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #paginaPedidos .pedidos-table tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s ease;
+        }
+        #paginaPedidos .pedidos-table tbody tr:last-child {
+            border-bottom: none;
+        }
+        #paginaPedidos .pedidos-table tbody tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+        #paginaPedidos .pedidos-table tbody td {
+            padding: 12px 16px;
+            color: var(--text-primary);
+        }
+        #paginaPedidos .pedidos-table tbody td:nth-child(2) {
+            text-align: center;
+        }
+        #paginaPedidos .pedidos-table tbody td:nth-child(7) {
+            text-align: right;
+        }
+        #paginaPedidos .pedidos-table tbody td:nth-child(8) {
+            text-align: center;
+        }
+
+        /* Página Roteiro de Visitas – mesmo padrão Pedidos/Prescritores */
+        .roteiro-page {
+            max-width: 1280px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+        .roteiro-header { margin-bottom: 24px; }
+        .roteiro-title {
+            margin: 0 0 6px 0;
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .roteiro-title-icon { color: var(--primary); font-size: 1.2rem; }
+        .roteiro-subtitle {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+        .roteiro-filters {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        .roteiro-filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            max-width: 100%;
+        }
+        .roteiro-filter-group .roteiro-input {
+            flex: 1;
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        .roteiro-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            flex-shrink: 0;
+        }
+        .roteiro-input {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+        .roteiro-btn-atualizar {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        .roteiro-btn-atualizar:hover { opacity: 0.95; }
+        .roteiro-btn-atualizar:active { transform: scale(0.98); }
+        .roteiro-resumo {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+        .roteiro-direcoes {
+            margin-bottom: 20px;
+            padding: 14px 18px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-body);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+        .roteiro-direcoes strong { color: var(--text-secondary); font-weight: 700; }
+        .roteiro-map-card {
+            padding: 0;
+            overflow: hidden;
+            min-height: 400px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        .roteiro-map-container {
+            width: 100%;
+            height: 500px;
+            background: var(--bg-body);
+        }
+        .roteiro-map-empty {
+            padding: 56px 24px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        .roteiro-map-empty i { font-size: 2.5rem; margin-bottom: 16px; opacity: 0.4; display: block; }
+        .roteiro-map-empty p { margin: 0; }
+        .leaflet-popup-content-wrapper { border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+        .leaflet-popup-content { margin: 12px 16px; font-size: 0.88rem; line-height: 1.5; min-width: 180px; }
+        .roteiro-popup strong { display: block; }
+        .roteiro-tooltip {
+            font-size: 0.82rem;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            color: var(--text-primary);
+            line-height: 1.4;
+            text-align: left;
+        }
+        .roteiro-tooltip::before { border-top-color: var(--border); }
+
+        /* Mobile: páginas Pedidos, Prescritores, Agenda e Roteiro alinhadas como o painel */
+        @media (max-width: 768px) {
+            #paginaPedidos,
+            #paginaPrescritores,
+            #paginaAgenda,
+            #paginaRoteiroVisitas {
+                padding: 0 12px 20px !important;
+                max-width: 100% !important;
+                overflow-x: hidden;
+            }
+            /* Agenda: calendário mais largo com rolagem horizontal */
+            #paginaAgenda .agenda-calendario-scroll {
+                overflow-x: auto;
+                overflow-y: visible;
+            }
+            #paginaAgenda #agendaCalendarioGrid {
+                min-width: 700px;
+            }
+            #paginaAgenda #agendaCalendarioDias .agenda-dia-cell {
+                min-width: 0;
+            }
+            #paginaPedidos .pedidos-page-header,
+            #paginaPrescritores .pedidos-page-header,
+            #paginaRoteiroVisitas .roteiro-header {
+                margin-bottom: 16px;
+            }
+            #paginaPedidos .pedidos-page-header h2,
+            #paginaPrescritores .pedidos-page-header h2,
+            #paginaRoteiroVisitas .roteiro-title {
+                font-size: 1.15rem;
+            }
+            #paginaPedidos .pedidos-page-header p,
+            #paginaPrescritores .pedidos-page-header p,
+            #paginaRoteiroVisitas .roteiro-subtitle {
+                font-size: 0.85rem;
+            }
+            #paginaPedidos .pedidos-filters,
+            #paginaPrescritores .pedidos-filters,
+            #paginaRoteiroVisitas .roteiro-filters {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 14px 16px;
+                width: 100%;
+                max-width: 100%;
+                overflow: hidden;
+                box-sizing: border-box;
+            }
+            #paginaRoteiroVisitas .roteiro-filter-group {
+                min-width: 0;
+                max-width: 100%;
+                overflow: hidden;
+            }
+            #paginaRoteiroVisitas .roteiro-filters .roteiro-input {
+                flex: 1;
+                min-width: 0;
+                width: 100%;
+                max-width: 100%;
+            }
+            #paginaRoteiroVisitas .roteiro-btn-atualizar {
+                width: 100%;
+                justify-content: center;
+            }
+            #paginaPedidos .pedidos-filters > div,
+            #paginaPrescritores .pedidos-filters > div {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                min-width: 0;
+                max-width: 100%;
+                overflow: hidden;
+            }
+            #paginaPedidos .pedidos-filters label,
+            #paginaPrescritores .pedidos-filters label {
+                flex-shrink: 0;
+                min-width: 32px;
+            }
+            #paginaPedidos .pedidos-filters input[type="date"],
+            #paginaPedidos .pedidos-filters select,
+            #paginaPedidos .pedidos-select-status,
+            #paginaPrescritores .pedidos-filters input[type="date"],
+            #paginaPrescritores .pedidos-filters select {
+                flex: 1;
+                min-width: 0;
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            #paginaPedidos .pedidos-search-wrap,
+            #paginaPrescritores .pedidos-search-wrap {
+                max-width: none;
+                min-width: 0;
+                width: 100%;
+                overflow: hidden;
+            }
+            #paginaPedidos .pedidos-search-wrap input {
+                min-width: 0;
+            }
+            #paginaPedidosCards,
+            #paginaPrescritoresCards {
+                grid-template-columns: 1fr !important;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+        }
+        @media (max-width: 576px) {
+            #paginaPedidos,
+            #paginaPrescritores,
+            #paginaAgenda,
+            #paginaRoteiroVisitas {
+                padding: 0 10px 16px !important;
+            }
+            #paginaPedidos .pedidos-filters,
+            #paginaPrescritores .pedidos-filters,
+            #paginaRoteiroVisitas .roteiro-filters {
+                padding: 12px;
+            }
+        }
+
+        /* Página Pedidos – celular: tabela e paginação */
+        @media (max-width: 640px) {
+            #paginaPedidos { padding: 0 10px 16px !important; }
+            #paginaPedidos .pedidos-page-header { margin-bottom: 14px; }
+            #paginaPedidos .pedidos-page-header h2 { font-size: 1.1rem; flex-wrap: wrap; }
+            #paginaPedidos .pedidos-page-header h2 .pedidos-icon { width: 36px; height: 36px; font-size: 0.9rem; }
+            #paginaPedidos .pedidos-page-header p { font-size: 0.8rem; }
+            #paginaPedidos .pedidos-filters { padding: 12px 14px !important; gap: 10px; margin-bottom: 14px; }
+            #paginaPedidos .pedidos-filters > div { flex-wrap: wrap; }
+            #paginaPedidos .pedidos-filters label { min-width: 28px; font-size: 0.75rem; }
+            #paginaPedidos .pedidos-filters input[type="date"],
+            #paginaPedidos .pedidos-filters select { font-size: 0.85rem; padding: 8px 10px; }
+            #paginaPedidosCards { grid-template-columns: 1fr !important; gap: 10px; margin-bottom: 14px; }
+            #paginaPedidosCards .card { padding: 12px 14px; }
+            #paginaPedidosCards .card > div:last-child { font-size: 1.2rem; }
+            #paginaPedidosBody { overflow-x: auto; -webkit-overflow-scrolling: touch; min-height: 180px; }
+            #paginaPedidos .pedidos-table { font-size: 0.8rem; min-width: 560px; }
+            #paginaPedidos .pedidos-table thead th { padding: 8px 10px; font-size: 0.75rem; white-space: nowrap; }
+            #paginaPedidos .pedidos-table tbody td { padding: 8px 10px; }
+            #paginaPedidos .pedidos-table thead th:nth-child(1) { width: 70px; }
+            #paginaPedidos .pedidos-table thead th:nth-child(2) { width: 44px; }
+            #paginaPedidos .pedidos-table thead th:nth-child(3),
+            #paginaPedidos .pedidos-table thead th:nth-child(4) { width: 82px; }
+            #paginaPedidos .pedidos-table thead th:nth-child(5),
+            #paginaPedidos .pedidos-table thead th:nth-child(6) { max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+            #paginaPedidos .pedidos-pagination { flex-direction: column; align-items: stretch; gap: 10px; padding: 10px 14px; font-size: 0.8rem; }
+            #paginaPedidos .pedidos-pagination .prescritores-pag-btns { justify-content: center; flex-wrap: wrap; }
+            #paginaPedidos .pedidos-pagination button { padding: 10px 14px; min-width: 40px; }
+        }
+
+/* Modal Inteligência do Prescritor — responsivo */
+        @media (max-width: 1024px) {
+            .modal-analise-prescritor-overlay { padding: 12px; }
+            .modal-analise-prescritor-body { padding: 14px 16px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-grid-2col { grid-template-columns: 1fr !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-chart-section h4 { font-size: 0.8rem !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-chart-wrap { height: 180px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-score-row { flex-wrap: wrap; gap: 12px; }
+            #modalAnalisesPrescritorBody.analise-content .analise-insight-item { min-width: 100% !important; }
+        }
+        @media (max-width: 640px) {
+            .modal-analise-prescritor-overlay { padding: 8px; align-items: stretch !important; }
+            .modal-analise-prescritor-card { max-height: 100% !important; border-radius: 10px; }
+            .modal-analise-prescritor-header { padding: 12px 14px !important; flex-direction: column; align-items: flex-start !important; }
+            .modal-analise-prescritor-title-wrap { width: 100%; }
+            #modalAnalisesPrescritorTitle { font-size: 1rem !important; }
+            #modalAnalisesPrescritorSubtitle { font-size: 0.75rem !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .modal-analise-prescritor-actions { width: 100%; justify-content: space-between; }
+            .modal-analise-prescritor-body { padding: 12px 14px !important; max-height: none !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-kpi-grid { grid-template-columns: 1fr !important; gap: 6px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-grid-2col { grid-template-columns: 1fr !important; gap: 12px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-score-row { flex-direction: column; align-items: stretch; }
+            #modalAnalisesPrescritorBody.analise-content .analise-score-circle { width: 56px !important; height: 56px !important; margin: 0 auto; }
+            #modalAnalisesPrescritorBody.analise-content .analise-score-circle svg { width: 100% !important; height: 100% !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-insight-item { min-width: 100% !important; font-size: 0.7rem !important; padding: 6px 10px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-chart-section { margin-bottom: 14px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-chart-wrap { height: 160px !important; min-height: 160px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-doughnut-wrap { height: 160px !important; }
+            #modalAnalisesPrescritorBody.analise-content .analise-bar-wrap { min-height: 120px !important; }
+        }
+
+/* CLASSE DEFINIDA MANUALMENTE AP�S IMPORTA��O */
+    @media (max-width: 768px) {
+        .d-none-mobile {
+            display: none !important;
+        }
+
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    }
