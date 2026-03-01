@@ -68,19 +68,33 @@ function getRankClass(index) {
 }
 
 // ============ API Calls ============
+function parseJsonResponse(text) {
+    if (!text || typeof text !== 'string') return null;
+    const t = text.trim();
+    if (!t) return null;
+    try {
+        return JSON.parse(t);
+    } catch (e) {
+        return null;
+    }
+}
+
 async function apiGet(action, params = {}) {
     const query = new URLSearchParams({ action, ...params });
     const response = await fetch(`${API_URL}?${query}`, { credentials: 'include' });
+    const text = await response.text();
+    const data = parseJsonResponse(text);
     if (response.status === 401) {
-        try {
-            const data = await response.json();
-            if (data && data.error) sessionStorage.setItem('sessionError', data.error);
-        } catch (e) {}
+        if (data && data.error) sessionStorage.setItem('sessionError', data.error);
         localStorage.clear();
         window.location.href = 'index.html';
         return;
     }
-    return response.json();
+    if (data === null) {
+        console.error('API GET resposta inválida (não é JSON):', text ? text.slice(0, 200) : 'vazio');
+        return { error: 'Resposta inválida do servidor. Tente novamente.' };
+    }
+    return data;
 }
 
 async function apiPost(action, data = {}) {
@@ -92,16 +106,19 @@ async function apiPost(action, data = {}) {
         body: JSON.stringify(data),
         credentials: 'include'
     });
+    const text = await response.text();
+    const parsed = parseJsonResponse(text);
     if (response.status === 401) {
-        try {
-            const data = await response.json();
-            if (data && data.error) sessionStorage.setItem('sessionError', data.error);
-        } catch (e) {}
+        if (parsed && parsed.error) sessionStorage.setItem('sessionError', parsed.error);
         localStorage.clear();
         window.location.href = 'index.html';
         return;
     }
-    return response.json();
+    if (parsed === null) {
+        console.error('API POST resposta inválida (não é JSON):', text ? text.slice(0, 200) : 'vazio');
+        return { error: 'Resposta inválida do servidor. Tente novamente.' };
+    }
+    return parsed;
 }
 
 // Delegação de clique para botão Iniciar visita: no modal → iniciarVisita; na Agenda → abrir modal com prescritor filtrado

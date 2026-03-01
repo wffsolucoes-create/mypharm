@@ -238,7 +238,27 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                 $pdo->exec("CREATE TABLE IF NOT EXISTS profissoes (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(255) NOT NULL, UNIQUE KEY uk_profissoes_nome (nome)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
             } catch (Throwable $e) { /* tabela já existe */ }
             $stmt = $pdo->query("SELECT id, nome FROM profissoes ORDER BY nome ASC");
-            $items = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            $raw = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            // Remover duplicatas: mesmo nome em maiúsculas e em título (ex.: MÉDICO e Médico) — manter só a versão em título/minúsculas
+            $byKey = [];
+            foreach ($raw as $row) {
+                $nome = trim($row['nome'] ?? '');
+                if ($nome === '') continue;
+                $key = mb_strtolower($nome);
+                $isAllUpper = ($nome === mb_strtoupper($nome));
+                if (!isset($byKey[$key])) {
+                    $byKey[$key] = ['id' => $row['id'], 'nome' => $nome];
+                } else {
+                    if ($isAllUpper && $byKey[$key]['nome'] !== mb_strtoupper($byKey[$key]['nome'])) {
+                        continue; // já temos versão em título, descarta a maiúscula
+                    }
+                    if (!$isAllUpper && $byKey[$key]['nome'] === mb_strtoupper($byKey[$key]['nome'])) {
+                        $byKey[$key] = ['id' => $row['id'], 'nome' => $nome]; // preferir título
+                    }
+                }
+            }
+            $items = array_values($byKey);
+            usort($items, function ($a, $b) { return strcasecmp($a['nome'], $b['nome']); });
             echo json_encode(['items' => $items], JSON_UNESCAPED_UNICODE);
             return true;
 
