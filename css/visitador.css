@@ -1171,7 +1171,7 @@ tr:last-child td {
         min-width: 0;
     }
     .brand-title {
-        font-size: 0.95rem;
+        font-size: 0.88rem;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1251,6 +1251,10 @@ tr:last-child td {
         font-size: 1.4rem;
         line-height: 1.25;
     }
+    /* No celular, ocultar o título grande "Painel: Nome" para ganhar área útil */
+    #greeting {
+        display: none !important;
+    }
     .welcome-section .card { width: 100%; min-width: auto; }
     .welcome-section p {
         font-size: 0.9rem;
@@ -1300,7 +1304,7 @@ tr:last-child td {
         padding-right: max(8px, env(safe-area-inset-right));
     }
     .brand img { height: 28px; }
-    .brand-title { font-size: 0.85rem; }
+    .brand-title { display: none; }
     .visitador-nav-hamburger {
         width: 36px;
         height: 36px;

@@ -172,6 +172,7 @@ async function doLogin(e) {
         const result = await apiPost('login', { usuario, senha });
         if (result.success) {
             if (result.csrf_token) __csrfToken = result.csrf_token;
+            const setorNormalizado = String(result.setor || '').trim().toLowerCase();
             if (result.require_password_change) {
                 const changed = await enforceStrongPasswordChangeOnLogin(senha);
                 if (!changed) {
@@ -183,14 +184,14 @@ async function doLogin(e) {
             localStorage.setItem('loggedIn', 'true');
             localStorage.setItem('userName', result.nome);
             localStorage.setItem('userType', result.tipo);
-            localStorage.setItem('userSetor', result.setor);
+            localStorage.setItem('userSetor', setorNormalizado);
             if (result.foto_perfil) localStorage.setItem('foto_perfil', result.foto_perfil); else localStorage.removeItem('foto_perfil');
             loadSavedTheme();
 
-            if (result.setor === 'Visitador' || result.setor === 'visitador') {
+            if (setorNormalizado === 'visitador') {
                 window.location.href = 'visitador.html';
             } else {
-                showApp(result.nome, result.tipo, result.foto_perfil || null);
+                showApp(result.nome, result.tipo, result.foto_perfil || null, setorNormalizado);
             }
         } else {
             errorEl.textContent = result.error || 'Credenciais inválidas';
@@ -335,8 +336,8 @@ async function enforceStrongPasswordChangeOnLogin(senhaAtual) {
     return false;
 }
 
-function showApp(nome, tipo, fotoPerfil) {
-    const setor = (localStorage.getItem('userSetor') || '').toLowerCase();
+function showApp(nome, tipo, fotoPerfil, setorInformado) {
+    const setor = String(setorInformado || localStorage.getItem('userSetor') || '').trim().toLowerCase();
     if (setor === 'visitador' && !window.location.pathname.includes('visitador.html')) {
         window.location.href = 'visitador.html';
         return;

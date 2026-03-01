@@ -1387,6 +1387,11 @@
     <script>
         (function(){
             if (localStorage.getItem('loggedIn')) {
+                var setor = (localStorage.getItem('userSetor') || '').trim().toLowerCase();
+                if (setor === 'visitador') {
+                    window.location.replace('visitador.html');
+                    return;
+                }
                 var ap = document.getElementById('appLayout');
                 var lp = document.getElementById('loginPage');
                 if (ap) ap.style.display = 'flex';
