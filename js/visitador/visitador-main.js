@@ -567,6 +567,7 @@ function getThemeStorageKeyVisitador() {
             var anoEl = document.getElementById('modalAnalisesPrescritorAno');
             if (!modal || !bodyEl) return;
             __modalAnalisesPrescritorNome = prescritorNome || '';
+            var nomeVisitadorContexto = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '').trim() || (localStorage.getItem('userName') || '').trim();
             if (subtitleEl) subtitleEl.textContent = __modalAnalisesPrescritorNome || 'Prescritor';
             var ano = (anoEl && anoEl.value) ? anoEl.value : String(new Date().getFullYear());
             var y = new Date().getFullYear();
@@ -592,7 +593,7 @@ function getThemeStorageKeyVisitador() {
             }
             modal.style.display = 'flex';
             try {
-                var res = await apiGet('analise_prescritor', { prescritor: __modalAnalisesPrescritorNome, ano: ano });
+                var res = await apiGet('analise_prescritor', { prescritor: __modalAnalisesPrescritorNome, ano: ano, nome: nomeVisitadorContexto });
                 var overlay2 = document.getElementById('analiseLoadingOverlay');
                 if (overlay2) overlay2.remove();
                 if (anoEl) anoEl.disabled = false;
