@@ -545,6 +545,10 @@
                         style="padding:10px 18px; border-radius:10px; border:none; background:var(--success); color:white; font-weight:600; font-size:0.9rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
                         <i class="fas fa-plus"></i> Novo agendamento
                     </button>
+                    <button type="button" onclick="openNovoPrescritorModal()"
+                        style="padding:10px 18px; border-radius:10px; border:none; background:#0EA5E9; color:white; font-weight:600; font-size:0.9rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-user-plus"></i> Novo prescritor
+                    </button>
                     <button type="button" onclick="openPrescritoresModal('')"
                         style="padding:10px 18px; border-radius:10px; border:none; background:var(--primary); color:white; font-weight:600; font-size:0.9rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
                         <i class="fas fa-user-md"></i> Atender prescritor
@@ -1107,12 +1111,16 @@
     <div id="modalEditarPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
         <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:560px; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
             <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
-                <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-user-edit" style="margin-right:8px; color:var(--primary);"></i>Editar prescritor</h3>
+                <h3 id="edPrescritorModalTitle" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-user-edit" style="margin-right:8px; color:var(--primary);"></i>Editar prescritor</h3>
                 <button type="button" onclick="closeEditarPrescritorModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
             </div>
             <div style="padding:20px 24px; overflow-y:auto; flex:1;">
                 <input type="hidden" id="edPrescritorNome">
-                <p id="edPrescritorNomeLabel" style="font-weight:600; color:var(--text-primary); margin:0 0 16px 0; font-size:0.95rem;"></p>
+                <div style="margin:0 0 16px 0;">
+                    <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Nome do prescritor *</label>
+                    <input type="text" id="edPrescritorNomeInput" placeholder="Ex.: João Silva" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.95rem; box-sizing:border-box;">
+                    <p id="edPrescritorNomeLabel" style="display:none; font-weight:600; color:var(--text-secondary); margin:8px 0 0 0; font-size:0.82rem;">Nome bloqueado no modo edição</p>
+                </div>
                 <div style="display:grid; gap:14px;">
                     <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Profissão</label><select id="edPrescritorProfissao" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">Selecione</option></select></div>
                     <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Especialidade</label><select id="edPrescritorEspecialidade" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">Selecione</option></select></div>

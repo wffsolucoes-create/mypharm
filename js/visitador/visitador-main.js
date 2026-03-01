@@ -2441,6 +2441,13 @@ function getThemeStorageKeyVisitador() {
             loadAgendaMes(__agendaAno, __agendaMes);
         }
 
+        function openNovoPrescritorModal() {
+            // Reaproveita o formulário completo de prescritor em modo novo cadastro.
+            if (typeof openEditarPrescritorModal === 'function') {
+                openEditarPrescritorModal('', { isNovoCadastro: true });
+            }
+        }
+
         async function openNovoAgendamentoModal(editItem) {
             var idEl = document.getElementById('novoAgendamentoId');
             var titleEl = document.getElementById('modalNovoAgendamentoTitle');

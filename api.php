@@ -141,6 +141,7 @@ try {
         'save_prescritor_whatsapp',
         'get_prescritor_dados',
         'update_prescritor_dados',
+        'add_prescritor',
         'list_profissoes',
         'list_especialidades',
         'visita_ativa',
@@ -1746,6 +1747,7 @@ try {
         case 'get_prescritor_contatos':
         case 'get_prescritor_dados':
         case 'update_prescritor_dados':
+        case 'add_prescritor':
         case 'list_profissoes':
         case 'list_especialidades':
             handlePrescritoresModuleAction($action, $pdo);

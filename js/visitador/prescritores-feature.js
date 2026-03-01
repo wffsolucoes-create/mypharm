@@ -1,4 +1,5 @@
 // Feature: ações de prescritor no painel do visitador
+var __edPrescritorIsNovoCadastro = false;
 function openWhatsAppModal(nome, numero) {
     document.getElementById('whatsPrescritorNome').value = nome;
     document.getElementById('whatsModalPrescritorName').textContent = 'Prescritor: ' + nome;
@@ -111,14 +112,32 @@ function fillSelectFromList(selectEl, items, currentValue) {
     }
 }
 
-async function openEditarPrescritorModal(nome) {
+async function openEditarPrescritorModal(nome, opts) {
     var elNome = document.getElementById('edPrescritorNome');
+    var elNomeInput = document.getElementById('edPrescritorNomeInput');
     var elNomeLabel = document.getElementById('edPrescritorNomeLabel');
-    if (!elNome || !elNomeLabel) {
+    var titleEl = document.getElementById('edPrescritorModalTitle');
+    var saveBtn = document.getElementById('btnSaveEditarPrescritor');
+    __edPrescritorIsNovoCadastro = !!(opts && opts.isNovoCadastro);
+    if (!elNome || !elNomeInput || !elNomeLabel) {
         return;
     }
-    elNome.value = nome;
-    elNomeLabel.textContent = nome;
+    var nomeNormalizado = (nome || '').trim();
+    elNome.value = nomeNormalizado;
+    elNomeInput.value = nomeNormalizado;
+    elNomeInput.readOnly = !__edPrescritorIsNovoCadastro;
+    elNomeInput.style.opacity = __edPrescritorIsNovoCadastro ? '1' : '0.9';
+    elNomeLabel.style.display = __edPrescritorIsNovoCadastro ? 'none' : 'block';
+    if (titleEl) {
+        titleEl.innerHTML = __edPrescritorIsNovoCadastro
+            ? '<i class="fas fa-user-plus" style="margin-right:8px; color:#0EA5E9;"></i>Novo prescritor'
+            : '<i class="fas fa-user-edit" style="margin-right:8px; color:var(--primary);"></i>Editar prescritor';
+    }
+    if (saveBtn) {
+        saveBtn.innerHTML = __edPrescritorIsNovoCadastro
+            ? '<i class="fas fa-check" style="margin-right:6px;"></i>Cadastrar'
+            : '<i class="fas fa-save" style="margin-right:6px;"></i>Salvar';
+    }
     ['edPrescritorProfissao', 'edPrescritorEspecialidade', 'edPrescritorRegistro', 'edPrescritorUfRegistro', 'edPrescritorDataNascimento', 'edPrescritorCep', 'edPrescritorRua', 'edPrescritorNumero', 'edPrescritorBairro', 'edPrescritorCidadeUf', 'edPrescritorCidade', 'edPrescritorUf', 'edPrescritorLocalAtendimento', 'edPrescritorWhatsapp', 'edPrescritorEmail'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) {
@@ -126,13 +145,15 @@ async function openEditarPrescritorModal(nome) {
         }
     });
     try {
-        var resPresc = apiGet('get_prescritor_dados', { nome_prescritor: nome });
         var resProf = apiGet('list_profissoes', {});
         var resEsp = apiGet('list_especialidades', {});
-        var res = await resPresc;
         var resP = await resProf;
         var resE = await resEsp;
-        var d = (res && res.dados) ? res.dados : {};
+        var d = {};
+        if (!__edPrescritorIsNovoCadastro && nomeNormalizado) {
+            var res = await apiGet('get_prescritor_dados', { nome_prescritor: nomeNormalizado });
+            d = (res && res.dados) ? res.dados : {};
+        }
         var profissoes = (resP && resP.items) ? resP.items : [];
         var especialidades = (resE && resE.items) ? resE.items : [];
         fillSelectFromList(document.getElementById('edPrescritorProfissao'), profissoes, d.profissao);
@@ -155,7 +176,7 @@ async function openEditarPrescritorModal(nome) {
         }
         document.getElementById('edPrescritorEmail').value = d.email || '';
     } catch (e) {
-        console.warn('get_prescritor_dados / list_profissoes / list_especialidades', e);
+        console.warn('list_profissoes / list_especialidades / get_prescritor_dados', e);
     }
 
     document.getElementById('modalEditarPrescritor').style.display = 'flex';
@@ -170,6 +191,7 @@ async function openEditarPrescritorModal(nome) {
 
 function closeEditarPrescritorModal() {
     document.getElementById('modalEditarPrescritor').style.display = 'none';
+    __edPrescritorIsNovoCadastro = false;
 }
 
 async function openAprovadosRecusadosModal(nome, tipo) {
@@ -338,10 +360,15 @@ function bindEditarPrescritorCepBlur() {
 }
 
 async function saveEditarPrescritorModal() {
-    var nome = (document.getElementById('edPrescritorNome') || {}).value;
+    var nomeInput = document.getElementById('edPrescritorNomeInput');
+    var nomeHidden = document.getElementById('edPrescritorNome');
+    var nome = ((nomeInput && nomeInput.value) || (nomeHidden && nomeHidden.value) || '').trim();
     if (!nome) {
+        alert('Informe o nome do prescritor.');
+        if (nomeInput) nomeInput.focus();
         return;
     }
+    if (nomeHidden) nomeHidden.value = nome;
     var payload = {
         nome_prescritor: nome,
         profissao: (document.getElementById('edPrescritorProfissao') || {}).value,
@@ -362,16 +389,33 @@ async function saveEditarPrescritorModal() {
     var btn = document.getElementById('btnSaveEditarPrescritor');
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+        btn.innerHTML = __edPrescritorIsNovoCadastro
+            ? '<i class="fas fa-spinner fa-spin"></i> Cadastrando...'
+            : '<i class="fas fa-spinner fa-spin"></i> Salvando...';
     }
     try {
+        if (__edPrescritorIsNovoCadastro) {
+            var visitador = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '') || (localStorage.getItem('userName') || '');
+            var addRes = await apiPost('add_prescritor', { nome_prescritor: nome, visitador: String(visitador || '').trim() });
+            if (!addRes || !addRes.success) {
+                alert('Erro: ' + (addRes && addRes.error ? addRes.error : 'Não foi possível cadastrar o prescritor na carteira.'));
+                return;
+            }
+        }
         var result = await apiPost('update_prescritor_dados', payload);
         if (result && result.success) {
             if (typeof __paginaPrescritoresList !== 'undefined') {
                 var p = __paginaPrescritoresList.find(function (x) { return (x.prescritor || '') === nome; });
                 if (p) {
                     p.whatsapp = payload.whatsapp || p.whatsapp;
+                    p.profissao = payload.profissao || p.profissao;
                 }
+            }
+            if (typeof loadAgendaMes === 'function' && typeof __agendaAno !== 'undefined' && typeof __agendaMes !== 'undefined') {
+                await loadAgendaMes(__agendaAno, __agendaMes);
+            }
+            if (typeof loadPaginaPrescritores === 'function') {
+                await loadPaginaPrescritores();
             }
             if (typeof renderPaginaPrescritores === 'function') {
                 renderPaginaPrescritores();
@@ -385,6 +429,8 @@ async function saveEditarPrescritorModal() {
     }
     if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-save" style="margin-right:6px;"></i>Salvar';
+        btn.innerHTML = __edPrescritorIsNovoCadastro
+            ? '<i class="fas fa-check" style="margin-right:6px;"></i>Cadastrar'
+            : '<i class="fas fa-save" style="margin-right:6px;"></i>Salvar';
     }
 }
