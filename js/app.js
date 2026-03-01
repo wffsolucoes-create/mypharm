@@ -172,6 +172,14 @@ async function doLogin(e) {
         const result = await apiPost('login', { usuario, senha });
         if (result.success) {
             if (result.csrf_token) __csrfToken = result.csrf_token;
+            if (result.require_password_change) {
+                const changed = await enforceStrongPasswordChangeOnLogin(senha);
+                if (!changed) {
+                    btn.textContent = 'Entrar';
+                    btn.disabled = false;
+                    return false;
+                }
+            }
             localStorage.setItem('loggedIn', 'true');
             localStorage.setItem('userName', result.nome);
             localStorage.setItem('userType', result.tipo);
@@ -195,6 +203,61 @@ async function doLogin(e) {
 
     btn.textContent = 'Entrar';
     btn.disabled = false;
+    return false;
+}
+
+function validateStrongPasswordClientSide(password) {
+    if (!password || password.length < 8) return false;
+    if (!/[A-Z]/.test(password)) return false;
+    if (!/[^a-zA-Z0-9]/.test(password)) return false;
+    return true;
+}
+
+function strongPasswordRuleText() {
+    return 'mínimo 8 caracteres, 1 letra maiúscula e 1 caractere especial.';
+}
+
+async function enforceStrongPasswordChangeOnLogin(senhaAtual) {
+    const errorEl = document.getElementById('loginError');
+    const aviso = 'Sua senha atual não atende à política de segurança. Você precisa definir uma senha forte para continuar (' + strongPasswordRuleText() + ')';
+    for (let tentativas = 0; tentativas < 5; tentativas++) {
+        const nova = window.prompt(aviso, '');
+        if (nova === null) break;
+        const confirmacao = window.prompt('Confirme a nova senha:', '');
+        if (confirmacao === null) break;
+        if (nova !== confirmacao) {
+            alert('A confirmação não confere.');
+            continue;
+        }
+        if (!validateStrongPasswordClientSide(nova)) {
+            alert('Senha inválida: ' + strongPasswordRuleText());
+            continue;
+        }
+        if (nova === senhaAtual) {
+            alert('A nova senha deve ser diferente da senha atual.');
+            continue;
+        }
+        try {
+            const res = await apiPost('update_my_password', { senha_atual: senhaAtual, senha_nova: nova });
+            if (res && res.success) {
+                alert('Senha atualizada com sucesso.');
+                return true;
+            }
+            alert((res && res.error) ? res.error : 'Não foi possível atualizar sua senha.');
+        } catch (err) {
+            alert('Erro de conexão ao atualizar senha.');
+        }
+    }
+    try { await apiPost('logout', {}); } catch (e) {}
+    localStorage.removeItem('loggedIn');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userType');
+    localStorage.removeItem('userSetor');
+    localStorage.removeItem('foto_perfil');
+    if (errorEl) {
+        errorEl.textContent = 'Login bloqueado até definir uma senha forte.';
+        errorEl.style.display = 'block';
+    }
     return false;
 }
 
@@ -3076,6 +3139,12 @@ async function submitAddUser(e) {
     const btn = document.getElementById('btnAddUser');
     const errorEl = document.getElementById('addUserError');
     errorEl.style.display = 'none';
+    const senhaAdd = document.getElementById('addSenha').value;
+    if (!validateStrongPasswordClientSide(senhaAdd)) {
+        errorEl.textContent = 'Senha inválida: ' + strongPasswordRuleText();
+        errorEl.style.display = 'block';
+        return false;
+    }
 
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...';
@@ -3114,6 +3183,12 @@ async function submitEditUser(e) {
     const btn = document.getElementById('btnEditUser');
     const errorEl = document.getElementById('editUserError');
     errorEl.style.display = 'none';
+    const senhaEdit = document.getElementById('editSenha').value;
+    if (senhaEdit && !validateStrongPasswordClientSide(senhaEdit)) {
+        errorEl.textContent = 'Senha inválida: ' + strongPasswordRuleText();
+        errorEl.style.display = 'block';
+        return false;
+    }
 
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';

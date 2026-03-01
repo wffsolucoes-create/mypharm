@@ -66,6 +66,23 @@ $pdo = getConnection();
 runUsuarioIdMigrationIfNeeded($pdo);
 $action = $_GET['action'] ?? '';
 
+function isStrongPassword(string $senha): bool {
+    if (strlen($senha) < 8) {
+        return false;
+    }
+    if (!preg_match('/[A-Z]/', $senha)) {
+        return false;
+    }
+    if (!preg_match('/[^a-zA-Z0-9]/', $senha)) {
+        return false;
+    }
+    return true;
+}
+
+function strongPasswordErrorMessage(): string {
+    return 'A senha deve ter no mínimo 8 caracteres, pelo menos 1 letra maiúscula e 1 caractere especial.';
+}
+
 try {
     // Ações públicas (não precisam de sessão)
     $publicActions = ['login', 'csrf_token'];
@@ -132,6 +149,7 @@ try {
         'upload_foto_perfil',
         'get_meu_perfil',
         'update_meu_perfil',
+        'update_my_password',
         'get_foto_perfil',
         'get_visitas_agendadas_mes',
         'criar_agendamento',
@@ -1122,6 +1140,8 @@ try {
                 $pdo->prepare("UPDATE usuarios SET ultimo_acesso = NOW() WHERE id = :id")
                     ->execute(['id' => $user['id']]);
 
+                $requirePasswordChange = !isStrongPassword($senha);
+
                 $fotoPerfil = null;
                 if (!empty($user['foto_perfil'])) {
                     $fotoPerfil = 'uploads/avatars/' . basename($user['foto_perfil']);
@@ -1132,6 +1152,7 @@ try {
                     'tipo' => $user['tipo'],
                     'setor' => $user['setor'],
                     'foto_perfil' => $fotoPerfil,
+                    'require_password_change' => $requirePasswordChange,
                     'csrf_token' => getCsrfToken()
                 ]);
             } else {
@@ -1304,8 +1325,8 @@ try {
             }
             $updates = ['nome' => $nome, 'whatsapp' => $whatsapp];
             if ($senhaNova !== '') {
-                if (strlen($senhaNova) < 6) {
-                    echo json_encode(['success' => false, 'error' => 'A nova senha deve ter no mínimo 6 caracteres.'], JSON_UNESCAPED_UNICODE);
+                if (!isStrongPassword($senhaNova)) {
+                    echo json_encode(['success' => false, 'error' => strongPasswordErrorMessage()], JSON_UNESCAPED_UNICODE);
                     break;
                 }
                 $stmt = $pdo->prepare("SELECT senha FROM usuarios WHERE id = :id LIMIT 1");
@@ -1322,6 +1343,41 @@ try {
             $stmt->execute(array_merge($updates, ['id' => $userId]));
             $_SESSION['user_nome'] = $nome;
             echo json_encode(['success' => true, 'nome' => $nome], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        case 'update_my_password': {
+            $userId = (int)($_SESSION['user_id'] ?? 0);
+            if ($userId <= 0) {
+                echo json_encode(['success' => false, 'error' => 'Não autenticado'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $input = json_decode(file_get_contents('php://input'), true) ?: [];
+            $senhaAtual = (string)($input['senha_atual'] ?? '');
+            $senhaNova = (string)($input['senha_nova'] ?? '');
+            if ($senhaAtual === '' || $senhaNova === '') {
+                echo json_encode(['success' => false, 'error' => 'Informe a senha atual e a nova senha.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            if (!isStrongPassword($senhaNova)) {
+                echo json_encode(['success' => false, 'error' => strongPasswordErrorMessage()], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            if (hash_equals($senhaAtual, $senhaNova)) {
+                echo json_encode(['success' => false, 'error' => 'A nova senha deve ser diferente da senha atual.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $stmt = $pdo->prepare("SELECT senha FROM usuarios WHERE id = :id LIMIT 1");
+            $stmt->execute(['id' => $userId]);
+            $userRow = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$userRow || !password_verify($senhaAtual, $userRow['senha'])) {
+                echo json_encode(['success' => false, 'error' => 'Senha atual incorreta.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $newHash = password_hash($senhaNova, PASSWORD_BCRYPT);
+            $upd = $pdo->prepare("UPDATE usuarios SET senha = :senha WHERE id = :id");
+            $upd->execute(['senha' => $newHash, 'id' => $userId]);
+            echo json_encode(['success' => true, 'message' => 'Senha atualizada com sucesso.'], JSON_UNESCAPED_UNICODE);
             break;
         }
 
@@ -1439,6 +1495,10 @@ try {
                 echo json_encode(['success' => false, 'error' => 'Preencha todos os campos obrigatórios']);
                 break;
             }
+            if (!isStrongPassword($senha)) {
+                echo json_encode(['success' => false, 'error' => strongPasswordErrorMessage()], JSON_UNESCAPED_UNICODE);
+                break;
+            }
 
             // Check if username already exists
             $check = $pdo->prepare("SELECT id FROM usuarios WHERE usuario = :usuario");
@@ -1495,6 +1555,10 @@ try {
             }
 
             if (!empty($senha)) {
+                if (!isStrongPassword($senha)) {
+                    echo json_encode(['success' => false, 'error' => strongPasswordErrorMessage()], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
                 // Usar bcrypt para hash seguro da senha
                 $senhaHash = password_hash($senha, PASSWORD_BCRYPT);
                 $stmt = $pdo->prepare("UPDATE usuarios SET nome = :nome, usuario = :usuario, senha = :senha, tipo = :tipo, setor = :setor, whatsapp = :whatsapp WHERE id = :id");
@@ -1727,6 +1791,88 @@ try {
             $stmt = $pdo->prepare("UPDATE visitas_em_andamento SET fim = NOW(), status = 'encerrada' WHERE id = :id AND visitador = :v");
             $stmt->execute(['id' => $id, 'v' => $visitadorNome]);
 
+            // Resolver profissão/UF/registro do prescritor para persistir no histórico.
+            $profissaoVisita = '';
+            $ufVisita = '';
+            $registroVisita = '';
+            $nomePrescritor = trim((string)($active['prescritor'] ?? ''));
+            if ($nomePrescritor !== '') {
+                try {
+                    $stmtDados = $pdo->prepare("
+                        SELECT
+                            COALESCE(
+                                (SELECT NULLIF(TRIM(pd.profissao), '') FROM prescritor_dados pd WHERE TRIM(pd.nome_prescritor) = TRIM(:nome1) LIMIT 1),
+                                (SELECT NULLIF(TRIM(pr.profissao), '') FROM prescritor_resumido pr WHERE TRIM(pr.nome) = TRIM(:nome2) ORDER BY pr.ano_referencia DESC, pr.id DESC LIMIT 1),
+                                (SELECT NULLIF(TRIM(hv.profissao), '') FROM historico_visitas hv WHERE TRIM(hv.prescritor) = TRIM(:nome3) ORDER BY hv.data_visita DESC, hv.id DESC LIMIT 1),
+                                ''
+                            ) AS profissao,
+                            COALESCE(
+                                (SELECT NULLIF(TRIM(pd.uf_registro), '') FROM prescritor_dados pd WHERE TRIM(pd.nome_prescritor) = TRIM(:nome4) LIMIT 1),
+                                (SELECT NULLIF(TRIM(pr.uf), '') FROM prescritor_resumido pr WHERE TRIM(pr.nome) = TRIM(:nome5) ORDER BY pr.ano_referencia DESC, pr.id DESC LIMIT 1),
+                                (SELECT NULLIF(TRIM(hv.uf), '') FROM historico_visitas hv WHERE TRIM(hv.prescritor) = TRIM(:nome6) ORDER BY hv.data_visita DESC, hv.id DESC LIMIT 1),
+                                ''
+                            ) AS uf,
+                            COALESCE(
+                                (SELECT NULLIF(TRIM(pd.registro), '') FROM prescritor_dados pd WHERE TRIM(pd.nome_prescritor) = TRIM(:nome7) LIMIT 1),
+                                (SELECT NULLIF(TRIM(pr.numero), '') FROM prescritor_resumido pr WHERE TRIM(pr.nome) = TRIM(:nome8) ORDER BY pr.ano_referencia DESC, pr.id DESC LIMIT 1),
+                                (SELECT NULLIF(TRIM(hv.registro), '') FROM historico_visitas hv WHERE TRIM(hv.prescritor) = TRIM(:nome9) ORDER BY hv.data_visita DESC, hv.id DESC LIMIT 1),
+                                ''
+                            ) AS registro
+                    ");
+                    $stmtDados->execute([
+                        'nome1' => $nomePrescritor,
+                        'nome2' => $nomePrescritor,
+                        'nome3' => $nomePrescritor,
+                        'nome4' => $nomePrescritor,
+                        'nome5' => $nomePrescritor,
+                        'nome6' => $nomePrescritor,
+                        'nome7' => $nomePrescritor,
+                        'nome8' => $nomePrescritor,
+                        'nome9' => $nomePrescritor
+                    ]);
+                    $dadosPrescritor = $stmtDados->fetch(PDO::FETCH_ASSOC) ?: [];
+                    $profissaoVisita = trim((string)($dadosPrescritor['profissao'] ?? ''));
+                    $ufVisita = trim((string)($dadosPrescritor['uf'] ?? ''));
+                    $registroVisita = trim((string)($dadosPrescritor['registro'] ?? ''));
+                } catch (Exception $e) {
+                    // Fallback para bases antigas sem colunas completas em prescritor_dados.
+                    try {
+                        $stmtDadosFallback = $pdo->prepare("
+                            SELECT
+                                COALESCE(
+                                    (SELECT NULLIF(TRIM(pr.profissao), '') FROM prescritor_resumido pr WHERE TRIM(pr.nome) = TRIM(:nome1) ORDER BY pr.ano_referencia DESC, pr.id DESC LIMIT 1),
+                                    (SELECT NULLIF(TRIM(hv.profissao), '') FROM historico_visitas hv WHERE TRIM(hv.prescritor) = TRIM(:nome2) ORDER BY hv.data_visita DESC, hv.id DESC LIMIT 1),
+                                    ''
+                                ) AS profissao,
+                                COALESCE(
+                                    (SELECT NULLIF(TRIM(pr.uf), '') FROM prescritor_resumido pr WHERE TRIM(pr.nome) = TRIM(:nome3) ORDER BY pr.ano_referencia DESC, pr.id DESC LIMIT 1),
+                                    (SELECT NULLIF(TRIM(hv.uf), '') FROM historico_visitas hv WHERE TRIM(hv.prescritor) = TRIM(:nome4) ORDER BY hv.data_visita DESC, hv.id DESC LIMIT 1),
+                                    ''
+                                ) AS uf,
+                                COALESCE(
+                                    (SELECT NULLIF(TRIM(pr.numero), '') FROM prescritor_resumido pr WHERE TRIM(pr.nome) = TRIM(:nome5) ORDER BY pr.ano_referencia DESC, pr.id DESC LIMIT 1),
+                                    (SELECT NULLIF(TRIM(hv.registro), '') FROM historico_visitas hv WHERE TRIM(hv.prescritor) = TRIM(:nome6) ORDER BY hv.data_visita DESC, hv.id DESC LIMIT 1),
+                                    ''
+                                ) AS registro
+                        ");
+                        $stmtDadosFallback->execute([
+                            'nome1' => $nomePrescritor,
+                            'nome2' => $nomePrescritor,
+                            'nome3' => $nomePrescritor,
+                            'nome4' => $nomePrescritor,
+                            'nome5' => $nomePrescritor,
+                            'nome6' => $nomePrescritor
+                        ]);
+                        $dadosPrescritorFallback = $stmtDadosFallback->fetch(PDO::FETCH_ASSOC) ?: [];
+                        $profissaoVisita = trim((string)($dadosPrescritorFallback['profissao'] ?? ''));
+                        $ufVisita = trim((string)($dadosPrescritorFallback['uf'] ?? ''));
+                        $registroVisita = trim((string)($dadosPrescritorFallback['registro'] ?? ''));
+                    } catch (Exception $e2) {
+                        // Mantém vazio se não for possível resolver dados de origem.
+                    }
+                }
+            }
+
             // Garantir coluna inicio_visita no histórico (para exibir duração no relatório)
             try {
                 $pdo->exec("ALTER TABLE historico_visitas ADD COLUMN inicio_visita DATETIME NULL");
@@ -1739,11 +1885,14 @@ try {
                 INSERT INTO historico_visitas
                     (visitador, prescritor, profissao, uf, registro, data_visita, horario, inicio_visita, status_visita, local_visita, amostra, brinde, artigo, resumo_visita, reagendado_para, ano_referencia)
                 VALUES
-                    (:visitador, :prescritor, '', '', '', CURDATE(), DATE_FORMAT(NOW(), '%H:%i'), :inicio_visita, :status_visita, :local_visita, :amostra, :brinde, :artigo, :resumo_visita, :reagendado_para, YEAR(CURDATE()))
+                    (:visitador, :prescritor, :profissao, :uf, :registro, CURDATE(), DATE_FORMAT(NOW(), '%H:%i'), :inicio_visita, :status_visita, :local_visita, :amostra, :brinde, :artigo, :resumo_visita, :reagendado_para, YEAR(CURDATE()))
             ");
             $stmt->execute([
                 'visitador' => $visitadorNome,
                 'prescritor' => $active['prescritor'],
+                'profissao' => $profissaoVisita,
+                'uf' => $ufVisita,
+                'registro' => $registroVisita,
                 'inicio_visita' => $active['inicio'] ?? null,
                 'status_visita' => $status_visita,
                 'local_visita' => $local_visita,

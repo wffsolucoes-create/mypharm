@@ -3545,6 +3545,13 @@ function getThemeStorageKeyVisitador() {
             if (e.target === this) closeMeuPerfilModal();
         });
 
+        function isStrongPasswordClient(password) {
+            if (!password || password.length < 8) return false;
+            if (!/[A-Z]/.test(password)) return false;
+            if (!/[^a-zA-Z0-9]/.test(password)) return false;
+            return true;
+        }
+
         async function salvarMeuPerfil() {
             var nome = (document.getElementById('perfilNome').value || '').trim();
             var whatsapp = (document.getElementById('perfilWhatsapp').value || '').trim();
@@ -3559,8 +3566,8 @@ function getThemeStorageKeyVisitador() {
                 alert('A nova senha e a confirmação não conferem.');
                 return;
             }
-            if (senhaNova !== '' && senhaNova.length < 6) {
-                alert('A nova senha deve ter no mínimo 6 caracteres.');
+            if (senhaNova !== '' && !isStrongPasswordClient(senhaNova)) {
+                alert('A nova senha deve ter no mínimo 8 caracteres, 1 letra maiúscula e 1 caractere especial.');
                 return;
             }
             var btn = document.getElementById('btnSalvarPerfil');
