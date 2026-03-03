@@ -1,11 +1,14 @@
 <?php
 /**
- * Importa os CSVs "Relatório de Itens de Orçamentos e Pedidos" e atualiza
- * prescritores_cadastro + prescritor_resumido.
+ * Importa o CSV "Relatório de Itens de Orçamentos e Pedidos".
+ * Relatório usado: Dados/Relatório de Itens de Orçamentos e Pedidos 2026.csv
+ * (por padrão só 2026; 2025 já está no banco e não muda mais.)
+ * Atualiza prescritores_cadastro + prescritor_resumido.
  *
  * Uso (na pasta mypharm):
- *   php scripts/importar_itens_cli.php        → importa 2022 a 2026 (primeira vez)
- *   php scripts/importar_itens_cli.php 2026    → importa só 2026 (atualizações)
+ *   php scripts/importar_itens_cli.php        → importa só 2026 (padrão)
+ *   php scripts/importar_itens_cli.php 2025   → importa só 2025 (se precisar repor)
+ *   php scripts/importar_itens_cli.php 2025 2026
  *
  * REGRA: Prescritores e visitadores são gerenciados pelo SISTEMA. Na importação
  * só adicionamos prescritores que ainda NÃO estão no banco (ex.: nome novo no relatório).
@@ -145,8 +148,12 @@ $stmtNew = $pdo->prepare("INSERT IGNORE INTO prescritores_cadastro (nome, visita
 
 $sql = "INSERT INTO itens_orcamentos_pedidos (filial, numero, serie, data, canal, forma_farmaceutica, descricao, quantidade, unidade, valor_bruto, valor_liquido, preco_custo, fator, status, usuario_inclusao, usuario_aprovador, paciente, prescritor, status_financeiro, ano_referencia) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
-// Sem argumento: importa 2022 a 2026. Com ano: php importar_itens_cli.php 2026 → só 2026
-$anos = isset($argv[1]) && preg_match('/^20\d{2}$/', $argv[1]) ? [(int)$argv[1]] : range(2022, 2026);
+// Sem argumentos: importa só 2026 (2025 fixo no banco). Com anos: php importar_itens_cli.php 2026 ou 2025 2026
+$anos = [];
+foreach (array_slice($argv, 1) as $arg) {
+    if (preg_match('/^20\d{2}$/', $arg)) $anos[] = (int)$arg;
+}
+if (empty($anos)) $anos = [2026];
 echo "Anos a importar: " . implode(', ', $anos) . "\n";
 
 function deleteInBatches($pdo, $table, $column, $value, $batchSize = 500) {

@@ -1122,6 +1122,36 @@ function dashboardEvolucaoPrescritor(PDO $pdo): void
 }
 
 /**
+ * Retorna um prescritor com dados no ano (para página de documentação "Inteligência do Prescritor").
+ */
+function dashboardGetExemploPrescritor(PDO $pdo): void
+{
+    $ano = (int)($_GET['ano'] ?? date('Y'));
+    $stmt = $pdo->prepare("
+        SELECT TRIM(gp.prescritor) AS prescritor, COALESCE(NULLIF(TRIM(pc.visitador), ''), 'My Pharm') AS visitador
+        FROM gestao_pedidos gp
+        LEFT JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') = pc.nome
+        WHERE gp.ano_referencia = :ano AND gp.data_aprovacao IS NOT NULL
+          AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado','Cancelado','Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%'))
+        GROUP BY TRIM(gp.prescritor), pc.visitador
+        ORDER BY SUM(gp.preco_liquido) DESC
+        LIMIT 1
+    ");
+    $stmt->execute(['ano' => $ano]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        echo json_encode(['success' => false, 'error' => 'Nenhum prescritor com dados no ano'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    echo json_encode([
+        'success' => true,
+        'prescritor' => $row['prescritor'] ?? '',
+        'visitador' => $row['visitador'] ?? 'My Pharm',
+        'ano' => $ano,
+    ], JSON_UNESCAPED_UNICODE);
+}
+
+/**
  * Análise completa do prescritor: KPIs, score, comparativos, distribuições, visitas, recorrência e evolução mensal.
  */
 function dashboardAnalisePrescritor(PDO $pdo): void
@@ -1219,10 +1249,11 @@ function dashboardAnalisePrescritor(PDO $pdo): void
         }
 
         // ── 3) Evolução mensal de COMPONENTES (quantidade) ──
+        // Junção por ano: c.ano_referencia = gp.ano_referencia para usar componentes do mesmo ano (ex.: 2025).
         $sqlCA = "
             SELECT MONTH(gp.data_aprovacao) as mes, COALESCE(SUM(CAST(c.quantidade_componente AS DECIMAL(20,6))),0) as qtd
             FROM pedidos_detalhado_componentes c
-            INNER JOIN gestao_pedidos gp ON c.numero = gp.numero_pedido AND c.serie = gp.serie_pedido
+            INNER JOIN gestao_pedidos gp ON c.numero = gp.numero_pedido AND c.serie = gp.serie_pedido AND c.ano_referencia = gp.ano_referencia
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = pc.nome AND $visWhere
             WHERE gp.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
               AND gp.data_aprovacao IS NOT NULL
@@ -1236,7 +1267,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
         $sqlCR = "
             SELECT MONTH(i.`data`) as mes, COALESCE(SUM(CAST(c.quantidade_componente AS DECIMAL(20,6))),0) as qtd
             FROM pedidos_detalhado_componentes c
-            INNER JOIN itens_orcamentos_pedidos i ON c.numero = i.numero AND c.serie = i.serie
+            INNER JOIN itens_orcamentos_pedidos i ON c.numero = i.numero AND c.serie = i.serie AND c.ano_referencia = i.ano_referencia
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm') = pc.nome AND $visWhere
             WHERE i.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
               AND (i.status = 'Recusado' OR i.status = 'No carrinho')
@@ -1388,10 +1419,11 @@ function dashboardAnalisePrescritor(PDO $pdo): void
         $dist_canal = $stmtCn->fetchAll(PDO::FETCH_ASSOC);
 
         // ── 9) Top 10 componentes aprovados (por pedido: ordenado por qtd de pedidos, depois qtd) ──
+        // Filtra c.ano_referencia = :ano para que 2025 use componentes de 2025 (tabela pode ter vários anos).
         $sqlTopComp = "
             SELECT c.componente, COALESCE(SUM(CAST(c.quantidade_componente AS DECIMAL(20,6))),0) as qtd, COUNT(DISTINCT gp.numero_pedido, gp.serie_pedido) as pedidos
             FROM pedidos_detalhado_componentes c
-            INNER JOIN gestao_pedidos gp ON c.numero = gp.numero_pedido AND c.serie = gp.serie_pedido
+            INNER JOIN gestao_pedidos gp ON c.numero = gp.numero_pedido AND c.serie = gp.serie_pedido AND c.ano_referencia = gp.ano_referencia
             INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm') = pc.nome AND $visWhere
             WHERE gp.ano_referencia = :ano AND LOWER(TRIM(COALESCE(NULLIF(TRIM(gp.prescritor),''),'My Pharm'))) = LOWER(TRIM(:prescritor))
               AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado','Cancelado','Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%'))

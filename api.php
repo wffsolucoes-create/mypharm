@@ -269,6 +269,7 @@ try {
         case 'list_componentes_prescritor':
         case 'evolucao_prescritor':
         case 'analise_prescritor':
+        case 'get_exemplo_prescritor':
         case 'get_pedido_detalhe':
         case 'get_pedido_componentes':
         case 'get_visitas_mapa_periodo':

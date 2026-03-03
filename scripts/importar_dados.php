@@ -1,4 +1,13 @@
 <?php
+/**
+ * Importação via interface web (requer login).
+ * Ao clicar em "Importar Dados" são executadas SOMENTE estas 4 importações (2026):
+ *   1. Relatórios de Orçamentos e Pedidos por Prescritor Resumido 2026.csv
+ *   2. Relatório de Gestão de Pedidos 2026.csv
+ *   3. Relatório de Itens de Orçamentos e Pedidos 2026.csv
+ *   4. Relatórios de Orçamentos e Pedidos por Prescritor Detalhado com Componentes 2026.csv
+ * Nenhum outro relatório é importado por este script.
+ */
 require_once dirname(__DIR__) . '/config.php';
 
 set_time_limit(0);
@@ -528,118 +537,7 @@ try {
     $errors[] = "Detalhado Componentes 2026: " . $e->getMessage();
 }
 
-// ============================================
-// 5. Histórico de Visitas (XLSX) - 2025 e 2026 (2026 só até 28/02)
-// 2026: só importar até 28/02; depois os dados vêm do sistema (não apagar nem importar)
-// ============================================
-try {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS historico_visitas (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        visitador VARCHAR(255),
-        prescritor VARCHAR(255),
-        profissao VARCHAR(100),
-        uf VARCHAR(10),
-        registro VARCHAR(50),
-        data_visita DATE,
-        horario VARCHAR(50),
-        status_visita VARCHAR(100),
-        local_visita TEXT,
-        amostra TEXT,
-        brinde TEXT,
-        artigo TEXT,
-        resumo_visita TEXT,
-        reagendado_para VARCHAR(100),
-        ano_referencia INT,
-        INDEX idx_visitador (visitador),
-        INDEX idx_prescritor (prescritor),
-        INDEX idx_data (data_visita),
-        INDEX idx_ano (ano_referencia)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-
-    $sqlVisitas = "INSERT INTO historico_visitas 
-        (visitador, prescritor, profissao, uf, registro, data_visita, horario, 
-         status_visita, local_visita, amostra, brinde, artigo, resumo_visita, 
-         reagendado_para, ano_referencia)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-
-    $hoje = new DateTime('now');
-    $limite2026 = new DateTime(date('Y') . '-03-01');
-
-    foreach ([2025, 2026] as $anoVisitas) {
-        // 2026: importar do XLSX até 28/02 (inclusive); a partir de 01/03 os dados vêm do sistema
-        if ($anoVisitas === 2026 && $hoje >= $limite2026) {
-            $results['historico_visitas_2026'] = 0;
-            $results['historico_visitas_2026_obs'] = 'A partir de 01/03 — dados pelo sistema (XLSX não importado).';
-            continue;
-        }
-
-        if ($anoVisitas === 2025) {
-            $pdo->exec("DELETE FROM historico_visitas WHERE ano_referencia = 2025");
-        } else {
-            // Só apagar visitas importadas do XLSX (sem inicio_visita, que é campo do sistema)
-            $pdo->exec("DELETE FROM historico_visitas WHERE ano_referencia = 2026 AND inicio_visita IS NULL");
-        }
-
-        $fileVisitas = dirname(__DIR__) . "/Dados/Relatório de Histórico de Visitas {$anoVisitas}.xlsx";
-        if (!file_exists($fileVisitas)) {
-            $errors[] = "Arquivo não encontrado: Histórico de Visitas {$anoVisitas}";
-            continue;
-        }
-
-        $rowsVisitas = readXlsx($fileVisitas);
-        if (empty($rowsVisitas)) {
-            $errors[] = "Arquivo vazio ou não legível: Histórico de Visitas {$anoVisitas}";
-            continue;
-        }
-
-        $countVisitas = 0;
-        $batchVisitas = [];
-
-        foreach ($rowsVisitas as $row) {
-            $rawDate = $row['Data da Visita'] ?? '';
-            $dataVisita = null;
-            if (is_numeric($rawDate) && intval($rawDate) > 40000) {
-                $timestamp = ($rawDate - 25569) * 86400;
-                $dataVisita = date('Y-m-d', $timestamp);
-            }
-            else {
-                $dataVisita = parseBRDate($rawDate);
-            }
-
-            $batchVisitas[] = [
-                trim($row['Visitadores'] ?? $row['Visitador'] ?? ''),
-                trim($row['Prescritores'] ?? $row['Prescritor'] ?? ''),
-                trim($row['Profissao'] ?? $row['Profissão'] ?? ''),
-                trim($row['UF'] ?? ''),
-                trim($row['Registro'] ?? ''),
-                $dataVisita,
-                trim($row['Horario'] ?? $row['Horário'] ?? ''),
-                trim($row['Status da Visita'] ?? $row['Status da visita'] ?? ''),
-                trim($row['Local'] ?? ''),
-                trim($row['Amostra'] ?? ''),
-                trim($row['Brinde'] ?? ''),
-                trim($row['Artigo'] ?? ''),
-                trim($row['Resumo da Visita'] ?? $row['Resumo da visita'] ?? ''),
-                trim($row['Reagendado para'] ?? ''),
-                $anoVisitas
-            ];
-            $countVisitas++;
-            if (count($batchVisitas) >= 1000) {
-                importBatch($pdo, $sqlVisitas, $batchVisitas);
-                $batchVisitas = [];
-            }
-        }
-
-        if (!empty($batchVisitas)) {
-            importBatch($pdo, $sqlVisitas, $batchVisitas);
-        }
-
-        $results["historico_visitas_{$anoVisitas}"] = $countVisitas;
-    }
-}
-catch (Exception $e) {
-    $errors[] = "Histórico Visitas: " . $e->getMessage();
-}
+// Histórico de Visitas (XLSX) não é importado pelo botão "Importar Dados" — somente os 4 CSVs acima.
 
 // ========== Vínculo prescritor→visitador NÃO é mais alterado pela importação ==========
 // O vínculo é definitivo e só pode ser modificado pela tela (Ranking de Prescritores / transferência).

@@ -1,14 +1,15 @@
 <?php
 /**
  * Executa TODAS as importações em sequência (CLI, sem login).
- * Por padrão importa só 2026. Use --todos para importar todos os anos (2022-2026).
  *
- * 1. Vínculo prescritor→visitador (CSV Prescritor Resumido: nome + visitador → prescritores_cadastro)
- * 2. Gestão de Pedidos (CSV)
- * 3. Itens de Orçamentos e Pedidos (CSV, subprocess)
- * 4. Detalhado com Componentes (CSV, subprocess) — somente ano atual/padrão (ex.: 2026)
- * 5. Prescritor Resumido (CSV): profissão, totais → prescritor_resumido (gráfico por especialidade)
- * 6. Histórico de Visitas (XLSX)
+ * Relatórios importados (somente 2026 — não há outros):
+ *   1. Dados/Relatórios de Orçamentos e Pedidos por Prescritor Resumido 2026.csv
+ *   2. Dados/Relatório de Gestão de Pedidos 2026.csv
+ *   3. Dados/Relatório de Itens de Orçamentos e Pedidos 2026.csv
+ *   4. Dados/Relatórios de Orçamentos e Pedidos por Prescritor Detalhado com Componentes 2026.csv
+ * (+ Histórico de Visitas XLSX, quando aplicável)
+ *
+ * Por padrão importa só 2026. Use --todos para importar todos os anos (2022-2026) na primeira carga.
  *
  * Uso (na pasta mypharm):
  *   php scripts/importar_tudo_cli.php           → só 2026 (padrão, uso diário)
@@ -256,7 +257,7 @@ $pdo->exec("
 if ($totalLinks > 0) echo "  Total: {$totalLinks} linhas; visitador dos existentes preservado.\n";
 }
 
-// ========== 2. Gestão de Pedidos (CSV) — anos 2022-2026 ==========
+// ========== 2. Gestão de Pedidos (CSV) — padrão 2026; --todos = 2022-2026 ==========
 if (!$onlyVisitas) {
 $pdo->exec("CREATE TABLE IF NOT EXISTS gestao_pedidos (
     id INT AUTO_INCREMENT PRIMARY KEY,

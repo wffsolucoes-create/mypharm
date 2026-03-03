@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inteligência do Prescritor | MyPharm</title>
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .doc-page { max-width: 900px; margin: 0 auto; padding: 24px 20px 48px; }
+        .doc-page h1 { font-size: 1.75rem; margin-bottom: 8px; color: var(--text-primary); display: flex; align-items: center; gap: 10px; }
+        .doc-page .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 28px; }
+        .doc-section { margin-bottom: 32px; }
+        .doc-section h2 { font-size: 1.2rem; color: var(--primary); margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+        .doc-section h3 { font-size: 1rem; color: var(--text-primary); margin: 16px 0 8px; }
+        .doc-section p, .doc-section li { color: var(--text-secondary); line-height: 1.6; font-size: 0.9rem; margin-bottom: 8px; }
+        .doc-section ul { padding-left: 20px; margin-bottom: 12px; }
+        .doc-formula { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; font-family: monospace; font-size: 0.85rem; color: var(--text-primary); margin: 10px 0; }
+        .doc-exemplo-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 16px; }
+        .doc-exemplo-box h3 { margin-top: 0; }
+        .doc-exemplo-loading { color: var(--text-secondary); padding: 24px; text-align: center; }
+        .doc-exemplo-error { color: var(--danger); padding: 16px; border-radius: 8px; background: rgba(239, 68, 68, 0.1); }
+        .doc-exemplo-real { display: grid; gap: 12px; }
+        .doc-exemplo-real .kpi { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border); }
+        .doc-exemplo-real .kpi strong { color: var(--text-primary); font-size: 0.9rem; }
+        .doc-exemplo-real .kpi span { color: var(--accent); font-weight: 700; }
+        .doc-back { display: inline-flex; align-items: center; gap: 8px; color: var(--primary); text-decoration: none; font-weight: 600; font-size: 0.9rem; margin-bottom: 20px; }
+        .doc-back:hover { text-decoration: underline; }
+        .badge-prescritor { background: var(--primary); color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="doc-page">
+        <a href="index.html" class="doc-back"><i class="fas fa-arrow-left"></i> Voltar ao painel</a>
+        <h1><i class="fas fa-brain"></i> Inteligência do Prescritor</h1>
+        <p class="subtitle">Entenda as métricas e o Score de Saúde usados na análise de cada prescritor da carteira.</p>
+
+        <section class="doc-section">
+            <h2>O que é a Inteligência do Prescritor?</h2>
+            <p>É o conjunto de indicadores e o <strong>Score de Saúde</strong> calculados para cada prescritor, com base em vendas aprovadas, recusadas, visitas e recorrência de pacientes. Esses dados vêm das tabelas <code>gestao_pedidos</code>, <code>itens_orcamentos_pedidos</code>, <code>historico_visitas</code> e <code>prescritores_cadastro</code> do banco.</p>
+        </section>
+
+        <section class="doc-section">
+            <h2>Score de Saúde (0 a 100)</h2>
+            <p>Índice que resume a “saúde” do prescritor na carteira. Quanto maior, melhor. Classificação:</p>
+            <ul>
+                <li><strong>70–100</strong> = Saudável</li>
+                <li><strong>40–69</strong> = Atenção</li>
+                <li><strong>0–39</strong> = Crítico</li>
+            </ul>
+            <h3>Como é calculado</h3>
+            <p>O score é a soma de até 25 pontos por componente (máximo 100):</p>
+            <ul>
+                <li><strong>Volume</strong> — Compara o ticket médio do prescritor com a média da carteira. Quanto mais próximo ou acima da média, mais pontos.</li>
+                <li><strong>Tendência</strong> — Crescimento do faturamento: últimos 3 meses vs. 3 meses anteriores. Crescimento ≥30% → 25 pts; ≥10% → 20; positivo → 15; queda moderada → 8.</li>
+                <li><strong>Aprovação</strong> — 25% do score = (taxa de aprovação ÷ 100) × 25. Taxa = faturamento aprovado ÷ faturamento total (aprovado + recusado).</li>
+                <li><strong>Recência</strong> — Dias desde a última compra (data_aprovacao em gestao_pedidos). ≤14 dias → 25 pts; ≤30 → 20; ≤60 → 15; ≤90 → 10; ≤120 → 5.</li>
+            </ul>
+            <div class="doc-formula">Score = min(100, Volume + Tendência + Aprovação + Recência)</div>
+        </section>
+
+        <section class="doc-section">
+            <h2>% do faturamento da carteira</h2>
+            <p>Mostra quanto aquele prescritor representa do faturamento <strong>aprovado</strong> total da carteira do visitador no ano.</p>
+            <div class="doc-formula">(Faturamento aprovado do prescritor ÷ Faturamento aprovado total da carteira) × 100</div>
+            <p><strong>Origem:</strong> soma de <code>preco_liquido</code> em <code>gestao_pedidos</code> (pedidos aprovados) do prescritor e da carteira, filtrados por ano e por <code>prescritores_cadastro.visitador</code>.</p>
+        </section>
+
+        <section class="doc-section">
+            <h2>Tendência de crescimento (3 meses vs anteriores)</h2>
+            <p>Variação percentual do faturamento aprovado: <strong>últimos 3 meses</strong> comparados aos <strong>3 meses imediatamente anteriores</strong>.</p>
+            <div class="doc-formula">((Valor recente − Valor anterior) ÷ Valor anterior) × 100</div>
+            <p><strong>Origem:</strong> soma de <code>preco_liquido</code> em <code>gestao_pedidos</code> por mês (<code>data_aprovacao</code>), apenas pedidos aprovados.</p>
+        </section>
+
+        <section class="doc-section">
+            <h2>Margem acima/abaixo da média da carteira</h2>
+            <p>Diferença entre a <strong>margem média do prescritor</strong> e a <strong>margem média da carteira</strong>. Margem = (faturamento aprovado − custo) ÷ faturamento aprovado.</p>
+            <div class="doc-formula">Margem prescritor = ((Total aprovado − Total custo) ÷ Total aprovado) × 100</div>
+            <p><strong>Origem:</strong> <code>preco_liquido</code> e <code>preco_custo</code> em <code>gestao_pedidos</code> (pedidos aprovados). A média da carteira é a média das margens de todos os prescritores da mesma carteira.</p>
+        </section>
+
+        <section class="doc-section">
+            <h2>% dos pacientes que retornam para novas compras</h2>
+            <p>Percentual de <strong>pacientes distintos</strong> que fizeram <strong>dois ou mais pedidos aprovados</strong> no ano com aquele prescritor.</p>
+            <div class="doc-formula">(Pacientes com ≥ 2 pedidos aprovados ÷ Total de pacientes com pedido aprovado) × 100</div>
+            <p><strong>Origem:</strong> <code>gestao_pedidos</code>: agrupamento por <code>paciente</code> e prescritor; “recorrentes” = pacientes com contagem de pedidos ≥ 2.</p>
+        </section>
+
+        <section class="doc-section">
+            <h2>Exemplo com dados reais do banco</h2>
+            <p>Os valores abaixo são carregados em tempo real a partir do sistema. É usado o prescritor com maior faturamento aprovado no ano selecionado.</p>
+            <div class="doc-exemplo-box">
+                <div id="exemploLoading" class="doc-exemplo-loading"><i class="fas fa-spinner fa-spin"></i> Carregando exemplo...</div>
+                <div id="exemploError" class="doc-exemplo-error" style="display:none;"></div>
+                <div id="exemploContent" class="doc-exemplo-real" style="display:none;">
+                    <p style="margin-bottom:12px;"><span id="exemploPrescritorLabel" class="badge-prescritor"></span> <span id="exemploVisitadorLabel" style="color:var(--text-secondary);font-size:0.85rem;"></span></p>
+                    <div class="kpi"><strong>Score de Saúde</strong><span id="exemploScore">—</span></div>
+                    <div class="kpi"><strong>% do faturamento da carteira</strong><span id="exemploConcentracao">—</span></div>
+                    <div class="kpi"><strong>Tendência (3m vs 3m anteriores)</strong><span id="exemploTendencia">—</span></div>
+                    <div class="kpi"><strong>Margem média</strong><span id="exemploMargem">—</span></div>
+                    <div class="kpi"><strong>Taxa de aprovação</strong><span id="exemploAprovacao">—</span></div>
+                    <div class="kpi"><strong>Pacientes que retornam</strong><span id="exemploRecorrencia">—</span></div>
+                    <div class="kpi"><strong>Faturamento aprovado (ano)</strong><span id="exemploTotalAprovado">—</span></div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+(function() {
+    var apiBase = 'api.php';
+    var ano = new Date().getFullYear();
+
+    function fmtPct(v) { return (parseFloat(v) || 0).toFixed(1) + '%'; }
+    function fmtMoney(v) {
+        var n = parseFloat(v) || 0;
+        return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    var loadingEl = document.getElementById('exemploLoading');
+    var errorEl = document.getElementById('exemploError');
+    var contentEl = document.getElementById('exemploContent');
+
+    function showError(msg) {
+        loadingEl.style.display = 'none';
+        contentEl.style.display = 'none';
+        errorEl.style.display = 'block';
+        errorEl.textContent = msg;
+    }
+
+    function showContent() {
+        loadingEl.style.display = 'none';
+        errorEl.style.display = 'none';
+        contentEl.style.display = 'block';
+    }
+
+    fetch(apiBase + '?action=get_exemplo_prescritor&ano=' + ano)
+        .then(function(r) { return r.json(); })
+        .then(function(ex) {
+            if (!ex || !ex.success || !ex.prescritor) {
+                showError(ex && ex.error ? ex.error : 'Nenhum prescritor com dados no ano. Faça login e importe dados.');
+                return;
+            }
+            var prescritor = ex.prescritor;
+            var visitador = ex.visitador || 'My Pharm';
+            var params = 'action=analise_prescritor&prescritor=' + encodeURIComponent(prescritor) + '&nome=' + encodeURIComponent(visitador) + '&ano=' + ano;
+            return fetch(apiBase + '?' + params).then(function(r) { return r.json(); }).then(function(data) {
+                if (data && data.error) {
+                    showError(data.error);
+                    return;
+                }
+                showContent();
+                document.getElementById('exemploPrescritorLabel').textContent = prescritor || 'My Pharm';
+                document.getElementById('exemploVisitadorLabel').textContent = 'Carteira: ' + visitador;
+
+                var kpis = data.kpis || {};
+                var comp = data.comparativo || {};
+                var tend = data.tendencia || {};
+                var rec = data.recorrencia || {};
+
+                var score = 0;
+                var tk = kpis.ticket_medio || 0;
+                var tkCart = comp.media_ticket_carteira || 1;
+                var ratio = tk / tkCart;
+                score += ratio >= 1.5 ? 25 : ratio >= 1 ? 20 : ratio >= 0.5 ? Math.round(ratio * 30) : Math.round(ratio * 20);
+                var vp = tend.variacao_pct || 0;
+                score += vp >= 30 ? 25 : vp >= 10 ? 20 : vp >= 0 ? 15 : vp >= -20 ? 8 : 0;
+                score += Math.min(25, Math.round((kpis.taxa_aprovacao || 0) / 100 * 25));
+                var d = kpis.dias_ultima_compra;
+                score += d === null ? 0 : d <= 14 ? 25 : d <= 30 ? 20 : d <= 60 ? 15 : d <= 90 ? 10 : d <= 120 ? 5 : 0;
+                score = Math.min(100, Math.max(0, score));
+
+                var scoreLabel = score >= 70 ? 'Saudável' : score >= 40 ? 'Atenção' : 'Crítico';
+                document.getElementById('exemploScore').textContent = score + ' (' + scoreLabel + ')';
+                document.getElementById('exemploConcentracao').textContent = fmtPct(kpis.concentracao_carteira);
+                document.getElementById('exemploTendencia').textContent = (vp >= 0 ? '+' : '') + fmtPct(vp);
+                document.getElementById('exemploMargem').textContent = fmtPct(kpis.margem_media);
+                document.getElementById('exemploAprovacao').textContent = fmtPct(kpis.taxa_aprovacao);
+                document.getElementById('exemploRecorrencia').textContent = fmtPct(rec.taxa_recorrencia);
+                document.getElementById('exemploTotalAprovado').textContent = fmtMoney(kpis.total_aprovado);
+            });
+        })
+        .catch(function(err) {
+            showError('Faça login no painel e recarregue esta página para ver um exemplo com dados reais. (' + (err && err.message ? err.message : 'erro de rede') + ')');
+        });
+})();
+    </script>
+</body>
+</html>
