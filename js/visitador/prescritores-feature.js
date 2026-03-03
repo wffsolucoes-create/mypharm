@@ -266,7 +266,8 @@ async function openRelatorioVisitasPrescritorModal(nome) {
                     return;
                 }
                 try {
-                    var det = await apiGet('get_detalhe_visita', { historico_id: id });
+                    var visitador = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '') || (localStorage.getItem('userName') || '');
+                    var det = await apiGet('get_detalhe_visita', { historico_id: id, visitador: visitador });
                     if (det && det.success && det.visita && typeof openDetalheVisitaModal === 'function') {
                         closeRelatorioVisitasPrescritorModal();
                         openDetalheVisitaModal(det.visita);

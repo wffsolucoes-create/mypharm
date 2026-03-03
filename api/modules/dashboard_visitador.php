@@ -369,31 +369,8 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                     $qVMes['nome'] = $nome;
                 $stmtVisitasMes->execute($qVMes);
                 $visitasMes = (int)$stmtVisitasMes->fetchColumn();
-    
-                // Fallback mes: prescritores distintos com vendas aprovadas no mes
-                $sqlFallbackMes = "
-                    SELECT COUNT(DISTINCT COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm'))
-                    FROM gestao_pedidos gp
-                    INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome
-                    WHERE gp.ano_referencia = :ano2
-                      AND gp.status_financeiro NOT IN ('Recusado', 'Cancelado', CONCAT('Or', CHAR(231), 'amento'))
-                      AND gp.status_financeiro NOT LIKE '%carrinho%'
-                      AND gp.data_aprovacao IS NOT NULL
-                      AND MONTH(gp.data_aprovacao) = :m AND YEAR(gp.data_aprovacao) = :y
-                ";
-                if ($isMyPharm) {
-                    $sqlFallbackMes .= " AND (pc.visitador IS NULL OR pc.visitador = '' OR pc.visitador = 'My Pharm' OR UPPER(pc.visitador) = 'MY PHARM')";
-                } else {
-                    $sqlFallbackMes .= " AND pc.visitador = :nome";
-                }
-                $stmtFallbackMes = $pdo->prepare($sqlFallbackMes);
-                $qFallbackMes = ['ano2' => $anoRefVisitas, 'm' => $mesRefVisitas, 'y' => $anoRefVisitas];
-                if (!$isMyPharm)
-                    $qFallbackMes['nome'] = $nome;
-                $stmtFallbackMes->execute($qFallbackMes);
-                $fallbackMes = (int)$stmtFallbackMes->fetchColumn();
-                $visitasMes = max($visitasMes, $fallbackMes);
-    
+                // Visitas no mês = apenas registros em historico_visitas (não usar fallback por prescritores com vendas)
+
                 // Visitas na semana atual = quantidade de registros em historico_visitas (semana ISO: seg���dom)
                 $stmtVisitasSemana = $pdo->prepare("
                     SELECT COUNT(*) FROM historico_visitas 
@@ -406,30 +383,8 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                     $qVSem['nome'] = $nome;
                 $stmtVisitasSemana->execute($qVSem);
                 $visitasSemana = (int)$stmtVisitasSemana->fetchColumn();
-    
-                // Fallback semana: prescritores distintos com vendas aprovadas na semana atual
-                $sqlFallbackSemana = "
-                    SELECT COUNT(DISTINCT COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm'))
-                    FROM gestao_pedidos gp
-                    INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome
-                    WHERE gp.ano_referencia = :ano2
-                      AND gp.status_financeiro NOT IN ('Recusado', 'Cancelado', CONCAT('Or', CHAR(231), 'amento'))
-                      AND gp.status_financeiro NOT LIKE '%carrinho%'
-                      AND gp.data_aprovacao IS NOT NULL
-                      AND YEARWEEK(gp.data_aprovacao, 1) = YEARWEEK(CURDATE(), 1)
-                ";
-                if ($isMyPharm) {
-                    $sqlFallbackSemana .= " AND (pc.visitador IS NULL OR pc.visitador = '' OR pc.visitador = 'My Pharm' OR UPPER(pc.visitador) = 'MY PHARM')";
-                } else {
-                    $sqlFallbackSemana .= " AND pc.visitador = :nome";
-                }
-                $stmtFallback = $pdo->prepare($sqlFallbackSemana);
-                $qFallbackSem = ['ano2' => $ano];
-                if (!$isMyPharm) $qFallbackSem['nome'] = $nome;
-                $stmtFallback->execute($qFallbackSem);
-                $fallbackSemana = (int)$stmtFallback->fetchColumn();
-                $visitasSemana = max($visitasSemana, $fallbackSemana);
-    
+                // Visitas na semana = apenas historico_visitas (não usar fallback por prescritores com vendas)
+
                 // - Sem filtro de m%�s, mostrar as %Q%ltimas 4 semanas (cont%�nuo)
                 $stmtVps = $pdo->prepare("
                     SELECT COUNT(*) FROM historico_visitas 

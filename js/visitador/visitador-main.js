@@ -1675,7 +1675,8 @@ function getThemeStorageKeyVisitador() {
             try {
                 var res = await apiPost('update_detalhe_visita', payload);
                 if (res && res.success) {
-                    var updated = await apiGet('get_detalhe_visita', { historico_id: historicoId });
+                    var vis = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '') || (localStorage.getItem('userName') || '');
+                    var updated = await apiGet('get_detalhe_visita', { historico_id: historicoId, visitador: vis });
                     if (updated && updated.success && updated.visita) {
                         __dvVisita = updated.visita;
                         openDetalheVisitaModal(updated.visita);
@@ -2496,9 +2497,13 @@ function getThemeStorageKeyVisitador() {
         async function openRelatorioAgendamento(historicoId) {
             if (!historicoId) return;
             try {
-                var res = await apiGet('get_detalhe_visita', { historico_id: historicoId });
-                if (res && res.success && res.visita && typeof openDetalheVisitaModal === 'function') openDetalheVisitaModal(res.visita);
-                else alert('Relatório não encontrado.');
+                var visitador = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '') || (localStorage.getItem('userName') || '');
+                var res = await apiGet('get_detalhe_visita', { historico_id: historicoId, visitador: visitador });
+                if (res && res.success && res.visita && typeof openDetalheVisitaModal === 'function') {
+                    openDetalheVisitaModal(res.visita);
+                } else {
+                    alert('Relatório não encontrado.');
+                }
             } catch (e) {
                 alert('Erro ao carregar relatório.');
             }
