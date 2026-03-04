@@ -1271,6 +1271,7 @@ async function loadVisitadoresPage() {
 
 // ============ VISITAS (PÁGINA ADMIN) ============
 let __visitasRelatorioCache = null; // para mapa (dropdown visitador)
+let __modalDetalheVisitaAdminMap = null;
 
 async function loadVisitasPage() {
     const fp = getFilterParams();
@@ -1518,8 +1519,91 @@ function renderTableVisitasPage(lista) {
             <td>${(v.status_visita || '—').trim()}</td>
             <td title="${(v.local_visita || '').replace(/"/g, '&quot;')}">${truncate(v.local_visita, 35)}</td>
             <td>${formatReagend(v.reagendado_para)}</td>
+            <td>
+                <button type="button"
+                    onclick="openModalDetalheVisitaAdmin(${parseInt(v.id || 0, 10)}, '${String(v.visitador || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')"
+                    style="border:1px solid var(--border); background:var(--bg-card); color:var(--primary); border-radius:8px; padding:4px 8px; cursor:pointer; font-size:0.8rem;"
+                    title="Ver relatório da visita">
+                    <i class="fas fa-clipboard-list"></i> Ver
+                </button>
+            </td>
         </tr>
     `).join('');
+}
+
+function closeModalDetalheVisitaAdmin() {
+    const modal = document.getElementById('modalDetalheVisitaAdmin');
+    if (modal) modal.style.display = 'none';
+    if (__modalDetalheVisitaAdminMap) {
+        __modalDetalheVisitaAdminMap.remove();
+        __modalDetalheVisitaAdminMap = null;
+    }
+}
+
+function __fmtDuracaoMin(min) {
+    const n = parseInt(min, 10);
+    if (!Number.isFinite(n)) return '—';
+    if (n < 60) return `${n} min`;
+    const h = Math.floor(n / 60);
+    const r = n % 60;
+    return r ? `${h}h ${r}min` : `${h}h`;
+}
+
+async function openModalDetalheVisitaAdmin(historicoId, visitadorNome) {
+    const id = parseInt(historicoId, 10);
+    if (!id) return;
+    const modal = document.getElementById('modalDetalheVisitaAdmin');
+    if (!modal) return;
+    try {
+        const res = await apiGet('get_detalhe_visita', { historico_id: id, visitador: (visitadorNome || '').trim() });
+        if (!res || !res.success || !res.visita) {
+            alert((res && res.error) ? res.error : 'Relatório não encontrado.');
+            return;
+        }
+        const v = res.visita;
+        const set = (idEl, txt) => {
+            const el = document.getElementById(idEl);
+            if (el) el.textContent = (txt == null || String(txt).trim() === '') ? '—' : String(txt);
+        };
+        const dtBr = (d) => {
+            if (!d) return '—';
+            const x = new Date(d);
+            return isNaN(x.getTime()) ? String(d) : x.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+        };
+        const t5 = (s) => s ? String(s).slice(0, 5) : '—';
+        set('modalDetalheVisitaAdminSub', `${(v.visitador || visitadorNome || '—').toString().trim()}`);
+        set('detVisitaAdminPrescritor', v.prescritor);
+        set('detVisitaAdminStatus', v.status_visita);
+        set('detVisitaAdminData', dtBr(v.data_visita));
+        set('detVisitaAdminInicio', t5(v.inicio_visita ? String(v.inicio_visita).slice(11, 16) : ''));
+        set('detVisitaAdminFim', t5(v.horario));
+        set('detVisitaAdminDuracao', __fmtDuracaoMin(v.duracao_minutos));
+        set('detVisitaAdminLocal', v.local_visita);
+        set('detVisitaAdminResumo', v.resumo_visita);
+
+        const lat = parseFloat(v.geo_lat);
+        const lng = parseFloat(v.geo_lng);
+        const gpsWrap = document.getElementById('detVisitaAdminGpsWrap');
+        if (Number.isFinite(lat) && Number.isFinite(lng) && typeof L !== 'undefined') {
+            if (gpsWrap) gpsWrap.style.display = 'block';
+            const acc = v.geo_accuracy != null && v.geo_accuracy !== '' ? ` ±${Math.round(parseFloat(v.geo_accuracy))}m` : '';
+            set('detVisitaAdminGpsTxt', `${lat.toFixed(6)}, ${lng.toFixed(6)}${acc}`);
+            if (__modalDetalheVisitaAdminMap) {
+                __modalDetalheVisitaAdminMap.remove();
+                __modalDetalheVisitaAdminMap = null;
+            }
+            __modalDetalheVisitaAdminMap = L.map('detVisitaAdminMapa', { zoomControl: true }).setView([lat, lng], 16);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(__modalDetalheVisitaAdminMap);
+            L.marker([lat, lng]).addTo(__modalDetalheVisitaAdminMap);
+            setTimeout(() => __modalDetalheVisitaAdminMap && __modalDetalheVisitaAdminMap.invalidateSize(), 120);
+        } else if (gpsWrap) {
+            gpsWrap.style.display = 'none';
+        }
+        modal.style.display = 'flex';
+    } catch (e) {
+        console.error('Detalhe visita admin', e);
+        alert('Erro ao carregar detalhes da visita.');
+    }
 }
 
 function renderKPIsVisitadores(data) {
