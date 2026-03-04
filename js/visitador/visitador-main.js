@@ -25,6 +25,8 @@ function getThemeStorageKeyVisitador() {
         let currentVisitadorName = '';
         // Apenas usuários do setor visitador podem iniciar/encerrar visitas
         let canManageVisits = false;
+        // Apenas perfil visitador pode iniciar/pausar/finalizar rota e gravar GPS de rota
+        let canManageRota = false;
         // Visita ativa do visitador logado (quando existir)
         let activeVisit = null;
 
@@ -3182,6 +3184,19 @@ function getThemeStorageKeyVisitador() {
             const icon = document.getElementById('iconIniciarRota');
             const btnFinalizar = document.getElementById('btnFinalizarRota');
             if (!btn || !label) return;
+            if (!canManageRota) {
+                btn.disabled = true;
+                btn.style.opacity = '0.65';
+                btn.style.cursor = 'not-allowed';
+                btn.title = 'Somente perfil visitador pode iniciar/pausar/finalizar rota.';
+                label.textContent = 'Rota bloqueada';
+                if (icon) { icon.className = 'fas fa-ban'; }
+                if (btnFinalizar) btnFinalizar.style.display = 'none';
+                return;
+            }
+            btn.disabled = false;
+            btn.style.opacity = '';
+            btn.style.cursor = 'pointer';
             if (rotaState === 'em_andamento') {
                 btn.title = 'Pausar a rota (ex.: almoço). O GPS deixa de registrar até retomar.';
                 label.textContent = 'Pausar Rota';
@@ -3211,12 +3226,14 @@ function getThemeStorageKeyVisitador() {
         }
 
         function sendRotaPonto(lat, lng) {
+            if (!canManageRota) return;
             if (!currentVisitadorName) return;
             if (typeof apiPost !== 'function') return;
             apiPost('save_rota_ponto', { visitador_nome: currentVisitadorName, lat, lng }).catch(() => {});
         }
 
         function startRotaWatch() {
+            if (!canManageRota) return;
             if (!navigator.geolocation || rotaState !== 'em_andamento') return;
             let lastSent = 0;
             rotaWatchId = navigator.geolocation.watchPosition(
@@ -3234,6 +3251,10 @@ function getThemeStorageKeyVisitador() {
         }
 
         async function toggleRota() {
+            if (!canManageRota) {
+                alert('Somente perfil visitador pode gerenciar rota.');
+                return;
+            }
             if (!currentVisitadorName) return;
             try {
                 if (rotaState === 'idle') {
@@ -3311,6 +3332,10 @@ function getThemeStorageKeyVisitador() {
         }
 
         async function finishRotaFromUI() {
+            if (!canManageRota) {
+                alert('Somente perfil visitador pode finalizar rota.');
+                return;
+            }
             if (!currentVisitadorName || (rotaState !== 'em_andamento' && rotaState !== 'pausada')) return;
             try {
                 const av = await apiGet('visita_ativa', { visitador_nome: currentVisitadorName });
@@ -3343,6 +3368,12 @@ function getThemeStorageKeyVisitador() {
         }
 
         async function syncRotaState() {
+            if (!canManageRota) {
+                stopRotaWatch();
+                rotaState = 'idle';
+                updateRotaButton();
+                return;
+            }
             try {
                 const r = await apiGet('rota_ativa', { visitador_nome: currentVisitadorName });
                 const active = r && r.active ? r.active : null;
@@ -3408,6 +3439,8 @@ function getThemeStorageKeyVisitador() {
             currentVisitadorName = visitadorToLoad || '';
             // Visitador logado pode gerenciar suas visitas; admin também pode ao visualizar outro visitador
             canManageVisits = (userSetor === 'visitador') || (userType === 'admin');
+            // Rota e GPS são exclusivos do visitador (nunca para admin visualizando carteira)
+            canManageRota = (userSetor === 'visitador') && (userType !== 'admin') && !viewVisitador;
             if (!viewVisitador && typeof apiGet === 'function') {
                 try {
                     var session = await apiGet('check_session');
