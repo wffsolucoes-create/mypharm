@@ -1,0 +1,92 @@
+.gc-tabs {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.gc-tab {
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border-radius: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gc-tab.active {
+    color: #fff;
+    border-color: #2563EB;
+    background: linear-gradient(135deg, #2563EB, #1D4ED8);
+}
+
+.gc-section {
+    display: none;
+}
+
+.gc-section.active {
+    display: block;
+}
+
+.gc-block {
+    margin-bottom: 20px;
+}
+
+.gc-block h3 {
+    margin: 0 0 10px 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.gc-note {
+    margin-top: 10px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.gc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+}
+
+.gc-checklist {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 14px;
+}
+
+.gc-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+}
+
+.gc-label {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.gc-value {
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 1.25rem;
+}
+
+.gc-card ul {
+    margin: 8px 0 0 18px;
+    padding: 0;
+    color: var(--text-primary);
+}
+
+.gc-card li {
+    margin-bottom: 6px;
+}

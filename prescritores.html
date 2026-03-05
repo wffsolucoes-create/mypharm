@@ -1292,11 +1292,24 @@
             } catch (err) { console.error('Error loading years:', err); }
         }
 
+        function getThemeStorageKeyPrescritores() {
+            const userName = (localStorage.getItem('userName') || '').trim().toLowerCase();
+            return userName ? `mypharm_theme_${userName}` : 'mypharm_theme';
+        }
+
+        function getSavedThemePrescritores() {
+            const userKey = getThemeStorageKeyPrescritores();
+            return localStorage.getItem(userKey) || localStorage.getItem('mypharm_theme') || localStorage.getItem('theme');
+        }
+
         function toggleTheme() {
-            const body = document.body;
-            const currentTheme = body.getAttribute('data-theme');
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
             const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            body.setAttribute('data-theme', newTheme);
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem(getThemeStorageKeyPrescritores(), newTheme);
+            // Fallback legado para páginas antigas ainda não padronizadas.
+            localStorage.setItem('mypharm_theme', newTheme);
             localStorage.setItem('theme', newTheme);
         }
 
@@ -1316,8 +1329,8 @@
 
         // Recuperar tema ao carregar
         document.addEventListener('DOMContentLoaded', async () => {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            document.body.setAttribute('data-theme', savedTheme);
+            const savedTheme = getSavedThemePrescritores() || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
 
             // Verificação básica de autenticação (persiste entre abas)
             if (!localStorage.getItem('loggedIn')) {

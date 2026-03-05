@@ -3433,6 +3433,11 @@ function getThemeStorageKeyVisitador() {
                 document.getElementById('visSubtitle').textContent = 'Minha Carteira';
             }
 
+            var btnVoltarInicioAdmin = document.getElementById('btnVoltarInicioAdmin');
+            if (btnVoltarInicioAdmin) {
+                btnVoltarInicioAdmin.style.display = (viewVisitador && userType === 'admin') ? 'inline-flex' : 'none';
+            }
+
             applyAvatarInHeader((visitadorToLoad || 'V').charAt(0).toUpperCase(), localStorage.getItem('foto_perfil') || null);
             document.getElementById('greeting').textContent = visitadorToLoad ? `Painel: ${visitadorToLoad.split(' ')[0]}!` : `Olá, ${(userName || '').split(' ')[0]}!`;
 

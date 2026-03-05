@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#3B82F6">
+    <title>Gestão Comercial | MyPharm</title>
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/gestao-comercial.css">
+</head>
+<body>
+    <div id="gcApp" class="app-layout" style="display:none;">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="imagens/logoMypharm.png" alt="MyPharm">
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Gestão Comercial</div>
+                <a class="nav-item active" href="gestao-comercial.html">
+                    <i class="fas fa-briefcase"></i>
+                    <span>Gestão Comercial</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="gcAvatar">A</div>
+                    <div class="user-details">
+                        <div class="user-name" id="gcUserName">Administrador</div>
+                        <div class="user-role">Gestão Comercial</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <div class="main-content">
+            <div class="topbar">
+                <div class="topbar-left">
+                    <h1>Gestão Comercial</h1>
+                </div>
+                <div class="topbar-right">
+                    <button type="button" class="topbar-btn" id="gcThemeBtn" title="Alternar tema">
+                        <i class="fas fa-circle-half-stroke"></i>
+                    </button>
+                    <button type="button" class="topbar-btn" id="gcBackBtn" title="Voltar ao painel">
+                        <i class="fas fa-home"></i>
+                    </button>
+                    <button type="button" class="logout-btn" id="gcLogoutBtn">
+                        <i class="fas fa-sign-out-alt"></i> Sair
+                    </button>
+                </div>
+            </div>
+
+            <div class="page-content">
+                <div class="gc-tabs">
+                    <button class="gc-tab active" data-section="executivo"><i class="fas fa-chart-line"></i> Painel Executivo</button>
+                    <button class="gc-tab" data-section="vendas"><i class="fas fa-filter"></i> Gestão de Vendas</button>
+                    <button class="gc-tab" data-section="financeiro"><i class="fas fa-coins"></i> Financeiro Aplicado</button>
+                    <button class="gc-tab" data-section="reuniao"><i class="fas fa-clipboard-check"></i> Reunião Mensal</button>
+                </div>
+
+                <section class="gc-section active" id="gc-section-executivo">
+                    <div class="gc-block">
+                        <h3>Crescimento</h3>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">Receita do mês</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Crescimento vs mês anterior (%)</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Crescimento vs mesmo mês ano passado (%)</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Ticket médio</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Número de vendas</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Clientes ativos (6 meses)</div><div class="gc-value">—</div></div>
+                        </div>
+                    </div>
+                    <div class="gc-block">
+                        <h3>Eficiência Comercial</h3>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">Leads recebidos</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Conversão geral (%)</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Tempo médio de fechamento</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Taxa de perda do cliente</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">LTV (R$)</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">CAC</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">LTV/CAC</div><div class="gc-value">—</div></div>
+                        </div>
+                    </div>
+                    <div class="gc-block">
+                        <h3>Rentabilidade</h3>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">Margem bruta (%)</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Margem de contribuição (%)</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">CMV (% sobre faturamento)</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Ponto de equilíbrio</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Lucro operacional</div><div class="gc-value">—</div></div>
+                        </div>
+                        <div class="gc-note">Margem de contribuição por: atendente, forma farmacêutica, prescritor e produto.</div>
+                    </div>
+                    <div class="gc-block">
+                        <h3>Fidelização</h3>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">Taxa de recompra</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Frequência média de compra</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Base ativa (90 dias)</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">NPS</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">CSAT</div><div class="gc-value">—</div></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="gc-section" id="gc-section-vendas">
+                    <div class="gc-block">
+                        <h3>Funil Comercial</h3>
+                        <div class="gc-note">Atendimentos WhatsApp → Negociação → Orçamento → Venda → Recompra</div>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">Volume de atendimentos</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Oportunidades abertas</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Orçamentos enviados</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Vendas fechadas</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Conversão por etapa (%)</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Gargalo do funil</div><div class="gc-value">—</div></div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3>Performance por Vendedor</h3>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">Vendas por consultor</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Conversão individual</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Ticket médio individual</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Follow-ups realizados</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Motivos de perda</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Tempo médio espera/resposta</div><div class="gc-value">—</div></div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3>Performance por Canal</h3>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">Receita por canal</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Conversão por canal</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">CAC por canal</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Margem por canal</div><div class="gc-value">—</div></div>
+                        </div>
+                        <div class="gc-note">Canais: WhatsApp, Loja física, Médico parceiro, Academia e Indicação.</div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3>Inteligência Comercial</h3>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">Top 20 fórmulas mais vendidas</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Fórmulas com maior margem</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Prescritores com maior receita</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Ticket médio por especialidade</div><div class="gc-value">—</div></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="gc-section" id="gc-section-financeiro">
+                    <div class="gc-block">
+                        <h3>Receita</h3>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">Faturamento bruto</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Faturamento líquido</div><div class="gc-value">—</div></div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3>Custos</h3>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">CMV</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Custo fixo mensal</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Custo variável por venda</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Custo por atendimento</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">CAC</div><div class="gc-value">—</div></div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3>Rentabilidade</h3>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">Margem bruta</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Margem de contribuição</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Lucro operacional</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Ponto de equilíbrio</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">ROI de campanhas</div><div class="gc-value">—</div></div>
+                        </div>
+                        <div class="gc-note">Margem de contribuição por forma farmacêutica, atendente e produto.</div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3>Caixa</h3>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">Prazo médio de recebimento</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Índice de inadimplência</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Taxa de antecipação</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Fluxo projetado (3 meses)</div><div class="gc-value">—</div></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="gc-section" id="gc-section-reuniao">
+                    <div class="gc-block">
+                        <h3>Perguntas da Diretoria no Fechamento Mensal</h3>
+                        <div class="gc-checklist">
+                            <div class="gc-card">
+                                <div class="gc-label">Receita</div>
+                                <ul>
+                                    <li>Quanto vendemos?</li>
+                                    <li>Crescemos?</li>
+                                    <li>Onde crescemos?</li>
+                                </ul>
+                            </div>
+                            <div class="gc-card">
+                                <div class="gc-label">Conversão</div>
+                                <ul>
+                                    <li>O funil melhorou ou piorou?</li>
+                                    <li>Onde está o gargalo?</li>
+                                </ul>
+                            </div>
+                            <div class="gc-card">
+                                <div class="gc-label">Margem</div>
+                                <ul>
+                                    <li>Estamos vendendo mais com mais lucro?</li>
+                                    <li>Quais produtos puxaram margem para baixo?</li>
+                                </ul>
+                            </div>
+                            <div class="gc-card">
+                                <div class="gc-label">Clientes</div>
+                                <ul>
+                                    <li>Estamos fidelizando?</li>
+                                    <li>A base ativa está aumentando?</li>
+                                </ul>
+                            </div>
+                            <div class="gc-card">
+                                <div class="gc-label">Marketing</div>
+                                <ul>
+                                    <li>Qual canal trouxe mais lucro?</li>
+                                    <li>CAC e ROI estão saudáveis?</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/gestao-comercial.js"></script>
+</body>
+</html>
