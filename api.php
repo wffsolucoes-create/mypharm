@@ -9,6 +9,7 @@ require_once __DIR__ . '/api/bootstrap.php';
 require_once __DIR__ . '/api/modules/prescritores.php';
 require_once __DIR__ . '/api/modules/dashboard.php';
 require_once __DIR__ . '/api/modules/notificacoes.php';
+require_once __DIR__ . '/api/modules/gestao_comercial.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -276,6 +277,9 @@ try {
         case 'get_relatorio_rota_completo':
             handleDashboardModuleAction($action, $pdo);
                 break;
+        case 'gestao_comercial_dashboard':
+            handleGestaoComercialModuleAction($action, $pdo);
+            break;
         case 'list_notificacoes':
             listNotificacoes($pdo);
             break;
