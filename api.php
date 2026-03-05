@@ -1029,7 +1029,107 @@ try {
             }
             $data = ($dataFallback !== null) ? $dataFallback : $stmt->fetchAll();
 
-            if ($visitadorFilter && $useRange && !empty($recMap)) {
+            // Recusados devem respeitar o mesmo período selecionado (mês/dia/faixa de datas).
+            // O resumo anual (prescritor_resumido) só é confiável para visão anual sem filtro de período.
+            $usarRecusadosPorPeriodo = $useRange || !empty($mes) || !empty($dia);
+            if ($usarRecusadosPorPeriodo) {
+                try {
+                    // Otimização: calcula recusados apenas para os prescritores da página atual (limit/offset),
+                    // evitando varrer a tabela inteira de itens em toda requisição.
+                    $nomesPagina = [];
+                    foreach ($data as $rw) {
+                        $nm = trim((string)($rw['prescritor'] ?? ''));
+                        if ($nm !== '') $nomesPagina[$nm] = true;
+                    }
+                    $nomesPagina = array_keys($nomesPagina);
+                    if (count($nomesPagina) === 0) {
+                        foreach ($data as &$row) {
+                            $row['valor_recusado'] = 0;
+                            $row['qtd_recusados'] = 0;
+                        }
+                        unset($row);
+                        $usarRecusadosPorPeriodo = false;
+                    }
+
+                    $paramsRec = ['ano_io' => (int)$anoUsar];
+
+                    $filtroPeriodoRec = " AND i.ano_referencia = :ano_io";
+                    if ($useRange) {
+                        $filtroPeriodoRec .= " AND i.`data` BETWEEN :data_de_io AND :data_ate_io";
+                        $paramsRec['data_de_io'] = $dataDe;
+                        $paramsRec['data_ate_io'] = $dataAte;
+                    } else {
+                        if (!empty($mes)) {
+                            $filtroPeriodoRec .= " AND MONTH(i.`data`) = :mes_io";
+                            $paramsRec['mes_io'] = (int)$mes;
+                        }
+                        if (!empty($dataFiltro)) {
+                            $filtroPeriodoRec .= " AND DATE(i.`data`) = :data_filtro_io";
+                            $paramsRec['data_filtro_io'] = $dataFiltro;
+                        }
+                    }
+
+                    $placeholdersNomes = [];
+                    foreach ($nomesPagina as $idxNome => $nomePg) {
+                        $k = "n_io_" . $idxNome;
+                        $placeholdersNomes[] = ":" . $k;
+                        $paramsRec[$k] = $nomePg;
+                    }
+                    $filtroNomesRec = " AND COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm') IN (" . implode(',', $placeholdersNomes) . ")";
+
+                    $joinCad = "";
+                    $filtroVisitadorRec = "";
+                    if ($visitadorFilter !== null) {
+                        $joinCad = " INNER JOIN prescritores_cadastro pc_io
+                            ON COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm') = pc_io.nome ";
+                        if ($visitadorFilter === 'My Pharm') {
+                            $filtroVisitadorRec = " AND (pc_io.visitador IS NULL OR pc_io.visitador = '' OR pc_io.visitador = 'My Pharm' OR UPPER(pc_io.visitador) = 'MY PHARM')";
+                        } else {
+                            $filtroVisitadorRec = " AND TRIM(COALESCE(pc_io.visitador,'')) = TRIM(:vis_io)";
+                            $paramsRec['vis_io'] = $visitadorFilter;
+                        }
+                    }
+
+                    $sqlRecPeriodo = "
+                        SELECT
+                            COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm') as nome,
+                            SUM(i.valor_liquido) as valor_recusado,
+                            COUNT(*) as qtd_recusados
+                        FROM itens_orcamentos_pedidos i
+                        $joinCad
+                        WHERE (i.status = 'Recusado' OR i.status = 'No carrinho')
+                          $filtroPeriodoRec
+                          $filtroNomesRec
+                          $filtroVisitadorRec
+                        GROUP BY COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm')
+                    ";
+                    $stmtRecPeriodo = $pdo->prepare($sqlRecPeriodo);
+                    $stmtRecPeriodo->execute($paramsRec);
+
+                    $recMapPeriodo = [];
+                    while ($r = $stmtRecPeriodo->fetch(PDO::FETCH_ASSOC)) {
+                        $nm = $r['nome'] ?? '';
+                        $recMapPeriodo[$nm] = [
+                            'valor_recusado' => (float)($r['valor_recusado'] ?? 0),
+                            'qtd_recusados' => (int)($r['qtd_recusados'] ?? 0)
+                        ];
+                    }
+
+                    foreach ($data as &$row) {
+                        $nome = $row['prescritor'] ?? '';
+                        if (isset($recMapPeriodo[$nome])) {
+                            $row['valor_recusado'] = $recMapPeriodo[$nome]['valor_recusado'];
+                            $row['qtd_recusados'] = $recMapPeriodo[$nome]['qtd_recusados'];
+                        } else {
+                            $row['valor_recusado'] = 0;
+                            $row['qtd_recusados'] = 0;
+                        }
+                    }
+                    unset($row);
+                } catch (Throwable $e) {
+                    // Se falhar, mantém comportamento anterior para não quebrar a listagem.
+                }
+            } elseif ($visitadorFilter && $useRange && !empty($recMap)) {
                 foreach ($data as &$row) {
                     $nome = $row['prescritor'] ?? '';
                     if (isset($recMap[$nome])) {
@@ -1054,6 +1154,19 @@ try {
                     }
                 }
                 $results[] = $row;
+            }
+
+            // Quando há filtro por período (dia/mês/faixa), retornar apenas prescritores com movimento no período.
+            if ($usarRecusadosPorPeriodo) {
+                $results = array_values(array_filter($results, function ($row) {
+                    $ap = (float)($row['valor_aprovado'] ?? 0);
+                    $rc = (float)($row['valor_recusado'] ?? 0);
+                    $qp = (int)($row['total_pedidos'] ?? 0);
+                    $qr = (int)($row['qtd_recusados'] ?? 0);
+                    return ($ap > 0) || ($rc > 0) || ($qp > 0) || ($qr > 0);
+                }));
+                // Para o card "Total de prescritores" refletir o carregado no período.
+                $totalRows = count($results);
             }
 
             if (ob_get_length())

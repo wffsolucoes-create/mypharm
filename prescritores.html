@@ -354,7 +354,8 @@
             box-shadow: 0 0 0 4px rgba(230, 57, 70, 0.1);
         }
 
-        .select-wrapper select {
+        .select-wrapper select,
+        .select-wrapper input[type="date"] {
             padding: 0.75rem 1rem;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--border);
@@ -591,7 +592,8 @@
             main.content { padding: 1.5rem; }
             .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
             .toolbar { flex-wrap: wrap; gap: 0.75rem; }
-            .select-wrapper select { min-width: 120px; }
+            .select-wrapper select,
+            .select-wrapper input[type="date"] { min-width: 120px; }
         }
         /* MacBook Air 13" / telas menores */
         @media (max-width: 1152px) {
@@ -625,7 +627,8 @@
             }
             .search-wrapper { order: 1; }
             .toolbar .select-wrapper { min-width: 0; }
-            .toolbar .select-wrapper select { min-width: 0; width: 100%; }
+            .toolbar .select-wrapper select,
+            .toolbar .select-wrapper input[type="date"] { min-width: 0; width: 100%; }
             .kpi-row {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 0.75rem;
@@ -715,31 +718,6 @@
                 <div class="select-wrapper">
                     <select id="visitadorFilter" onchange="loadData()">
                         <option value="">Todos os visitadores</option>
-                    </select>
-                </div>
-                <div class="select-wrapper">
-                    <select id="anoFilter" onchange="loadData()">
-                        <option value="">Todos os anos</option>
-                        <option value="2026" selected>2026</option>
-                        <option value="2025">2025</option>
-                        <option value="2024">2024</option>
-                    </select>
-                </div>
-                <div class="select-wrapper">
-                    <select id="mesFilter" onchange="loadData()">
-                        <option value="">Todos os meses</option>
-                        <option value="1">Janeiro</option>
-                        <option value="2">Fevereiro</option>
-                        <option value="3">Março</option>
-                        <option value="4">Abril</option>
-                        <option value="5">Maio</option>
-                        <option value="6">Junho</option>
-                        <option value="7">Julho</option>
-                        <option value="8">Agosto</option>
-                        <option value="9">Setembro</option>
-                        <option value="10">Outubro</option>
-                        <option value="11">Novembro</option>
-                        <option value="12">Dezembro</option>
                     </select>
                 </div>
                 <button type="button" id="btnNovoPrescritor" class="btn-premium" onclick="openNovoPrescritorModal()"
@@ -959,12 +937,12 @@
 
     <!-- Modal Aprovados / Recusados -->
     <div id="modalAprovadosRecusados" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
-        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:400px; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:1200px; max-height:88vh; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden; display:flex; flex-direction:column;">
             <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
                 <h3 id="modalAprovadosRecusadosTitle" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"></h3>
                 <button type="button" onclick="closeAprovadosRecusadosModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
             </div>
-            <div id="modalAprovadosRecusadosBody" style="padding:24px; font-size:1.25rem; font-weight:700; text-align:center;"></div>
+            <div id="modalAprovadosRecusadosBody" style="padding:16px 20px; overflow:auto; flex:1;"></div>
             <div style="padding:16px 24px; border-top:1px solid var(--border); text-align:right;">
                 <button type="button" onclick="closeAprovadosRecusadosModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
             </div>
@@ -1042,7 +1020,7 @@
         function setLoadingPrescritores(loading) {
             const body = document.getElementById('prescritoresBody');
             const btnAtualizar = document.getElementById('btnAtualizarPrescritores');
-            const selects = document.querySelectorAll('#visitadorFilter, #anoFilter, #mesFilter');
+            const selects = document.querySelectorAll('#visitadorFilter');
             if (loading) {
                 body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 80px 24px; color: var(--text-secondary);">
                     <i class="fas fa-circle-notch fa-spin" style="font-size: 2.5rem; margin-bottom: 16px; display: block; color: var(--primary);"></i>
@@ -1060,8 +1038,6 @@
         async function loadData(page) {
             const body = document.getElementById('prescritoresBody');
             const visitador = (document.getElementById('visitadorFilter') && document.getElementById('visitadorFilter').value) || '';
-            const ano = document.getElementById('anoFilter').value;
-            const mes = document.getElementById('mesFilter').value;
             const searchTerm = (document.getElementById('searchTerm') && document.getElementById('searchTerm').value) || '';
             if (page !== undefined && page !== null) currentPage = Math.max(1, parseInt(page, 10) || 1);
             else currentPage = 1;
@@ -1070,7 +1046,7 @@
             setLoadingPrescritores(true);
 
             const q = searchTerm.trim() ? '&q=' + encodeURIComponent(searchTerm.trim()) : '';
-            const url = `api.php?action=all_prescritores&ano=${ano}&mes=${mes}&visitador=${encodeURIComponent(visitador)}&limit=${itemsPerPage}&offset=${offset}${q}`;
+            const url = `api.php?action=all_prescritores&visitador=${encodeURIComponent(visitador)}&limit=${itemsPerPage}&offset=${offset}${q}`;
             try {
                 const response = await fetch(url);
 
@@ -1145,12 +1121,10 @@
             const pagBar = document.getElementById('paginationBar');
 
             if (!Array.isArray(data) || !data.length) {
-                const ano = document.getElementById('anoFilter').value || 'todos os anos';
-                const mes = document.getElementById('mesFilter').options[document.getElementById('mesFilter').selectedIndex].text;
                 body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 100px; color: var(--text-secondary);">
                     <i class="fas fa-search fa-2x"></i><br><br>
-                    Nenhum resultado encontrado para <b>${mes}</b> de <b>${ano}</b>.<br>
-                    Certifique-se de que os dados foram importados corretamente para este período.
+                    Nenhum resultado encontrado para os filtros selecionados.<br>
+                    Tente ajustar o visitador ou o nome pesquisado.
                 </td></tr>`;
                 pagBar.style.display = 'none';
                 return;
@@ -1299,9 +1273,10 @@
 
         async function loadYears() {
             try {
+                const select = document.getElementById('anoFilter');
+                if (!select) return;
                 const response = await fetch('api.php?action=anos');
                 const anos = await response.json();
-                const select = document.getElementById('anoFilter');
 
                 // Limpar excesso (manter o 2026 default fixo se quiser, ou reconstruir)
                 const existingYears = Array.from(select.options).map(opt => opt.value);
@@ -1336,9 +1311,6 @@
                     document.getElementById('dbUpdateBadge').style.display = 'block';
                 }
 
-                if (info.last_mes) {
-                    document.getElementById('mesFilter').value = info.last_mes;
-                }
             } catch (err) { console.error('Error loading db info:', err); }
         }
 
@@ -1367,9 +1339,8 @@
             }
 
             // Load essentials first
-            await loadYears();
             await loadVisitadores();
-            await loadDbInfo(); // This will set the default month
+            await loadDbInfo();
 
             // Finally load data
             loadData();

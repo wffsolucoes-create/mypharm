@@ -270,27 +270,99 @@ async function openAprovadosRecusadosModal(nome, tipo, visitador) {
     if (!modal || !titleEl || !bodyEl) {
         return;
     }
-    var ano = document.getElementById('anoFilter').value || new Date().getFullYear();
-    var mes = document.getElementById('mesFilter').value || '';
-    var label = tipo === 'aprovados' ? 'Aprovados' : 'Recusados';
-    var periodo = mes ? (document.getElementById('mesFilter').options[document.getElementById('mesFilter').selectedIndex].text + '/' + ano) : ('' + ano);
-    titleEl.textContent = label + ' – ' + (nome || '') + ' (' + periodo + ')';
-    bodyEl.innerHTML = '<i class="fas fa-spinner fa-spin" style="color:var(--primary);"></i> Carregando...';
+    var ano = new Date().getFullYear();
+    var label = tipo === 'aprovados' ? 'Aprovados' : 'Reprovados';
+    titleEl.textContent = 'Lista de ' + label.toLowerCase() + ' — ' + (nome || '') + ' (' + ano + ')';
+    bodyEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin" style="color:var(--primary);"></i> Carregando pedidos...</div>';
     modal.style.display = 'flex';
     try {
-        var params = { nome_prescritor: nome, ano: ano };
-        if (mes) {
-            params.mes = mes;
+        var nomeVisitador = (visitador !== undefined && visitador !== '') ? visitador : ((localStorage.getItem('userName') || '').trim() || 'My Pharm');
+        var params = { nome: nomeVisitador, ano: ano, prescritor: nome || '' };
+        var res = await apiGetPrescritores('list_pedidos_visitador', params);
+        var base = tipo === 'aprovados' ? ((res && res.aprovados) || []) : ((res && res.recusados_carrinho) || []);
+
+        var esc = function (s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        };
+        var fmtMoney = function (v) {
+            var n = parseFloat(v) || 0;
+            return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        };
+        var fmtDate = function (v) {
+            if (!v) return '—';
+            var s = String(v);
+            if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+                var d = new Date(s.slice(0, 10) + 'T12:00:00');
+                if (!isNaN(d.getTime())) return d.toLocaleDateString('pt-BR');
+            }
+            return s;
+        };
+        var statusBadge = function (tp) {
+            var ok = tp === 'aprovados';
+            var bg = ok ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
+            var cor = ok ? '#10B981' : '#EF4444';
+            var txt = ok ? 'Aprovado' : 'Reprovado';
+            return '<span style="display:inline-block; padding:4px 8px; border-radius:8px; font-size:0.74rem; font-weight:700; background:' + bg + '; color:' + cor + ';">' + txt + '</span>';
+        };
+
+        if (!Array.isArray(base) || base.length === 0) {
+            bodyEl.innerHTML = '<div style="text-align:center; padding:26px; color:var(--text-secondary);">Nenhum pedido ' + esc(label.toLowerCase()) + ' para este prescritor.</div>';
+            return;
         }
-        if (visitador !== undefined && visitador !== '') {
-            params.visitador = visitador;
+
+        var renderRows = function (list) {
+            return list.map(function (p, idx) {
+                return '<tr style="border-bottom:1px solid var(--border);">' +
+                    '<td style="padding:10px 12px;">' + (idx + 1) + '</td>' +
+                    '<td style="padding:10px 12px;">' + esc(p.numero_pedido || '—') + '</td>' +
+                    '<td style="padding:10px 12px;">' + esc(p.serie_pedido || '—') + '</td>' +
+                    '<td style="padding:10px 12px;">' + esc(fmtDate(p.data_aprovacao || p.data_orcamento || '')) + '</td>' +
+                    '<td style="padding:10px 12px;">' + esc(p.prescritor || '—') + '</td>' +
+                    '<td style="padding:10px 12px;">' + esc(p.cliente || '—') + '</td>' +
+                    '<td style="padding:10px 12px; text-align:right; font-weight:700; color:' + (tipo === 'aprovados' ? 'var(--success,#10B981)' : 'var(--danger,#EF4444)') + ';">' + esc(fmtMoney(p.valor)) + '</td>' +
+                    '<td style="padding:10px 12px;">' + statusBadge(tipo) + '</td>' +
+                '</tr>';
+            }).join('');
+        };
+
+        bodyEl.innerHTML =
+            '<div style="display:flex; flex-direction:column; gap:10px;">' +
+                '<input type="text" id="aprovRecSearchInputAdmin" placeholder="Buscar por prescritor, cliente ou número do pedido..." ' +
+                    'style="width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary);">' +
+                '<div style="max-height:62vh; overflow:auto; border:1px solid var(--border); border-radius:10px;">' +
+                    '<table style="width:100%; border-collapse:collapse; min-width:920px;">' +
+                        '<thead style="position:sticky; top:0; z-index:2; background:var(--bg-card);">' +
+                            '<tr>' +
+                                '<th style="padding:10px 12px; text-align:left;">#</th>' +
+                                '<th style="padding:10px 12px; text-align:left;">Nº Pedido</th>' +
+                                '<th style="padding:10px 12px; text-align:left;">Série</th>' +
+                                '<th style="padding:10px 12px; text-align:left;">Data</th>' +
+                                '<th style="padding:10px 12px; text-align:left;">Prescritor</th>' +
+                                '<th style="padding:10px 12px; text-align:left;">Cliente</th>' +
+                                '<th style="padding:10px 12px; text-align:right;">Valor</th>' +
+                                '<th style="padding:10px 12px; text-align:left;">Status</th>' +
+                            '</tr>' +
+                        '</thead>' +
+                        '<tbody id="aprovRecTableBodyAdmin">' + renderRows(base) + '</tbody>' +
+                    '</table>' +
+                '</div>' +
+            '</div>';
+
+        var inp = document.getElementById('aprovRecSearchInputAdmin');
+        var tbody = document.getElementById('aprovRecTableBodyAdmin');
+        if (inp && tbody) {
+            inp.addEventListener('input', function () {
+                var q = (inp.value || '').toLowerCase().trim();
+                var fil = q ? base.filter(function (p) {
+                    return String(p.prescritor || '').toLowerCase().indexOf(q) !== -1
+                        || String(p.cliente || '').toLowerCase().indexOf(q) !== -1
+                        || String(p.numero_pedido || '').indexOf(q) !== -1;
+                }) : base.slice();
+                tbody.innerHTML = fil.length ? renderRows(fil) : '<tr><td colspan="8" style="padding:18px; text-align:center; color:var(--text-secondary);">Nenhum pedido encontrado.</td></tr>';
+            });
         }
-        var res = await apiGetPrescritores('get_prescritor_dados', params);
-        var d = (res && res.dados) ? res.dados : {};
-        var valor = tipo === 'aprovados' ? (d.aprovados != null && d.aprovados !== '' ? d.aprovados : '0,00') : (d.recusados != null && d.recusados !== '' ? d.recusados : '0,00');
-        bodyEl.innerHTML = '<span style="color:' + (tipo === 'aprovados' ? 'var(--success,#10B981)' : 'var(--danger,#EF4444)') + ';">R$ ' + valor + '</span>';
     } catch (e) {
-        bodyEl.innerHTML = '<span style="color:var(--danger);">Erro ao carregar.</span>';
+        bodyEl.innerHTML = '<span style="color:var(--danger);">Erro ao carregar pedidos.</span>';
     }
 }
 
