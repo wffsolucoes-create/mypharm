@@ -151,19 +151,6 @@
     }
 
     async function loadRace() {
-        const sess = await apiGet('check_session', {});
-        if (!sess || !sess.logged_in) {
-            localStorage.clear();
-            window.location.href = 'index.html';
-            return;
-        }
-        const setor = String(sess.setor || '').toLowerCase();
-        const tipo = String(sess.tipo || '').toLowerCase();
-        if (tipo !== 'admin' && setor.indexOf('vendedor') === -1) {
-            window.location.href = 'index.html';
-            return;
-        }
-
         const range = currentMonthRange();
         const data = await apiGet('tv_corrida_vendedores', range);
         if (!data || data.success === false) return;

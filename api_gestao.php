@@ -48,6 +48,129 @@ if (!in_array($action, $allowedActions)) {
     exit;
 }
 
+function handleTvCorridaVendedores(PDO $pdo): void
+{
+    $today = new DateTimeImmutable('today');
+    $dataDe = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : '';
+    $dataAte = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : '';
+    $isDate = static function ($v) {
+        return (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$v);
+    };
+    if (!$isDate($dataDe) || !$isDate($dataAte)) {
+        $dataDe = $today->modify('first day of this month')->format('Y-m-d');
+        $dataAte = $today->format('Y-m-d');
+    } elseif ($dataDe > $dataAte) {
+        $dataAte = $dataDe;
+    }
+
+    $approvedCase = "(
+        gp.status_financeiro IS NULL OR
+        (
+            gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+            AND gp.status_financeiro NOT LIKE '%carrinho%'
+        )
+    )";
+
+    $ranking = [];
+    try {
+        $st = $pdo->prepare("
+            SELECT
+                COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS vendedor,
+                COALESCE(SUM(CASE WHEN {$approvedCase} THEN gp.preco_liquido ELSE 0 END), 0) AS receita
+            FROM gestao_pedidos gp
+            WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
+            GROUP BY COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
+            ORDER BY COALESCE(SUM(CASE WHEN {$approvedCase} THEN gp.preco_liquido ELSE 0 END), 0) DESC
+        ");
+        $st->execute(['de' => $dataDe, 'ate' => $dataAte]);
+        $ranking = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        $ranking = [];
+    }
+
+    $vendedoresCad = [];
+    try {
+        $stVend = $pdo->query("
+            SELECT
+                TRIM(nome) AS nome,
+                COALESCE(meta_mensal, 0) AS meta_mensal
+            FROM usuarios
+            WHERE LOWER(TRIM(COALESCE(setor, ''))) LIKE '%vendedor%'
+              AND COALESCE(ativo, 1) = 1
+              AND TRIM(COALESCE(nome, '')) <> ''
+            ORDER BY TRIM(nome) ASC
+        ");
+        $vendedoresCad = $stVend->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        $vendedoresCad = [];
+    }
+
+    $map = [];
+    foreach ($ranking as $r) {
+        $nome = trim((string)($r['vendedor'] ?? ''));
+        if ($nome === '') continue;
+        if (function_exists('gcIsAllowedVendedora') && !gcIsAllowedVendedora($nome)) continue;
+        $k = function_exists('mb_strtolower') ? mb_strtolower($nome, 'UTF-8') : strtolower($nome);
+        $map[$k] = [
+            'vendedor' => $nome,
+            'receita' => (float)($r['receita'] ?? 0),
+            'meta_mensal' => 0.0,
+        ];
+    }
+    foreach ($vendedoresCad as $v) {
+        $nome = trim((string)($v['nome'] ?? ''));
+        if ($nome === '') continue;
+        if (function_exists('gcIsAllowedVendedora') && !gcIsAllowedVendedora($nome)) continue;
+        $k = function_exists('mb_strtolower') ? mb_strtolower($nome, 'UTF-8') : strtolower($nome);
+        if (!isset($map[$k])) {
+            $map[$k] = ['vendedor' => $nome, 'receita' => 0.0, 'meta_mensal' => 0.0];
+        }
+        $map[$k]['meta_mensal'] = (float)($v['meta_mensal'] ?? 0);
+    }
+
+    $lista = array_values($map);
+    usort($lista, static function (array $a, array $b): int {
+        $ra = (float)($a['receita'] ?? 0);
+        $rb = (float)($b['receita'] ?? 0);
+        if ($rb <=> $ra) return $rb <=> $ra;
+        $pa = ((float)($a['meta_mensal'] ?? 0) > 0)
+            ? (((float)($a['receita'] ?? 0) / (float)$a['meta_mensal']) * 100)
+            : 0.0;
+        $pb = ((float)($b['meta_mensal'] ?? 0) > 0)
+            ? (((float)($b['receita'] ?? 0) / (float)$b['meta_mensal']) * 100)
+            : 0.0;
+        if ($pb <=> $pa) return $pb <=> $pa;
+        return strcmp((string)($a['vendedor'] ?? ''), (string)($b['vendedor'] ?? ''));
+    });
+
+    $maxReceita = 0.0;
+    foreach ($lista as $it) {
+        $val = (float)($it['receita'] ?? 0);
+        if ($val > $maxReceita) $maxReceita = $val;
+    }
+    foreach ($lista as $i => &$it) {
+        $it['posicao'] = $i + 1;
+        $it['percentual_lider'] = $maxReceita > 0 ? round(((float)$it['receita'] / $maxReceita) * 100, 2) : 0.0;
+        $metaMensal = (float)($it['meta_mensal'] ?? 0);
+        if ($metaMensal <= 0) {
+            $metaMensal = 60000.0;
+        }
+        $it['meta_mensal_utilizada'] = $metaMensal;
+        $it['percentual_meta'] = $metaMensal > 0
+            ? round((((float)$it['receita']) / $metaMensal) * 100, 2)
+            : 0.0;
+    }
+    unset($it);
+
+    echo json_encode([
+        'success' => true,
+        'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte],
+        'max_receita' => round($maxReceita, 2),
+        'ranking' => $lista,
+        'updated_at' => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
+    ], JSON_UNESCAPED_UNICODE);
+}
+
 // check_session: não exige login, só retorna estado da sessão
 if ($action === 'check_session') {
     try {
@@ -118,6 +241,18 @@ if ($action === 'logout') {
     exit;
 }
 
+// TV corrida: leitura pública para monitor/tela (não expira sessão/senha)
+if ($action === 'tv_corrida_vendedores') {
+    try {
+        $pdo = getConnection();
+        handleTvCorridaVendedores($pdo);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao carregar corrida da TV.'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
 // Ações de gestão: exigem sessão e admin (validado dentro do módulo)
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -131,136 +266,6 @@ try {
     if (!($sessionCheck['valid'] ?? true)) {
         http_response_code(401);
         echo json_encode(['error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-    if ($action === 'tv_corrida_vendedores') {
-        $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
-        $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
-        if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
-            http_response_code(403);
-            echo json_encode(['success' => false, 'error' => 'Acesso restrito à equipe comercial.'], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        $today = new DateTimeImmutable('today');
-        $dataDe = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : '';
-        $dataAte = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : '';
-        $isDate = static function ($v) {
-            return (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$v);
-        };
-        if (!$isDate($dataDe) || !$isDate($dataAte)) {
-            $dataDe = $today->modify('first day of this month')->format('Y-m-d');
-            $dataAte = $today->format('Y-m-d');
-        } elseif ($dataDe > $dataAte) {
-            $dataAte = $dataDe;
-        }
-
-        $approvedCase = "(
-            gp.status_financeiro IS NULL OR
-            (
-                gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
-                AND gp.status_financeiro NOT LIKE '%carrinho%'
-            )
-        )";
-
-        $ranking = [];
-        try {
-            $st = $pdo->prepare("
-                SELECT
-                    COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS vendedor,
-                    COALESCE(SUM(CASE WHEN {$approvedCase} THEN gp.preco_liquido ELSE 0 END), 0) AS receita
-                FROM gestao_pedidos gp
-                WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
-                GROUP BY COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
-                ORDER BY COALESCE(SUM(CASE WHEN {$approvedCase} THEN gp.preco_liquido ELSE 0 END), 0) DESC
-            ");
-            $st->execute(['de' => $dataDe, 'ate' => $dataAte]);
-            $ranking = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        } catch (Throwable $e) {
-            $ranking = [];
-        }
-
-        $vendedoresCad = [];
-        try {
-            $stVend = $pdo->query("
-                SELECT
-                    TRIM(nome) AS nome,
-                    COALESCE(meta_mensal, 0) AS meta_mensal
-                FROM usuarios
-                WHERE LOWER(TRIM(COALESCE(setor, ''))) LIKE '%vendedor%'
-                  AND COALESCE(ativo, 1) = 1
-                  AND TRIM(COALESCE(nome, '')) <> ''
-                ORDER BY TRIM(nome) ASC
-            ");
-            $vendedoresCad = $stVend->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        } catch (Throwable $e) {
-            $vendedoresCad = [];
-        }
-
-        $map = [];
-        foreach ($ranking as $r) {
-            $nome = trim((string)($r['vendedor'] ?? ''));
-            if ($nome === '') continue;
-            if (function_exists('gcIsAllowedVendedora') && !gcIsAllowedVendedora($nome)) continue;
-            $k = function_exists('mb_strtolower') ? mb_strtolower($nome, 'UTF-8') : strtolower($nome);
-            $map[$k] = [
-                'vendedor' => $nome,
-                'receita' => (float)($r['receita'] ?? 0),
-                'meta_mensal' => 0.0,
-            ];
-        }
-        foreach ($vendedoresCad as $v) {
-            $nome = trim((string)($v['nome'] ?? ''));
-            if ($nome === '') continue;
-            if (function_exists('gcIsAllowedVendedora') && !gcIsAllowedVendedora($nome)) continue;
-            $k = function_exists('mb_strtolower') ? mb_strtolower($nome, 'UTF-8') : strtolower($nome);
-            if (!isset($map[$k])) {
-                $map[$k] = ['vendedor' => $nome, 'receita' => 0.0, 'meta_mensal' => 0.0];
-            }
-            $map[$k]['meta_mensal'] = (float)($v['meta_mensal'] ?? 0);
-        }
-
-        $lista = array_values($map);
-        usort($lista, static function (array $a, array $b): int {
-            $ra = (float)($a['receita'] ?? 0);
-            $rb = (float)($b['receita'] ?? 0);
-            if ($rb <=> $ra) return $rb <=> $ra;
-            $pa = ((float)($a['meta_mensal'] ?? 0) > 0)
-                ? (((float)($a['receita'] ?? 0) / (float)$a['meta_mensal']) * 100)
-                : 0.0;
-            $pb = ((float)($b['meta_mensal'] ?? 0) > 0)
-                ? (((float)($b['receita'] ?? 0) / (float)$b['meta_mensal']) * 100)
-                : 0.0;
-            if ($pb <=> $pa) return $pb <=> $pa;
-            return strcmp((string)($a['vendedor'] ?? ''), (string)($b['vendedor'] ?? ''));
-        });
-
-        $maxReceita = 0.0;
-        foreach ($lista as $it) {
-            $val = (float)($it['receita'] ?? 0);
-            if ($val > $maxReceita) $maxReceita = $val;
-        }
-        foreach ($lista as $i => &$it) {
-            $it['posicao'] = $i + 1;
-            $it['percentual_lider'] = $maxReceita > 0 ? round(((float)$it['receita'] / $maxReceita) * 100, 2) : 0.0;
-            $metaMensal = (float)($it['meta_mensal'] ?? 0);
-            if ($metaMensal <= 0) {
-                $metaMensal = 60000.0; // Base padrão informada para corrida
-            }
-            $it['meta_mensal_utilizada'] = $metaMensal;
-            $it['percentual_meta'] = $metaMensal > 0
-                ? round((((float)$it['receita']) / $metaMensal) * 100, 2)
-                : 0.0;
-        }
-        unset($it);
-
-        echo json_encode([
-            'success' => true,
-            'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte],
-            'max_receita' => round($maxReceita, 2),
-            'ranking' => $lista,
-            'updated_at' => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
-        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     handleGestaoComercialModuleAction($action, $pdo);
