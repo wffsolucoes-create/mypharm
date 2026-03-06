@@ -56,7 +56,7 @@ function gestaoComercialListaVendedores(PDO $pdo): void
         if ($stmt) {
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 $n = trim((string)($row['nome'] ?? ''));
-                if ($n !== '') {
+                if ($n !== '' && gcIsAllowedVendedora($n)) {
                     $nomes[] = $n;
                 }
             }
@@ -144,6 +144,19 @@ function gcTryFetchAll(PDO $pdo, string $sql, array $params = []): array
 function gcNormName(string $v): string
 {
     $v = trim($v);
+    $v = strtr($v, [
+        'Á'=>'A','À'=>'A','Â'=>'A','Ã'=>'A','Ä'=>'A',
+        'á'=>'a','à'=>'a','â'=>'a','ã'=>'a','ä'=>'a',
+        'É'=>'E','È'=>'E','Ê'=>'E','Ë'=>'E',
+        'é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
+        'Í'=>'I','Ì'=>'I','Î'=>'I','Ï'=>'I',
+        'í'=>'i','ì'=>'i','î'=>'i','ï'=>'i',
+        'Ó'=>'O','Ò'=>'O','Ô'=>'O','Õ'=>'O','Ö'=>'O',
+        'ó'=>'o','ò'=>'o','ô'=>'o','õ'=>'o','ö'=>'o',
+        'Ú'=>'U','Ù'=>'U','Û'=>'U','Ü'=>'U',
+        'ú'=>'u','ù'=>'u','û'=>'u','ü'=>'u',
+        'Ç'=>'C','ç'=>'c',
+    ]);
     if (function_exists('mb_strtolower')) {
         $v = mb_strtolower($v, 'UTF-8');
     } else {
@@ -151,6 +164,35 @@ function gcNormName(string $v): string
     }
     $v = preg_replace('/\s+/', ' ', $v);
     return $v ?? '';
+}
+
+function gcAllowedVendedorasMap(): array
+{
+    static $map = null;
+    if ($map !== null) return $map;
+    $allow = [
+        'Nailena',
+        'Mariana',
+        'Jessica Vitoria',
+        'Carla',
+        'Nereida',
+        'Giovanna',
+        'Clara Leticia',
+        'Ananda Reis',
+    ];
+    $map = [];
+    foreach ($allow as $n) {
+        $map[gcNormName($n)] = true;
+    }
+    return $map;
+}
+
+function gcIsAllowedVendedora(string $nome): bool
+{
+    $k = gcNormName($nome);
+    if ($k === '') return false;
+    $allow = gcAllowedVendedorasMap();
+    return isset($allow[$k]);
 }
 
 function gcApprovedCase(string $alias = 'gp'): string
@@ -345,6 +387,9 @@ function gestaoComercialDashboard(PDO $pdo): void
         ORDER BY COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) DESC
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);
+    $vendedores = array_values(array_filter($vendedores, static function (array $row): bool {
+        return gcIsAllowedVendedora((string)($row['atendente'] ?? ''));
+    }));
     foreach ($vendedores as &$vnd) {
         $totalPedidos = (float)($vnd['total_pedidos'] ?? 0);
         $vendasAprovadas = (float)($vnd['vendas_aprovadas'] ?? 0);
@@ -370,7 +415,7 @@ function gestaoComercialDashboard(PDO $pdo): void
         $nomeUsr = trim((string)($u['nome'] ?? ''));
         if ($nomeUsr === '') continue;
         $setorNorm = gcNormName((string)($u['setor'] ?? ''));
-        if (strpos($setorNorm, 'vendedor') !== false) {
+        if (strpos($setorNorm, 'vendedor') !== false && gcIsAllowedVendedora($nomeUsr)) {
             $vendedoresCadastrados[] = [
                 'nome' => $nomeUsr,
                 'ativo' => (int)($u['ativo'] ?? 1),
@@ -427,6 +472,9 @@ function gestaoComercialDashboard(PDO $pdo): void
         ORDER BY COUNT(*) DESC, COALESCE(SUM(gp.preco_liquido), 0) DESC
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);
+    $motivosPerda = array_values(array_filter($motivosPerda, static function (array $row): bool {
+        return gcIsAllowedVendedora((string)($row['atendente'] ?? ''));
+    }));
 
     $clientesRejeitadosComContato = gcTryFetchAll($pdo, "
         SELECT
@@ -451,6 +499,9 @@ function gestaoComercialDashboard(PDO $pdo): void
         ORDER BY COALESCE(SUM(gp.preco_liquido), 0) DESC
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);
+    $clientesRejeitadosComContato = array_values(array_filter($clientesRejeitadosComContato, static function (array $row): bool {
+        return gcIsAllowedVendedora((string)($row['atendente'] ?? ''));
+    }));
 
     $consultorasAtivas = 0;
     $receitaEquipe = 0.0;

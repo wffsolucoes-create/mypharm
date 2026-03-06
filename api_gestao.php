@@ -183,7 +183,9 @@ try {
         $vendedoresCad = [];
         try {
             $stVend = $pdo->query("
-                SELECT TRIM(nome) AS nome
+                SELECT
+                    TRIM(nome) AS nome,
+                    COALESCE(meta_mensal, 0) AS meta_mensal
                 FROM usuarios
                 WHERE LOWER(TRIM(COALESCE(setor, ''))) LIKE '%vendedor%'
                   AND COALESCE(ativo, 1) = 1
@@ -199,19 +201,23 @@ try {
         foreach ($ranking as $r) {
             $nome = trim((string)($r['vendedor'] ?? ''));
             if ($nome === '') continue;
+            if (function_exists('gcIsAllowedVendedora') && !gcIsAllowedVendedora($nome)) continue;
             $k = function_exists('mb_strtolower') ? mb_strtolower($nome, 'UTF-8') : strtolower($nome);
             $map[$k] = [
                 'vendedor' => $nome,
                 'receita' => (float)($r['receita'] ?? 0),
+                'meta_mensal' => 0.0,
             ];
         }
         foreach ($vendedoresCad as $v) {
             $nome = trim((string)($v['nome'] ?? ''));
             if ($nome === '') continue;
+            if (function_exists('gcIsAllowedVendedora') && !gcIsAllowedVendedora($nome)) continue;
             $k = function_exists('mb_strtolower') ? mb_strtolower($nome, 'UTF-8') : strtolower($nome);
             if (!isset($map[$k])) {
-                $map[$k] = ['vendedor' => $nome, 'receita' => 0.0];
+                $map[$k] = ['vendedor' => $nome, 'receita' => 0.0, 'meta_mensal' => 0.0];
             }
+            $map[$k]['meta_mensal'] = (float)($v['meta_mensal'] ?? 0);
         }
 
         $lista = array_values($map);
@@ -219,6 +225,13 @@ try {
             $ra = (float)($a['receita'] ?? 0);
             $rb = (float)($b['receita'] ?? 0);
             if ($rb <=> $ra) return $rb <=> $ra;
+            $pa = ((float)($a['meta_mensal'] ?? 0) > 0)
+                ? (((float)($a['receita'] ?? 0) / (float)$a['meta_mensal']) * 100)
+                : 0.0;
+            $pb = ((float)($b['meta_mensal'] ?? 0) > 0)
+                ? (((float)($b['receita'] ?? 0) / (float)$b['meta_mensal']) * 100)
+                : 0.0;
+            if ($pb <=> $pa) return $pb <=> $pa;
             return strcmp((string)($a['vendedor'] ?? ''), (string)($b['vendedor'] ?? ''));
         });
 
@@ -230,6 +243,14 @@ try {
         foreach ($lista as $i => &$it) {
             $it['posicao'] = $i + 1;
             $it['percentual_lider'] = $maxReceita > 0 ? round(((float)$it['receita'] / $maxReceita) * 100, 2) : 0.0;
+            $metaMensal = (float)($it['meta_mensal'] ?? 0);
+            if ($metaMensal <= 0) {
+                $metaMensal = 60000.0; // Base padrão informada para corrida
+            }
+            $it['meta_mensal_utilizada'] = $metaMensal;
+            $it['percentual_meta'] = $metaMensal > 0
+                ? round((((float)$it['receita']) / $metaMensal) * 100, 2)
+                : 0.0;
         }
         unset($it);
 

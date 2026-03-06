@@ -78,6 +78,50 @@ function detectFaixaByValue(array $rules, float $value): ?array
     return null;
 }
 
+function allowedVendedoras(): array
+{
+    return [
+        'Nailena',
+        'Mariana',
+        'Jessica Vitoria',
+        'Carla',
+        'Nereida',
+        'Giovanna',
+        'Clara Leticia',
+        'Ananda Reis',
+    ];
+}
+
+function normalizeSimple(string $v): string
+{
+    $v = trim($v);
+    $v = strtr($v, [
+        'Á'=>'A','À'=>'A','Â'=>'A','Ã'=>'A','Ä'=>'A',
+        'á'=>'a','à'=>'a','â'=>'a','ã'=>'a','ä'=>'a',
+        'É'=>'E','È'=>'E','Ê'=>'E','Ë'=>'E',
+        'é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
+        'Í'=>'I','Ì'=>'I','Î'=>'I','Ï'=>'I',
+        'í'=>'i','ì'=>'i','î'=>'i','ï'=>'i',
+        'Ó'=>'O','Ò'=>'O','Ô'=>'O','Õ'=>'O','Ö'=>'O',
+        'ó'=>'o','ò'=>'o','ô'=>'o','õ'=>'o','ö'=>'o',
+        'Ú'=>'U','Ù'=>'U','Û'=>'U','Ü'=>'U',
+        'ú'=>'u','ù'=>'u','û'=>'u','ü'=>'u',
+        'Ç'=>'C','ç'=>'c',
+    ]);
+    if (function_exists('mb_strtolower')) return mb_strtolower($v, 'UTF-8');
+    return strtolower($v);
+}
+
+function isAllowedVendedoraName(string $nome): bool
+{
+    $k = normalizeSimple($nome);
+    if ($k === '') return false;
+    foreach (allowedVendedoras() as $n) {
+        if (normalizeSimple($n) === $k) return true;
+    }
+    return false;
+}
+
 if ($action === 'check_session') {
     echo json_encode([
         'logged_in' => isset($_SESSION['user_id']),
@@ -251,6 +295,15 @@ try {
 
         $faturamentoGrupoMes = 0.0;
         try {
+            $allowed = allowedVendedoras();
+            $holders = [];
+            $params = ['ini' => $inicioMes, 'fim' => $fimMes];
+            foreach ($allowed as $idx => $nome) {
+                $key = 'n' . $idx;
+                $holders[] = ':' . $key;
+                $params[$key] = $nome;
+            }
+            $inNames = implode(',', $holders);
             $stGrupoMes = $pdo->prepare("
                 SELECT COALESCE(SUM(gp.preco_liquido), 0) AS total
                 FROM gestao_pedidos gp
@@ -258,6 +311,7 @@ try {
                     ON LOWER(TRIM(COALESCE(u.nome, ''))) = LOWER(TRIM(COALESCE(gp.atendente, '')))
                 WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
                   AND LOWER(TRIM(COALESCE(u.setor, ''))) LIKE '%vendedor%'
+                  AND TRIM(COALESCE(u.nome, '')) IN ({$inNames})
                   AND (
                     gp.status_financeiro IS NULL OR
                     (
@@ -266,7 +320,7 @@ try {
                     )
                   )
             ");
-            $stGrupoMes->execute(['ini' => $inicioMes, 'fim' => $fimMes]);
+            $stGrupoMes->execute($params);
             $faturamentoGrupoMes = (float)($stGrupoMes->fetchColumn() ?: 0);
         } catch (Throwable $e) {
             // Sem regressão se tabela não existir.

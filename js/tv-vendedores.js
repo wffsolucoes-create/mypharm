@@ -80,22 +80,23 @@
         return CAR_THEMES[idx];
     }
 
-    function laneTemplate(r, max) {
+    function laneTemplate(r, targetPct) {
         const key = safeKey(r.vendedor);
         const theme = pickTheme(key || r.posicao);
-        const pct = max > 0 ? Math.max(0, Math.min(100, (Number(r.receita || 0) / max) * 100)) : 0;
         const leaderCls = r.posicao === 1 ? ' leader' : '';
         const moodCls = r.posicao <= 2 ? ' happy' : ' chasing';
         const moodFace = r.posicao === 1 ? '😄' : (r.posicao === 2 ? '😁' : '😤');
         const prev = Number(lastPosByVendor[key] || 0);
-        const startTx = `calc(${prev}% - 30px)`;
-        const targetTx = `calc(${pct}% - 30px)`;
+        const startLeft = `${Math.max(0, Math.min(100, prev)).toFixed(2)}%`;
+        const pct = Math.max(0, Math.min(100, Number(targetPct || 0)));
+        const targetLeft = `${pct.toFixed(2)}%`;
+        const pctMetaText = `${Math.max(0, Number(r.percentual_meta || 0)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da meta`;
         return `<div class="lane">
             <div class="lane-label">${r.posicao}º ${r.vendedor || '-'}</div>
             <div class="track">
                 <div class="lane-rank">${r.posicao}º</div>
-                <div class="cart${leaderCls}${moodCls}" data-vendor="${key}" data-target="${targetTx}" data-money="${fmtMoney(r.receita || 0)}"
-                     style="--car:${theme.body}; --car-dark:${theme.dark}; --car-glow:${theme.glow}; transform: translate(${startTx}, -50%);">
+                <div class="cart${leaderCls}${moodCls}" data-vendor="${key}" data-target-left="${targetLeft}" data-money="${fmtMoney(r.receita || 0)} • ${pctMetaText}"
+                     style="--car:${theme.body}; --car-dark:${theme.dark}; --car-glow:${theme.glow}; left:${startLeft};">
                     <span class="cart-body">
                         <span class="cart-roof"></span>
                         <span class="cart-number">#${r.posicao}</span>
@@ -110,6 +111,24 @@
         </div>`;
     }
 
+    function buildTargetPositions(ranking) {
+        const minGap = 1.6; // evita sobreposição quando % muito próximas
+        const out = [];
+        if (!Array.isArray(ranking) || !ranking.length) return out;
+
+        let prev = null;
+        for (let i = 0; i < ranking.length; i++) {
+            const rawMetaPct = Number(ranking[i].percentual_meta || 0);
+            let p = Math.max(0, Math.min(100, rawMetaPct));
+            if (prev !== null && p > (prev - minGap)) {
+                p = Math.max(0, prev - minGap);
+            }
+            out.push(p);
+            prev = p;
+        }
+        return out;
+    }
+
     function renderRace(ranking, maxReceita) {
         const wrap = document.getElementById('tvRace');
         if (!wrap) return;
@@ -117,16 +136,17 @@
             wrap.innerHTML = '<div class="race-empty">Sem vendas para animar no período.</div>';
             return;
         }
-        wrap.innerHTML = ranking.map(function (r) { return laneTemplate(r, maxReceita); }).join('');
+        const positions = buildTargetPositions(ranking);
+        wrap.innerHTML = ranking.map(function (r, i) { return laneTemplate(r, positions[i] || 0); }).join('');
         requestAnimationFrame(function () {
             wrap.querySelectorAll('.cart').forEach(function (cart) {
-                const target = cart.getAttribute('data-target');
-                if (target) cart.style.transform = `translate(${target}, -50%)`;
+                const target = cart.getAttribute('data-target-left');
+                if (target) cart.style.left = target;
             });
         });
-        ranking.forEach(function (r) {
+        ranking.forEach(function (r, i) {
             const key = safeKey(r.vendedor);
-            lastPosByVendor[key] = Number(r.percentual_lider || 0);
+            lastPosByVendor[key] = Number(positions[i] || 0);
         });
     }
 
