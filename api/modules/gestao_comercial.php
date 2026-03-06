@@ -6,15 +6,66 @@
 
 function handleGestaoComercialModuleAction(string $action, PDO $pdo): void
 {
-    switch ($action) {
-        case 'gestao_comercial_dashboard':
-            gestaoComercialDashboard($pdo);
-            return;
-        default:
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Ação de gestão comercial desconhecida'], JSON_UNESCAPED_UNICODE);
-            return;
+    try {
+        switch ($action) {
+            case 'gestao_comercial_dashboard':
+                gestaoComercialDashboard($pdo);
+                return;
+            case 'gestao_comercial_lista_vendedores':
+                gestaoComercialListaVendedores($pdo);
+                return;
+            default:
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Ação de gestão comercial desconhecida'], JSON_UNESCAPED_UNICODE);
+                return;
+        }
+    } catch (Throwable $e) {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        $msg = (defined('IS_PRODUCTION') && IS_PRODUCTION)
+            ? 'Erro interno na gestão comercial.'
+            : 'Erro: ' . $e->getMessage() . ' em ' . basename($e->getFile()) . ':' . $e->getLine();
+        echo json_encode(['success' => false, 'error' => $msg], JSON_UNESCAPED_UNICODE);
+        exit;
     }
+}
+
+/**
+ * Retorna apenas a lista de nomes de usuários com setor = vendedor (para abas).
+ * Acesso: admin.
+ */
+function gestaoComercialListaVendedores(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    $nomes = [];
+    try {
+        $tipo = isset($_SESSION['user_tipo']) ? strtolower(trim((string)$_SESSION['user_tipo'])) : '';
+        if ($tipo !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Acesso restrito ao administrador.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $stmt = $pdo->query("
+            SELECT TRIM(nome) AS nome
+            FROM usuarios
+            WHERE LOWER(TRIM(COALESCE(setor, ''))) = 'vendedor'
+              AND COALESCE(ativo, 1) = 1
+              AND TRIM(COALESCE(nome, '')) != ''
+            ORDER BY TRIM(nome) ASC
+        ");
+        if ($stmt) {
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $n = trim((string)($row['nome'] ?? ''));
+                if ($n !== '') {
+                    $nomes[] = $n;
+                }
+            }
+        }
+    } catch (Throwable $e) {
+        $nomes = [];
+    }
+    echo json_encode(['success' => true, 'nomes' => $nomes], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 function gcPercent(float $num, float $den): ?float
@@ -79,6 +130,27 @@ function gcFetchAll(PDO $pdo, string $sql, array $params = []): array
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+function gcTryFetchAll(PDO $pdo, string $sql, array $params = []): array
+{
+    try {
+        return gcFetchAll($pdo, $sql, $params);
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function gcNormName(string $v): string
+{
+    $v = trim($v);
+    if (function_exists('mb_strtolower')) {
+        $v = mb_strtolower($v, 'UTF-8');
+    } else {
+        $v = strtolower($v);
+    }
+    $v = preg_replace('/\s+/', ' ', $v);
+    return $v ?? '';
 }
 
 function gcApprovedCase(string $alias = 'gp'): string
@@ -204,14 +276,14 @@ function gestaoComercialDashboard(PDO $pdo): void
         SELECT
             COALESCE(COUNT(*), 0) AS clientes_recompra
         FROM (
-            SELECT gp.cliente, COUNT(DISTINCT CONCAT(COALESCE(gp.numero_pedido,''), '-', COALESCE(gp.serie_pedido,''))) AS qtd
+            SELECT gp.cliente
             FROM gestao_pedidos gp
             WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
               AND {$approvedGp}
               AND gp.cliente IS NOT NULL
               AND TRIM(gp.cliente) <> ''
             GROUP BY gp.cliente
-            HAVING qtd >= 2
+            HAVING COUNT(DISTINCT CONCAT(COALESCE(gp.numero_pedido,''), '-', COALESCE(gp.serie_pedido,''))) >= 2
         ) t
     ", ['ini' => $start, 'fim' => $end]);
 
@@ -250,10 +322,11 @@ function gestaoComercialDashboard(PDO $pdo): void
         'venda_para_recompra' => $convVendaRecompra,
     ];
     $gargalo = null;
-    $validConversoes = array_filter($conversoes, static fn($v) => $v !== null);
+    $validConversoes = array_filter($conversoes, function ($v) { return $v !== null; });
     if (!empty($validConversoes)) {
         asort($validConversoes);
-        $gargalo = array_key_first($validConversoes);
+        reset($validConversoes);
+        $gargalo = key($validConversoes);
     }
 
     $vendedores = gcFetchAll($pdo, "
@@ -261,23 +334,143 @@ function gestaoComercialDashboard(PDO $pdo): void
             COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS atendente,
             COUNT(DISTINCT CONCAT(COALESCE(gp.numero_pedido,''), '-', COALESCE(gp.serie_pedido,''))) AS total_pedidos,
             SUM(CASE WHEN {$approvedGp} THEN 1 ELSE 0 END) AS vendas_aprovadas,
+            SUM(CASE WHEN NOT ({$approvedGp}) THEN 1 ELSE 0 END) AS vendas_rejeitadas,
             COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS receita,
-            COALESCE(AVG(CASE WHEN {$approvedGp} THEN gp.preco_liquido END), 0) AS ticket_medio
+            COALESCE(AVG(CASE WHEN {$approvedGp} THEN gp.preco_liquido END), 0) AS ticket_medio,
+            COALESCE(AVG(TIMESTAMPDIFF(MINUTE, gp.data_orcamento, gp.data_aprovacao)), 0) AS tempo_medio_espera_min,
+            COUNT(DISTINCT CASE WHEN {$approvedGp} THEN gp.cliente END) AS clientes_atendidos
         FROM gestao_pedidos gp
         WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
         GROUP BY COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
-        ORDER BY receita DESC
+        ORDER BY COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) DESC
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);
     foreach ($vendedores as &$vnd) {
         $totalPedidos = (float)($vnd['total_pedidos'] ?? 0);
         $vendasAprovadas = (float)($vnd['vendas_aprovadas'] ?? 0);
+        $vendasRejeitadas = (float)($vnd['vendas_rejeitadas'] ?? 0);
         $vnd['conversao_individual'] = gcPercent($vendasAprovadas, $totalPedidos);
         $vnd['follow_ups_realizados'] = null;
-        $vnd['motivos_perda'] = null;
-        $vnd['tempo_medio_espera_resposta'] = null;
+        $vnd['motivos_perda'] = null; // detalhado em vendedor_gestao.motivos_perda
+        $vnd['tempo_medio_espera_resposta'] = round((float)($vnd['tempo_medio_espera_min'] ?? 0), 1);
+        $vnd['taxa_perda'] = gcPercent($vendasRejeitadas, $totalPedidos);
     }
     unset($vnd);
+
+    $usuariosSetor = gcTryFetchAll($pdo, "
+        SELECT
+            TRIM(u.nome) AS nome,
+            COALESCE(u.setor, '') AS setor,
+            COALESCE(u.ativo, 1) AS ativo
+        FROM usuarios u
+        ORDER BY TRIM(u.nome) ASC
+    ");
+    $vendedoresCadastrados = [];
+    foreach ($usuariosSetor as $u) {
+        $nomeUsr = trim((string)($u['nome'] ?? ''));
+        if ($nomeUsr === '') continue;
+        $setorNorm = gcNormName((string)($u['setor'] ?? ''));
+        if (strpos($setorNorm, 'vendedor') !== false) {
+            $vendedoresCadastrados[] = [
+                'nome' => $nomeUsr,
+                'ativo' => (int)($u['ativo'] ?? 1),
+            ];
+        }
+    }
+
+    $vendedoresMap = [];
+    foreach ($vendedores as $v) {
+        $k = gcNormName((string)($v['atendente'] ?? ''));
+        if ($k !== '') $vendedoresMap[$k] = true;
+    }
+
+    foreach ($vendedoresCadastrados as $u) {
+        $nomeCad = trim((string)($u['nome'] ?? ''));
+        if ($nomeCad === '') continue;
+        $k = gcNormName($nomeCad);
+        if (!isset($vendedoresMap[$k])) {
+            $vendedores[] = [
+                'atendente' => $nomeCad,
+                'total_pedidos' => 0,
+                'vendas_aprovadas' => 0,
+                'vendas_rejeitadas' => 0,
+                'receita' => 0,
+                'ticket_medio' => 0,
+                'tempo_medio_espera_min' => 0,
+                'clientes_atendidos' => 0,
+                'conversao_individual' => 0,
+                'follow_ups_realizados' => null,
+                'motivos_perda' => null,
+                'tempo_medio_espera_resposta' => 0,
+                'taxa_perda' => 0
+            ];
+            $vendedoresMap[$k] = true;
+        }
+    }
+
+    usort($vendedores, static function (array $a, array $b): int {
+        return strcmp((string)($a['atendente'] ?? ''), (string)($b['atendente'] ?? ''));
+    });
+
+    $motivosPerda = gcTryFetchAll($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS atendente,
+            COALESCE(NULLIF(TRIM(gp.status_financeiro), ''), 'Sem status') AS motivo,
+            COUNT(*) AS quantidade,
+            COALESCE(SUM(gp.preco_liquido), 0) AS valor_total
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+          AND NOT ({$approvedGp})
+        GROUP BY
+            COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)'),
+            COALESCE(NULLIF(TRIM(gp.status_financeiro), ''), 'Sem status')
+        ORDER BY COUNT(*) DESC, COALESCE(SUM(gp.preco_liquido), 0) DESC
+        LIMIT {$limit}
+    ", ['ini' => $start, 'fim' => $end]);
+
+    $clientesRejeitadosComContato = gcTryFetchAll($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS atendente,
+            COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)') AS cliente,
+            COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') AS prescritor,
+            COALESCE(NULLIF(TRIM(pc.whatsapp), ''), NULLIF(TRIM(pd.whatsapp), ''), '') AS contato,
+            COUNT(*) AS qtd_rejeicoes,
+            COALESCE(SUM(gp.preco_liquido), 0) AS valor_rejeitado
+        FROM gestao_pedidos gp
+        LEFT JOIN prescritor_contatos pc
+            ON LOWER(TRIM(pc.nome_prescritor)) = LOWER(TRIM(COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')))
+        LEFT JOIN prescritor_dados pd
+            ON LOWER(TRIM(pd.nome_prescritor)) = LOWER(TRIM(COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')))
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+          AND NOT ({$approvedGp})
+        GROUP BY
+            COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)'),
+            COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)'),
+            COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm'),
+            COALESCE(NULLIF(TRIM(pc.whatsapp), ''), NULLIF(TRIM(pd.whatsapp), ''), '')
+        ORDER BY COALESCE(SUM(gp.preco_liquido), 0) DESC
+        LIMIT {$limit}
+    ", ['ini' => $start, 'fim' => $end]);
+
+    $consultorasAtivas = 0;
+    $receitaEquipe = 0.0;
+    $conversaoMedia = 0.0;
+    $tempoMedioEquipe = 0.0;
+    $clientesAtendidosEquipe = 0;
+    $taxaPerdaMedia = 0.0;
+    if (!empty($vendedores)) {
+        $consultorasAtivas = count($vendedores);
+        foreach ($vendedores as $v) {
+            $receitaEquipe += (float)($v['receita'] ?? 0);
+            $conversaoMedia += (float)($v['conversao_individual'] ?? 0);
+            $tempoMedioEquipe += (float)($v['tempo_medio_espera_resposta'] ?? 0);
+            $clientesAtendidosEquipe += (int)($v['clientes_atendidos'] ?? 0);
+            $taxaPerdaMedia += (float)($v['taxa_perda'] ?? 0);
+        }
+        $conversaoMedia = round($conversaoMedia / $consultorasAtivas, 2);
+        $tempoMedioEquipe = round($tempoMedioEquipe / $consultorasAtivas, 1);
+        $taxaPerdaMedia = round($taxaPerdaMedia / $consultorasAtivas, 2);
+    }
 
     $canais = gcFetchAll($pdo, "
         SELECT
@@ -289,7 +482,7 @@ function gestaoComercialDashboard(PDO $pdo): void
         FROM gestao_pedidos gp
         WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
         GROUP BY COALESCE(NULLIF(TRIM(gp.canal_atendimento), ''), '(Sem canal)')
-        ORDER BY receita DESC
+        ORDER BY COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) DESC
     ", ['ini' => $start, 'fim' => $end]);
     foreach ($canais as &$can) {
         $receitaCanal = (float)($can['receita'] ?? 0);
@@ -308,7 +501,7 @@ function gestaoComercialDashboard(PDO $pdo): void
         FROM gestao_pedidos gp
         WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
         GROUP BY COALESCE(NULLIF(TRIM(gp.produto), ''), '(Sem produto)')
-        ORDER BY quantidade DESC, receita DESC
+        ORDER BY COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.quantidade ELSE 0 END), 0) DESC, COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) DESC
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);
 
@@ -320,8 +513,8 @@ function gestaoComercialDashboard(PDO $pdo): void
         FROM gestao_pedidos gp
         WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
         GROUP BY COALESCE(NULLIF(TRIM(gp.produto), ''), '(Sem produto)')
-        HAVING receita > 0
-        ORDER BY ((receita - custo) / receita) DESC, receita DESC
+        HAVING COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) > 0
+        ORDER BY ((COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_custo ELSE 0 END), 0)) / COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0)) DESC, COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) DESC
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);
     foreach ($formulasMargem as &$fm) {
@@ -336,7 +529,7 @@ function gestaoComercialDashboard(PDO $pdo): void
         FROM gestao_pedidos gp
         WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
         GROUP BY COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')
-        ORDER BY receita DESC
+        ORDER BY COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) DESC
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);
 
@@ -350,10 +543,12 @@ function gestaoComercialDashboard(PDO $pdo): void
             ON LOWER(TRIM(pd.nome_prescritor)) = LOWER(TRIM(COALESCE(NULLIF(gp.prescritor,''), 'My Pharm')))
         WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
         GROUP BY COALESCE(NULLIF(TRIM(pd.especialidade), ''), '(Sem especialidade)')
-        ORDER BY ticket_medio DESC
+        ORDER BY COALESCE(AVG(CASE WHEN {$approvedGp} THEN gp.preco_liquido END), 0) DESC
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);
 
+    $havingReceita = "COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) > 0";
+    $orderReceitaDesc = "COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) DESC";
     $segmentosMargem = [
         'atendente' => gcFetchAll($pdo, "
             SELECT
@@ -363,8 +558,8 @@ function gestaoComercialDashboard(PDO $pdo): void
             FROM gestao_pedidos gp
             WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
             GROUP BY COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
-            HAVING receita > 0
-            ORDER BY receita DESC
+            HAVING {$havingReceita}
+            ORDER BY {$orderReceitaDesc}
             LIMIT 10
         ", ['ini' => $start, 'fim' => $end]),
         'forma_farmaceutica' => gcFetchAll($pdo, "
@@ -375,8 +570,8 @@ function gestaoComercialDashboard(PDO $pdo): void
             FROM gestao_pedidos gp
             WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
             GROUP BY COALESCE(NULLIF(TRIM(gp.forma_farmaceutica), ''), '(Sem forma)')
-            HAVING receita > 0
-            ORDER BY receita DESC
+            HAVING {$havingReceita}
+            ORDER BY {$orderReceitaDesc}
             LIMIT 10
         ", ['ini' => $start, 'fim' => $end]),
         'prescritor' => gcFetchAll($pdo, "
@@ -387,8 +582,8 @@ function gestaoComercialDashboard(PDO $pdo): void
             FROM gestao_pedidos gp
             WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
             GROUP BY COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')
-            HAVING receita > 0
-            ORDER BY receita DESC
+            HAVING {$havingReceita}
+            ORDER BY {$orderReceitaDesc}
             LIMIT 10
         ", ['ini' => $start, 'fim' => $end]),
         'produto' => gcFetchAll($pdo, "
@@ -399,8 +594,8 @@ function gestaoComercialDashboard(PDO $pdo): void
             FROM gestao_pedidos gp
             WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
             GROUP BY COALESCE(NULLIF(TRIM(gp.produto), ''), '(Sem produto)')
-            HAVING receita > 0
-            ORDER BY receita DESC
+            HAVING {$havingReceita}
+            ORDER BY {$orderReceitaDesc}
             LIMIT 10
         ", ['ini' => $start, 'fim' => $end]),
     ];
@@ -496,6 +691,20 @@ function gestaoComercialDashboard(PDO $pdo): void
             'etapas_raw' => $funilMap,
         ],
         'performance_vendedor' => $vendedores,
+        'vendedor_gestao' => [
+            'resumo' => [
+                'consultoras_ativas' => $consultorasAtivas,
+                'receita_equipe' => round($receitaEquipe, 2),
+                'conversao_media' => $conversaoMedia,
+                'tempo_medio_espera_min' => $tempoMedioEquipe,
+                'clientes_atendidos' => $clientesAtendidosEquipe,
+                'taxa_perda_media' => $taxaPerdaMedia,
+            ],
+            'vendedores_cadastrados' => $vendedoresCadastrados,
+            'equipe' => $vendedores,
+            'motivos_perda' => $motivosPerda,
+            'clientes_rejeitados_com_contato' => $clientesRejeitadosComContato
+        ],
         'performance_canal' => $canais,
         'inteligencia_comercial' => [
             'top_formulas_mais_vendidas' => $topFormulas,

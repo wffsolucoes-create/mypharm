@@ -1,0 +1,126 @@
+:root {
+    --vd-card-bg: var(--bg-card, #0f172a);
+    --vd-border: var(--border, #1f2937);
+    --vd-progress-bg: rgba(148, 163, 184, 0.18);
+    --vd-progress-fill: linear-gradient(90deg, #2563eb, #22c55e);
+}
+
+.vd-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-top: 4px;
+}
+
+.content-area {
+    padding: 18px;
+}
+
+.vd-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.vd-grid-small {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.vd-card {
+    background: var(--vd-card-bg);
+    border: 1px solid var(--vd-border);
+    border-radius: 14px;
+    padding: 14px;
+}
+
+.vd-label {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    margin-bottom: 8px;
+}
+
+.vd-value {
+    color: var(--text-primary);
+    font-size: 1.45rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.vd-value-sm {
+    font-size: 1.05rem;
+    line-height: 1.4;
+}
+
+.vd-sub {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+}
+
+.vd-progress {
+    height: 8px;
+    width: 100%;
+    background: var(--vd-progress-bg);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.vd-progress-bar {
+    height: 100%;
+    width: 0%;
+    max-width: 100%;
+    background: var(--vd-progress-fill);
+    transition: width .35s ease;
+}
+
+.vd-note {
+    color: var(--text-secondary);
+    margin-top: 6px;
+    font-size: 0.86rem;
+}
+
+.vd-table-wrap {
+    overflow-x: auto;
+    margin-top: 8px;
+}
+
+.vd-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.vd-table th,
+.vd-table td {
+    border-bottom: 1px solid var(--vd-border);
+    padding: 8px 6px;
+    text-align: left;
+}
+
+.vd-table th {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.vd-error {
+    margin-top: 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #fecaca;
+    background: rgba(127, 29, 29, 0.25);
+    padding: 10px 12px;
+    font-size: 0.86rem;
+}
+
+@media (max-width: 1200px) {
+    .vd-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 680px) {
+    .vd-grid,
+    .vd-grid-small {
+        grid-template-columns: 1fr;
+    }
+}

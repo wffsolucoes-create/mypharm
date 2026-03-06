@@ -18,9 +18,33 @@
             </div>
             <nav class="sidebar-nav">
                 <div class="nav-section-title">Gestão Comercial</div>
-                <a class="nav-item active" href="gestao-comercial.html">
+                <a class="nav-item gc-menu-item active" href="#" data-section="executivo">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Painel Executivo</span>
+                </a>
+                <a class="nav-item gc-menu-item" href="#" data-section="vendas">
+                    <i class="fas fa-filter"></i>
+                    <span>Gestão de Vendas</span>
+                </a>
+                <a class="nav-item gc-menu-item" href="#" data-section="vendedores">
+                    <i class="fas fa-users"></i>
+                    <span>Vendedores</span>
+                </a>
+                <a class="nav-item gc-menu-item" href="#" data-section="financeiro">
+                    <i class="fas fa-coins"></i>
+                    <span>Financeiro Aplicado</span>
+                </a>
+                <a class="nav-item gc-menu-item" href="#" data-section="reuniao">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Reunião Mensal</span>
+                </a>
+                <a class="nav-item" href="tv-vendedores.html" target="_blank" rel="noopener">
+                    <i class="fas fa-tv"></i>
+                    <span>TV Corrida de Vendas</span>
+                </a>
+                <a class="nav-item" href="gestao-comercial.html">
                     <i class="fas fa-briefcase"></i>
-                    <span>Gestão Comercial</span>
+                    <span>Visão Geral</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
@@ -37,14 +61,14 @@
         <div class="main-content">
             <div class="topbar">
                 <div class="topbar-left">
-                    <h1>Gestão Comercial</h1>
+                    <div>
+                        <h1>Gestão Comercial</h1>
+                        <div class="gc-topbar-subtitle">Módulo exclusivo da Gestão Comercial</div>
+                    </div>
                 </div>
                 <div class="topbar-right">
                     <button type="button" class="topbar-btn" id="gcThemeBtn" title="Alternar tema">
                         <i class="fas fa-circle-half-stroke"></i>
-                    </button>
-                    <button type="button" class="topbar-btn" id="gcBackBtn" title="Voltar ao painel">
-                        <i class="fas fa-home"></i>
                     </button>
                     <button type="button" class="logout-btn" id="gcLogoutBtn">
                         <i class="fas fa-sign-out-alt"></i> Sair
@@ -53,13 +77,17 @@
             </div>
 
             <div class="page-content">
-                <div class="gc-tabs">
-                    <button class="gc-tab active" data-section="executivo"><i class="fas fa-chart-line"></i> Painel Executivo</button>
-                    <button class="gc-tab" data-section="vendas"><i class="fas fa-filter"></i> Gestão de Vendas</button>
-                    <button class="gc-tab" data-section="financeiro"><i class="fas fa-coins"></i> Financeiro Aplicado</button>
-                    <button class="gc-tab" data-section="reuniao"><i class="fas fa-clipboard-check"></i> Reunião Mensal</button>
+                <div class="gc-filters">
+                    <label>De
+                        <input type="date" id="gcDataDe">
+                    </label>
+                    <label>Até
+                        <input type="date" id="gcDataAte">
+                    </label>
+                    <button type="button" id="gcApplyFiltersBtn" class="gc-filter-btn">
+                        <i class="fas fa-filter"></i> Aplicar
+                    </button>
                 </div>
-
                 <section class="gc-section active" id="gc-section-executivo">
                     <div class="gc-block">
                         <h3>Crescimento</h3>
@@ -151,6 +179,81 @@
                             <div class="gc-card"><div class="gc-label">Fórmulas com maior margem</div><div class="gc-value">—</div></div>
                             <div class="gc-card"><div class="gc-label">Prescritores com maior receita</div><div class="gc-value">—</div></div>
                             <div class="gc-card"><div class="gc-label">Ticket médio por especialidade</div><div class="gc-value">—</div></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="gc-section" id="gc-section-vendedores">
+                    <div class="gc-vendedor-tabs-wrap">
+                        <div class="gc-vendedor-tabs-title">Consultoras cadastradas</div>
+                        <div id="gcVendedoresTabs" class="gc-vendedor-tabs"></div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3>Painel de Vendedores (Visão Gestão)</h3>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">Consultoras ativas</div><div class="gc-value" id="gcVendConsultorasAtivas">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Receita da equipe</div><div class="gc-value" id="gcVendReceitaEquipe">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Conversão média</div><div class="gc-value" id="gcVendConversaoMedia">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Tempo médio de espera</div><div class="gc-value" id="gcVendTempoMedio">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Clientes atendidos</div><div class="gc-value" id="gcVendClientesAtendidos">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Taxa de perda média</div><div class="gc-value" id="gcVendTaxaPerda">—</div></div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3>Produtividade por Consultora</h3>
+                        <div class="gc-table-wrap">
+                            <table class="gc-table">
+                                <thead>
+                                    <tr>
+                                        <th>Consultora</th>
+                                        <th>Receita</th>
+                                        <th>Pedidos</th>
+                                        <th>Aprovados</th>
+                                        <th>Rejeitados</th>
+                                        <th>Conversão</th>
+                                        <th>Tempo Médio</th>
+                                        <th>Clientes</th>
+                                        <th>Taxa de Perda</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcVendEquipeTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3>Motivos de Perda</h3>
+                        <div class="gc-table-wrap">
+                            <table class="gc-table">
+                                <thead>
+                                    <tr>
+                                        <th>Motivo</th>
+                                        <th>Quantidade</th>
+                                        <th>Valor</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcVendMotivosTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3>Clientes Rejeitados com Contato</h3>
+                        <div class="gc-table-wrap">
+                            <table class="gc-table">
+                                <thead>
+                                    <tr>
+                                        <th>Cliente</th>
+                                        <th>Prescritor</th>
+                                        <th>Contato</th>
+                                        <th>Qtd Rejeições</th>
+                                        <th>Valor Rejeitado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcVendRejeitadosTbody"></tbody>
+                            </table>
                         </div>
                     </div>
                 </section>

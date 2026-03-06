@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#E63946">
+    <title>Portal do Vendedor | MyPharm</title>
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/visitador-inline.css">
+    <link rel="stylesheet" href="css/visitador.css">
+    <link rel="stylesheet" href="css/vendedor.css">
+    <style>body{visibility:hidden;}</style>
+</head>
+<body>
+    <script>!(function(){if(!localStorage.getItem('loggedIn')){window.location.replace('index.html');return;}document.body.style.visibility='visible';})();</script>
+    <div id="vdApp" style="display:none;">
+        <header>
+            <div class="brand">
+                <div class="logo-container">
+                    <img src="imagens/logoMypharm.png" alt="MyPharm">
+                </div>
+                <div class="brand-text-col">
+                    <span class="brand-title">Portal do Vendedor</span>
+                    <span class="brand-subtitle">Gestão de Performance</span>
+                </div>
+            </div>
+            <nav class="visitador-nav" aria-label="Menu principal">
+                <a href="#" class="visitador-nav-link active">
+                    <i class="fas fa-home"></i><span>Início</span>
+                </a>
+                <a href="#" class="visitador-nav-link active">
+                    <i class="fas fa-bullseye"></i><span>Metas</span>
+                </a>
+            </nav>
+            <div class="user-menu">
+                <div class="theme-toggle" id="vdThemeBtn" title="Alternar tema">
+                    <div class="theme-toggle-knob">
+                        <i class="fas fa-sun icon-sun"></i>
+                        <i class="fas fa-moon icon-moon"></i>
+                    </div>
+                </div>
+                <div class="user-profile">
+                    <div class="avatar-wrap">
+                        <div class="avatar" id="vdAvatar">V</div>
+                    </div>
+                    <div class="d-none-mobile">
+                        <div id="vdUserName" style="font-weight:600; font-size:0.95rem;">Vendedor</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Meu Painel</div>
+                    </div>
+                </div>
+                <button class="btn-logout" id="vdLogoutBtn">
+                    <i class="fas fa-sign-out-alt"></i> <span class="d-none-mobile">Sair</span>
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <div class="welcome-section" style="display:block;">
+                <div style="margin-bottom:24px;">
+                    <h1 id="vdGreeting" style="margin:0;">Painel do Vendedor</h1>
+                    <p style="margin:8px 0 0 0;">Acompanhe suas metas individuais e de grupo.</p>
+                    <p id="vdPeriodoInfo" style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; opacity:0.8;">Período atual</p>
+                </div>
+
+                <div class="meta-grid">
+                    <div class="card" style="margin-bottom:0; padding:14px 20px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Meta Mensal</span>
+                            <span style="font-size:0.8rem; font-weight:700; color:var(--primary);" id="vdPctMetaMensal">0%</span>
+                        </div>
+                        <div class="vd-progress"><div id="vdProgFatMes" class="vd-progress-bar"></div></div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                            <span id="vdFatMesAtual">Atual: R$ 0,00</span>
+                            <span id="vdMetaMensal">Meta: R$ 0,00</span>
+                        </div>
+                    </div>
+                    <div class="card" style="margin-bottom:0; padding:14px 20px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Meta Anual</span>
+                            <span style="font-size:0.8rem; font-weight:700; color:var(--success);" id="vdPctMetaAnual">0%</span>
+                        </div>
+                        <div class="vd-progress"><div id="vdProgFatAno" class="vd-progress-bar"></div></div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                            <span id="vdFatAnoAtual">Atual: R$ 0,00</span>
+                            <span id="vdMetaAnual">Meta: R$ 0,00</span>
+                        </div>
+                    </div>
+                    <div class="card" style="margin-bottom:0; padding:14px 20px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Visitas Semanais</span>
+                            <span style="font-size:0.8rem; font-weight:700; color:#10B981;" id="vdPctVisSem">0%</span>
+                        </div>
+                        <div class="vd-progress"><div id="vdProgVisSem" class="vd-progress-bar"></div></div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                            <span id="vdVisSemAtual">Atual: 0</span>
+                            <span id="vdMetaVisSem">Meta: 0</span>
+                        </div>
+                    </div>
+                    <div class="card" style="margin-bottom:0; padding:14px 20px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Visitas Mensais</span>
+                            <span style="font-size:0.8rem; font-weight:700; color:#F59E0B;" id="vdPctVisMes">0%</span>
+                        </div>
+                        <div class="vd-progress"><div id="vdProgVisMes" class="vd-progress-bar"></div></div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                            <span id="vdVisMesAtual">Atual: 0</span>
+                            <span id="vdMetaVisMes">Meta: 0</span>
+                        </div>
+                    </div>
+                    <div class="card" style="margin-bottom:0; padding:14px 20px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                            <i class="fas fa-coins" style="color:#F59E0B; font-size:0.85rem;"></i>
+                            <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Comissão total</span>
+                        </div>
+                        <div style="font-size:1.25rem; font-weight:700; color:var(--success);" id="vdComissaoEstimValor">R$ 0,00</div>
+                        <div style="font-size:0.7rem; color:var(--text-secondary);" id="vdComissaoEstimPct">Percentual total: 0%</div>
+                    </div>
+                    <div class="card" style="margin-bottom:0; padding:14px 20px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                            <i class="fas fa-trophy" style="color:#EC4899; font-size:0.85rem;"></i>
+                            <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Prêmio Performance</span>
+                        </div>
+                        <div style="font-size:1.25rem; font-weight:700; color:var(--text-primary);" id="vdPremioPerformance">R$ 0,00</div>
+                        <div style="font-size:0.7rem; color:var(--text-secondary);" id="vdScoreTotal">Score total: 0 / 100</div>
+                    </div>
+                </div>
+
+                <div class="kpi-row">
+                    <div class="kpi-card-mini">
+                        <div class="kpi-icon-box" style="background:rgba(37,99,235,0.1); color:var(--primary);"><i class="fas fa-user-check"></i></div>
+                        <div class="kpi-details">
+                            <h3 id="vdFaixaIndividual">-</h3>
+                            <span id="vdComissaoIndividualDetalhe">Comissão individual: 0%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card-mini">
+                        <div class="kpi-icon-box" style="background:rgba(16,185,129,0.12); color:#10B981;"><i class="fas fa-users"></i></div>
+                        <div class="kpi-details">
+                            <h3 id="vdFaixaGrupo">-</h3>
+                            <span id="vdComissaoGrupoDetalhe">Comissão grupo: 0%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card-mini">
+                        <div class="kpi-icon-box" style="background:rgba(245,158,11,0.12); color:#F59E0B;"><i class="fas fa-sack-dollar"></i></div>
+                        <div class="kpi-details">
+                            <h3 id="vdFaturamentoGrupo">R$ 0,00</h3>
+                            <span>Faturamento grupo no mês</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="main-column">
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Regras de Meta Individual</div>
+                                    <div class="card-subtitle">Comissão por faixa de faturamento</div>
+                                </div>
+                            </div>
+                            <div class="vd-table-wrap">
+                                <table class="vd-table">
+                                    <thead><tr><th>Faixa</th><th>Comissão</th></tr></thead>
+                                    <tbody id="vdTabelaMetaIndividual"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Meta de Grupo</div>
+                                    <div class="card-subtitle">Percentual por faixa do time</div>
+                                </div>
+                            </div>
+                            <div class="vd-table-wrap">
+                                <table class="vd-table">
+                                    <thead><tr><th>Faixa</th><th>Percentual</th></tr></thead>
+                                    <tbody id="vdTabelaMetaGrupo"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="side-column">
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Score do Mês</div>
+                            </div>
+                            <div class="vd-table-wrap">
+                                <table class="vd-table">
+                                    <thead><tr><th>Score</th><th>Pontos</th></tr></thead>
+                                    <tbody id="vdTabelaScore"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Prêmio por Performance</div>
+                            </div>
+                            <div class="vd-table-wrap">
+                                <table class="vd-table">
+                                    <thead><tr><th>Regra</th><th>Valor</th></tr></thead>
+                                    <tbody id="vdTabelaPremio"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vd-error" id="vdError" style="display:none;"></div>
+            </div>
+        </main>
+    </div>
+    <script src="js/vendedor-main.js"></script>
+</body>
+</html>

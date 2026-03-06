@@ -188,8 +188,12 @@ async function doLogin(e) {
             if (result.foto_perfil) localStorage.setItem('foto_perfil', result.foto_perfil); else localStorage.removeItem('foto_perfil');
             loadSavedTheme();
 
-            if (setorNormalizado === 'visitador') {
+            const isVisitador = setorNormalizado.indexOf('visitador') !== -1;
+            const isVendedor = setorNormalizado.indexOf('vendedor') !== -1;
+            if (isVisitador) {
                 window.location.href = 'visitador.html';
+            } else if (isVendedor) {
+                window.location.href = 'vendedor.html';
             } else {
                 showApp(result.nome, result.tipo, result.foto_perfil || null, setorNormalizado);
             }
@@ -338,13 +342,19 @@ async function enforceStrongPasswordChangeOnLogin(senhaAtual) {
 
 function showApp(nome, tipo, fotoPerfil, setorInformado) {
     const setor = String(setorInformado || localStorage.getItem('userSetor') || '').trim().toLowerCase();
-    if (setor === 'visitador' && !window.location.pathname.includes('visitador.html')) {
+    const isVisitador = setor.indexOf('visitador') !== -1;
+    const isVendedor = setor.indexOf('vendedor') !== -1;
+    if (isVisitador && !window.location.pathname.includes('visitador.html')) {
         window.location.href = 'visitador.html';
+        return;
+    }
+    if (isVendedor && !window.location.pathname.includes('vendedor.html')) {
+        window.location.href = 'vendedor.html';
         return;
     }
 
     // Se estivermos na página do visitador, não executamos o resto (layout diferente)
-    if (window.location.pathname.includes('visitador.html')) {
+    if (window.location.pathname.includes('visitador.html') || window.location.pathname.includes('vendedor.html')) {
         const lp = document.getElementById('loginPage');
         if (lp) lp.style.display = 'none';
         return;
