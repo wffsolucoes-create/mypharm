@@ -82,7 +82,7 @@ body {
 
 .lane {
     position: relative;
-    height: 74px;
+    height: 86px;
     border-bottom: 1px dashed var(--line);
     overflow: hidden;
     background: linear-gradient(90deg, rgba(148,163,184,0.05), rgba(148,163,184,0.01));
@@ -154,7 +154,8 @@ body {
     transform: translateY(-50%);
     color: #bfdbfe;
     font-weight: 800;
-    font-size: 0.78rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.3px;
     opacity: 0.9;
 }
 
@@ -168,12 +169,6 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-}
-.cart.happy .cart-face {
-    filter: saturate(1.15);
-}
-.cart.chasing .cart-face {
-    filter: saturate(1.25);
 }
 .cart::after {
     content: attr(data-money);
@@ -200,20 +195,33 @@ body {
 .cart-body {
     position: relative;
     display: inline-block;
-    width: 52px;
-    height: 22px;
-    border-radius: 9px 12px 8px 8px;
+    width: 80px;
+    height: 30px;
+    border-radius: 10px 14px 9px 9px;
     background: linear-gradient(180deg, var(--car), var(--car-dark));
     border: 1px solid rgba(255,255,255,0.22);
     box-shadow: 0 0 0 2px rgba(15,23,42,0.25), 0 0 18px var(--car-glow);
     animation: carWalk 0.55s ease-in-out infinite;
 }
+.cart-body::after {
+    /* Caçamba da caminhonete */
+    content: "";
+    position: absolute;
+    right: -12px;
+    top: 8px;
+    width: 18px;
+    height: 14px;
+    border-radius: 2px 7px 7px 2px;
+    background: linear-gradient(180deg, var(--car-dark), #1e293b);
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 2px 6px rgba(0,0,0,.25);
+}
 .cart-roof {
     position: absolute;
-    left: 15px;
-    top: -8px;
-    width: 21px;
-    height: 10px;
+    left: 14px;
+    top: -11px;
+    width: 34px;
+    height: 14px;
     border-radius: 7px 7px 2px 2px;
     background: var(--car);
     border: 1px solid rgba(255,255,255,0.26);
@@ -221,32 +229,41 @@ body {
 }
 .cart-number {
     position: absolute;
-    left: 6px;
-    top: 5px;
+    left: 8px;
+    top: 8px;
     color: #f8fafc;
-    font-size: 0.62rem;
+    font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.3px;
 }
 .cart-face {
     position: absolute;
-    right: 6px;
-    top: 4px;
-    font-size: 0.62rem;
+    right: 14px;
+    top: 7px;
+    font-size: 1rem;
     line-height: 1;
+    text-shadow: 0 0 8px rgba(255,255,255,0.35);
+}
+.cart-cargo {
+    position: absolute;
+    right: -9px;
+    top: -10px;
+    font-size: 0.82rem;
+    line-height: 1;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,.35));
 }
 .wheel {
     position: absolute;
-    bottom: -6px;
-    width: 10px;
-    height: 10px;
+    bottom: -8px;
+    width: 13px;
+    height: 13px;
     border-radius: 999px;
     background: #020617;
     border: 2px solid #94a3b8;
     animation: wheelSpin 0.45s linear infinite;
 }
-.wheel-1 { left: 7px; }
-.wheel-2 { right: 7px; }
+.wheel-1 { left: 10px; }
+.wheel-2 { right: 14px; }
 
 .cart.leader .cart-body {
     animation: carWalk 0.5s ease-in-out infinite, leaderPulse 1s infinite;
@@ -254,12 +271,31 @@ body {
 .cart.leader .wheel {
     animation-duration: 0.28s;
 }
-.cart.chasing .cart-body {
+
+.cart.rank-diamond .cart-body {
+    background: linear-gradient(180deg, #93c5fd, #2563eb);
+    box-shadow: 0 0 0 2px rgba(15,23,42,0.25), 0 0 24px rgba(147,197,253,.65);
+}
+.cart.rank-diamond .cart-roof { background: #bfdbfe; }
+
+.cart.rank-gold .cart-body {
+    background: linear-gradient(180deg, #fde68a, #f59e0b);
+    box-shadow: 0 0 0 2px rgba(15,23,42,0.25), 0 0 20px rgba(245,158,11,.6);
+}
+.cart.rank-gold .cart-roof { background: #fef3c7; }
+
+.cart.rank-luxury .cart-body {
+    background: linear-gradient(180deg, #facc15, #eab308 30%, #14532d 100%);
+    box-shadow: 0 0 0 2px rgba(15,23,42,0.25), 0 0 20px rgba(34,197,94,.55);
+}
+.cart.rank-luxury .cart-roof { background: #fef9c3; }
+
+.cart.rank-cargo .cart-body {
+    background: linear-gradient(180deg, #f59e0b, #b45309);
+    box-shadow: 0 0 0 2px rgba(15,23,42,0.25), 0 0 14px rgba(245,158,11,.45);
     animation: carWalkChasing 0.38s ease-in-out infinite;
 }
-.cart.chasing .wheel {
-    animation-duration: 0.25s;
-}
+.cart.rank-cargo .wheel { animation-duration: 0.25s; }
 @keyframes bounce {
     0%,100% { transform: translateY(0); }
     50% { transform: translateY(-4px); }

@@ -50,6 +50,44 @@
         }
     }
 
+    function getCarProfile(posicao) {
+        if (posicao === 1) {
+            return {
+                cls: 'rank-diamond',
+                podiumLabel: '💎 Carro Diamante',
+                face: '😎',
+                addon: '💎',
+                cargo: '',
+            };
+        }
+        if (posicao === 2) {
+            return {
+                cls: 'rank-gold',
+                podiumLabel: '🥇 Carro Ouro',
+                face: '😄',
+                addon: '🥇',
+                cargo: '',
+            };
+        }
+        if (posicao === 3) {
+            return {
+                cls: 'rank-luxury',
+                podiumLabel: '💸 Carro Luxo',
+                face: '🤑',
+                addon: '💸',
+                cargo: '',
+            };
+        }
+        const cargas = ['🧱', '🪨', '⛏️', '🧱', '🏗️'];
+        return {
+            cls: 'rank-cargo',
+            podiumLabel: '🚚 Carro de Carga',
+            face: '😤',
+            addon: '🚚',
+            cargo: cargas[(posicao - 4) % cargas.length],
+        };
+    }
+
     function renderPodium(ranking) {
         const wrap = document.getElementById('tvPodium');
         if (!wrap) return;
@@ -59,9 +97,9 @@
             return;
         }
         wrap.innerHTML = top3.map(function (r, i) {
-            const place = i === 0 ? '🥇 1º lugar' : (i === 1 ? '🥈 2º lugar' : '🥉 3º lugar');
+            const profile = getCarProfile(i + 1);
             return `<div class="podium-item">
-                <div class="place">${place}</div>
+                <div class="place">${profile.podiumLabel}</div>
                 <div class="name">${r.vendedor || '-'}</div>
                 <div class="value">${fmtMoney(r.receita || 0)}</div>
             </div>`;
@@ -84,23 +122,23 @@
         const key = safeKey(r.vendedor);
         const theme = pickTheme(key || r.posicao);
         const leaderCls = r.posicao === 1 ? ' leader' : '';
-        const moodCls = r.posicao <= 2 ? ' happy' : ' chasing';
-        const moodFace = r.posicao === 1 ? '😄' : (r.posicao === 2 ? '😁' : '😤');
+        const profile = getCarProfile(r.posicao);
         const prev = Number(lastPosByVendor[key] || 0);
         const startLeft = `${Math.max(0, Math.min(100, prev)).toFixed(2)}%`;
         const pct = Math.max(0, Math.min(100, Number(targetPct || 0)));
         const targetLeft = `${pct.toFixed(2)}%`;
         const pctMetaText = `${Math.max(0, Number(r.percentual_meta || 0)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da meta`;
         return `<div class="lane">
-            <div class="lane-label">${r.posicao}º ${r.vendedor || '-'}</div>
+            <div class="lane-label">${r.vendedor || '-'}</div>
             <div class="track">
-                <div class="lane-rank">${r.posicao}º</div>
-                <div class="cart${leaderCls}${moodCls}" data-vendor="${key}" data-target-left="${targetLeft}" data-money="${fmtMoney(r.receita || 0)} • ${pctMetaText}"
+                <div class="lane-rank">${profile.podiumLabel}</div>
+                <div class="cart ${profile.cls}${leaderCls}" data-vendor="${key}" data-target-left="${targetLeft}" data-money="${fmtMoney(r.receita || 0)} • ${pctMetaText}"
                      style="--car:${theme.body}; --car-dark:${theme.dark}; --car-glow:${theme.glow}; left:${startLeft};">
                     <span class="cart-body">
                         <span class="cart-roof"></span>
-                        <span class="cart-number">#${r.posicao}</span>
-                        <span class="cart-face">${moodFace}</span>
+                        <span class="cart-number">${profile.addon}</span>
+                        <span class="cart-face">${profile.face}</span>
+                        ${profile.cargo ? `<span class="cart-cargo">${profile.cargo}</span>` : ''}
                         <span class="wheel wheel-1"></span>
                         <span class="wheel wheel-2"></span>
                     </span>
