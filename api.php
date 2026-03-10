@@ -1157,7 +1157,8 @@ try {
             }
 
             // Quando há filtro por período (dia/mês/faixa), retornar apenas prescritores com movimento no período.
-            if ($usarRecusadosPorPeriodo) {
+            // Na carteira do visitador (visitador informado) sempre mostrar a lista completa para bater com o card "Prescritores Ativos".
+            if ($usarRecusadosPorPeriodo && !$visitadorFilter) {
                 $results = array_values(array_filter($results, function ($row) {
                     $ap = (float)($row['valor_aprovado'] ?? 0);
                     $rc = (float)($row['valor_recusado'] ?? 0);

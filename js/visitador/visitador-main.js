@@ -1465,15 +1465,7 @@ function getThemeStorageKeyVisitador() {
                 `;
             }
 
-            // Sem visita ativa: só pode iniciar visita se a rota do dia estiver ativa
-            if (rotaState === 'idle') {
-            return `
-                    <button type="button" disabled title="Inicie a rota do dia para poder iniciar visitas."
-                        style="padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-secondary); cursor:not-allowed; font-weight:700; font-size:0.75rem; opacity:0.8;">
-                        Inicie a rota
-                    </button>
-                `;
-            }
+            // Sem visita ativa: exibe botão Iniciar (rota opcional; visitador pode registrar visita direto)
             return `
                 <button type="button" class="btn-iniciar-visita" data-prescritor="${safeAttr}"
                     style="padding:6px 10px; border-radius:8px; border:none; background:var(--success); color:white; cursor:pointer; font-weight:700; font-size:0.75rem;">
@@ -1709,10 +1701,6 @@ function getThemeStorageKeyVisitador() {
 
         async function iniciarVisita(prescritor) {
             if (!canManageVisits) return;
-            if (rotaState === 'idle') {
-                alert('Inicie a rota do dia antes de iniciar uma visita.');
-                return;
-            }
             const subtitle = document.getElementById('modalPrescritorSubtitle');
             const old = subtitle ? subtitle.textContent : '';
             if (subtitle) subtitle.textContent = 'Iniciando visita...';
