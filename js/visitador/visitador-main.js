@@ -1465,7 +1465,15 @@ function getThemeStorageKeyVisitador() {
                 `;
             }
 
-            // Sem visita ativa: exibe botão Iniciar (rota opcional; visitador pode registrar visita direto)
+            // Sem visita ativa: após 19h não permite iniciar nova visita
+            if (typeof isApós19h === 'function' && isApós19h()) {
+                return `
+                    <button type="button" disabled title="Não é permitido iniciar visita após as 19h."
+                        style="padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-secondary); cursor:not-allowed; font-weight:700; font-size:0.75rem; opacity:0.8;">
+                        Após 19h
+                    </button>
+                `;
+            }
             return `
                 <button type="button" class="btn-iniciar-visita" data-prescritor="${safeAttr}"
                     style="padding:6px 10px; border-radius:8px; border:none; background:var(--success); color:white; cursor:pointer; font-weight:700; font-size:0.75rem;">
@@ -1699,8 +1707,19 @@ function getThemeStorageKeyVisitador() {
         let leafletMarker = null;
         let leafletCircle = null;
 
+        function isApós19h() {
+            try {
+                const hour = parseInt(new Date().toLocaleString('en-CA', { timeZone: 'America/Porto_Velho', hour: '2-digit', hour12: false }), 10);
+                return !isNaN(hour) && hour >= 19;
+            } catch (e) { return new Date().getHours() >= 19; }
+        }
+
         async function iniciarVisita(prescritor) {
             if (!canManageVisits) return;
+            if (isApós19h()) {
+                alert('Não é permitido iniciar visita após as 19h.');
+                return;
+            }
             const subtitle = document.getElementById('modalPrescritorSubtitle');
             const old = subtitle ? subtitle.textContent : '';
             if (subtitle) subtitle.textContent = 'Iniciando visita...';
@@ -1722,6 +1741,7 @@ function getThemeStorageKeyVisitador() {
                     }
                 } else {
                     if (subtitle) subtitle.textContent = (res && res.error) ? res.error : 'Não foi possível iniciar a visita.';
+                    if (res && res.error && res.error.indexOf('19h') !== -1) alert(res.error);
                 }
             } catch (e) {
                 if (subtitle) subtitle.textContent = 'Erro de conexão ao iniciar a visita.';

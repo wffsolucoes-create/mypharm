@@ -226,7 +226,59 @@ try {
     // #endregion
 
     // Fechar automaticamente rotas após 19h (definido antes do switch para estar sempre disponível em rota_ativa, start_rota, etc.)
-    $fecharRotasApos19h = function (PDO $pdo) {
+    // Encerra visitas em aberto antes de fechar a rota (para os visitadores afetados).
+    $encerrarVisitaAbertaAutomatico = function (PDO $pdo, $visitadorNome, $motivo = 'Encerrada automaticamente (após 19h)') {
+        $visitadorNome = trim((string)$visitadorNome);
+        if ($visitadorNome === '') return;
+        try {
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS visitas_em_andamento (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    visitador VARCHAR(255) NOT NULL,
+                    prescritor VARCHAR(255) NOT NULL,
+                    inicio DATETIME NOT NULL,
+                    fim DATETIME NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'iniciada',
+                    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_visitador_status (visitador, status),
+                    INDEX idx_inicio (inicio)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        } catch (Throwable $e) { /* ignora */ }
+        $stmt = $pdo->prepare("
+            SELECT id, prescritor, inicio FROM visitas_em_andamento
+            WHERE visitador = :v AND status = 'iniciada' AND fim IS NULL LIMIT 1
+        ");
+        $stmt->execute(['v' => $visitadorNome]);
+        $active = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$active) return;
+        $pdo->prepare("UPDATE visitas_em_andamento SET fim = NOW(), status = 'encerrada' WHERE id = :id AND visitador = :v")
+            ->execute(['id' => $active['id'], 'v' => $visitadorNome]);
+        try {
+            $pdo->exec("ALTER TABLE historico_visitas ADD COLUMN inicio_visita DATETIME NULL");
+        } catch (Exception $e) { /* coluna já existe */ }
+        $stmtH = $pdo->prepare("
+            INSERT INTO historico_visitas (visitador, prescritor, data_visita, horario, inicio_visita, status_visita, resumo_visita, ano_referencia)
+            VALUES (:visitador, :prescritor, CURDATE(), DATE_FORMAT(NOW(), '%H:%i'), :inicio_visita, 'Remarcada', :resumo, YEAR(CURDATE()))
+        ");
+        $stmtH->execute([
+            'visitador' => $visitadorNome,
+            'prescritor' => $active['prescritor'] ?? '',
+            'inicio_visita' => $active['inicio'] ?? null,
+            'resumo' => $motivo
+        ]);
+    };
+
+    $fecharRotasApos19h = function (PDO $pdo) use ($encerrarVisitaAbertaAutomatico) {
+        $stmt = $pdo->query("
+            SELECT visitador_nome FROM rotas_diarias
+            WHERE status IN ('em_andamento', 'pausada')
+            AND (DATE(data_inicio) < CURDATE() OR (DATE(data_inicio) = CURDATE() AND CURTIME() >= '19:00:00'))
+        ");
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $encerrarVisitaAbertaAutomatico($pdo, $row['visitador_nome'] ?? '', 'Encerrada automaticamente (após 19h)');
+        }
         $pdo->exec("
             UPDATE rotas_diarias
             SET data_fim = NOW(), pausado_em = NULL, status = 'finalizada'
@@ -1913,6 +1965,10 @@ try {
                 echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
                 break;
             }
+            if ((int)date('G') >= 19) {
+                echo json_encode(['success' => false, 'error' => 'Não é permitido iniciar visita após as 19h.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
             $pdo->exec("
                 CREATE TABLE IF NOT EXISTS visitas_em_andamento (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -2867,7 +2923,9 @@ try {
             ");
             $stmt->execute(['v' => $visitadorNome]);
             $visitaAberta = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($visitaAberta) {
+            if ($visitaAberta && isset($encerrarVisitaAbertaAutomatico)) {
+                $encerrarVisitaAbertaAutomatico($pdo, $visitadorNome, 'Encerrada automaticamente ao finalizar a rota.');
+            } elseif ($visitaAberta) {
                 echo json_encode([
                     'success' => false,
                     'error' => 'Encerre a visita em andamento antes de finalizar a rota.',
