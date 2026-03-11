@@ -22,3 +22,9 @@ Desktop.ini
 .migrated_usuario_id
 fix_dashboard_patch.php
 fix_*.patch
+
+# Logs de debug
+debug*.log
+
+# Dependências Node
+node_modules/
