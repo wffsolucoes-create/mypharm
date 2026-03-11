@@ -3652,3 +3652,111 @@ function getThemeStorageKeyVisitador() {
             btn.disabled = false;
             btn.textContent = 'Salvar';
         }
+
+// ====== MODAL DE PERFIL ======
+function openModalPerfil() {
+    const modal = document.getElementById('modalPerfil');
+    if (!modal) return;
+    
+    // Preencher com os dados do LocalStorage
+    const nome = localStorage.getItem('userName') || 'Usuário';
+    const setor = localStorage.getItem('userSetor') || 'Não definido';
+    
+    document.getElementById('perfilNome').value = nome;
+    document.getElementById('perfilSetor').value = setor;
+    
+    // Limpar senhas
+    document.getElementById('perfilSenhaAtual').value = '';
+    document.getElementById('perfilSenhaNova').value = '';
+    document.getElementById('perfilSenhaNovaConfirma').value = '';
+    
+    // Atualizar imagem no modal
+    const initial = (nome).charAt(0).toUpperCase();
+    const fotoUrl = localStorage.getItem('foto_perfil');
+    const avTxt = document.getElementById('modalPerfilAvatarText');
+    const avImg = document.getElementById('modalPerfilAvatarImg');
+    
+    if (fotoUrl && fotoUrl !== 'null') {
+        avImg.src = API_URL + '?action=get_foto_perfil&t=' + Date.now();
+        avImg.style.display = '';
+        avTxt.style.display = 'none';
+        
+        avImg.onerror = function () {
+            avImg.style.display = 'none';
+            avTxt.style.display = 'flex';
+            avTxt.textContent = initial;
+        };
+    } else {
+        avImg.style.display = 'none';
+        avTxt.style.display = 'flex';
+        avTxt.textContent = initial;
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function closeModalPerfil() {
+    const modal = document.getElementById('modalPerfil');
+    if (modal) modal.style.display = 'none';
+}
+
+function togglePasswordVisibility(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (!input || !icon) return;
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+async function salvarAlteracaoSenha() {
+    const atual = document.getElementById('perfilSenhaAtual').value;
+    const nova = document.getElementById('perfilSenhaNova').value;
+    const conf = document.getElementById('perfilSenhaNovaConfirma').value;
+    
+    if (!atual || !nova) {
+        alert('Por favor, preencha a senha atual e a nova senha.');
+        return;
+    }
+    
+    if (nova !== conf) {
+        alert('A confirmação da nova senha não confere.');
+        return;
+    }
+    
+    if (nova.length < 8) {
+        alert('A nova senha deve ter no mínimo 8 caracteres.');
+        return;
+    }
+    
+    try {
+        const res = await apiPost('update_my_password', {
+            senha_atual: atual,
+            senha_nova: nova
+        });
+        
+        if (res && res.success) {
+            alert('Senha atualizada com sucesso!');
+            closeModalPerfil();
+        } else {
+            alert(res.error || 'Erro ao atualizar a senha.');
+        }
+    } catch (e) {
+        alert('Erro de conexão ao tentar atualizar a senha.');
+    }
+}
+
+// Fechar modal ao clicar fora do conteudo
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('modalPerfil');
+    if (modal && event.target === modal) {
+        closeModalPerfil();
+    }
+});
