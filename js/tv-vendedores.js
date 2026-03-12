@@ -25,6 +25,54 @@
     const assignedThemeIndices = {};
     let nextThemeIdx = 0;
 
+    // Sons nas ações (Web Audio API - sem arquivos externos)
+    var tvAudioCtx = null;
+    function getAudioCtx() {
+        if (tvAudioCtx) return tvAudioCtx;
+        try {
+            tvAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) { return null; }
+        return tvAudioCtx;
+    }
+    function playSound(type) {
+        var ctx = getAudioCtx();
+        if (!ctx) return;
+        try {
+            var now = ctx.currentTime;
+            var gain = ctx.createGain();
+            gain.connect(ctx.destination);
+            gain.gain.setValueAtTime(0.25, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+            if (type === 'overtake') {
+                var osc = ctx.createOscillator();
+                osc.connect(gain);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            } else if (type === 'confetti' || type === 'celebration') {
+                [523, 659, 784, 1047].forEach(function (freq, i) {
+                    var o = ctx.createOscillator();
+                    o.connect(gain);
+                    o.type = 'sine';
+                    o.frequency.setValueAtTime(freq, now + i * 0.05);
+                    o.start(now + i * 0.05);
+                    o.stop(now + 0.3 + i * 0.05);
+                });
+            } else if (type === 'tick') {
+                var o = ctx.createOscillator();
+                o.connect(gain);
+                o.type = 'sine';
+                o.frequency.setValueAtTime(600, now);
+                o.start(now);
+                o.stop(now + 0.05);
+            }
+        } catch (e) {}
+    }
+
     function fmtMoney(v) {
         return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     }
@@ -93,6 +141,7 @@
     }
 
     function triggerConfetti() {
+        playSound('celebration');
         if(typeof confetti !== 'undefined'){
             var duration = 3000;
             var animationEnd = Date.now() + duration;
@@ -276,6 +325,7 @@
     }
 
     function triggerOvertake(nome) {
+        playSound('overtake');
         const overlay = document.getElementById('overtakeOverlay');
         const textObj = document.getElementById('overtakeText');
         if(!overlay) return;
