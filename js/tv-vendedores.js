@@ -244,8 +244,32 @@
         return CAR_THEMES[idx];
     }
 
-    // Futuristic Spaceship SVG
-    var SVG_SHIP = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40" fill="currentColor"><path d="M10 20 L40 5 L80 15 L95 20 L80 25 L40 35 Z" opacity="0.9"/><polygon points="0,15 20,20 0,25" fill="#fff" opacity="0.6"/><polygon points="30,15 60,18 60,22 30,25" fill="#0f172a" opacity="0.5"/><circle cx="75" cy="20" r="3" fill="#fff" opacity="0.8"/></svg>';
+    // Baseado na referência: coupe esportivo, teto fastback, spoiler, faróis — cores do tema (currentColor)
+    var SVG_CAR = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 46" fill="currentColor">' +
+        '<path d="M4 44 L6 40 L10 36 L18 32 L22 28 L24 24 L28 20 L52 16 L74 20 L78 26 L82 30 L88 34 L94 38 L96 42 L96 46 L4 46 Z"/>' +
+        '<path d="M22 28 L24 24 L28 22 L26 28 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
+        '<path d="M28 22 L40 20 L42 26 L30 28 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
+        '<path d="M42 20 L60 18 L62 24 L44 26 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
+        '<path d="M60 18 L74 20 L76 26 L62 24 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
+        '<path d="M4 38 L8 34 L10 36 L6 40 Z" fill="rgba(255,255,255,0.9)" stroke="currentColor" stroke-opacity="0.4"/>' +
+        '<path d="M92 36 L96 34 L96 38 L94 40 Z" fill="currentColor" fill-opacity="0.7"/>' +
+        '<circle cx="24" cy="44" r="6" fill="#0f172a"/>' +
+        '<circle cx="78" cy="44" r="6" fill="#0f172a"/>' +
+        '</svg>';
+    // Líder: mesmo perfil, mais agressivo
+    var SVG_CAR_LIDER = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 46" fill="currentColor">' +
+        '<path d="M4 44 L6 39 L12 34 L20 28 L24 22 L28 18 L54 12 L76 18 L80 24 L84 28 L90 32 L95 36 L97 42 L97 46 L4 46 Z"/>' +
+        '<path d="M22 28 L24 22 L28 20 L26 28 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
+        '<path d="M28 20 L42 16 L44 24 L30 26 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
+        '<path d="M44 16 L62 14 L64 22 L46 24 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
+        '<path d="M62 14 L76 18 L78 24 L64 22 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
+        '<path d="M4 36 L8 32 L10 34 L6 38 Z" fill="rgba(255,255,255,0.9)" stroke="currentColor" stroke-opacity="0.4"/>' +
+        '<path d="M92 34 L97 32 L97 36 L95 38 Z" fill="currentColor" fill-opacity="0.7"/>' +
+        '<circle cx="22" cy="44" r="6" fill="#0f172a"/>' +
+        '<circle cx="80" cy="44" r="6" fill="#0f172a"/>' +
+        '</svg>';
+
+    function getCarSvg(posicao) { return posicao === 1 ? SVG_CAR_LIDER : SVG_CAR; }
 
     function laneTemplate(r, targetPct) {
         const key = safeKey(r.vendedor);
@@ -263,7 +287,7 @@
             <div class="track">
                 <div class="cart cart-img-wrap ${profile.cls}" data-vendor="${key}" data-target-left="${targetLeft}" data-money="${fmtMoney(r.receita || 0)} | ${pctMetaText}"
                      style="color:${theme.body}; left:${startLeft};">
-                    <span class="cart-img">${SVG_SHIP}</span>
+                    <span class="cart-img">${getCarSvg(r.posicao)}</span>
                 </div>
                 <div class="finish-line"></div>
                 <div class="finish-flag"><i class="fas fa-flag-checkered"></i></div>

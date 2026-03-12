@@ -378,7 +378,7 @@ html, body {
     text-shadow: 0 0 10px #fff;
 }
 
-/* ================= CARROS (SPACESHIPS) ================= */
+/* ================= CARROS ================= */
 .cart {
     position: absolute;
     top: 50%;
@@ -391,35 +391,35 @@ html, body {
     justify-content: center;
 }
 .cart-img-wrap.cart {
-    width: 110px;
-    height: 48px;
+    width: 130px;
+    height: 52px;
 }
 .cart-img {
     display: block;
     width: 100%;
     height: 100%;
-    animation: floatShip 2s ease-in-out infinite, pulseGlow 1.5s infinite alternate;
+    animation: floatCar 2s ease-in-out infinite, pulseGlow 1.5s infinite alternate;
 }
 .cart-img svg {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    filter: drop-shadow(0 5px 15px currentColor);
+    filter: drop-shadow(0 4px 12px currentColor) drop-shadow(0 0 20px currentColor);
 }
 
-/* Rastro de Neon Atrás da Nave (Trail) */
+/* Rastro de velocidade atrás do carro */
 .cart::before {
     content: '';
     position: absolute;
     top: 50%;
-    right: 80%; /* Sai de trás da nave */
-    width: 120px;
-    height: 4px;
-    transform: translateY(-50%);
-    background: linear-gradient(to right, transparent, currentColor);
-    opacity: 0.6;
-    filter: blur(4px);
-    border-radius: 10px;
+    right: 85%;
+    width: 140px;
+    height: 6px;
+    transform: translateY(-50%) skewX(-15deg);
+    background: linear-gradient(to right, transparent 0%, currentColor 70%);
+    opacity: 0.5;
+    filter: blur(6px);
+    border-radius: 20px;
     z-index: -1;
 }
 
@@ -460,22 +460,26 @@ html, body {
     transform: translateX(-50%) translateY(0);
 }
 
-/* Líder */
+/* Líder — carro esportivo com brilho destacado */
 .cart.leader .cart-img {
-    animation: floatShip 1.5s ease-in-out infinite, pulseGlowStrong 1s infinite alternate;
+    animation: floatCar 1.5s ease-in-out infinite, pulseGlowStrong 1s infinite alternate;
+}
+.cart.leader .cart-img svg {
+    filter: drop-shadow(0 4px 14px currentColor) drop-shadow(0 0 25px currentColor);
 }
 .cart.leader::before {
-    width: 200px;
-    height: 6px;
-    background: linear-gradient(to right, transparent, #fbbf24);
-    filter: blur(6px);
+    width: 220px;
+    height: 8px;
+    background: linear-gradient(to right, transparent 0%, currentColor 60%);
+    filter: blur(8px);
+    opacity: 0.7;
 }
 
-/* Animações Nave */
-@keyframes floatShip {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    33% { transform: translateY(-3px) rotate(1deg); }
-    66% { transform: translateY(2px) rotate(-1deg); }
+/* Animações carro */
+@keyframes floatCar {
+    0%, 100% { transform: scaleX(-1) translateY(0) rotate(0deg); }
+    33% { transform: scaleX(-1) translateY(-3px) rotate(1deg); }
+    66% { transform: scaleX(-1) translateY(2px) rotate(-1deg); }
 }
 @keyframes pulseGlow {
     from { filter: drop-shadow(0 0 5px currentColor); }
