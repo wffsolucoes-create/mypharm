@@ -21,16 +21,22 @@
                     <img src="imagens/logoMypharm.png" alt="MyPharm">
                 </div>
                 <div class="brand-text-col">
-                    <span class="brand-title">Portal do Vendedor</span>
-                    <span class="brand-subtitle">Gestão de Performance</span>
+                    <span class="brand-title">Portal Alta Performance</span>
+                    <span class="brand-subtitle">Vendas & Conversão</span>
                 </div>
             </div>
             <nav class="visitador-nav" aria-label="Menu principal">
-                <a href="#" class="visitador-nav-link active">
-                    <i class="fas fa-home"></i><span>Início</span>
+                <a href="#metas" class="visitador-nav-link active">
+                    <i class="fas fa-bullseye"></i><span class="d-none-mobile">Metas</span>
                 </a>
-                <a href="#" class="visitador-nav-link active">
-                    <i class="fas fa-bullseye"></i><span>Metas</span>
+                <a href="#produtividade" class="visitador-nav-link">
+                    <i class="fas fa-chart-line"></i><span class="d-none-mobile">Produtividade</span>
+                </a>
+                <a href="#retencao" class="visitador-nav-link">
+                    <i class="fas fa-user-shield"></i><span class="d-none-mobile">Retenção</span>
+                </a>
+                <a href="#avaliacao" class="visitador-nav-link">
+                    <i class="fas fa-star"></i><span class="d-none-mobile">Qualidade</span>
                 </a>
             </nav>
             <div class="user-menu">
@@ -40,11 +46,42 @@
                         <i class="fas fa-moon icon-moon"></i>
                     </div>
                 </div>
-                <div class="user-profile">
-                    <div class="avatar-wrap">
-                        <div class="avatar" id="vdAvatar">V</div>
+                <div class="notifications-wrap">
+                    <button type="button" class="btn-notifications" id="btnNotifications" onclick="toggleNotificationsPanel(event)" title="Mensagens e notificações" aria-label="Notificações">
+                        <span class="btn-notifications-icon" aria-hidden="true">
+                            <i class="fas fa-bell"></i>
+                        </span>
+                        <span class="notifications-badge" id="notificationsBadge" style="display:none;">0</span>
+                    </button>
+                    <div class="notifications-backdrop" id="notificationsBackdrop" onclick="closeNotificationsPanel()" aria-hidden="true"></div>
+                    <div class="notifications-panel" id="notificationsPanel">
+                        <div class="notifications-panel-header">
+                            <span><i class="fas fa-bell"></i> Mensagens e alertas</span>
+                            <button type="button" class="notifications-panel-close" onclick="closeNotificationsPanel()" aria-label="Fechar">&times;</button>
+                        </div>
+                        <div class="notifications-body">
+                            <div class="notifications-list" id="notificationsListAll">
+                                <div class="notifications-empty" id="notificationsEmptyAll">
+                                    <i class="fas fa-inbox"></i>
+                                    <p>Nenhuma mensagem no momento.</p>
+                                </div>
+                            </div>
+                            <div class="notifications-send-wrap">
+                                <label class="notifications-send-label">Enviar mensagem para usuário</label>
+                                <select id="notifParaUsuarioSelect" class="notifications-send-select"></select>
+                                <textarea id="notifMensagemUsuarioInput" class="notifications-send-textarea" placeholder="Sua mensagem..." rows="3"></textarea>
+                                <button type="button" id="btnEnviarMsgUsuario" class="notifications-send-btn" onclick="enviarMensagemUsuarioUI()"><i class="fas fa-paper-plane"></i> Enviar para usuário</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="d-none-mobile">
+                </div>
+                <div class="user-profile">
+                    <div class="avatar-wrap" id="avatarWrap" title="Clique para alterar foto de perfil">
+                        <div class="avatar" id="vdAvatar">V</div>
+                        <img class="avatar-img" id="userAvatarImg" src="" alt="" style="display:none;">
+                        <input type="file" id="inputFotoPerfil" accept="image/*" style="display:none;">
+                    </div>
+                    <div class="d-none-mobile" style="cursor:pointer;" onclick="openMeuPerfilModal()">
                         <div id="vdUserName" style="font-weight:600; font-size:0.95rem;">Vendedor</div>
                         <div style="font-size:0.75rem; color:var(--text-secondary);">Meu Painel</div>
                     </div>
@@ -55,160 +92,200 @@
             </div>
         </header>
 
-        <main>
+        <main class="dashboard-container">
             <div class="welcome-section" style="display:block;">
-                <div style="margin-bottom:24px;">
-                    <h1 id="vdGreeting" style="margin:0;">Painel do Vendedor</h1>
-                    <p style="margin:8px 0 0 0;">Acompanhe suas metas individuais e de grupo.</p>
-                    <p id="vdPeriodoInfo" style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; opacity:0.8;">Período atual</p>
-                </div>
-
-                <div class="meta-grid">
-                    <div class="card" style="margin-bottom:0; padding:14px 20px;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                            <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Meta Mensal</span>
-                            <span style="font-size:0.8rem; font-weight:700; color:var(--primary);" id="vdPctMetaMensal">0%</span>
-                        </div>
-                        <div class="vd-progress"><div id="vdProgFatMes" class="vd-progress-bar"></div></div>
-                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
-                            <span id="vdFatMesAtual">Atual: R$ 0,00</span>
-                            <span id="vdMetaMensal">Meta: R$ 0,00</span>
-                        </div>
+                <div style="margin-bottom:24px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;">
+                    <div>
+                        <h1 id="vdGreeting" style="margin:0; font-size:1.8rem;">Cockpit de Vendas</h1>
+                        <p style="margin:4px 0 0 0; color:var(--text-secondary);">Acompanhe resultados, performance de atendimento e qualidade.</p>
                     </div>
-                    <div class="card" style="margin-bottom:0; padding:14px 20px;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                            <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Meta Anual</span>
-                            <span style="font-size:0.8rem; font-weight:700; color:var(--success);" id="vdPctMetaAnual">0%</span>
-                        </div>
-                        <div class="vd-progress"><div id="vdProgFatAno" class="vd-progress-bar"></div></div>
-                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
-                            <span id="vdFatAnoAtual">Atual: R$ 0,00</span>
-                            <span id="vdMetaAnual">Meta: R$ 0,00</span>
-                        </div>
-                    </div>
-                    <div class="card" style="margin-bottom:0; padding:14px 20px;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                            <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Visitas Semanais</span>
-                            <span style="font-size:0.8rem; font-weight:700; color:#10B981;" id="vdPctVisSem">0%</span>
-                        </div>
-                        <div class="vd-progress"><div id="vdProgVisSem" class="vd-progress-bar"></div></div>
-                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
-                            <span id="vdVisSemAtual">Atual: 0</span>
-                            <span id="vdMetaVisSem">Meta: 0</span>
-                        </div>
-                    </div>
-                    <div class="card" style="margin-bottom:0; padding:14px 20px;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                            <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Visitas Mensais</span>
-                            <span style="font-size:0.8rem; font-weight:700; color:#F59E0B;" id="vdPctVisMes">0%</span>
-                        </div>
-                        <div class="vd-progress"><div id="vdProgVisMes" class="vd-progress-bar"></div></div>
-                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
-                            <span id="vdVisMesAtual">Atual: 0</span>
-                            <span id="vdMetaVisMes">Meta: 0</span>
-                        </div>
-                    </div>
-                    <div class="card" style="margin-bottom:0; padding:14px 20px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-                            <i class="fas fa-coins" style="color:#F59E0B; font-size:0.85rem;"></i>
-                            <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Comissão total</span>
-                        </div>
-                        <div style="font-size:1.25rem; font-weight:700; color:var(--success);" id="vdComissaoEstimValor">R$ 0,00</div>
-                        <div style="font-size:0.7rem; color:var(--text-secondary);" id="vdComissaoEstimPct">Percentual total: 0%</div>
-                    </div>
-                    <div class="card" style="margin-bottom:0; padding:14px 20px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-                            <i class="fas fa-trophy" style="color:#EC4899; font-size:0.85rem;"></i>
-                            <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Prêmio Performance</span>
-                        </div>
-                        <div style="font-size:1.25rem; font-weight:700; color:var(--text-primary);" id="vdPremioPerformance">R$ 0,00</div>
-                        <div style="font-size:0.7rem; color:var(--text-secondary);" id="vdScoreTotal">Score total: 0 / 100</div>
+                    <div class="date-badge" id="vdPeriodoInfo">
+                        --/--/---- a --/--/----
                     </div>
                 </div>
 
-                <div class="kpi-row">
-                    <div class="kpi-card-mini">
-                        <div class="kpi-icon-box" style="background:rgba(37,99,235,0.1); color:var(--primary);"><i class="fas fa-user-check"></i></div>
-                        <div class="kpi-details">
-                            <h3 id="vdFaixaIndividual">-</h3>
-                            <span id="vdComissaoIndividualDetalhe">Comissão individual: 0%</span>
+                <!-- SEÇÃO 1: Metas Financeiras -->
+                <section id="metas" class="dashboard-section pt-0">
+                    <h2 class="section-title"><i class="fas fa-wallet" style="color:#10b981;"></i> Metas Financeiras</h2>
+                    <div class="meta-grid">
+                        <div class="card premium-card">
+                            <div class="card-header-flex">
+                                <span class="card-label">Meta Diária</span>
+                                <span class="card-pct" id="vdPctMetaDiaria">0%</span>
+                            </div>
+                            <div class="vd-progress"><div id="vdProgFatDia" class="vd-progress-bar bg-blue"></div></div>
+                            <div class="card-footer-flex">
+                                <span id="vdFatDiaAtual">R$ 0,00</span>
+                                <span id="vdMetaDiaria">R$ 0,00</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="kpi-card-mini">
-                        <div class="kpi-icon-box" style="background:rgba(16,185,129,0.12); color:#10B981;"><i class="fas fa-users"></i></div>
-                        <div class="kpi-details">
-                            <h3 id="vdFaixaGrupo">-</h3>
-                            <span id="vdComissaoGrupoDetalhe">Comissão grupo: 0%</span>
-                        </div>
-                    </div>
-                    <div class="kpi-card-mini">
-                        <div class="kpi-icon-box" style="background:rgba(245,158,11,0.12); color:#F59E0B;"><i class="fas fa-sack-dollar"></i></div>
-                        <div class="kpi-details">
-                            <h3 id="vdFaturamentoGrupo">R$ 0,00</h3>
-                            <span>Faturamento grupo no mês</span>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="dashboard-grid">
-                    <div class="main-column">
+                        <div class="card premium-card">
+                            <div class="card-header-flex">
+                                <span class="card-label">Meta Semanal</span>
+                                <span class="card-pct text-gold" id="vdPctMetaSemanal">0%</span>
+                            </div>
+                            <div class="vd-progress"><div id="vdProgFatSem" class="vd-progress-bar bg-gold"></div></div>
+                            <div class="card-footer-flex">
+                                <span id="vdFatSemAtual">R$ 0,00</span>
+                                <span id="vdMetaSemanal">R$ 0,00</span>
+                            </div>
+                        </div>
+
+                        <div class="card premium-card">
+                            <div class="card-header-flex">
+                                <span class="card-label">Meta Mensal</span>
+                                <span class="card-pct text-green" id="vdPctMetaMensal">0%</span>
+                            </div>
+                            <div class="vd-progress"><div id="vdProgFatMes" class="vd-progress-bar bg-green"></div></div>
+                            <div class="card-footer-flex">
+                                <span id="vdFatMesAtual">R$ 0,00</span>
+                                <span id="vdMetaMensal">R$ 0,00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="card premium-card highlight-card">
+                            <div class="card-icon"><i class="fas fa-coins text-gold"></i></div>
+                            <div class="card-center-content">
+                                <span class="card-label">Comissão Projetada</span>
+                                <div class="card-big-value text-green" id="vdComissaoEstimValor">R$ 0,00</div>
+                                <div class="card-sub-value" id="vdComissaoIndividualDetalhe">Faixa atual: 0%</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SEÇÃO 2: Produtividade -->
+                <section id="produtividade" class="dashboard-section">
+                    <h2 class="section-title"><i class="fas fa-chart-pie" style="color:#3b82f6;"></i> Produtividade e Conversão</h2>
+                    <div class="kpi-grid">
+                        <!-- Clientes e Atendimentos -->
                         <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-users kpi-bg-icon"></i>
+                                <div class="kpi-label">Volume de Clientes (Mês)</div>
+                                <div class="kpi-value" id="vdVolumeClientes">0</div>
+                                <div class="kpi-desc">Total de atendimentos abertos</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Conversão Win Rate -->
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-check-circle kpi-bg-icon" style="color:var(--success-alpha)"></i>
+                                <div class="kpi-label">Taxa de Conversão</div>
+                                <div class="kpi-value text-green" id="vdTaxaConversao">0%</div>
+                                <div class="kpi-desc" id="vdConversaoDetalhe">0 aprovados / 0 orçamentos</div>
+                            </div>
+                        </div>
+
+                        <!-- Tempos Médios -->
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-clock kpi-bg-icon" style="color:var(--warning-alpha)"></i>
+                                <div class="kpi-label">Tempo Médio Espera</div>
+                                <div class="kpi-value" id="vdTMAEspera">0 min</div>
+                                <div class="kpi-desc">Até o primeiro contato</div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-stopwatch kpi-bg-icon" style="color:var(--primary-alpha)"></i>
+                                <div class="kpi-label">Duração Atendimento</div>
+                                <div class="kpi-value" id="vdTMAAtendimento">0 min</div>
+                                <div class="kpi-desc">Do início ao fechamento</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="dashboard-grid-2col">
+                    <!-- SEÇÃO 3: Retenção e Perdas -->
+                    <section id="retencao" class="dashboard-section">
+                        <div class="card h-100">
                             <div class="card-header">
-                                <div>
-                                    <div class="card-title">Regras de Meta Individual</div>
-                                    <div class="card-subtitle">Comissão por faixa de faturamento</div>
+                                <div class="card-title"><i class="fas fa-heart-crack text-danger"></i> Gestão de Perdas</div>
+                            </div>
+                            <div class="card-body">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                                    <span style="font-size:0.9rem; color:var(--text-secondary);">Taxa de Rejeição Geral:</span>
+                                    <span style="font-size:1.4rem; font-weight:800; color:var(--danger);" id="vdTaxaPerda">0%</span>
+                                </div>
+                                <h4 style="font-size:0.85rem; text-transform:uppercase; margin-bottom:8px; color:var(--text-muted);">Top 3 Motivos de Perda</h4>
+                                <ul class="loss-list" id="vdMotivosPerdaList">
+                                    <li>Sem dados</li>
+                                </ul>
+
+                                <hr style="border-color:var(--border-color); margin:20px 0;">
+                                
+                                <button class="btn-action-primary w-100" id="btnRepescagem">
+                                    <i class="fas fa-sync-alt"></i> Repescagem (Recuperar Rejeitados)
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <!-- SEÇÃO 4: Avaliação Renata -->
+                    <section id="avaliacao" class="dashboard-section">
+                        <div class="card premium-quality-card h-100">
+                            <div class="card-header border-0">
+                                <div class="card-title text-gold"><i class="fas fa-star-half-alt"></i> Avaliação de Qualidade (Critérios)</div>
+                                <div class="card-subtitle" style="color:rgba(255,255,255,0.7);">Auditoria Mensal e Bônus de Performance</div>
+                            </div>
+                            <div class="card-body" style="padding-top:0;">
+                                <div class="quality-score-wrap">
+                                    <div class="quality-big-score" id="vdQualidadeScore">0/100</div>
+                                    <div class="quality-premio" id="vdPremioPerformance">Bônus Adicional: R$ 0,00</div>
+                                </div>
+                                
+                                <div class="vd-table-wrap mb-0">
+                                    <table class="vd-table small-table">
+                                        <thead><tr><th>Critério Analisado</th><th>Status / Nota</th></tr></thead>
+                                        <tbody id="vdTabelaQualidade">
+                                            <tr><td>Qualidade de Envio</td><td>-</td></tr>
+                                            <tr><td>Ausência de Erros</td><td>-</td></tr>
+                                            <tr><td>Retornos</td><td>-</td></tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
-                            <div class="vd-table-wrap">
-                                <table class="vd-table">
-                                    <thead><tr><th>Faixa</th><th>Comissão</th></tr></thead>
-                                    <tbody id="vdTabelaMetaIndividual"></tbody>
-                                </table>
-                            </div>
                         </div>
-                        <div class="card">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title">Meta de Grupo</div>
-                                    <div class="card-subtitle">Percentual por faixa do time</div>
-                                </div>
-                            </div>
-                            <div class="vd-table-wrap">
-                                <table class="vd-table">
-                                    <thead><tr><th>Faixa</th><th>Percentual</th></tr></thead>
-                                    <tbody id="vdTabelaMetaGrupo"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="side-column">
-                        <div class="card">
-                            <div class="card-header">
-                                <div class="card-title">Score do Mês</div>
-                            </div>
-                            <div class="vd-table-wrap">
-                                <table class="vd-table">
-                                    <thead><tr><th>Score</th><th>Pontos</th></tr></thead>
-                                    <tbody id="vdTabelaScore"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <div class="card-header">
-                                <div class="card-title">Prêmio por Performance</div>
-                            </div>
-                            <div class="vd-table-wrap">
-                                <table class="vd-table">
-                                    <thead><tr><th>Regra</th><th>Valor</th></tr></thead>
-                                    <tbody id="vdTabelaPremio"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+                    </section>
                 </div>
 
                 <div class="vd-error" id="vdError" style="display:none;"></div>
             </div>
+            
+            <!-- Modal Repescagem -->
+            <div id="modalRepescagem" class="modal-overlay" aria-hidden="true" style="display:none;">
+                <div class="modal-content large-modal">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-sync-alt text-primary"></i> Hub de Repescagem</h2>
+                        <button class="btn-close" type="button" onclick="fecharModalRepescagem()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <p style="margin-bottom:16px; color:var(--text-secondary); font-size:0.9rem;">Lista de orçamentos rejeitados recentemente que você pode tentar reativar com uma nova abordagem ou desconto.</p>
+                        <div class="vd-table-wrap">
+                            <table class="vd-table">
+                                <thead>
+                                    <tr>
+                                        <th>Cliente</th>
+                                        <th>Telefone/WhatsApp</th>
+                                        <th>Motivo da Perda</th>
+                                        <th>Valor Estimado</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaRepescagemBody">
+                                    <tr><td colspan="5" style="text-align:center;">Nenhum cliente disponível para repescagem.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
     <script src="js/vendedor-main.js"></script>

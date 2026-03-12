@@ -126,14 +126,13 @@
         hideError();
         const data = await apiGet('vendedor_metas');
         if (!data || data.success === false) {
-            showError((data && data.error) || 'Falha ao carregar metas.');
+            showError((data && data.error) || 'Falha ao carregar metas corporativas.');
             return;
         }
 
         const vendedor = data.vendedor || {};
         const metas = data.metas || {};
         const progresso = data.progresso || {};
-        const regras = data.regras || {};
         const calculos = data.calculos || {};
         const periodo = data.periodo || {};
 
@@ -141,65 +140,99 @@
         setText('vdUserName', nome);
         setText('vdAvatar', String(nome).charAt(0).toUpperCase());
 
+        // Mocks gerados para simular os novos KPIs temporariamente enquanto a API de Dashboard V2 não é entregue
+        const fakeDiaria = (metas.meta_mensal || 0) / 22; 
+        const fatDiariaMock = (progresso.faturamento_mes || 0) / 22;
+
+        const pctDia = calcPercent(fatDiariaMock, fakeDiaria);
+        const pctSemana = calcPercent(progresso.faturamento_mes / 4, (metas.meta_mensal || 0)/4); // Simples
         const pctMes = calcPercent(progresso.faturamento_mes, metas.meta_mensal);
-        const pctAno = calcPercent(progresso.faturamento_ano, metas.meta_anual);
-        const pctVisSem = calcPercent(progresso.visitas_semana, metas.meta_visitas_semana);
-        const pctVisMes = calcPercent(progresso.visitas_mes, metas.meta_visitas_mes);
 
+        // Preenchendo Metas Financeiras
+        setText('vdPctMetaDiaria', formatPercent(pctDia));
+        setText('vdPctMetaSemanal', formatPercent(pctSemana));
         setText('vdPctMetaMensal', formatPercent(pctMes));
-        setText('vdPctMetaAnual', formatPercent(pctAno));
-        setText('vdPctVisSem', formatPercent(pctVisSem));
-        setText('vdPctVisMes', formatPercent(pctVisMes));
 
+        setText('vdMetaDiaria', 'Meta: ' + formatMoney(fakeDiaria));
+        setText('vdMetaSemanal', 'Meta: ' + formatMoney((metas.meta_mensal || 0)/4));
         setText('vdMetaMensal', 'Meta: ' + formatMoney(metas.meta_mensal));
-        setText('vdMetaAnual', 'Meta: ' + formatMoney(metas.meta_anual));
-        setText('vdMetaVisSem', 'Meta: ' + formatInt(metas.meta_visitas_semana));
-        setText('vdMetaVisMes', 'Meta: ' + formatInt(metas.meta_visitas_mes));
 
+        setText('vdFatDiaAtual', 'Atual: ' + formatMoney(fatDiariaMock));
+        setText('vdFatSemAtual', 'Atual: ' + formatMoney((progresso.faturamento_mes || 0) / 4));
         setText('vdFatMesAtual', 'Atual: ' + formatMoney(progresso.faturamento_mes));
-        setText('vdFatAnoAtual', 'Atual: ' + formatMoney(progresso.faturamento_ano));
-        setText('vdVisSemAtual', 'Atual: ' + formatInt(progresso.visitas_semana));
-        setText('vdVisMesAtual', 'Atual: ' + formatInt(progresso.visitas_mes));
 
-        setText('vdFaixaIndividual', calculos.faixa_individual || '-');
-        setText('vdFaixaGrupo', calculos.faixa_grupo || '-');
-        setText('vdComissaoIndividualDetalhe', 'Comissão individual: ' + formatPercent(calculos.comissao_individual_percentual || 0));
-        setText('vdComissaoGrupoDetalhe', 'Comissão grupo: ' + formatPercent(calculos.comissao_grupo_percentual || 0));
-        setText('vdFaturamentoGrupo', formatMoney(calculos.faturamento_grupo_mes || 0));
+        setText('vdComissaoIndividualDetalhe', 'Faixa atual: ' + formatPercent(calculos.comissao_individual_percentual || 0));
         setText('vdComissaoEstimValor', formatMoney(calculos.comissao_estimada_valor || 0));
-        setText('vdComissaoEstimPct', 'Percentual total: ' + formatPercent(calculos.comissao_total_percentual || 0));
-        setText('vdPremioPerformance', formatMoney(calculos.premio_estimado || 0));
-        setText('vdScoreTotal', 'Score total: ' + formatInt(calculos.score_total || 0) + ' / 100');
 
+        setProgress('vdProgFatDia', fatDiariaMock, fakeDiaria);
+        setProgress('vdProgFatSem', (progresso.faturamento_mes || 0) / 4, (metas.meta_mensal || 0)/4);
         setProgress('vdProgFatMes', progresso.faturamento_mes, metas.meta_mensal);
-        setProgress('vdProgFatAno', progresso.faturamento_ano, metas.meta_anual);
-        setProgress('vdProgVisSem', progresso.visitas_semana, metas.meta_visitas_semana);
-        setProgress('vdProgVisMes', progresso.visitas_mes, metas.meta_visitas_mes);
 
-        renderTable('vdTabelaMetaIndividual', regras.meta_individual || [], function (r) {
-            return `<tr><td>${r.label || '-'}</td><td>${formatPercent(r.comissao_percentual || 0)}</td></tr>`;
-        });
-        renderTable('vdTabelaMetaGrupo', regras.meta_grupo || [], function (r) {
-            return `<tr><td>${r.label || '-'}</td><td>${formatPercent(r.percentual || 0)}</td></tr>`;
-        });
-        renderTable('vdTabelaScore', regras.score || [], function (r) {
-            return `<tr><td>${r.item || '-'}</td><td>${formatInt(r.max_pontos || 0)}</td></tr>`;
-        });
-        renderTable('vdTabelaPremio', regras.premio_performance || [], function (r) {
-            return `<tr><td>${r.regra || '-'}</td><td>${formatMoney(r.premio || 0)}</td></tr>`;
-        });
+        // Preenchendo Mocks de Produtividade
+        setText('vdVolumeClientes', formatInt(progresso.visitas_mes || 147));
+        setText('vdTaxaConversao', '34%'); // Mock win rate
+        setText('vdConversaoDetalhe', '49 aprovados / 147 propostas'); // Mock
+        setText('vdTMAEspera', '4 min'); // Mock
+        setText('vdTMAAtendimento', '12 min'); // Mock
+
+        // Preenchendo Mocks de Retenção
+        setText('vdTaxaPerda', '66%'); // 147 - 49 = 98 perdidos
+        
+        const motivosUL = document.getElementById('vdMotivosPerdaList');
+        if (motivosUL) {
+            motivosUL.innerHTML = `
+                <li><span>Preço</span> <span class="loss-count">56%</span></li>
+                <li><span>Concorrência / Frete</span> <span class="loss-count">24%</span></li>
+                <li><span>Não respondeu</span> <span class="loss-count">20%</span></li>
+            `;
+        }
+
+        // Avaliação Renata / Qualidade
+        setText('vdQualidadeScore', formatInt(calculos.score_total || 95) + '/100');
+        setText('vdPremioPerformance', 'Bônus Adicional: ' + formatMoney(calculos.premio_estimado || 0));
+
+        const tabQualidade = document.getElementById('vdTabelaQualidade');
+        if (tabQualidade) {
+            tabQualidade.innerHTML = `
+                <tr><td>Qualidade de Envio</td><td><span style="color:var(--success);">Excelente</span></td></tr>
+                <tr><td>Ausência de Erros</td><td><span style="color:var(--success);">Aprovado</span></td></tr>
+                <tr><td>Retornos</td><td><span style="color:var(--warning);">1 Alerta</span></td></tr>
+            `;
+        }
 
         if (periodo.mes_inicio && periodo.mes_fim) {
             setText(
                 'vdPeriodoInfo',
-                `Período do mês: ${periodo.mes_inicio} até ${periodo.mes_fim} | Atingimento mensal: ${formatPercent(calculos.percentual_meta_mensal || 0)}`
+                `${periodo.mes_inicio} a ${periodo.mes_fim}`
             );
+        }
+    }
+
+    // Modal Repescagem functions
+    window.abrirModalRepescagem = function() {
+        const modal = document.getElementById('modalRepescagem');
+        if(modal) {
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('active'), 10);
+            modal.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    window.fecharModalRepescagem = function() {
+        const modal = document.getElementById('modalRepescagem');
+        if(modal) {
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+            setTimeout(() => modal.style.display = 'none', 300);
         }
     }
 
     function bindUi() {
         const themeBtn = document.getElementById('vdThemeBtn');
         if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+
+        const repescagemBtn = document.getElementById('btnRepescagem');
+        if (repescagemBtn) repescagemBtn.addEventListener('click', window.abrirModalRepescagem);
 
         const logoutBtn = document.getElementById('vdLogoutBtn');
         if (logoutBtn) {

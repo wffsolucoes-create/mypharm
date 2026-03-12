@@ -2,6 +2,10 @@
 /**
  * API exclusiva da Gestão Comercial.
  * Tudo que corresponda à gestão comercial usa esta API (sessão, logout, dashboard, lista vendedores).
+ *
+ * TV Corrida de Vendas:
+ *   Se RDSTATION_CRM_TOKEN estiver configurado no .env, os dados vêm diretamente
+ *   da API do RD Station CRM (deals won). Caso contrário, usa o banco local (legado).
  */
 ini_set('display_errors', '0');
 if (function_exists('ini_set')) {
@@ -10,6 +14,7 @@ if (function_exists('ini_set')) {
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/api/bootstrap.php';
 require_once __DIR__ . '/api/modules/gestao_comercial.php';
+require_once __DIR__ . '/api/rdstation_tv.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -63,6 +68,41 @@ function handleTvCorridaVendedores(PDO $pdo): void
         $dataAte = $dataDe;
     }
 
+    // ===== Tenta usar RD Station CRM =====
+    $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
+    if ($rdToken !== '') {
+        try {
+            // Busca metas do banco para cruzar com os dados do CRM
+            $metas = [];
+            try {
+                $stVend = $pdo->query("
+                    SELECT TRIM(nome) AS nome, COALESCE(meta_mensal, 0) AS meta_mensal
+                    FROM usuarios
+                    WHERE LOWER(TRIM(COALESCE(setor, ''))) LIKE '%vendedor%'
+                      AND COALESCE(ativo, 1) = 1
+                      AND TRIM(COALESCE(nome, '')) <> ''
+                ");
+                foreach ($stVend->fetchAll(PDO::FETCH_ASSOC) as $v) {
+                    $k = function_exists('mb_strtolower')
+                        ? mb_strtolower(trim((string)$v['nome']), 'UTF-8')
+                        : strtolower(trim((string)$v['nome']));
+                    $metas[$k] = (float)$v['meta_mensal'];
+                }
+            } catch (Throwable $e) { /* sem metas: usa default */ }
+
+            $result = rdtvBuildRanking($rdToken, $dataDe, $dataAte, $metas);
+            echo json_encode($result, JSON_UNESCAPED_UNICODE);
+            return;
+        } catch (Throwable $e) {
+            // Log do erro e fallback para o banco
+            if (function_exists('error_log')) {
+                error_log('RD Station TV proxy error: ' . $e->getMessage());
+            }
+            // Continua para o fallback abaixo
+        }
+    }
+
+    // ===== Fallback: banco local (legado — CSV importado) =====
     $approvedCase = "(
         gp.status_financeiro IS NULL OR
         (
@@ -112,8 +152,8 @@ function handleTvCorridaVendedores(PDO $pdo): void
         if (function_exists('gcIsAllowedVendedora') && !gcIsAllowedVendedora($nome)) continue;
         $k = function_exists('mb_strtolower') ? mb_strtolower($nome, 'UTF-8') : strtolower($nome);
         $map[$k] = [
-            'vendedor' => $nome,
-            'receita' => (float)($r['receita'] ?? 0),
+            'vendedor'    => $nome,
+            'receita'     => (float)($r['receita'] ?? 0),
             'meta_mensal' => 0.0,
         ];
     }
@@ -163,11 +203,12 @@ function handleTvCorridaVendedores(PDO $pdo): void
     unset($it);
 
     echo json_encode([
-        'success' => true,
-        'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte],
+        'success'     => true,
+        'fonte'       => 'banco_local',
+        'periodo'     => ['data_de' => $dataDe, 'data_ate' => $dataAte],
         'max_receita' => round($maxReceita, 2),
-        'ranking' => $lista,
-        'updated_at' => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
+        'ranking'     => $lista,
+        'updated_at'  => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
     ], JSON_UNESCAPED_UNICODE);
 }
 
