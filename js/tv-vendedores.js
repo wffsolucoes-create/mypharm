@@ -333,19 +333,29 @@
     function bindUi() {
         const fsBtn = document.getElementById('tvFullscreenBtn');
         if (fsBtn) {
-            fsBtn.addEventListener('click', async function () {
-                if (!document.fullscreenElement) {
-                    try { await document.documentElement.requestFullscreen(); } catch (_) {}
-                } else {
-                    try { await document.exitFullscreen(); } catch (_) {}
-                }
-            });
+            fsBtn.addEventListener('click', goFullscreen);
         }
+    }
+
+    async function goFullscreen() {
+        if (document.fullscreenElement) {
+            try { await document.exitFullscreen(); } catch (_) {}
+            return;
+        }
+        try { await document.documentElement.requestFullscreen(); } catch (_) {}
+    }
+
+    function tryAutoFullscreen() {
+        if (document.fullscreenElement) return;
+        goFullscreen();
     }
 
     document.addEventListener('DOMContentLoaded', function () {
         bindUi();
         loadRace().catch(function () {});
         setInterval(function () { loadRace().catch(function () {}); }, REFRESH_MS);
+        // Forçar tela cheia ao abrir a página (tentativa imediata e após 300ms para quando o navegador exige primeiro frame)
+        tryAutoFullscreen();
+        setTimeout(tryAutoFullscreen, 300);
     });
 })();
