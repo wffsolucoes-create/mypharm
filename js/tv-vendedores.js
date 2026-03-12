@@ -34,43 +34,62 @@
         } catch (e) { return null; }
         return tvAudioCtx;
     }
+    function playSoundNow(type, ctx) {
+        var now = ctx.currentTime;
+        var gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+        if (type === 'overtake') {
+            var osc = ctx.createOscillator();
+            osc.connect(gain);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(400, now);
+            osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
+            osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+            osc.start(now);
+            osc.stop(now + 0.25);
+        } else if (type === 'confetti' || type === 'celebration') {
+            [523, 659, 784, 1047].forEach(function (freq, i) {
+                var o = ctx.createOscillator();
+                o.connect(gain);
+                o.type = 'sine';
+                o.frequency.setValueAtTime(freq, now + i * 0.05);
+                o.start(now + i * 0.05);
+                o.stop(now + 0.3 + i * 0.05);
+            });
+        } else if (type === 'tick') {
+            var o = ctx.createOscillator();
+            o.connect(gain);
+            o.type = 'sine';
+            o.frequency.setValueAtTime(600, now);
+            o.start(now);
+            o.stop(now + 0.05);
+        }
+    }
     function playSound(type) {
         var ctx = getAudioCtx();
         if (!ctx) return;
         try {
-            var now = ctx.currentTime;
-            var gain = ctx.createGain();
-            gain.connect(ctx.destination);
-            gain.gain.setValueAtTime(0.25, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-
-            if (type === 'overtake') {
-                var osc = ctx.createOscillator();
-                osc.connect(gain);
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(400, now);
-                osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
-                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
-                osc.start(now);
-                osc.stop(now + 0.25);
-            } else if (type === 'confetti' || type === 'celebration') {
-                [523, 659, 784, 1047].forEach(function (freq, i) {
-                    var o = ctx.createOscillator();
-                    o.connect(gain);
-                    o.type = 'sine';
-                    o.frequency.setValueAtTime(freq, now + i * 0.05);
-                    o.start(now + i * 0.05);
-                    o.stop(now + 0.3 + i * 0.05);
-                });
-            } else if (type === 'tick') {
-                var o = ctx.createOscillator();
-                o.connect(gain);
-                o.type = 'sine';
-                o.frequency.setValueAtTime(600, now);
-                o.start(now);
-                o.stop(now + 0.05);
+            if (ctx.state === 'suspended') {
+                ctx.resume().then(function () { playSoundNow(type, ctx); }).catch(function () {});
+                return;
             }
+            playSoundNow(type, ctx);
         } catch (e) {}
+    }
+    // No primeiro clique/toque na página, ativa o áudio (política do navegador exige gesto do usuário)
+    function resumeAudioOnFirstInteraction() {
+        var done = false;
+        function resume() {
+            if (done) return;
+            done = true;
+            var ctx = getAudioCtx();
+            if (ctx && ctx.state === 'suspended') ctx.resume().catch(function () {});
+        }
+        document.addEventListener('click', resume, { once: true, passive: true });
+        document.addEventListener('touchstart', resume, { once: true, passive: true });
     }
 
     function fmtMoney(v) {
@@ -402,6 +421,7 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         bindUi();
+        resumeAudioOnFirstInteraction();
         loadRace().catch(function () {});
         setInterval(function () { loadRace().catch(function () {}); }, REFRESH_MS);
         // Forçar tela cheia ao abrir a página (tentativa imediata e após 300ms para quando o navegador exige primeiro frame)
