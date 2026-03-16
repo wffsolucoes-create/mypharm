@@ -25,6 +25,9 @@ fix_*.patch
 
 # Logs de debug
 debug*.log
+api_debug.log
+api_output.json
+api_output_mes3.json
 
 # Dependências Node
 node_modules/

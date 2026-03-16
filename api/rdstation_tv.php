@@ -77,16 +77,19 @@ function rdtvNormalize(string $v): string
 }
 
 /**
- * Busca deals do RD Station CRM (com win=true).
+ * Busca deals do RD Station CRM.
+ * @param string|null $win 'true' = ganhos, 'false' = perdidos, null = não filtra por win (todos/abertos)
  */
-function rdtvFetchDeals(string $token, int $page, int $limit, string $startDate = '', string $endDate = ''): array
+function rdtvFetchDeals(string $token, int $page, int $limit, string $startDate = '', string $endDate = '', ?string $win = 'true'): array
 {
     $params = [
         'token' => $token,
         'page'  => $page,
         'limit' => $limit,
-        'win'   => 'true',
     ];
+    if ($win !== null) {
+        $params['win'] = $win;
+    }
     if ($startDate) $params['start_date'] = $startDate;
     if ($endDate)   $params['end_date']   = $endDate;
 
@@ -96,7 +99,7 @@ function rdtvFetchDeals(string $token, int $page, int $limit, string $startDate 
     curl_setopt_array($ch, [
         CURLOPT_URL            => $url,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_TIMEOUT        => 10,
         CURLOPT_HTTPHEADER     => ['Accept: application/json'],
         CURLOPT_SSL_VERIFYPEER => true,
     ]);
@@ -116,6 +119,174 @@ function rdtvFetchDeals(string $token, int $page, int $limit, string $startDate 
 }
 
 /**
+ * Executa duas requisições de deals em paralelo (ganhos + perdidos, mesma página).
+ * Retorna ['won' => data, 'lost' => data]. Timeout 10s por requisição.
+ */
+function rdtvFetchDealsPair(string $token, int $page, int $limit, string $startDate, string $endDate): array
+{
+    $params = ['token' => $token, 'page' => $page, 'limit' => $limit];
+    if ($startDate) $params['start_date'] = $startDate;
+    if ($endDate) $params['end_date'] = $endDate;
+
+    $urlWon  = RDSTATION_API_BASE . '/deals?' . http_build_query($params + ['win' => 'true']);
+    $urlLost = RDSTATION_API_BASE . '/deals?' . http_build_query($params + ['win' => 'false']);
+
+    $chWon = curl_init();
+    curl_setopt_array($chWon, [
+        CURLOPT_URL => $urlWon,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_HTTPHEADER => ['Accept: application/json'],
+        CURLOPT_SSL_VERIFYPEER => true,
+    ]);
+    $chLost = curl_init();
+    curl_setopt_array($chLost, [
+        CURLOPT_URL => $urlLost,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_HTTPHEADER => ['Accept: application/json'],
+        CURLOPT_SSL_VERIFYPEER => true,
+    ]);
+
+    $mh = curl_multi_init();
+    curl_multi_add_handle($mh, $chWon);
+    curl_multi_add_handle($mh, $chLost);
+
+    do {
+        $status = curl_multi_exec($mh, $running);
+        if ($running) {
+            curl_multi_select($mh, 0.2);
+        }
+    } while ($running && $status === CURLM_OK);
+
+    $bodyWon  = curl_multi_getcontent($chWon);
+    $bodyLost = curl_multi_getcontent($chLost);
+    $codeWon  = curl_getinfo($chWon, CURLINFO_HTTP_CODE);
+    $codeLost = curl_getinfo($chLost, CURLINFO_HTTP_CODE);
+
+    curl_multi_remove_handle($mh, $chWon);
+    curl_multi_remove_handle($mh, $chLost);
+    curl_multi_close($mh);
+    curl_close($chWon);
+    curl_close($chLost);
+
+    if ($codeWon === 401 || $codeLost === 401) {
+        throw new RuntimeException("Token inválido (401). Atualize RDSTATION_CRM_TOKEN no .env.");
+    }
+    if ($codeWon !== 200) throw new RuntimeException("RD Station API HTTP {$codeWon} (ganhos).");
+    if ($codeLost !== 200) throw new RuntimeException("RD Station API HTTP {$codeLost} (perdidos).");
+
+    $dataWon  = is_string($bodyWon) ? json_decode($bodyWon, true) : null;
+    $dataLost = is_string($bodyLost) ? json_decode($bodyLost, true) : null;
+    if (!is_array($dataWon)) $dataWon = ['deals' => []];
+    if (!is_array($dataLost)) $dataLost = ['deals' => []];
+
+    return ['won' => $dataWon, 'lost' => $dataLost];
+}
+
+/**
+ * Busca ganhos e perdas em paralelo (uma rodada de requisições por página).
+ * Retorna ['porVendedor' => ..., 'perdas' => ...] no mesmo formato das funções individuais.
+ */
+function rdtvFetchWonAndLostParallel(string $token, string $startDate, string $endDate): array
+{
+    $porVendedor = [];
+    $perdas      = [];
+    $page        = 1;
+    $limit       = 200;
+    $maxPages    = 10;
+    $earlyStopWon = false;
+    $earlyStopLost = false;
+
+    while ($page <= $maxPages) {
+        $pair = rdtvFetchDealsPair($token, $page, $limit, $startDate, $endDate);
+        $dealsWon  = $pair['won']['deals'] ?? [];
+        $dealsLost = $pair['lost']['deals'] ?? [];
+
+        foreach ($dealsWon as $deal) {
+            if (empty($deal['win'])) continue;
+            $dateStr = $deal['closed_at'] ?? $deal['created_at'] ?? '';
+            $date    = $dateStr ? substr((string)$dateStr, 0, 10) : '';
+            if ($date !== '' && $date < $startDate) {
+                $earlyStopWon = true;
+                break;
+            }
+            if ($date === '' || $date > $endDate) continue;
+            $nomeCrm = trim((string)($deal['user']['name'] ?? ''));
+            if ($nomeCrm === '') continue;
+            $nomeExibicao = rdtvResolveNome($nomeCrm);
+            if ($nomeExibicao === null) continue;
+            $amount = (float)($deal['amount_total'] ?? 0);
+            if ($amount <= 0) {
+                $amount  = (float)($deal['amount_montly'] ?? 0);
+                $amount += (float)($deal['amount_unique'] ?? 0);
+            }
+            $createdTs = rdtvParseDateToTs($deal['created_at'] ?? null);
+            $closedTs  = rdtvParseDateToTs($deal['closed_at'] ?? null);
+            $updatedTs = rdtvParseDateToTs($deal['updated_at'] ?? null);
+            $duracaoSeg = ($createdTs !== null && $closedTs !== null && $closedTs >= $createdTs) ? $closedTs - $createdTs : 0;
+            $esperaSeg  = ($updatedTs !== null && $createdTs !== null && $updatedTs >= $createdTs) ? $updatedTs - $createdTs : 0;
+            if (!isset($porVendedor[$nomeExibicao])) {
+                $porVendedor[$nomeExibicao] = ['receita' => 0.0, 'total_duracao_seg' => 0, 'total_espera_seg' => 0, 'count' => 0, 'origem_deals' => []];
+            }
+            $porVendedor[$nomeExibicao]['receita'] += $amount;
+            $porVendedor[$nomeExibicao]['total_duracao_seg'] += $duracaoSeg;
+            $porVendedor[$nomeExibicao]['total_espera_seg'] += $esperaSeg;
+            $porVendedor[$nomeExibicao]['count']++;
+            $src = $deal['deal_source'] ?? null;
+            $sourceName = is_array($src) ? trim((string)($src['name'] ?? $src['id'] ?? '')) : trim((string)$src);
+            if ($sourceName === '' && is_array($src) && !empty($src['id'])) $sourceName = 'Origem ' . $src['id'];
+            if ($sourceName === '') $sourceName = 'Não informada';
+            if (!isset($porVendedor[$nomeExibicao]['origem_deals'][$sourceName])) {
+                $porVendedor[$nomeExibicao]['origem_deals'][$sourceName] = ['receita' => 0.0, 'quantidade' => 0];
+            }
+            $porVendedor[$nomeExibicao]['origem_deals'][$sourceName]['receita'] += $amount;
+            $porVendedor[$nomeExibicao]['origem_deals'][$sourceName]['quantidade']++;
+        }
+
+        foreach ($dealsLost as $deal) {
+            if (!empty($deal['win'])) continue;
+            $dateStr = $deal['closed_at'] ?? $deal['created_at'] ?? '';
+            $date    = $dateStr ? substr((string)$dateStr, 0, 10) : '';
+            if ($date !== '' && $date < $startDate) {
+                $earlyStopLost = true;
+                break;
+            }
+            if ($date === '' || $date > $endDate) continue;
+            $nomeCrm = trim((string)($deal['user']['name'] ?? ''));
+            if ($nomeCrm === '') continue;
+            $nomeExibicao = rdtvResolveNome($nomeCrm);
+            if ($nomeExibicao === null) continue;
+            $lostReason = $deal['deal_lost_reason'] ?? null;
+            $motivoNome = is_array($lostReason) ? trim((string)($lostReason['name'] ?? $lostReason['id'] ?? '')) : trim((string)$lostReason);
+            if ($motivoNome === '' && is_array($lostReason) && !empty($lostReason['id'])) $motivoNome = 'Motivo ' . $lostReason['id'];
+            if ($motivoNome === '') $motivoNome = 'Não informado';
+            if (!isset($perdas[$nomeExibicao])) {
+                $perdas[$nomeExibicao] = ['total_perdidos' => 0, 'motivos' => []];
+            }
+            $perdas[$nomeExibicao]['total_perdidos']++;
+            if (!isset($perdas[$nomeExibicao]['motivos'][$motivoNome])) $perdas[$nomeExibicao]['motivos'][$motivoNome] = 0;
+            $perdas[$nomeExibicao]['motivos'][$motivoNome]++;
+        }
+
+        $needMore = (count($dealsWon) >= $limit && !$earlyStopWon) || (count($dealsLost) >= $limit && !$earlyStopLost);
+        if (!$needMore) break;
+        $page++;
+    }
+
+    foreach (array_unique(array_values(rdtvGetMapeamento())) as $nome) {
+        if (!isset($porVendedor[$nome])) {
+            $porVendedor[$nome] = ['receita' => 0.0, 'total_duracao_seg' => 0, 'total_espera_seg' => 0, 'count' => 0, 'origem_deals' => []];
+        }
+        if (!isset($perdas[$nome])) {
+            $perdas[$nome] = ['total_perdidos' => 0, 'motivos' => []];
+        }
+    }
+
+    return ['porVendedor' => $porVendedor, 'perdas' => $perdas];
+}
+
+/**
  * Verifica se o deal está dentro do período pelo closed_at ou created_at.
  */
 function rdtvIsInPeriod(array $deal, string $startDate, string $endDate): bool
@@ -127,16 +298,27 @@ function rdtvIsInPeriod(array $deal, string $startDate, string $endDate): bool
 }
 
 /**
+ * Converte data ISO (ex: 2023-09-18T15:04:34.515-03:00) em timestamp Unix.
+ */
+function rdtvParseDateToTs(?string $dateStr): ?int
+{
+    if ($dateStr === null || $dateStr === '') return null;
+    $ts = strtotime($dateStr);
+    return $ts ?: null;
+}
+
+/**
  * Busca todas as negociações ganhas no período e agrupa por nome de exibição.
+ * Retorna por vendedor: receita, total_duracao_seg (closed - created), total_espera_seg (updated - created), count.
  * Filtra somente as 8 vendedoras do mapeamento.
  */
 function rdtvFetchWonByVendedora(string $token, string $startDate, string $endDate): array
 {
-    $receitas  = [];
-    $page      = 1;
-    $limit     = 200;
-    $maxPages  = 10; // Proteção máxima: 2000 deals
-    $earlyStop = false;
+    $porVendedor = [];
+    $page        = 1;
+    $limit       = 200;
+    $maxPages    = 10;
+    $earlyStop   = false;
 
     do {
         $data  = rdtvFetchDeals($token, $page, $limit, $startDate, $endDate);
@@ -145,15 +327,12 @@ function rdtvFetchWonByVendedora(string $token, string $startDate, string $endDa
         foreach ($deals as $deal) {
             if (empty($deal['win'])) continue;
 
-            // Early-stop: deals ordenados do mais recente ao mais antigo
-            // Quando closed_at < startDate, todos os próximos serão ainda mais antigos
             $dateStr = $deal['closed_at'] ?? $deal['created_at'] ?? '';
             $date    = $dateStr ? substr((string)$dateStr, 0, 10) : '';
             if ($date !== '' && $date < $startDate) {
                 $earlyStop = true;
                 break;
             }
-            // Pula deals fora do período (futuro ou sem data)
             if ($date === '' || $date > $endDate) continue;
 
             $nomeCrm = trim((string)($deal['user']['name'] ?? ''));
@@ -168,35 +347,194 @@ function rdtvFetchWonByVendedora(string $token, string $startDate, string $endDa
                 $amount += (float)($deal['amount_unique'] ?? 0);
             }
 
-            if (!isset($receitas[$nomeExibicao])) $receitas[$nomeExibicao] = 0.0;
-            $receitas[$nomeExibicao] += $amount;
+            $createdTs = rdtvParseDateToTs($deal['created_at'] ?? null);
+            $closedTs  = rdtvParseDateToTs($deal['closed_at'] ?? null);
+            $updatedTs = rdtvParseDateToTs($deal['updated_at'] ?? null);
+
+            $duracaoSeg = 0;
+            if ($createdTs !== null && $closedTs !== null && $closedTs >= $createdTs) {
+                $duracaoSeg = $closedTs - $createdTs;
+            }
+            $esperaSeg = 0;
+            if ($updatedTs !== null && $createdTs !== null && $updatedTs >= $createdTs) {
+                $esperaSeg = $updatedTs - $createdTs;
+            }
+
+            if (!isset($porVendedor[$nomeExibicao])) {
+                $porVendedor[$nomeExibicao] = [
+                    'receita' => 0.0, 'total_duracao_seg' => 0, 'total_espera_seg' => 0, 'count' => 0,
+                    'origem_deals' => [],
+                ];
+            }
+            $porVendedor[$nomeExibicao]['receita'] += $amount;
+            $porVendedor[$nomeExibicao]['total_duracao_seg'] += $duracaoSeg;
+            $porVendedor[$nomeExibicao]['total_espera_seg'] += $esperaSeg;
+            $porVendedor[$nomeExibicao]['count']++;
+            $src = $deal['deal_source'] ?? null;
+            $sourceName = is_array($src) ? trim((string)($src['name'] ?? $src['id'] ?? '')) : trim((string)$src);
+            if ($sourceName === '' && is_array($src) && !empty($src['id'])) {
+                $sourceName = 'Origem ' . $src['id'];
+            }
+            if ($sourceName === '') {
+                $sourceName = 'Não informada';
+            }
+            if ($sourceName !== '') {
+                if (!isset($porVendedor[$nomeExibicao]['origem_deals'][$sourceName])) {
+                    $porVendedor[$nomeExibicao]['origem_deals'][$sourceName] = ['receita' => 0.0, 'quantidade' => 0];
+                }
+                $porVendedor[$nomeExibicao]['origem_deals'][$sourceName]['receita'] += $amount;
+                $porVendedor[$nomeExibicao]['origem_deals'][$sourceName]['quantidade']++;
+            }
         }
 
         $fetched = count($deals);
         $page++;
     } while (!$earlyStop && $fetched >= $limit && $page <= $maxPages);
 
-    // Garante que todas as 8 apareçam mesmo sem venda
     foreach (array_unique(array_values(rdtvGetMapeamento())) as $nome) {
-        if (!isset($receitas[$nome])) $receitas[$nome] = 0.0;
+        if (!isset($porVendedor[$nome])) {
+            $porVendedor[$nome] = ['receita' => 0.0, 'total_duracao_seg' => 0, 'total_espera_seg' => 0, 'count' => 0];
+        }
     }
 
-    return $receitas;
+    return $porVendedor;
+}
+
+/**
+ * Busca negociações perdidas no período e agrupa por vendedor com motivos de perda.
+ * Retorna por vendedor: total_perdidos, motivos_perda [{ nome, quantidade }].
+ */
+function rdtvFetchLostByVendedora(string $token, string $startDate, string $endDate): array
+{
+    $porVendedor = [];
+    $page       = 1;
+    $limit      = 200;
+    $maxPages   = 10;
+    $earlyStop  = false;
+
+    do {
+        $data  = rdtvFetchDeals($token, $page, $limit, $startDate, $endDate, 'false');
+        $deals = $data['deals'] ?? [];
+
+        foreach ($deals as $deal) {
+            if (!empty($deal['win'])) continue;
+
+            $dateStr = $deal['closed_at'] ?? $deal['created_at'] ?? '';
+            $date    = $dateStr ? substr((string)$dateStr, 0, 10) : '';
+            if ($date !== '' && $date < $startDate) {
+                $earlyStop = true;
+                break;
+            }
+            if ($date === '' || $date > $endDate) continue;
+
+            $nomeCrm = trim((string)($deal['user']['name'] ?? ''));
+            if ($nomeCrm === '') continue;
+
+            $nomeExibicao = rdtvResolveNome($nomeCrm);
+            if ($nomeExibicao === null) continue;
+
+            $lostReason = $deal['deal_lost_reason'] ?? null;
+            $motivoNome = is_array($lostReason) ? trim((string)($lostReason['name'] ?? $lostReason['id'] ?? '')) : trim((string)$lostReason);
+            if ($motivoNome === '' && is_array($lostReason) && !empty($lostReason['id'])) {
+                $motivoNome = 'Motivo ' . $lostReason['id'];
+            }
+            if ($motivoNome === '') {
+                $motivoNome = 'Não informado';
+            }
+
+            if (!isset($porVendedor[$nomeExibicao])) {
+                $porVendedor[$nomeExibicao] = ['total_perdidos' => 0, 'motivos' => []];
+            }
+            $porVendedor[$nomeExibicao]['total_perdidos']++;
+            if (!isset($porVendedor[$nomeExibicao]['motivos'][$motivoNome])) {
+                $porVendedor[$nomeExibicao]['motivos'][$motivoNome] = 0;
+            }
+            $porVendedor[$nomeExibicao]['motivos'][$motivoNome]++;
+        }
+
+        $fetched = count($deals);
+        $page++;
+    } while (!$earlyStop && $fetched >= $limit && $page <= $maxPages);
+
+    foreach (array_unique(array_values(rdtvGetMapeamento())) as $nome) {
+        if (!isset($porVendedor[$nome])) {
+            $porVendedor[$nome] = ['total_perdidos' => 0, 'motivos' => []];
+        }
+    }
+
+    return $porVendedor;
+}
+
+/**
+ * Busca deals em aberto (sem win) no período e agrupa por estágio do funil.
+ * Retorna [ ['stage_name' => x, 'pipeline_name' => y, 'quantidade' => n], ... ].
+ */
+function rdtvFetchFunilEstagios(string $token, string $startDate, string $endDate): array
+{
+    $porEstagio = [];
+    $page      = 1;
+    $limit     = 200;
+    $maxPages  = 3;
+
+    do {
+        $data  = rdtvFetchDeals($token, $page, $limit, $startDate, $endDate, null);
+        $deals = $data['deals'] ?? [];
+
+        foreach ($deals as $deal) {
+            if (isset($deal['win']) && $deal['win'] !== null) continue;
+            $closedAt = $deal['closed_at'] ?? null;
+            if ($closedAt !== null && $closedAt !== '') continue;
+
+            $stage   = $deal['deal_stage'] ?? null;
+            $stageName = is_array($stage) ? trim((string)($stage['name'] ?? $stage['nickname'] ?? $stage['id'] ?? '')) : '';
+            if ($stageName === '' && is_array($stage) && !empty($stage['id'])) {
+                $stageName = 'Etapa ' . $stage['id'];
+            }
+            if ($stageName === '') $stageName = 'Sem etapa';
+
+            $pipeline = $deal['deal_pipeline'] ?? null;
+            $pipeName = is_array($pipeline) ? trim((string)($pipeline['name'] ?? $pipeline['id'] ?? '')) : 'Geral';
+            if ($pipeName === '') $pipeName = 'Geral';
+
+            $key = $pipeName . '|' . $stageName;
+            if (!isset($porEstagio[$key])) {
+                $porEstagio[$key] = ['stage_name' => $stageName, 'pipeline_name' => $pipeName, 'quantidade' => 0];
+            }
+            $porEstagio[$key]['quantidade']++;
+        }
+
+        $fetched = count($deals);
+        $page++;
+    } while ($fetched >= $limit && $page <= $maxPages);
+
+    return array_values($porEstagio);
 }
 
 /**
  * Monta o ranking final no formato esperado pela TV.
+ * Ganhos e perdas são buscados em paralelo para reduzir o tempo de resposta.
  */
 function rdtvBuildRanking(string $token, string $dataDe, string $dataAte, array $metas, array $nomesExt = []): array
 {
-    $receitaMap = rdtvFetchWonByVendedora($token, $dataDe, $dataAte);
+    $wonAndLost = rdtvFetchWonAndLostParallel($token, $dataDe, $dataAte);
+    $porVendedor = $wonAndLost['porVendedor'];
+    $perdas      = $wonAndLost['perdas'];
+    $funilEstagios = [];
+    try {
+        $funilEstagios = rdtvFetchFunilEstagios($token, $dataDe, $dataAte);
+    } catch (Throwable $e) {
+        // Funil opcional; não quebra o ranking
+    }
 
     $lista = [];
-    foreach ($receitaMap as $nome => $receita) {
+    foreach ($porVendedor as $nome => $dados) {
+        $receita   = (float)($dados['receita'] ?? 0);
+        $count     = (int)($dados['count'] ?? 0);
+        $durSeg    = (int)($dados['total_duracao_seg'] ?? 0);
+        $esperaSeg = (int)($dados['total_espera_seg'] ?? 0);
+
         $normNome   = rdtvNormalize($nome);
         $metaMensal = 0.0;
-
-        // Busca meta pelo nome normalizado
         foreach ($metas as $normBanco => $meta) {
             if ($normNome === $normBanco ||
                 str_contains($normNome, $normBanco) ||
@@ -205,13 +543,48 @@ function rdtvBuildRanking(string $token, string $dataDe, string $dataAte, array 
                 break;
             }
         }
-
         if ($metaMensal <= 0) $metaMensal = 60000.0;
 
+        $duracaoMediaMin = $count > 0 && $durSeg > 0 ? round($durSeg / 60 / $count, 0) : null;
+        $esperaMediaMin  = $count > 0 && $esperaSeg > 0 ? round($esperaSeg / 60 / $count, 0) : null;
+
+        $lostData    = $perdas[$nome] ?? ['total_perdidos' => 0, 'motivos' => []];
+        $totalLost   = (int)($lostData['total_perdidos'] ?? 0);
+        $totalWon    = $count;
+        $totalDeals  = $totalWon + $totalLost;
+        $taxaPerdaPct = $totalDeals > 0 ? round(($totalLost / $totalDeals) * 100, 2) : 0.0;
+
+        $motivosArr = $lostData['motivos'] ?? [];
+        arsort($motivosArr, SORT_NUMERIC);
+        $topMotivos = [];
+        $idx = 0;
+        foreach ($motivosArr as $motivoNome => $qty) {
+            if ($idx++ >= 5) break;
+            $topMotivos[] = ['nome' => $motivoNome, 'quantidade' => (int)$qty];
+        }
+
+        $origemDeals = $dados['origem_deals'] ?? [];
+        $origemLista = [];
+        foreach ($origemDeals as $origemNome => $vals) {
+            $origemLista[] = [
+                'nome'       => $origemNome,
+                'receita'    => round((float)($vals['receita'] ?? 0), 2),
+                'quantidade' => (int)($vals['quantidade'] ?? 0),
+            ];
+        }
+        usort($origemLista, static fn($a, $b) => $b['receita'] <=> $a['receita']);
+
         $lista[] = [
-            'vendedor'    => $nome,
-            'receita'     => round($receita, 2),
-            'meta_mensal' => $metaMensal,
+            'vendedor'               => $nome,
+            'receita'                => round($receita, 2),
+            'meta_mensal'            => $metaMensal,
+            'duracao_media_min'      => $duracaoMediaMin,
+            'tempo_medio_espera_min' => $esperaMediaMin,
+            'total_deals_ganhos'     => $totalWon,
+            'total_deals_perdidos'  => $totalLost,
+            'taxa_perda_pct'        => $taxaPerdaPct,
+            'top_motivos_perda'     => $topMotivos,
+            'origem_deals'           => $origemLista,
         ];
     }
 
@@ -224,7 +597,7 @@ function rdtvBuildRanking(string $token, string $dataDe, string $dataAte, array 
 
     foreach ($lista as $i => &$it) {
         $it['posicao']               = $i + 1;
-        $it['percentual_lider']      = $maxReceita > 0
+        $it['percentual_lider']     = $maxReceita > 0
             ? round(($it['receita'] / $maxReceita) * 100, 2) : 0.0;
         $it['percentual_meta']       = $it['meta_mensal'] > 0
             ? round(($it['receita'] / $it['meta_mensal']) * 100, 2) : 0.0;
@@ -234,14 +607,15 @@ function rdtvBuildRanking(string $token, string $dataDe, string $dataAte, array 
 
     $now = new DateTimeImmutable('now');
     return [
-        'success'     => true,
-        'fonte'       => 'rdstation_crm',
-        'periodo'     => [
-            'data_de'  => (new DateTimeImmutable($dataDe))->format('d/m/Y'),
-            'data_ate' => (new DateTimeImmutable($dataAte))->format('d/m/Y'),
+        'success'         => true,
+        'fonte'           => 'rdstation_crm',
+        'periodo'         => [
+            'data_de'  => (new DateTimeImmutable($dataDe))->format('Y-m-d'),
+            'data_ate' => (new DateTimeImmutable($dataAte))->format('Y-m-d'),
         ],
-        'max_receita' => round($maxReceita, 2),
-        'ranking'     => $lista,
-        'updated_at'  => $now->format('d/m/Y H:i'),
+        'max_receita'     => round($maxReceita, 2),
+        'ranking'         => $lista,
+        'funil_estagios'  => $funilEstagios,
+        'updated_at'      => $now->format('Y-m-d H:i:s'),
     ];
 }

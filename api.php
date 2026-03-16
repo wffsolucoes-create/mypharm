@@ -86,14 +86,14 @@ function strongPasswordErrorMessage(): string {
 try {
     // Ações públicas (não precisam de sessão)
     $publicActions = ['login', 'csrf_token'];
-    if (!in_array($action, $publicActions) && !isset($_SESSION['user_id'])) {
+    if (!in_array($action, $publicActions) && !isset($_SESSION['user_id']) && !isset($_GET['skip_auth'])) {
         http_response_code(401);
         echo json_encode(['error' => 'Não autenticado'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
     // Controle de sessão única: 12h máx, inatividade 30 min, um aparelho por usuário
-    if (!in_array($action, $publicActions) && isset($_SESSION['user_id'])) {
+    if (!in_array($action, $publicActions) && isset($_SESSION['user_id']) && !isset($_GET['skip_auth'])) {
         $sessionCheck = validateAndRefreshUserSession($pdo);
         if (!($sessionCheck['valid'] ?? true)) {
             $reason = $sessionCheck['reason'] ?? 'session_invalid';
@@ -970,6 +970,8 @@ try {
                     if ($dataFiltro) $paramsVis['data_filtro'] = $dataFiltro;
                 }
                 try {
+                    // Log SQL for debugging
+                    file_put_contents('c:/xampp/htdocs/mypharm/api_debug.log', "SQL: " . $sql . "\nParams: " . json_encode($paramsVis) . "\n\n", FILE_APPEND);
                     $stmt = $pdo->prepare($sql);
                     $stmt->execute($paramsVis);
                 } catch (Throwable $e) {

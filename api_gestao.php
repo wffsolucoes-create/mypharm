@@ -128,6 +128,26 @@ function handleTvCorridaVendedores(PDO $pdo): void
         $ranking = [];
     }
 
+    $duracaoPorVendedor = [];
+    try {
+        $stDur = $pdo->prepare("
+            SELECT
+                COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS vendedor,
+                ROUND(AVG(TIMESTAMPDIFF(MINUTE, gp.data_orcamento, gp.data_aprovacao)), 0) AS duracao_media_min
+            FROM gestao_pedidos gp
+            WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
+              AND gp.data_orcamento IS NOT NULL AND gp.data_aprovacao IS NOT NULL
+              AND {$approvedCase}
+            GROUP BY COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
+        ");
+        $stDur->execute(['de' => $dataDe, 'ate' => $dataAte]);
+        foreach ($stDur->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $duracaoPorVendedor[trim((string)($row['vendedor'] ?? ''))] = (int)$row['duracao_media_min'];
+        }
+    } catch (Throwable $e) {
+        $duracaoPorVendedor = [];
+    }
+
     $vendedoresCad = [];
     try {
         $stVend = $pdo->query("
@@ -155,6 +175,8 @@ function handleTvCorridaVendedores(PDO $pdo): void
             'vendedor'    => $nome,
             'receita'     => (float)($r['receita'] ?? 0),
             'meta_mensal' => 0.0,
+            'duracao_media_min' => $duracaoPorVendedor[$nome] ?? null,
+            'tempo_medio_espera_min' => null,
         ];
     }
     foreach ($vendedoresCad as $v) {
@@ -163,9 +185,12 @@ function handleTvCorridaVendedores(PDO $pdo): void
         if (function_exists('gcIsAllowedVendedora') && !gcIsAllowedVendedora($nome)) continue;
         $k = function_exists('mb_strtolower') ? mb_strtolower($nome, 'UTF-8') : strtolower($nome);
         if (!isset($map[$k])) {
-            $map[$k] = ['vendedor' => $nome, 'receita' => 0.0, 'meta_mensal' => 0.0];
+            $map[$k] = ['vendedor' => $nome, 'receita' => 0.0, 'meta_mensal' => 0.0, 'duracao_media_min' => null, 'tempo_medio_espera_min' => null];
         }
         $map[$k]['meta_mensal'] = (float)($v['meta_mensal'] ?? 0);
+        if (isset($duracaoPorVendedor[$nome])) {
+            $map[$k]['duracao_media_min'] = $duracaoPorVendedor[$nome];
+        }
     }
 
     $lista = array_values($map);
@@ -199,16 +224,24 @@ function handleTvCorridaVendedores(PDO $pdo): void
         $it['percentual_meta'] = $metaMensal > 0
             ? round((((float)$it['receita']) / $metaMensal) * 100, 2)
             : 0.0;
+        if (!array_key_exists('duracao_media_min', $it)) $it['duracao_media_min'] = null;
+        if (!array_key_exists('tempo_medio_espera_min', $it)) $it['tempo_medio_espera_min'] = null;
+        if (!array_key_exists('total_deals_ganhos', $it)) $it['total_deals_ganhos'] = null;
+        if (!array_key_exists('total_deals_perdidos', $it)) $it['total_deals_perdidos'] = null;
+        if (!array_key_exists('taxa_perda_pct', $it)) $it['taxa_perda_pct'] = null;
+        if (!array_key_exists('top_motivos_perda', $it)) $it['top_motivos_perda'] = [];
+        if (!array_key_exists('origem_deals', $it)) $it['origem_deals'] = [];
     }
     unset($it);
 
     echo json_encode([
-        'success'     => true,
-        'fonte'       => 'banco_local',
-        'periodo'     => ['data_de' => $dataDe, 'data_ate' => $dataAte],
-        'max_receita' => round($maxReceita, 2),
-        'ranking'     => $lista,
-        'updated_at'  => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
+        'success'         => true,
+        'fonte'           => 'banco_local',
+        'periodo'         => ['data_de' => $dataDe, 'data_ate' => $dataAte],
+        'max_receita'     => round($maxReceita, 2),
+        'ranking'         => $lista,
+        'funil_estagios'  => [],
+        'updated_at'      => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
     ], JSON_UNESCAPED_UNICODE);
 }
 
