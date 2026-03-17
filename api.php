@@ -137,6 +137,7 @@ try {
         'get_pedido_detalhe',
         'get_pedido_componentes',
         'all_prescritores',
+        'get_recusados_prescritores',
         'get_prescritor_contatos',
         'save_prescritor_whatsapp',
         'get_prescritor_dados',
@@ -860,7 +861,6 @@ try {
             $filtroDataGp = $useRange ? "AND DATE(gp.data_aprovacao) BETWEEN :data_de AND :data_ate" : "";
             $dataFiltro = !$useRange && ($dia && $mes && $anoUsar) ? sprintf('%04d-%02d-%02d', (int)$anoUsar, (int)$mes, (int)$dia) : null;
             $filtroSearch = $searchTerm !== null ? "AND (pc.nome LIKE :search)" : "";
-            $recMap = [];
 
             // Garantir que tabelas existam (evita 500 se importação web foi usada sem CLI)
             try {
@@ -898,8 +898,12 @@ try {
                             AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
                             AND gp.status_financeiro NOT LIKE '%carrinho%'))
                             THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
-                        0 as valor_recusado,
-                        0 as qtd_recusados,
+                        COALESCE(SUM(CASE WHEN (gp.data_aprovacao IS NOT NULL OR gp.data_orcamento IS NOT NULL)
+                            AND (gp.status_financeiro IN ('Recusado', 'Cancelado', 'Orçamento') OR gp.status_financeiro LIKE '%carrinho%')
+                            THEN gp.preco_liquido ELSE 0 END), 0) as valor_recusado,
+                        SUM(CASE WHEN (gp.data_aprovacao IS NOT NULL OR gp.data_orcamento IS NOT NULL)
+                            AND (gp.status_financeiro IN ('Recusado', 'Cancelado', 'Orçamento') OR gp.status_financeiro LIKE '%carrinho%')
+                            THEN 1 ELSE 0 END) as qtd_recusados,
                         SUM(CASE WHEN gp.data_aprovacao IS NOT NULL
                             AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
                             AND gp.status_financeiro NOT LIKE '%carrinho%'))
@@ -931,8 +935,12 @@ try {
                             AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
                             AND gp.status_financeiro NOT LIKE '%carrinho%'))
                             THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
-                        (COALESCE(MAX(pr.valor_recusado), 0) + COALESCE(MAX(pr.valor_no_carrinho), 0)) as valor_recusado,
-                        (COALESCE(MAX(pr.recusados), 0) + COALESCE(MAX(pr.no_carrinho), 0)) as qtd_recusados,
+                        COALESCE(SUM(CASE WHEN (gp.data_aprovacao IS NOT NULL OR gp.data_orcamento IS NOT NULL)
+                            AND (gp.status_financeiro IN ('Recusado', 'Cancelado', 'Orçamento') OR gp.status_financeiro LIKE '%carrinho%')
+                            THEN gp.preco_liquido ELSE 0 END), 0) as valor_recusado,
+                        SUM(CASE WHEN (gp.data_aprovacao IS NOT NULL OR gp.data_orcamento IS NOT NULL)
+                            AND (gp.status_financeiro IN ('Recusado', 'Cancelado', 'Orçamento') OR gp.status_financeiro LIKE '%carrinho%')
+                            THEN 1 ELSE 0 END) as qtd_recusados,
                         SUM(CASE WHEN gp.data_aprovacao IS NOT NULL
                             AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
                             AND gp.status_financeiro NOT LIKE '%carrinho%'))
@@ -942,7 +950,6 @@ try {
                         MAX(hv.ultima_visita) as ultima_visita
                     FROM prescritores_cadastro pc
                     LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pc.nome
-                    LEFT JOIN prescritor_resumido pr ON pr.nome = pc.nome AND pr.ano_referencia = :ano_pr
                     LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome 
                         AND gp.ano_referencia = :ano_gp
                         $filtroMesGp
@@ -957,7 +964,7 @@ try {
                     ";
                 }
                 if ($useLimit) $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
-                $paramsVis = ['ano_gp' => $anoUsar, 'ano_pr' => $anoUsar];
+                $paramsVis = ['ano_gp' => $anoUsar];
                 if ($visitadorFilter !== 'My Pharm')
                     $paramsVis['vis'] = $visitadorFilter;
                 if ($searchTerm !== null)
@@ -970,8 +977,6 @@ try {
                     if ($dataFiltro) $paramsVis['data_filtro'] = $dataFiltro;
                 }
                 try {
-                    // Log SQL for debugging
-                    file_put_contents('c:/xampp/htdocs/mypharm/api_debug.log', "SQL: " . $sql . "\nParams: " . json_encode($paramsVis) . "\n\n", FILE_APPEND);
                     $stmt = $pdo->prepare($sql);
                     $stmt->execute($paramsVis);
                 } catch (Throwable $e) {
@@ -997,30 +1002,7 @@ try {
                     }
                 }
                 if ($dataFallback === null && isset($stmt)) {
-                if ($useRange) {
-                    try {
-                        $anoIo = (int) substr($dataDe, 0, 4);
-                        $visRecWhere = ($visitadorFilter === 'My Pharm')
-                            ? "(pc_io.visitador IS NULL OR pc_io.visitador = '' OR pc_io.visitador = 'My Pharm' OR UPPER(pc_io.visitador) = 'MY PHARM')"
-                            : "TRIM(COALESCE(pc_io.visitador,'')) = TRIM(:vis_io)";
-                        $sqlRec = "SELECT COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm') as nome,
-                            SUM(i.valor_liquido) as valor_recusado, COUNT(*) as qtd_recusados
-                            FROM itens_orcamentos_pedidos i
-                            INNER JOIN prescritores_cadastro pc_io ON COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm') = pc_io.nome AND " . $visRecWhere . "
-                            WHERE (i.status = 'Recusado' OR i.status = 'No carrinho') AND i.ano_referencia = :ano_io
-                            AND i.`data` BETWEEN :data_de_io AND :data_ate_io
-                            GROUP BY COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm')";
-                        $stmtRec = $pdo->prepare($sqlRec);
-                        $paramsRec = ['ano_io' => $anoIo, 'data_de_io' => $dataDe, 'data_ate_io' => $dataAte];
-                        if ($visitadorFilter !== 'My Pharm') $paramsRec['vis_io'] = $visitadorFilter;
-                        $stmtRec->execute($paramsRec);
-                        while ($r = $stmtRec->fetch(PDO::FETCH_ASSOC)) {
-                            $recMap[$r['nome']] = ['valor_recusado' => (float) $r['valor_recusado'], 'qtd_recusados' => (int) $r['qtd_recusados']];
-                        }
-                    } catch (Throwable $e) {
-                        // Se falhar (ex.: tabela inexistente), recMap fica vazio; lista segue com recusados 0
-                    }
-                }
+                    // Recusados já vêm da query principal (gestao_pedidos), mesma metodologia dos aprovados
                 } // if ($dataFallback === null && isset($stmt))
             }
             else {
@@ -1049,8 +1031,12 @@ try {
                             AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
                             AND gp.status_financeiro NOT LIKE '%carrinho%'))
                             THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
-                        (COALESCE(MAX(pr.valor_recusado), 0) + COALESCE(MAX(pr.valor_no_carrinho), 0)) as valor_recusado,
-                        (COALESCE(MAX(pr.recusados), 0) + COALESCE(MAX(pr.no_carrinho), 0)) as qtd_recusados,
+                        COALESCE(SUM(CASE WHEN (gp.data_aprovacao IS NOT NULL OR gp.data_orcamento IS NOT NULL)
+                            AND (gp.status_financeiro IN ('Recusado', 'Cancelado', 'Orçamento') OR gp.status_financeiro LIKE '%carrinho%')
+                            THEN gp.preco_liquido ELSE 0 END), 0) as valor_recusado,
+                        SUM(CASE WHEN (gp.data_aprovacao IS NOT NULL OR gp.data_orcamento IS NOT NULL)
+                            AND (gp.status_financeiro IN ('Recusado', 'Cancelado', 'Orçamento') OR gp.status_financeiro LIKE '%carrinho%')
+                            THEN 1 ELSE 0 END) as qtd_recusados,
                         SUM(CASE WHEN gp.data_aprovacao IS NOT NULL
                             AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
                             AND gp.status_financeiro NOT LIKE '%carrinho%'))
@@ -1060,7 +1046,6 @@ try {
                         MAX(hv.ultima_visita) as ultima_visita
                     FROM prescritores_cadastro pc
                     LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pc.nome
-                    LEFT JOIN prescritor_resumido pr ON pr.nome = pc.nome AND pr.ano_referencia = :ano_pr
                     LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome 
                         AND gp.ano_referencia = :ano_gp
                         $filtroMesGp
@@ -1075,7 +1060,7 @@ try {
                 ";
                 if ($useLimit) $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
                 $stmt = $pdo->prepare($sql);
-                $paramsTodos = ['ano_gp' => $anoUsar, 'ano_pr' => $anoUsar];
+                $paramsTodos = ['ano_gp' => $anoUsar];
                 if ($searchTerm !== null) $paramsTodos['search'] = '%' . $searchTerm . '%';
                 if ($mes) $paramsTodos['mes'] = (int)$mes;
                 if ($dataFiltro) $paramsTodos['data_filtro'] = $dataFiltro;
@@ -1083,116 +1068,74 @@ try {
             }
             $data = ($dataFallback !== null) ? $dataFallback : $stmt->fetchAll();
 
-            // Recusados devem respeitar o mesmo período selecionado (mês/dia/faixa de datas).
-            // O resumo anual (prescritor_resumido) só é confiável para visão anual sem filtro de período.
-            $usarRecusadosPorPeriodo = $useRange || !empty($mes) || !empty($dia);
-            if ($usarRecusadosPorPeriodo) {
-                try {
-                    // Otimização: calcula recusados apenas para os prescritores da página atual (limit/offset),
-                    // evitando varrer a tabela inteira de itens em toda requisição.
-                    $nomesPagina = [];
-                    foreach ($data as $rw) {
-                        $nm = trim((string)($rw['prescritor'] ?? ''));
-                        if ($nm !== '') $nomesPagina[$nm] = true;
-                    }
-                    $nomesPagina = array_keys($nomesPagina);
-                    if (count($nomesPagina) === 0) {
-                        foreach ($data as &$row) {
-                            $row['valor_recusado'] = 0;
-                            $row['qtd_recusados'] = 0;
-                        }
-                        unset($row);
-                        $usarRecusadosPorPeriodo = false;
-                    }
-
-                    $paramsRec = ['ano_io' => (int)$anoUsar];
-
-                    $filtroPeriodoRec = " AND i.ano_referencia = :ano_io";
-                    if ($useRange) {
-                        $filtroPeriodoRec .= " AND i.`data` BETWEEN :data_de_io AND :data_ate_io";
-                        $paramsRec['data_de_io'] = $dataDe;
-                        $paramsRec['data_ate_io'] = $dataAte;
-                    } else {
-                        if (!empty($mes)) {
-                            $filtroPeriodoRec .= " AND MONTH(i.`data`) = :mes_io";
-                            $paramsRec['mes_io'] = (int)$mes;
-                        }
-                        if (!empty($dataFiltro)) {
-                            $filtroPeriodoRec .= " AND DATE(i.`data`) = :data_filtro_io";
-                            $paramsRec['data_filtro_io'] = $dataFiltro;
-                        }
-                    }
-
-                    $placeholdersNomes = [];
-                    foreach ($nomesPagina as $idxNome => $nomePg) {
-                        $k = "n_io_" . $idxNome;
-                        $placeholdersNomes[] = ":" . $k;
-                        $paramsRec[$k] = $nomePg;
-                    }
-                    $filtroNomesRec = " AND COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm') IN (" . implode(',', $placeholdersNomes) . ")";
-
-                    $joinCad = "";
-                    $filtroVisitadorRec = "";
-                    if ($visitadorFilter !== null) {
-                        $joinCad = " INNER JOIN prescritores_cadastro pc_io
-                            ON COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm') = pc_io.nome ";
-                        if ($visitadorFilter === 'My Pharm') {
-                            $filtroVisitadorRec = " AND (pc_io.visitador IS NULL OR pc_io.visitador = '' OR pc_io.visitador = 'My Pharm' OR UPPER(pc_io.visitador) = 'MY PHARM')";
-                        } else {
-                            $filtroVisitadorRec = " AND TRIM(COALESCE(pc_io.visitador,'')) = TRIM(:vis_io)";
-                            $paramsRec['vis_io'] = $visitadorFilter;
-                        }
-                    }
-
-                    $sqlRecPeriodo = "
-                        SELECT
-                            COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm') as nome,
-                            SUM(i.valor_liquido) as valor_recusado,
-                            COUNT(*) as qtd_recusados
-                        FROM itens_orcamentos_pedidos i
-                        $joinCad
-                        WHERE (i.status = 'Recusado' OR i.status = 'No carrinho')
-                          $filtroPeriodoRec
-                          $filtroNomesRec
-                          $filtroVisitadorRec
-                        GROUP BY COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm')
-                    ";
-                    $stmtRecPeriodo = $pdo->prepare($sqlRecPeriodo);
-                    $stmtRecPeriodo->execute($paramsRec);
-
-                    $recMapPeriodo = [];
-                    while ($r = $stmtRecPeriodo->fetch(PDO::FETCH_ASSOC)) {
-                        $nm = $r['nome'] ?? '';
-                        $recMapPeriodo[$nm] = [
-                            'valor_recusado' => (float)($r['valor_recusado'] ?? 0),
-                            'qtd_recusados' => (int)($r['qtd_recusados'] ?? 0)
-                        ];
-                    }
-
-                    foreach ($data as &$row) {
-                        $nome = $row['prescritor'] ?? '';
-                        if (isset($recMapPeriodo[$nome])) {
-                            $row['valor_recusado'] = $recMapPeriodo[$nome]['valor_recusado'];
-                            $row['qtd_recusados'] = $recMapPeriodo[$nome]['qtd_recusados'];
-                        } else {
-                            $row['valor_recusado'] = 0;
-                            $row['qtd_recusados'] = 0;
-                        }
-                    }
-                    unset($row);
-                } catch (Throwable $e) {
-                    // Se falhar, mantém comportamento anterior para não quebrar a listagem.
-                }
-            } elseif ($visitadorFilter && $useRange && !empty($recMap)) {
-                foreach ($data as &$row) {
-                    $nome = $row['prescritor'] ?? '';
-                    if (isset($recMap[$nome])) {
-                        $row['valor_recusado'] = $recMap[$nome]['valor_recusado'];
-                        $row['qtd_recusados'] = $recMap[$nome]['qtd_recusados'];
-                    }
-                }
-                unset($row);
+            // Recusados: gestao_pedidos não traz Recusado/No carrinho — preencher a partir de itens_orcamentos_pedidos (e fallback prescritor_resumido)
+            $recMap = [];
+            try {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS itens_orcamentos_pedidos (
+                    id INT AUTO_INCREMENT PRIMARY KEY, filial VARCHAR(100), numero INT NOT NULL DEFAULT 0, serie INT NOT NULL DEFAULT 0,
+                    data DATE NULL, canal VARCHAR(50), forma_farmaceutica VARCHAR(100), descricao VARCHAR(255),
+                    quantidade INT NOT NULL DEFAULT 1, unidade VARCHAR(20),
+                    valor_bruto DECIMAL(14,2) DEFAULT 0, valor_liquido DECIMAL(14,2) DEFAULT 0, preco_custo DECIMAL(14,2) DEFAULT 0, fator DECIMAL(10,2) DEFAULT 0,
+                    status VARCHAR(50), usuario_inclusao VARCHAR(100), usuario_aprovador VARCHAR(100),
+                    paciente VARCHAR(255), prescritor VARCHAR(255), status_financeiro VARCHAR(50), ano_referencia INT NOT NULL,
+                    INDEX idx_ano (ano_referencia), INDEX idx_prescritor (prescritor(100)), INDEX idx_status (status),
+                    INDEX idx_numero_serie (numero, serie)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            } catch (Throwable $e) { /* ignora */ }
+            $visWhereRec = $visitadorFilter ? (($visitadorFilter === 'My Pharm') ? "(pc.visitador IS NULL OR pc.visitador = '' OR pc.visitador = 'My Pharm' OR UPPER(pc.visitador) = 'MY PHARM')" : "pc.visitador = :vis_rec") : '1=1';
+            $paramsRec = ['ano_ref' => (int)$anoUsar];
+            if ($visitadorFilter && $visitadorFilter !== 'My Pharm') $paramsRec['vis_rec'] = $visitadorFilter;
+            if ($useRange) {
+                $filtroPeriodoRec = "AND DATE(i.data) BETWEEN :data_de_rec AND :data_ate_rec";
+                $paramsRec['data_de_rec'] = $dataDe;
+                $paramsRec['data_ate_rec'] = $dataAte;
+            } elseif ($mes) {
+                $filtroPeriodoRec = "AND YEAR(i.data) = :ano_ref AND MONTH(i.data) = :mes_rec";
+                $paramsRec['mes_rec'] = (int)$mes;
+            } else {
+                $filtroPeriodoRec = "AND YEAR(i.data) = :ano_ref";
             }
+            $sqlRec = "SELECT pc.nome as prescritor, COALESCE(SUM(i.valor_liquido), 0) as valor_recusado, COUNT(*) as qtd_recusados
+                FROM prescritores_cadastro pc
+                INNER JOIN itens_orcamentos_pedidos i
+                    ON UPPER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm'))) = UPPER(TRIM(pc.nome))
+                    AND i.ano_referencia = :ano_ref AND (i.status = 'Recusado' OR i.status = 'No carrinho') $filtroPeriodoRec
+                WHERE $visWhereRec
+                GROUP BY pc.nome";
+            try {
+                $stmtRec = $pdo->prepare($sqlRec);
+                $stmtRec->execute($paramsRec);
+                foreach ($stmtRec->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                    $recMap[$r['prescritor']] = [(float)($r['valor_recusado'] ?? 0), (int)($r['qtd_recusados'] ?? 0)];
+                }
+            } catch (Throwable $e) { /* ignora */ }
+            if (empty($recMap) && !$mes && !$useRange) {
+                try {
+                    $visWherePr = $visitadorFilter ? (($visitadorFilter === 'My Pharm') ? "(pr.visitador IS NULL OR pr.visitador = '' OR pr.visitador = 'My Pharm' OR UPPER(pr.visitador) = 'MY PHARM')" : "pr.visitador = :vis_pr") : '1=1';
+                    $paramsPr = ['ano_ref' => (int)$anoUsar];
+                    if ($visitadorFilter && $visitadorFilter !== 'My Pharm') $paramsPr['vis_pr'] = $visitadorFilter;
+                    $sqlPr = "SELECT pc.nome as prescritor,
+                        (COALESCE(pr.valor_recusado, 0) + COALESCE(pr.valor_no_carrinho, 0)) as valor_recusado,
+                        (COALESCE(pr.recusados, 0) + COALESCE(pr.no_carrinho, 0)) as qtd_recusados
+                        FROM prescritor_resumido pr
+                        INNER JOIN prescritores_cadastro pc ON UPPER(TRIM(pr.nome)) = UPPER(TRIM(pc.nome))
+                        WHERE pr.ano_referencia = :ano_ref AND $visWherePr
+                        AND (COALESCE(pr.valor_recusado, 0) + COALESCE(pr.valor_no_carrinho, 0) > 0 OR COALESCE(pr.recusados, 0) + COALESCE(pr.no_carrinho, 0) > 0)";
+                    $stmtPr = $pdo->prepare($sqlPr);
+                    $stmtPr->execute($paramsPr);
+                    foreach ($stmtPr->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                        $recMap[$r['prescritor']] = [(float)($r['valor_recusado'] ?? 0), (int)($r['qtd_recusados'] ?? 0)];
+                    }
+                } catch (Throwable $e) { /* ignora */ }
+            }
+            // Normalizar chave do mapa para comparação (trim)
+            $recMapNormalized = [];
+            foreach ($recMap as $nome => $pair) {
+                $k = trim((string)$nome);
+                if ($k !== '') $recMapNormalized[$k] = $pair;
+            }
+
+            $usarRecusadosPorPeriodo = $useRange || !empty($mes) || !empty($dia);
 
             $results = [];
             foreach ($data as $row) {
@@ -1206,6 +1149,12 @@ try {
                     catch (Exception $e) {
                         $row['dias_sem_visita'] = null;
                     }
+                }
+                $nomePrescritor = isset($row['prescritor']) ? trim((string)$row['prescritor']) : '';
+                if ($nomePrescritor !== '' && (isset($recMap[$row['prescritor']]) || isset($recMapNormalized[$nomePrescritor]))) {
+                    $pair = $recMap[$row['prescritor']] ?? $recMapNormalized[$nomePrescritor];
+                    $row['valor_recusado'] = $pair[0];
+                    $row['qtd_recusados'] = $pair[1];
                 }
                 $results[] = $row;
             }
@@ -1238,6 +1187,111 @@ try {
                 http_response_code(500);
                 echo json_encode(['error' => 'all_prescritores: ' . $e->getMessage(), 'line' => $e->getLine()], JSON_UNESCAPED_UNICODE);
                 exit;
+            }
+            break;
+
+        // Recusados por prescritor: fonte itens_orcamentos_pedidos (gestao_pedidos não traz Recusado/No carrinho); fallback prescritor_resumido (ano)
+        case 'get_recusados_prescritores':
+            try {
+                $anoRec = !empty($_GET['ano']) ? $_GET['ano'] : date('Y');
+                $mesRec = !empty($_GET['mes']) ? $_GET['mes'] : null;
+                $dataDeRec = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : null;
+                $dataAteRec = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : null;
+                if ($dataDeRec === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDeRec)) $dataDeRec = null;
+                if ($dataAteRec === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAteRec)) $dataAteRec = null;
+                $useRangeRec = $dataDeRec !== null && $dataAteRec !== null && $dataDeRec <= $dataAteRec;
+                $visitadorRec = isset($_GET['visitador']) ? trim((string)$_GET['visitador']) : null;
+                if ($visitadorRec === '') $visitadorRec = null;
+
+                $visWhereRec = '1=1';
+                $paramsRec = ['ano_ref' => (int)$anoRec];
+                if ($visitadorRec !== null) {
+                    $visWhereRec = ($visitadorRec === 'My Pharm')
+                        ? "(pc.visitador IS NULL OR pc.visitador = '' OR pc.visitador = 'My Pharm' OR UPPER(pc.visitador) = 'MY PHARM')"
+                        : "pc.visitador = :vis";
+                    if ($visitadorRec !== 'My Pharm') $paramsRec['vis'] = $visitadorRec;
+                }
+
+                // Garantir que a tabela existe (evita erro se importação de itens não foi feita)
+                try {
+                    $pdo->exec("CREATE TABLE IF NOT EXISTS itens_orcamentos_pedidos (
+                        id INT AUTO_INCREMENT PRIMARY KEY, filial VARCHAR(100), numero INT NOT NULL DEFAULT 0, serie INT NOT NULL DEFAULT 0,
+                        data DATE NULL, canal VARCHAR(50), forma_farmaceutica VARCHAR(100), descricao VARCHAR(255),
+                        quantidade INT NOT NULL DEFAULT 1, unidade VARCHAR(20),
+                        valor_bruto DECIMAL(14,2) DEFAULT 0, valor_liquido DECIMAL(14,2) DEFAULT 0, preco_custo DECIMAL(14,2) DEFAULT 0, fator DECIMAL(10,2) DEFAULT 0,
+                        status VARCHAR(50), usuario_inclusao VARCHAR(100), usuario_aprovador VARCHAR(100),
+                        paciente VARCHAR(255), prescritor VARCHAR(255), status_financeiro VARCHAR(50), ano_referencia INT NOT NULL,
+                        INDEX idx_ano (ano_referencia), INDEX idx_prescritor (prescritor(100)), INDEX idx_status (status),
+                        INDEX idx_numero_serie (numero, serie)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                } catch (Throwable $e) { /* ignora */ }
+
+                // Período pela coluna data de itens_orcamentos_pedidos
+                if ($useRangeRec) {
+                    $filtroPeriodoRec = "AND DATE(i.data) BETWEEN :data_de AND :data_ate";
+                    $paramsRec['data_de'] = $dataDeRec;
+                    $paramsRec['data_ate'] = $dataAteRec;
+                } elseif ($mesRec) {
+                    $filtroPeriodoRec = "AND YEAR(i.data) = :ano_ref AND MONTH(i.data) = :mes";
+                    $paramsRec['mes'] = (int)$mesRec;
+                } else {
+                    $filtroPeriodoRec = "AND YEAR(i.data) = :ano_ref";
+                }
+
+                // Join case-insensitive para bater nome do prescritor (itens vs cadastro)
+                $sqlRec = "
+                    SELECT
+                        pc.nome as prescritor,
+                        COALESCE(SUM(i.valor_liquido), 0) as valor_recusado,
+                        COUNT(*) as qtd_recusados
+                    FROM prescritores_cadastro pc
+                    INNER JOIN itens_orcamentos_pedidos i
+                        ON UPPER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm'))) = UPPER(TRIM(pc.nome))
+                        AND i.ano_referencia = :ano_ref
+                        AND (i.status = 'Recusado' OR i.status = 'No carrinho')
+                        $filtroPeriodoRec
+                    WHERE $visWhereRec
+                    GROUP BY pc.nome
+                ";
+                $stmtRec = $pdo->prepare($sqlRec);
+                $stmtRec->execute($paramsRec);
+                $recusados = $stmtRec->fetchAll(PDO::FETCH_ASSOC);
+
+                // Fallback: quando não há filtro de mês/faixa e itens retornou vazio, usar prescritor_resumido (ano)
+                $visWherePr = '1=1';
+                $paramsPr = ['ano_ref' => (int)$anoRec];
+                if ($visitadorRec !== null) {
+                    $visWherePr = ($visitadorRec === 'My Pharm')
+                        ? "(pr.visitador IS NULL OR pr.visitador = '' OR pr.visitador = 'My Pharm' OR UPPER(pr.visitador) = 'MY PHARM')"
+                        : "pr.visitador = :vis";
+                    if ($visitadorRec !== 'My Pharm') $paramsPr['vis'] = $visitadorRec;
+                }
+                if (count($recusados) === 0 && !$mesRec && !$useRangeRec) {
+                    try {
+                        $sqlResumido = "
+                            SELECT pc.nome as prescritor,
+                                (COALESCE(pr.valor_recusado, 0) + COALESCE(pr.valor_no_carrinho, 0)) as valor_recusado,
+                                (COALESCE(pr.recusados, 0) + COALESCE(pr.no_carrinho, 0)) as qtd_recusados
+                            FROM prescritor_resumido pr
+                            INNER JOIN prescritores_cadastro pc ON UPPER(TRIM(pr.nome)) = UPPER(TRIM(pc.nome))
+                            WHERE pr.ano_referencia = :ano_ref AND $visWherePr
+                                AND (COALESCE(pr.valor_recusado, 0) + COALESCE(pr.valor_no_carrinho, 0) > 0
+                                   OR COALESCE(pr.recusados, 0) + COALESCE(pr.no_carrinho, 0) > 0)
+                        ";
+                        $stmtPr = $pdo->prepare($sqlResumido);
+                        $stmtPr->execute($paramsPr);
+                        $recusados = $stmtPr->fetchAll(PDO::FETCH_ASSOC);
+                    } catch (Throwable $e) { /* mantém recusados vazio */ }
+                }
+
+                if (ob_get_length()) ob_clean();
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode($recusados, JSON_UNESCAPED_UNICODE);
+            } catch (Throwable $e) {
+                if (ob_get_length()) ob_end_clean();
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(200);
+                echo json_encode([], JSON_UNESCAPED_UNICODE);
             }
             break;
 

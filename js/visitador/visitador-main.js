@@ -51,10 +51,6 @@ function getThemeStorageKeyVisitador() {
             document.getElementById('paginationContainer').style.display = 'none';
 
             const visitadorParam = currentVisitadorName || localStorage.getItem('userName') || '';
-            const anoEl = document.getElementById('anoSelect');
-            const mesEl = document.getElementById('mesSelect');
-            const ano = anoEl ? anoEl.value : (new Date().getFullYear()).toString();
-            const mes = mesEl && mesEl.value ? mesEl.value : '';
 
             try {
                 prescritorContatos = await apiGet('get_prescritor_contatos');
@@ -73,19 +69,23 @@ function getThemeStorageKeyVisitador() {
                 }
             }
 
-            const params = { visitador: visitadorParam, ano };
-            if (mes) params.mes = mes;
+            // Na página Prescritores (admin) os dados já vêm agregados por ano em all_prescritores.
+            // Para o modal do visitador, usamos a mesma API com a mesma assinatura (apenas visitador),
+            // reaproveitando exatamente os campos valor_aprovado / valor_recusado / total_pedidos.
+            const params = { visitador: visitadorParam };
             let list = [];
             try {
                 list = await apiGet('all_prescritores', params) || [];
             } catch (e) {
                 console.error('Erro ao carregar prescritores', e);
             }
-            // API retorna valor_aprovado, valor_recusado, total_pedidos; modal espera total_aprovado, total_recusado, qtd_aprovados
+            // API retorna valor_aprovado, valor_recusado, total_pedidos; modal espera total_aprovado, total_recusado, qtd_aprovados.
             allPrescritores = list.map(p => ({
                 ...p,
                 total_aprovado: p.valor_aprovado ?? p.total_aprovado ?? 0,
                 total_recusado: p.valor_recusado ?? p.total_recusado ?? 0,
+                valor_recusado: p.valor_recusado ?? p.total_recusado ?? 0,
+                qtd_recusados: p.qtd_recusados ?? 0,
                 qtd_aprovados: p.total_pedidos ?? p.qtd_aprovados ?? 0
             }));
             filteredPrescritores = [...allPrescritores];
