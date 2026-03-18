@@ -2962,7 +2962,14 @@ function getThemeStorageKeyVisitador() {
             }
             if (dataDe || dataAte) {
                 list = list.filter(function (p) {
-                    var d = (p.data_aprovacao || p.data_orcamento || '').trim().slice(0, 10);
+                    // Recusados: priorizar data do orçamento para bater com o período; aprovados: data aprovação
+                    var raw = ((p.tipo || '') === 'Recusado'
+                        ? (p.data_orcamento || p.data_aprovacao)
+                        : (p.data_aprovacao || p.data_orcamento)) || '';
+                    raw = String(raw).trim();
+                    var m = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+                    var d = m ? m[1] : '';
+                    if (!d && (p.tipo || '') === 'Recusado') return true;
                     if (!d) return false;
                     if (dataDe && d < dataDe) return false;
                     if (dataAte && d > dataAte) return false;
@@ -3017,8 +3024,8 @@ function getThemeStorageKeyVisitador() {
                 html += '<tr role="button" tabindex="0" onclick="openModalDetalhePedido(' + n + ',' + (s === null || s === undefined || s === '' ? 0 : s) + ',\'' + String(ano || '').replace(/'/g, "\\'") + '\')" style="cursor:pointer;" title="Ver detalhes e componentes">';
                 html += '<td>' + esc(p.numero_pedido) + '</td>';
                 html += '<td>' + esc(serieStr(p)) + '</td>';
-                html += '<td>' + esc(fmtDate(p.data_aprovacao)) + '</td>';
-                html += '<td>' + esc(p.data_orcamento ? fmtDate(p.data_orcamento) : '—') + '</td>';
+                html += '<td>' + esc((p.tipo === 'Recusado') ? '—' : fmtDate(p.data_aprovacao)) + '</td>';
+                html += '<td>' + esc(fmtDate(p.data_orcamento || (p.tipo === 'Aprovado' ? p.data_aprovacao : ''))) + '</td>';
                 html += '<td>' + esc(p.prescritor) + '</td>';
                 html += '<td>' + esc(p.cliente) + '</td>';
                 html += '<td style="text-align:right; font-weight:600; color:' + (isAprovado ? 'var(--success)' : 'var(--danger)') + ';">' + esc(fmtMoney(p.valor)) + '</td>';

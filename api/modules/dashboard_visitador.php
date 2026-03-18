@@ -862,29 +862,213 @@ function dashboardListPedidosVisitador(PDO $pdo): void
     $stmtA->execute($params);
     $aprovados = $stmtA->fetchAll(PDO::FETCH_ASSOC);
 
-    // Recusados/No carrinho: itens_orcamentos_pedidos (mesma fonte do prescritor_resumido; gestao_pedidos não traz esses status)
-    $filtroMesItens = $mes ? " AND MONTH(i.data) = :mes" : "";
-    $filtroPrescritorItens = $prescritorFilter !== null ? " AND (COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm') = :prescritor)" : "";
-    $sqlRecusados = "
+    // Recusados/No carrinho: itens + prescritor_resumido (mesma regra da importação: nome do CSV ↔ visitador)
+    $nomeList = trim($nome);
+    $isMyPharmList = (strcasecmp($nomeList, 'My Pharm') === 0);
+    $visitadorPrSql = $isMyPharmList
+        ? "(pr.visitador IS NULL OR TRIM(pr.visitador) = '' OR LOWER(TRIM(pr.visitador)) = 'my pharm' OR pr.visitador = 'My Pharm' OR UPPER(TRIM(pr.visitador)) = 'MY PHARM')"
+        : 'TRIM(COALESCE(pr.visitador, \'\')) = TRIM(:nome)';
+
+    $filtroMesItens = $mes
+        ? " AND MONTH(COALESCE(i.data, gpad.dt_orc, gpad.dt_apr)) = :mes"
+        : "";
+    $filtroPrescritorItens = $prescritorFilter !== null
+        ? " AND UPPER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm'))) = UPPER(TRIM(:prescritor))"
+        : "";
+
+    $statusRecusadoSql = "(LOWER(TRIM(COALESCE(i.status,''))) IN ('recusado', 'no carrinho') OR TRIM(COALESCE(i.status,'')) IN ('Recusado', 'No carrinho'))";
+
+    // Data do orçamento: qualquer linha do mesmo nº+série+ano (não filtrar por status — a data é do pedido)
+    $subDataItem = "(SELECT MAX(x.data) FROM itens_orcamentos_pedidos x
+        WHERE x.numero = i.numero AND x.serie = i.serie AND x.ano_referencia = i.ano_referencia)";
+
+    // Datas do pedido na gestão (mesmo nº/série/ano) — fallback quando itens.data vier vazio
+    $joinGpad = "
+        LEFT JOIN (
+            SELECT numero_pedido, serie_pedido, ano_referencia,
+                MAX(data_orcamento) AS dt_orc,
+                MAX(data_aprovacao) AS dt_apr
+            FROM gestao_pedidos
+            GROUP BY numero_pedido, serie_pedido, ano_referencia
+        ) gpad ON gpad.numero_pedido = i.numero AND gpad.serie_pedido = i.serie AND gpad.ano_referencia = i.ano_referencia
+    ";
+
+    $sqlRecusadosPr = "
         SELECT i.numero as numero_pedido, i.serie as serie_pedido,
-               MAX(i.data) as data_aprovacao, MAX(i.data) as data_orcamento,
-               COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm') as prescritor,
+               NULL as data_aprovacao,
+               COALESCE(DATE($subDataItem), DATE(MAX(gpad.dt_orc)), DATE(MAX(gpad.dt_apr))) as data_orcamento,
+               COALESCE(NULLIF(TRIM(MAX(i.prescritor)),''), 'My Pharm') as prescritor,
                COALESCE(MAX(NULLIF(TRIM(i.paciente),'')), '-') as cliente,
                SUM(i.valor_liquido) as valor,
-               MAX(CASE WHEN i.status = 'Recusado' THEN 'Recusado' ELSE 'No carrinho' END) as status_financeiro
+               MAX(CASE WHEN LOWER(TRIM(COALESCE(i.status,''))) LIKE 'recusad%' THEN 'Recusado' ELSE 'No carrinho' END) as status_financeiro
         FROM itens_orcamentos_pedidos i
-        INNER JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm') = pc.nome
-           AND TRIM(COALESCE(pc.visitador, '')) = TRIM(:nome)
+        $joinGpad
+        INNER JOIN prescritor_resumido pr
+            ON pr.nome = COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm')
+            AND pr.ano_referencia = i.ano_referencia
+            AND $visitadorPrSql
         WHERE i.ano_referencia = :ano
-          AND (i.status = 'Recusado' OR i.status = 'No carrinho')
+          AND $statusRecusadoSql
           $filtroMesItens
           $filtroPrescritorItens
         GROUP BY i.numero, i.serie, COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm')
-        ORDER BY data_aprovacao DESC, i.numero DESC, i.serie DESC
+        ORDER BY i.numero DESC, i.serie DESC
     ";
-    $stmtR = $pdo->prepare($sqlRecusados);
-    $stmtR->execute($params);
-    $recusados_carrinho = $stmtR->fetchAll(PDO::FETCH_ASSOC);
+
+    $visitadorPcSql = $isMyPharmList
+        ? "(pc.visitador IS NULL OR TRIM(pc.visitador) = '' OR LOWER(TRIM(pc.visitador)) = 'my pharm' OR pc.visitador = 'My Pharm' OR UPPER(TRIM(pc.visitador)) = 'MY PHARM')"
+        : 'TRIM(COALESCE(pc.visitador, \'\')) = TRIM(:nome)';
+
+    $sqlRecusadosPc = "
+        SELECT i.numero as numero_pedido, i.serie as serie_pedido,
+               NULL as data_aprovacao,
+               COALESCE(DATE($subDataItem), DATE(MAX(gpad.dt_orc)), DATE(MAX(gpad.dt_apr))) as data_orcamento,
+               pc.nome as prescritor,
+               COALESCE(MAX(NULLIF(TRIM(i.paciente),'')), '-') as cliente,
+               SUM(i.valor_liquido) as valor,
+               MAX(CASE WHEN LOWER(TRIM(COALESCE(i.status,''))) LIKE 'recusad%' THEN 'Recusado' ELSE 'No carrinho' END) as status_financeiro
+        FROM itens_orcamentos_pedidos i
+        $joinGpad
+        INNER JOIN prescritores_cadastro pc
+            ON UPPER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm'))) = UPPER(TRIM(pc.nome))
+            AND $visitadorPcSql
+        WHERE i.ano_referencia = :ano
+          AND $statusRecusadoSql
+          $filtroMesItens
+          $filtroPrescritorItens
+        GROUP BY i.numero, i.serie, pc.nome
+        ORDER BY i.numero DESC, i.serie DESC
+    ";
+
+    $recPr = [];
+    $recPc = [];
+    try {
+        $stmtR = $pdo->prepare($sqlRecusadosPr);
+        $stmtR->execute($params);
+        $recPr = $stmtR->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) { /* ignora */ }
+    try {
+        $stmtR2 = $pdo->prepare($sqlRecusadosPc);
+        $stmtR2->execute($params);
+        $recPc = $stmtR2->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) { /* ignora */ }
+
+    $recusadosMap = [];
+    foreach (array_merge($recPr, $recPc) as $row) {
+        $k = (int)($row['numero_pedido'] ?? 0) . '_' . (int)($row['serie_pedido'] ?? 0);
+        $dNew = trim((string)($row['data_orcamento'] ?? ''));
+        $okNew = ($dNew !== '' && strpos($dNew, '0000-00-00') !== 0);
+        if (!isset($recusadosMap[$k])) {
+            $recusadosMap[$k] = $row;
+        } else {
+            $dOld = trim((string)($recusadosMap[$k]['data_orcamento'] ?? ''));
+            $okOld = ($dOld !== '' && strpos($dOld, '0000-00-00') !== 0);
+            if (!$okOld && $okNew) {
+                $recusadosMap[$k] = $row;
+            }
+        }
+    }
+    $recusados_carrinho = array_values($recusadosMap);
+
+    // Garantir data_orcamento: mapa em lote (evita NULL do GROUP BY / merge) + fallback gestão
+    try {
+        $stIt = $pdo->prepare("
+            SELECT numero, serie, MAX(data) AS dt
+            FROM itens_orcamentos_pedidos
+            WHERE ano_referencia = :ano
+            GROUP BY numero, serie
+        ");
+        $stIt->execute(['ano' => $ano]);
+        $mapDataItem = [];
+        while ($z = $stIt->fetch(PDO::FETCH_ASSOC)) {
+            $dt = $z['dt'] ?? null;
+            if ($dt === null || $dt === '' || strpos((string)$dt, '0000-00-00') === 0) {
+                continue;
+            }
+            $mapDataItem[(int)$z['numero'] . '_' . (int)$z['serie']] = substr((string)$dt, 0, 10);
+        }
+        // Fonte oficial da data do orçamento: tabela orcamentos_pedidos (campo data por numero+serie)
+        $mapOrcOp = [];
+        try {
+            $stOp = $pdo->query(
+                'SELECT numero, serie, MAX(`data`) AS dt FROM orcamentos_pedidos GROUP BY numero, serie'
+            );
+            if ($stOp) {
+                while ($z = $stOp->fetch(PDO::FETCH_ASSOC)) {
+                    $dt = $z['dt'] ?? null;
+                    if ($dt === null || $dt === '' || strpos((string)$dt, '0000-00-00') === 0) {
+                        continue;
+                    }
+                    $mapOrcOp[(int)$z['numero'] . '_' . (int)($z['serie'] ?? 0)] = substr((string)$dt, 0, 10);
+                }
+            }
+        } catch (Throwable $e) {
+            /* tabela pode não existir em alguns ambientes */
+        }
+        $stGp = $pdo->prepare("
+            SELECT numero_pedido, serie_pedido,
+                MAX(data_orcamento) AS dorc, MAX(data_aprovacao) AS dapr
+            FROM gestao_pedidos
+            WHERE ano_referencia = :ano
+            GROUP BY numero_pedido, serie_pedido
+        ");
+        $stGp->execute(['ano' => $ano]);
+        $mapDataGp = [];
+        while ($z = $stGp->fetch(PDO::FETCH_ASSOC)) {
+            $tOrc = 0;
+            $tApr = 0;
+            foreach (['dorc', 'dapr'] as $idx => $col) {
+                $v = $z[$col] ?? null;
+                if ($v && strpos((string)$v, '0000-00-00') !== 0) {
+                    $ts = @strtotime((string)$v);
+                    if ($ts > 0) {
+                        if ($idx === 0) {
+                            $tOrc = max($tOrc, $ts);
+                        } else {
+                            $tApr = max($tApr, $ts);
+                        }
+                    }
+                }
+            }
+            $kkGp = (int)$z['numero_pedido'] . '_' . (int)$z['serie_pedido'];
+            if ($tOrc > 0) {
+                $mapDataGp[$kkGp] = date('Y-m-d', $tOrc);
+            } elseif ($tApr > 0) {
+                $mapDataGp[$kkGp] = date('Y-m-d', $tApr);
+            }
+        }
+        foreach ($recusados_carrinho as &$rw) {
+            $kk = (int)($rw['numero_pedido'] ?? 0) . '_' . (int)($rw['serie_pedido'] ?? 0);
+            if (isset($mapOrcOp[$kk])) {
+                $rw['data_orcamento'] = $mapOrcOp[$kk];
+            } else {
+                $dorc = isset($rw['data_orcamento']) ? trim((string)$rw['data_orcamento']) : '';
+                if ($dorc === '' || $dorc === '0000-00-00' || strpos($dorc, '0000-00-00') === 0) {
+                    if (isset($mapDataItem[$kk])) {
+                        $rw['data_orcamento'] = $mapDataItem[$kk];
+                    } elseif (isset($mapDataGp[$kk])) {
+                        $rw['data_orcamento'] = $mapDataGp[$kk];
+                    }
+                }
+            }
+        }
+        unset($rw);
+    } catch (Throwable $e) { /* mantém datas já vindas da query */ }
+
+    usort($recusados_carrinho, function ($a, $b) {
+        $ref = function ($r) {
+            $o = substr((string)($r['data_orcamento'] ?? ''), 0, 10);
+            $ap = substr((string)($r['data_aprovacao'] ?? ''), 0, 10);
+            return $o !== '' ? $o : $ap;
+        };
+        $da = $ref($a);
+        $db = $ref($b);
+        $c = strcmp($db, $da);
+        if ($c !== 0) return $c;
+        $c = ((int)($b['numero_pedido'] ?? 0) - (int)($a['numero_pedido'] ?? 0));
+        if ($c !== 0) return $c > 0 ? 1 : -1;
+        return ((int)($b['serie_pedido'] ?? 0) - (int)($a['serie_pedido'] ?? 0)) > 0 ? 1 : -1;
+    });
 
     $normalizarData = function (&$row) {
         foreach (['data_aprovacao', 'data_orcamento'] as $campo) {
