@@ -2969,7 +2969,7 @@ function getThemeStorageKeyVisitador() {
                     raw = String(raw).trim();
                     var m = raw.match(/^(\d{4}-\d{2}-\d{2})/);
                     var d = m ? m[1] : '';
-                    if (!d && (p.tipo || '') === 'Recusado') return true;
+                    if (!d && (dataDe || dataAte)) return false; // Se não tem data, mascara fora caso tenha filtro de período.
                     if (!d) return false;
                     if (dataDe && d < dataDe) return false;
                     if (dataAte && d > dataAte) return false;

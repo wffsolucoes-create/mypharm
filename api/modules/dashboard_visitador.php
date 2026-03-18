@@ -878,19 +878,19 @@ function dashboardListPedidosVisitador(PDO $pdo): void
 
     $statusRecusadoSql = "(LOWER(TRIM(COALESCE(i.status,''))) IN ('recusado', 'no carrinho') OR TRIM(COALESCE(i.status,'')) IN ('Recusado', 'No carrinho'))";
 
-    // Data do orçamento: qualquer linha do mesmo nº+série+ano (não filtrar por status — a data é do pedido)
+    // Data do orçamento: qualquer linha do mesmo nº+ano (não filtrar por status — a data é do pedido)
     $subDataItem = "(SELECT MAX(x.data) FROM itens_orcamentos_pedidos x
-        WHERE x.numero = i.numero AND x.serie = i.serie AND x.ano_referencia = i.ano_referencia)";
+        WHERE x.numero = i.numero AND x.ano_referencia = i.ano_referencia)";
 
     // Datas do pedido na gestão (mesmo nº/série/ano) — fallback quando itens.data vier vazio
     $joinGpad = "
         LEFT JOIN (
-            SELECT numero_pedido, serie_pedido, ano_referencia,
+            SELECT numero_pedido, ano_referencia,
                 MAX(data_orcamento) AS dt_orc,
                 MAX(data_aprovacao) AS dt_apr
             FROM gestao_pedidos
-            GROUP BY numero_pedido, serie_pedido, ano_referencia
-        ) gpad ON gpad.numero_pedido = i.numero AND gpad.serie_pedido = i.serie AND gpad.ano_referencia = i.ano_referencia
+            GROUP BY numero_pedido, ano_referencia
+        ) gpad ON gpad.numero_pedido = i.numero AND gpad.ano_referencia = i.ano_referencia
     ";
 
     $sqlRecusadosPr = "

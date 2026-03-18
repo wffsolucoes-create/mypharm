@@ -204,7 +204,7 @@ foreach ($anos as $ano) {
             trim($row['Filial'] ?? ''),
             (int)($row['Número'] ?? 0),
             (int)($row['Série'] ?? 0),
-            parseBRDate($row['Data'] ?? ''),
+            parseBRDate($row['Data de Criação do Pedido'] ?? $row['Data de Criação do Pedido'] ?? $row['Data'] ?? ''),
             trim($row['Canal'] ?? ''),
             trim($row['Forma Farmacêutica'] ?? ''),
             trim($row['Descriçao'] ?? $row['Descrição'] ?? ''),

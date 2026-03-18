@@ -450,7 +450,7 @@ try {
                 trim($row['Filial'] ?? ''),
                 intval($row['Número'] ?? 0),
                 intval($row['Série'] ?? 0),
-                parseBRDate($row['Data'] ?? ''),
+                parseBRDate($row['Data de Criação do Pedido'] ?? $row['Data'] ?? ''),
                 trim($row['Canal'] ?? ''),
                 trim($row['Forma Farmacêutica'] ?? ''),
                 trim($row['Descriçao'] ?? $row['Descrição'] ?? ''),
