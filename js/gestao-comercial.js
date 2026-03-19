@@ -4,6 +4,8 @@
     let gcSelectedVendedor = '__ALL__';
     let gcDashboardData = null;
     let gcNomesVendedores = [];
+    let gcLoading = false;
+    let gcApplyBtnHtml = null;
 
     function getThemeStorageKey() {
         const userName = (localStorage.getItem('userName') || '').trim().toLowerCase();
@@ -52,8 +54,13 @@
         try {
             return text ? JSON.parse(text) : {};
         } catch (e) {
-            if (!r.ok) console.error('Resposta não-JSON:', text ? text.slice(0, 200) : r.status);
-            return { success: false, error: r.ok ? '' : 'Erro ' + r.status };
+            console.error('Gestão Comercial apiGet:', action, e.message, text ? text.slice(0, 400) : '(vazio)');
+            return {
+                success: false,
+                error: r.ok
+                    ? 'A API retornou texto que não é JSON (veja erros PHP ou avisos antes do JSON no Network/F12).'
+                    : ('Erro HTTP ' + r.status)
+            };
         }
     }
 
@@ -241,47 +248,120 @@
         }
     }
 
-    async function loadDashboardData() {
-        const deEl = document.getElementById('gcDataDe');
-        const ateEl = document.getElementById('gcDataAte');
-        const params = {};
-        if (deEl?.value) params.data_de = deEl.value;
-        if (ateEl?.value) params.data_ate = ateEl.value;
-        var data = await apiGet('gestao_comercial_dashboard', params);
-        if (data && data.error) {
-            console.error('Gestão Comercial (dashboard):', data.error);
-            if (!document.getElementById('gcApiError')) {
-                var errWrap = document.querySelector('.gc-filters');
-                if (errWrap) {
-                    var errEl = document.createElement('div');
-                    errEl.id = 'gcApiError';
-                    errEl.className = 'gc-api-error';
-                    errEl.setAttribute('role', 'alert');
-                    errEl.textContent = data.error;
-                    errWrap.appendChild(errEl);
-                }
+    function showGcDashboardError(msg) {
+        if (!msg) return;
+        console.error('Gestão Comercial (dashboard):', msg);
+        var errWrap = document.querySelector('.gc-filters');
+        if (!errWrap) return;
+        var errEl = document.getElementById('gcApiError');
+        if (!errEl) {
+            errEl = document.createElement('div');
+            errEl.id = 'gcApiError';
+            errEl.className = 'gc-api-error';
+            errEl.setAttribute('role', 'alert');
+            errWrap.appendChild(errEl);
+        }
+        errEl.textContent = msg;
+    }
+
+    function clearGcDashboardError() {
+        var errEl = document.getElementById('gcApiError');
+        if (errEl) errEl.remove();
+    }
+
+    function setGcLoading(isLoading) {
+        gcLoading = !!isLoading;
+        const app = document.getElementById('gcApp');
+        if (app) app.classList.toggle('gc-loading', gcLoading);
+        const overlay = document.getElementById('gcLoadingOverlay');
+        if (overlay) {
+            overlay.classList.toggle('active', gcLoading);
+            overlay.setAttribute('aria-hidden', gcLoading ? 'false' : 'true');
+        }
+
+        const applyBtn = document.getElementById('gcApplyFiltersBtn');
+        if (applyBtn) {
+            if (gcApplyBtnHtml === null) gcApplyBtnHtml = applyBtn.innerHTML;
+            applyBtn.disabled = gcLoading;
+            applyBtn.classList.toggle('is-loading', gcLoading);
+            applyBtn.innerHTML = gcLoading
+                ? '<i class="fas fa-circle-notch fa-spin"></i> Carregando...'
+                : gcApplyBtnHtml;
+        }
+
+        document.querySelectorAll('.gc-card .gc-value').forEach(function (el) {
+            if (!el.dataset.gcDefaultValue) {
+                el.dataset.gcDefaultValue = (el.textContent || '—').trim() || '—';
+            }
+            if (gcLoading) {
+                el.textContent = 'Carregando...';
+                el.classList.add('is-loading');
             } else {
-                document.getElementById('gcApiError').textContent = data.error;
+                el.classList.remove('is-loading');
+                if ((el.textContent || '').trim() === 'Carregando...') {
+                    el.textContent = el.dataset.gcDefaultValue || '—';
+                }
             }
-        } else {
-            var errEl = document.getElementById('gcApiError');
-            if (errEl) errEl.remove();
-        }
-        if (!data || data.success === false) {
-            data = data || {};
-        }
-        gcDashboardData = data;
-        gcNomesVendedores = [];
+        });
+
+        const tbodies = [
+            { id: 'gcVendEquipeTbody', cols: 9, emptyText: 'Sem dados no período selecionado.' },
+            { id: 'gcVendMotivosTbody', cols: 3, emptyText: 'Sem perdas registradas no período.' },
+            { id: 'gcVendRejeitadosTbody', cols: 5, emptyText: 'Sem clientes rejeitados no período.' }
+        ];
+        tbodies.forEach(function (cfg) {
+            const body = document.getElementById(cfg.id);
+            if (!body) return;
+            if (gcLoading) {
+                body.innerHTML = '<tr><td colspan="' + cfg.cols + '">Carregando dados...</td></tr>';
+                return;
+            }
+            if (body.textContent && body.textContent.indexOf('Carregando dados...') !== -1) {
+                body.innerHTML = '<tr><td colspan="' + cfg.cols + '">' + cfg.emptyText + '</td></tr>';
+            }
+        });
+    }
+
+    async function loadDashboardData() {
+        setGcLoading(true);
         try {
-            var resLista = await apiGet('gestao_comercial_lista_vendedores', {});
-            if (resLista && resLista.success && Array.isArray(resLista.nomes)) {
-                gcNomesVendedores = resLista.nomes;
+            const deEl = document.getElementById('gcDataDe');
+            const ateEl = document.getElementById('gcDataAte');
+            const params = {};
+            if (deEl?.value) params.data_de = deEl.value;
+            if (ateEl?.value) params.data_ate = ateEl.value;
+            var data = await apiGet('gestao_comercial_dashboard', params);
+
+            var dashboardOk = data && data.success === true && data.crescimento && typeof data.crescimento === 'object';
+            if (!dashboardOk) {
+                var msg = (data && data.error) ? data.error : '';
+                if (!msg) {
+                    if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
+                        msg = 'Resposta vazia da API. Abra o DevTools (F12) → aba Network → gestao_comercial_dashboard e veja o corpo da resposta.';
+                    } else {
+                        msg = 'O painel não retornou dados válidos (success ou bloco crescimento ausente). Confirme login como administrador e tente Aplicar de novo.';
+                    }
+                }
+                showGcDashboardError(msg);
+                return;
             }
-        } catch (e) {}
-        renderExecutivo(data);
-        renderRdMetricas(data.rd_metricas, data.rd_metricas_error);
-        renderVendedoresTabs(data, gcNomesVendedores);
-        renderVendedores(data);
+            clearGcDashboardError();
+
+            gcDashboardData = data;
+            gcNomesVendedores = [];
+            try {
+                var resLista = await apiGet('gestao_comercial_lista_vendedores', {});
+                if (resLista && resLista.success && Array.isArray(resLista.nomes)) {
+                    gcNomesVendedores = resLista.nomes;
+                }
+            } catch (e) {}
+            renderExecutivo(data);
+            renderRdMetricas(data.rd_metricas, data.rd_metricas_error);
+            renderVendedoresTabs(data, gcNomesVendedores);
+            renderVendedores(data);
+        } finally {
+            setGcLoading(false);
+        }
     }
 
     function fmtVal(v, type) {
@@ -376,7 +456,7 @@
 
     function validateLocalAccess() {
         if (!localStorage.getItem('loggedIn')) return false;
-        return (localStorage.getItem('userType') || '') === 'admin';
+        return String(localStorage.getItem('userType') || '').toLowerCase() === 'admin';
     }
 
     async function enforceAdminAccess() {
@@ -386,7 +466,7 @@
         }
         try {
             const session = await fetchSession();
-            if (!session || !session.logged_in || session.tipo !== 'admin') {
+            if (!session || !session.logged_in || String(session.tipo || '').toLowerCase() !== 'admin') {
                 forceLogoutRedirect();
                 return null;
             }

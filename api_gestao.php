@@ -54,6 +54,33 @@ if (!in_array($action, $allowedActions)) {
     exit;
 }
 
+/**
+ * Compatibilidade: se a sessão PHP existe mas a tabela user_sessions perdeu o registro
+ * (limpeza/manual/restore), recria o vínculo e evita 401 falso no painel.
+ */
+function gcEnsureSessionIsValidOrRepair(PDO $pdo): array
+{
+    $sessionCheck = validateAndRefreshUserSession($pdo);
+    if (($sessionCheck['valid'] ?? false) === true) {
+        return ['valid' => true];
+    }
+    $reason = (string)($sessionCheck['reason'] ?? '');
+    $userId = (int)($_SESSION['user_id'] ?? 0);
+    if ($userId > 0 && in_array($reason, ['session_not_found', 'session_gone'], true)) {
+        try {
+            registerUserSession($pdo, $userId);
+            $sessionCheck2 = validateAndRefreshUserSession($pdo);
+            if (($sessionCheck2['valid'] ?? false) === true) {
+                return ['valid' => true, 'repaired' => true];
+            }
+            return $sessionCheck2;
+        } catch (Throwable $e) {
+            return ['valid' => false, 'reason' => 'repair_failed'];
+        }
+    }
+    return $sessionCheck;
+}
+
 function handleTvCorridaVendedores(PDO $pdo): void
 {
     $today = new DateTimeImmutable('today');
@@ -325,7 +352,7 @@ if ($action === 'gestao_rd_metricas') {
     }
     try {
         $pdo = getConnection();
-        $sessionCheck = validateAndRefreshUserSession($pdo);
+        $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
         if (!($sessionCheck['valid'] ?? true)) {
             http_response_code(401);
             echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
@@ -397,7 +424,7 @@ if (!isset($_SESSION['user_id'])) {
 
 try {
     $pdo = getConnection();
-    $sessionCheck = validateAndRefreshUserSession($pdo);
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
     if (!($sessionCheck['valid'] ?? true)) {
         http_response_code(401);
         echo json_encode(['error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);

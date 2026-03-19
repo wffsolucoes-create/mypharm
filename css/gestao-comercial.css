@@ -87,6 +87,11 @@
     transform: scale(0.98);
 }
 
+.gc-filter-btn.is-loading {
+    opacity: 0.85;
+    cursor: wait;
+}
+
 .gc-api-error {
     color: var(--danger, #dc2626);
     font-size: 0.9rem;
@@ -95,6 +100,46 @@
     background: rgba(220, 38, 38, 0.1);
     border-radius: 8px;
     width: 100%;
+}
+
+.gc-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(3, 7, 18, 0.64);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+.gc-loading-overlay.active {
+    display: flex;
+}
+
+.gc-loading-overlay-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.gc-loading-spinner {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #2563eb;
+    border-right-color: #ef4444;
+    animation: gcSpin 0.9s linear infinite;
+}
+
+@keyframes gcSpin {
+    to { transform: rotate(360deg); }
 }
 
 .gc-vendedor-tabs-wrap {
@@ -224,6 +269,17 @@
     font-size: 1.35rem;
     letter-spacing: -0.02em;
     line-height: 1.3;
+}
+
+.gc-value.is-loading {
+    opacity: 0.75;
+    animation: gcPulse 1.1s ease-in-out infinite;
+}
+
+@keyframes gcPulse {
+    0% { opacity: 0.45; }
+    50% { opacity: 0.95; }
+    100% { opacity: 0.45; }
 }
 
 .gc-value-sm {

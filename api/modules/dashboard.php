@@ -202,6 +202,138 @@ function dashboardTopFormas(PDO $pdo): void
 }
 
 // ---------------------------------------------------------------------------
+// Período para itens_orcamentos_pedidos.data (alinhado a data_de/data_ate ou ano/mês)
+// ---------------------------------------------------------------------------
+/**
+ * @return array{0: string, 1: array<string, mixed>} SQL extra (com AND inicial) e params
+ */
+function dashboardItensDataPeriodSql(): array
+{
+    $dataDe = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : '';
+    $dataAte = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : '';
+    if ($dataDe !== '' && $dataAte !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDe) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAte)) {
+        if ($dataDe > $dataAte) {
+            $dataAte = $dataDe;
+        }
+        return [' AND DATE(i.data) BETWEEN :dash_data_de AND :dash_data_ate', ['dash_data_de' => $dataDe, 'dash_data_ate' => $dataAte]];
+    }
+    $ano = isset($_GET['ano']) ? $_GET['ano'] : null;
+    $mes = isset($_GET['mes']) ? $_GET['mes'] : null;
+    $dia = isset($_GET['dia']) ? $_GET['dia'] : null;
+    if ($ano && $mes && $dia) {
+        $df = sprintf('%04d-%02d-%02d', (int)$ano, (int)$mes, (int)$dia);
+        return [' AND DATE(i.data) = :dash_data_filtro', ['dash_data_filtro' => $df]];
+    }
+    if ($ano && $mes) {
+        return [' AND YEAR(i.data) = :dash_ano AND MONTH(i.data) = :dash_mes', ['dash_ano' => (int)$ano, 'dash_mes' => (int)$mes]];
+    }
+    if ($ano) {
+        return [' AND YEAR(i.data) = :dash_ano_only', ['dash_ano_only' => (int)$ano]];
+    }
+    return ['', []];
+}
+
+/**
+ * Mapa prescritor normalizado (UPPER TRIM) => [ valor_recusado+carrinho, qtd ]
+ * Fonte: itens_orcamentos_pedidos (igual all_prescritores / get_recusados_prescritores).
+ * gestao_pedidos em muitas bases não traz linhas Recusado/No carrinho.
+ */
+function dashboardRecusadosPorPrescritorFromItens(PDO $pdo): array
+{
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS itens_orcamentos_pedidos (
+            id INT AUTO_INCREMENT PRIMARY KEY, filial VARCHAR(100), numero INT NOT NULL DEFAULT 0, serie INT NOT NULL DEFAULT 0,
+            data DATE NULL, canal VARCHAR(50), forma_farmaceutica VARCHAR(100), descricao VARCHAR(255),
+            quantidade INT NOT NULL DEFAULT 1, unidade VARCHAR(20),
+            valor_bruto DECIMAL(14,2) DEFAULT 0, valor_liquido DECIMAL(14,2) DEFAULT 0, preco_custo DECIMAL(14,2) DEFAULT 0, fator DECIMAL(10,2) DEFAULT 0,
+            status VARCHAR(50), usuario_inclusao VARCHAR(100), usuario_aprovador VARCHAR(100),
+            paciente VARCHAR(255), prescritor VARCHAR(255), status_financeiro VARCHAR(50), ano_referencia INT NOT NULL,
+            INDEX idx_ano (ano_referencia), INDEX idx_prescritor (prescritor(100)), INDEX idx_status (status),
+            INDEX idx_numero_serie (numero, serie)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    } catch (Throwable $e) { /* ignora */ }
+
+    list($periodSql, $periodParams) = dashboardItensDataPeriodSql();
+    $sql = "
+        SELECT
+            UPPER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm'))) AS k,
+            COALESCE(SUM(i.valor_liquido), 0) AS valor_recusado,
+            COUNT(*) AS qtd_recusados
+        FROM itens_orcamentos_pedidos i
+        WHERE i.data IS NOT NULL
+          AND (i.status = 'Recusado' OR i.status = 'No carrinho' OR LOWER(TRIM(i.status)) = 'no carrinho')
+          $periodSql
+        GROUP BY k
+    ";
+    $map = [];
+    try {
+        $stmt = $pdo->prepare($sql);
+        foreach ($periodParams as $k => $v) {
+            $stmt->bindValue(':' . $k, $v, is_int($v) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $stmt->execute();
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $key = (string)($r['k'] ?? '');
+            if ($key !== '') {
+                $map[$key] = [(float)($r['valor_recusado'] ?? 0), (int)($r['qtd_recusados'] ?? 0)];
+            }
+        }
+    } catch (Throwable $e) {
+        return [];
+    }
+    return $map;
+}
+
+/**
+ * Fallback anual quando itens não retorna nada (sem faixa de datas no GET).
+ */
+function dashboardRecusadosPorPrescritorFromResumido(PDO $pdo, int $anoRef): array
+{
+    $sql = "
+        SELECT
+            UPPER(TRIM(COALESCE(NULLIF(TRIM(pr.nome), ''), 'My Pharm'))) AS k,
+            (COALESCE(SUM(pr.valor_recusado), 0) + COALESCE(SUM(pr.valor_no_carrinho), 0)) AS valor_recusado,
+            (COALESCE(SUM(pr.recusados), 0) + COALESCE(SUM(pr.no_carrinho), 0)) AS qtd_recusados
+        FROM prescritor_resumido pr
+        WHERE pr.ano_referencia = :ano_ref
+        GROUP BY k
+    ";
+    $map = [];
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindValue(':ano_ref', $anoRef, PDO::PARAM_INT);
+        $stmt->execute();
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $key = (string)($r['k'] ?? '');
+            if ($key !== '') {
+                $map[$key] = [(float)($r['valor_recusado'] ?? 0), (int)($r['qtd_recusados'] ?? 0)];
+            }
+        }
+    } catch (Throwable $e) {
+        return [];
+    }
+    return $map;
+}
+
+function dashboardNormPrescritorKey(string $nome): string
+{
+    $n = trim($nome);
+    if ($n === '') {
+        $n = 'My Pharm';
+    }
+    return mb_strtoupper($n, 'UTF-8');
+}
+
+function dashboardNormVisitadorKey(string $nome): string
+{
+    $n = trim($nome);
+    if ($n === '') {
+        $n = 'My Pharm';
+    }
+    return mb_strtoupper($n, 'UTF-8');
+}
+
+// ---------------------------------------------------------------------------
 // Top prescritores
 // ---------------------------------------------------------------------------
 function dashboardTopPrescritores(PDO $pdo): void
@@ -209,7 +341,6 @@ function dashboardTopPrescritores(PDO $pdo): void
     list($whereCond, $paramsPresc) = buildDateFilter();
     $wherePresc = $whereCond === '1=1' ? '' : "WHERE $whereCond";
     $limit = safeLimit($_GET['limit'] ?? 10);
-    $anoPr = isset($paramsPresc['ano']) ? $paramsPresc['ano'] : date('Y');
 
     $stmt = $pdo->prepare("
         SELECT
@@ -217,11 +348,8 @@ function dashboardTopPrescritores(PDO $pdo): void
             SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN 1 ELSE 0 END) as total_pedidos,
             COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) as faturamento,
             COUNT(DISTINCT gp.cliente) as clientes_atendidos,
-            AVG(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido END) as ticket_medio,
-            (COALESCE(MAX(pr.valor_recusado), 0) + COALESCE(MAX(pr.valor_no_carrinho), 0)) as valor_recusado,
-            (COALESCE(MAX(pr.recusados), 0) + COALESCE(MAX(pr.no_carrinho), 0)) as qtd_recusados
+            AVG(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido END) as ticket_medio
         FROM gestao_pedidos gp
-        LEFT JOIN prescritor_resumido pr ON pr.nome = COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') AND pr.ano_referencia = :ano_pr
         $wherePresc
         GROUP BY COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm')
         ORDER BY faturamento DESC
@@ -230,9 +358,29 @@ function dashboardTopPrescritores(PDO $pdo): void
     foreach ($paramsPresc as $k => $v) {
         $stmt->bindValue(":$k", $v);
     }
-    $stmt->bindValue(':ano_pr', $anoPr, PDO::PARAM_INT);
     $stmt->execute();
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC), JSON_UNESCAPED_UNICODE);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $recMap = dashboardRecusadosPorPrescritorFromItens($pdo);
+    $dataDe = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : '';
+    $dataAte = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : '';
+    $temFaixaDatas = ($dataDe !== '' && $dataAte !== ''
+        && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDe) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAte));
+    // Com faixa de datas, só itens (por data) — evita misturar resumo anual incorreto no período.
+    if (empty($recMap) && !$temFaixaDatas) {
+        $anoFb = isset($paramsPresc['ano']) ? (int)$paramsPresc['ano'] : (int)date('Y');
+        $recMap = dashboardRecusadosPorPrescritorFromResumido($pdo, $anoFb);
+    }
+
+    foreach ($rows as &$row) {
+        $k = dashboardNormPrescritorKey((string)($row['prescritor'] ?? ''));
+        $pair = $recMap[$k] ?? [0.0, 0];
+        $row['valor_recusado'] = $pair[0];
+        $row['qtd_recusados'] = $pair[1];
+    }
+    unset($row);
+
+    echo json_encode($rows, JSON_UNESCAPED_UNICODE);
 }
 
 // ---------------------------------------------------------------------------
@@ -321,7 +469,7 @@ function dashboardCanais(PDO $pdo): void
 }
 
 // ---------------------------------------------------------------------------
-// Visitadores: faturamento e pedidos por visitador no período (carteira via prescritor_resumido)
+// Visitadores: aprovados (gestao_pedidos) + recusado/carrinho (itens_orcamentos_pedidos)
 // ---------------------------------------------------------------------------
 function dashboardVisitadoresStub(PDO $pdo): void
 {
@@ -332,8 +480,6 @@ function dashboardVisitadoresStub(PDO $pdo): void
         SELECT
             COALESCE(NULLIF(TRIM(pr.visitador), ''), 'My Pharm') AS visitador,
             COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) AS total_valor_aprovado,
-            COALESCE(SUM(CASE WHEN gp.status_financeiro = 'Recusado' THEN gp.preco_liquido ELSE 0 END), 0) AS total_valor_recusado,
-            COALESCE(SUM(CASE WHEN gp.status_financeiro IN ('Orçamento', 'No Carrinho') THEN gp.preco_liquido ELSE 0 END), 0) AS total_valor_carrinho,
             COUNT(DISTINCT COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')) AS total_prescritores,
             COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN 1 ELSE 0 END), 0) AS total_aprovados
         FROM gestao_pedidos gp
@@ -342,13 +488,83 @@ function dashboardVisitadoresStub(PDO $pdo): void
             AND pr.ano_referencia = YEAR(gp.data_aprovacao)
         WHERE gp.data_aprovacao IS NOT NULL $whereSql
         GROUP BY COALESCE(NULLIF(TRIM(pr.visitador), ''), 'My Pharm')
-        ORDER BY total_valor_aprovado DESC
     ");
     foreach ($params as $k => $v) {
         $stmt->bindValue(":$k", $v);
     }
     $stmt->execute();
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC), JSON_UNESCAPED_UNICODE);
+    $aprovRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    list($periodSql, $periodParams) = dashboardItensDataPeriodSql();
+    $recSql = "
+        SELECT
+            UPPER(TRIM(COALESCE(NULLIF(TRIM(pc.visitador), ''), 'My Pharm'))) AS k,
+            MIN(pc.visitador) AS visitador_label,
+            COALESCE(SUM(CASE WHEN i.status = 'Recusado' THEN i.valor_liquido ELSE 0 END), 0) AS total_valor_recusado,
+            COALESCE(SUM(CASE WHEN i.status = 'No carrinho' OR LOWER(TRIM(i.status)) = 'no carrinho' THEN i.valor_liquido ELSE 0 END), 0) AS total_valor_carrinho
+        FROM itens_orcamentos_pedidos i
+        INNER JOIN prescritores_cadastro pc
+            ON UPPER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor), ''), 'My Pharm'))) = UPPER(TRIM(pc.nome))
+        WHERE i.data IS NOT NULL
+          AND (i.status = 'Recusado' OR i.status = 'No carrinho' OR LOWER(TRIM(i.status)) = 'no carrinho')
+          $periodSql
+        GROUP BY k
+    ";
+    $recByKey = [];
+    try {
+        $stmtR = $pdo->prepare($recSql);
+        foreach ($periodParams as $pk => $pv) {
+            $stmtR->bindValue(':' . $pk, $pv, is_int($pv) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $stmtR->execute();
+        foreach ($stmtR->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $key = (string)($r['k'] ?? '');
+            if ($key === '') {
+                continue;
+            }
+            $recByKey[$key] = [
+                'total_valor_recusado' => (float)($r['total_valor_recusado'] ?? 0),
+                'total_valor_carrinho' => (float)($r['total_valor_carrinho'] ?? 0),
+                'visitador_label' => trim((string)($r['visitador_label'] ?? '')) ?: 'My Pharm',
+            ];
+        }
+    } catch (Throwable $e) {
+        $recByKey = [];
+    }
+
+    $merged = [];
+    foreach ($aprovRows as $row) {
+        $key = dashboardNormVisitadorKey((string)($row['visitador'] ?? ''));
+        $merged[$key] = [
+            'visitador' => $row['visitador'],
+            'total_valor_aprovado' => (float)($row['total_valor_aprovado'] ?? 0),
+            'total_valor_recusado' => 0.0,
+            'total_valor_carrinho' => 0.0,
+            'total_prescritores' => (int)($row['total_prescritores'] ?? 0),
+            'total_aprovados' => (int)($row['total_aprovados'] ?? 0),
+        ];
+    }
+    foreach ($recByKey as $key => $rec) {
+        if (!isset($merged[$key])) {
+            $merged[$key] = [
+                'visitador' => $rec['visitador_label'],
+                'total_valor_aprovado' => 0.0,
+                'total_valor_recusado' => 0.0,
+                'total_valor_carrinho' => 0.0,
+                'total_prescritores' => 0,
+                'total_aprovados' => 0,
+            ];
+        }
+        $merged[$key]['total_valor_recusado'] = $rec['total_valor_recusado'];
+        $merged[$key]['total_valor_carrinho'] = $rec['total_valor_carrinho'];
+    }
+
+    $out = array_values($merged);
+    usort($out, function ($a, $b) {
+        return ($b['total_valor_aprovado'] <=> $a['total_valor_aprovado']);
+    });
+
+    echo json_encode($out, JSON_UNESCAPED_UNICODE);
 }
 
 // ---------------------------------------------------------------------------

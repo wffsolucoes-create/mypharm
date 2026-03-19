@@ -8,6 +8,7 @@ let charts = {};
 let currentYear = '';
 let currentPage = 'dashboard';
 let __csrfToken = '';
+const MAIN_LAST_PAGE_KEY = 'mypharm_main_last_page';
 
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
@@ -377,7 +378,13 @@ function showApp(nome, tipo, fotoPerfil, setorInformado) {
     });
 
     initPeriodFilter();
-    loadDashboard();
+    // Restaurar a última aba após F5 (com fallback seguro para dashboard).
+    const allowedPages = ['dashboard', 'faturamento', 'prescritores', 'visitadores', 'visitas', 'clientes', 'produtos', 'equipe', 'insights', 'importar', 'admin'];
+    const savedPage = String(localStorage.getItem(MAIN_LAST_PAGE_KEY) || '').trim();
+    let pageToOpen = allowedPages.includes(savedPage) ? savedPage : 'dashboard';
+    if (pageToOpen === 'admin' && tipo !== 'admin') pageToOpen = 'dashboard';
+    currentPage = pageToOpen;
+    navigateTo(pageToOpen);
     if (document.getElementById('btnNotifications')) {
         initAdminNotifications();
         loadNotificacoesFromAPI();
@@ -492,6 +499,7 @@ function navigateTo(page) {
 
     const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
     if (navItem) navItem.classList.add('active');
+    try { localStorage.setItem(MAIN_LAST_PAGE_KEY, page); } catch (e) {}
 
     const titles = {
         'dashboard': 'Dashboard',

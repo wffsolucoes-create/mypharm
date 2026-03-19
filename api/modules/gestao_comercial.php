@@ -809,6 +809,17 @@ function gestaoComercialDashboard(PDO $pdo): void
         $payload['rd_metricas'] = null;
     }
 
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+    $jsonFlags = JSON_UNESCAPED_UNICODE;
+    if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+        $jsonFlags |= JSON_INVALID_UTF8_SUBSTITUTE;
+    }
+    $json = json_encode($payload, $jsonFlags);
+    if ($json === false) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao montar JSON do painel (dados inválidos para serialização).'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    echo $json;
+    exit;
 }
 
