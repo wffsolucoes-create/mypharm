@@ -1,3 +1,5 @@
+/* ========== Gestão Comercial – Layout profissional (grid 4 colunas) ========== */
+
 .gc-tabs {
     display: flex;
     gap: 10px;
@@ -40,10 +42,14 @@
 
 .gc-filters {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: end;
     flex-wrap: wrap;
-    margin-bottom: 14px;
+    margin-bottom: 20px;
+    padding: 14px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
 }
 
 .gc-filters label {
@@ -55,7 +61,7 @@
 }
 
 .gc-filters input {
-    background: var(--bg-card);
+    background: var(--bg-page, #fff);
     color: var(--text-primary);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -65,11 +71,30 @@
 .gc-filter-btn {
     border: none;
     border-radius: 8px;
-    padding: 8px 12px;
+    padding: 8px 16px;
     background: #2563EB;
     color: #fff;
     font-weight: 600;
     cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.gc-filter-btn:hover {
+    background: #1D4ED8;
+}
+
+.gc-filter-btn:active {
+    transform: scale(0.98);
+}
+
+.gc-api-error {
+    color: var(--danger, #dc2626);
+    font-size: 0.9rem;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: rgba(220, 38, 38, 0.1);
+    border-radius: 8px;
+    width: 100%;
 }
 
 .gc-vendedor-tabs-wrap {
@@ -105,53 +130,135 @@
     background: linear-gradient(135deg, #2563EB, #1D4ED8);
 }
 
+/* Blocos e títulos de seção */
 .gc-block {
-    margin-bottom: 20px;
+    margin-bottom: 28px;
 }
 
 .gc-block h3 {
-    margin: 0 0 10px 0;
+    margin: 0 0 16px 0;
     color: var(--text-primary);
-    font-size: 1rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
 }
 
 .gc-note {
-    margin-top: 10px;
+    margin-top: 12px;
     color: var(--text-secondary);
     font-size: 0.85rem;
 }
 
+/* Grid: 4 colunas em telas grandes, 2 em médias, 1 em pequenas */
 .gc-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 14px;
+    gap: 16px;
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 520px) {
+    .gc-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 900px) {
+    .gc-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 18px;
+    }
 }
 
 .gc-checklist {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 14px;
+    gap: 16px;
 }
 
+/* Cards profissionais: sombra, borda sutil, hover, barra de destaque */
 .gc-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px;
+    border-radius: 12px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.gc-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, #2563EB, #1D4ED8);
+    border-radius: 4px 0 0 4px;
+    opacity: 0.9;
+}
+
+.gc-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: rgba(37, 99, 235, 0.25);
+}
+
+[data-theme="dark"] .gc-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .gc-label {
     color: var(--text-secondary);
-    font-size: 0.8rem;
-    margin-bottom: 6px;
+    font-size: 0.75rem;
+    margin-bottom: 8px;
     text-transform: uppercase;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    line-height: 1.3;
 }
 
 .gc-value {
     color: var(--text-primary);
     font-weight: 700;
-    font-size: 1.25rem;
+    font-size: 1.35rem;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+}
+
+.gc-value-sm {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.gc-block-sub {
+    margin: 14px 0 8px 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.gc-rd-funil-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.gc-rd-funil-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+}
+
+.gc-rd-funil-stage {
+    color: var(--text-primary);
+}
+
+.gc-rd-funil-pipe {
+    color: var(--text-secondary);
+    margin-left: 6px;
 }
 
 .gc-card ul {
@@ -164,11 +271,13 @@
     margin-bottom: 6px;
 }
 
+/* Tabelas */
 .gc-table-wrap {
     overflow: auto;
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--bg-card);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .gc-table {
@@ -180,7 +289,7 @@
 .gc-table th,
 .gc-table td {
     border-bottom: 1px solid var(--border);
-    padding: 10px 12px;
+    padding: 12px 14px;
     font-size: 0.88rem;
     text-align: left;
     white-space: nowrap;
@@ -191,4 +300,5 @@
     font-weight: 600;
     text-transform: uppercase;
     font-size: 0.76rem;
+    letter-spacing: 0.03em;
 }

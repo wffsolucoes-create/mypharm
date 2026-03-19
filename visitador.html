@@ -975,6 +975,17 @@
                     style="width:100%; padding:10px 16px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; outline:none; transition:border 0.2s;"
                     onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
             </div>
+            <div id="modalPrescritoresVisitaAtivaBanner" style="display:none; padding:12px 24px; border-bottom:1px solid var(--border); background:rgba(16,185,129,0.12); flex-shrink:0; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                <div style="font-size:0.88rem; color:var(--text-primary); flex:1; min-width:200px;">
+                    <strong><i class="fas fa-walking" style="margin-right:6px; color:var(--success, #10B981);"></i>Visita em andamento:</strong>
+                    <span id="modalPrescritoresVisitaAtivaNome" style="font-weight:600;"></span>
+                    <span id="modalPrescritoresVisitaAtivaInicio" style="color:var(--text-secondary); margin-left:8px; font-size:0.82rem;"></span>
+                </div>
+                <button type="button" id="btnEncerrarVisitaAtivaBanner" class="btn-encerrar-visita-banner"
+                    style="padding:8px 16px; border-radius:8px; border:none; background:#EF4444; color:white; cursor:pointer; font-weight:700; font-size:0.8rem;">
+                    Finalizar visita
+                </button>
+            </div>
             <div style="overflow-y:auto; flex:1; padding:0;" id="modalBodyWrapper">
                 <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
                     <thead style="position:sticky; top:0; background:var(--bg-card); z-index:1;">
@@ -1539,7 +1550,7 @@
     <script src="js/app.js"></script>
     <script src="js/shared/mypharm-utils.js"></script>
     <script src="js/visitador/prescritores-feature.js"></script>
-    <script src="js/visitador/visitador-main.js?v=20260301b"></script>
+    <script src="js/visitador/visitador-main.js?v=20260315visita2"></script>
 </body>
 
 </html>

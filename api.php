@@ -179,6 +179,8 @@ try {
         'apagar_notificacao'
     ];
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
+    // Aceita "visitador", "visitador comercial", etc. (evita 403 em rota/visita)
+    $isVisitadorSetor = ($userSetor === 'visitador' || strpos($userSetor, 'visitador') !== false);
 
     // Servir foto de perfil como imagem (não JSON)
     if ($action === 'get_foto_perfil') {
@@ -214,7 +216,7 @@ try {
         readfile($path);
         exit;
     }
-    if ($userSetor === 'visitador' && !in_array($action, $publicActions) && !in_array($action, $visitadorAllowed)) {
+    if ($isVisitadorSetor && !in_array($action, $publicActions) && !in_array($action, $visitadorAllowed)) {
         http_response_code(403);
         echo json_encode(['error' => 'Acesso restrito. Usuários do setor Visitador só podem acessar o painel do visitador.'], JSON_UNESCAPED_UNICODE);
         exit;
@@ -249,12 +251,12 @@ try {
         } catch (Throwable $e) { /* ignora */ }
         $stmt = $pdo->prepare("
             SELECT id, prescritor, inicio FROM visitas_em_andamento
-            WHERE visitador = :v AND status = 'iniciada' AND fim IS NULL LIMIT 1
+            WHERE LOWER(TRIM(visitador)) = LOWER(TRIM(:v)) AND status = 'iniciada' AND fim IS NULL LIMIT 1
         ");
         $stmt->execute(['v' => $visitadorNome]);
         $active = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$active) return;
-        $pdo->prepare("UPDATE visitas_em_andamento SET fim = NOW(), status = 'encerrada' WHERE id = :id AND visitador = :v")
+        $pdo->prepare("UPDATE visitas_em_andamento SET fim = NOW(), status = 'encerrada' WHERE id = :id AND LOWER(TRIM(visitador)) = LOWER(TRIM(:v))")
             ->execute(['id' => $active['id'], 'v' => $visitadorNome]);
         try {
             $pdo->exec("ALTER TABLE historico_visitas ADD COLUMN inicio_visita DATETIME NULL");
@@ -354,7 +356,7 @@ try {
             apagarNotificacao($pdo);
             break;
         case 'admin_visitas':
-            if ($userSetor === 'visitador') {
+            if ($isVisitadorSetor) {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.']); exit;
             }
@@ -406,7 +408,7 @@ try {
         // ADMIN: RELATÓRIO VISITAS (totais, por visitador, rotas, km, mapa)
         // ============================================
         case 'admin_visitas_relatorio':
-            if ($userSetor === 'visitador') {
+            if ($isVisitadorSetor) {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.']); exit;
             }
@@ -1980,7 +1982,7 @@ try {
         // VISITAS - FLUXO (iniciar/encerrar)
         // ============================================
         case 'visita_ativa':
-            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+            if (!$isVisitadorSetor && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
                 break;
@@ -2006,7 +2008,7 @@ try {
             $stmt = $pdo->prepare("
                 SELECT id, visitador, prescritor, inicio
                 FROM visitas_em_andamento
-                WHERE visitador = :v AND status = 'iniciada' AND fim IS NULL
+                WHERE LOWER(TRIM(visitador)) = LOWER(TRIM(:v)) AND status = 'iniciada' AND fim IS NULL
                 ORDER BY inicio DESC
                 LIMIT 1
             ");
@@ -2016,7 +2018,7 @@ try {
             break;
 
         case 'iniciar_visita':
-            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+            if (!$isVisitadorSetor && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
                 break;
@@ -2053,7 +2055,7 @@ try {
             $stmt = $pdo->prepare("
                 SELECT id, prescritor, inicio
                 FROM visitas_em_andamento
-                WHERE visitador = :v AND status = 'iniciada' AND fim IS NULL
+                WHERE LOWER(TRIM(visitador)) = LOWER(TRIM(:v)) AND status = 'iniciada' AND fim IS NULL
                 ORDER BY inicio DESC
                 LIMIT 1
             ");
@@ -2077,7 +2079,7 @@ try {
             break;
 
         case 'encerrar_visita':
-            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+            if (!$isVisitadorSetor && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
                 break;
@@ -2130,7 +2132,7 @@ try {
             $stmt = $pdo->prepare("
                 SELECT id, prescritor, inicio
                 FROM visitas_em_andamento
-                WHERE id = :id AND visitador = :v AND status = 'iniciada' AND fim IS NULL
+                WHERE id = :id AND LOWER(TRIM(visitador)) = LOWER(TRIM(:v)) AND status = 'iniciada' AND fim IS NULL
                 LIMIT 1
             ");
             $stmt->execute(['id' => $id, 'v' => $visitadorNome]);
@@ -2141,7 +2143,7 @@ try {
             }
 
             // Encerrar a visita em andamento
-            $stmt = $pdo->prepare("UPDATE visitas_em_andamento SET fim = NOW(), status = 'encerrada' WHERE id = :id AND visitador = :v");
+            $stmt = $pdo->prepare("UPDATE visitas_em_andamento SET fim = NOW(), status = 'encerrada' WHERE id = :id AND LOWER(TRIM(visitador)) = LOWER(TRIM(:v))");
             $stmt->execute(['id' => $id, 'v' => $visitadorNome]);
 
             // Resolver profissão/UF/registro do prescritor para persistir no histórico.
@@ -2786,7 +2788,7 @@ try {
             // #region agent log
             _debugLogRota(['hypothesisId' => 'H1,H3', 'message' => 'rota_ativa case entered', 'data' => ['action' => $action, 'closure_isset' => isset($fecharRotasApos19h)]]);
             // #endregion
-            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+            if (!$isVisitadorSetor && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
                 break;
@@ -2813,10 +2815,11 @@ try {
                     echo json_encode(['active' => null], JSON_UNESCAPED_UNICODE);
                     break;
                 }
+                // Match insensível a maiúsculas e espaços (evita rota “em aberto” no BD e painel em idle)
                 $stmt = $pdo->prepare("
                     SELECT id, visitador_nome, data_inicio, data_fim, pausado_em, status
                     FROM rotas_diarias
-                    WHERE visitador_nome = :v AND status IN ('em_andamento', 'pausada')
+                    WHERE LOWER(TRIM(visitador_nome)) = LOWER(TRIM(:v)) AND status IN ('em_andamento', 'pausada')
                     ORDER BY data_inicio DESC
                     LIMIT 1
                 ");
@@ -2833,7 +2836,7 @@ try {
             break;
 
         case 'start_rota':
-            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+            if (!$isVisitadorSetor && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
                 break;
@@ -2868,7 +2871,7 @@ try {
             }
             $stmt = $pdo->prepare("
                 SELECT id FROM rotas_diarias
-                WHERE visitador_nome = :v AND status IN ('em_andamento', 'pausada')
+                WHERE LOWER(TRIM(visitador_nome)) = LOWER(TRIM(:v)) AND status IN ('em_andamento', 'pausada')
                 LIMIT 1
             ");
             $fecharRotasApos19h($pdo);
@@ -2881,7 +2884,7 @@ try {
             $reabrir = filter_var($input['reabrir'] ?? false, FILTER_VALIDATE_BOOLEAN);
             $stmt = $pdo->prepare("
                 SELECT id, data_inicio, data_fim FROM rotas_diarias
-                WHERE visitador_nome = :v AND DATE(data_inicio) = CURDATE() AND status = 'finalizada'
+                WHERE LOWER(TRIM(visitador_nome)) = LOWER(TRIM(:v)) AND DATE(data_inicio) = CURDATE() AND status = 'finalizada'
                 ORDER BY data_inicio DESC LIMIT 1
             ");
             $stmt->execute(['v' => $visitadorNome]);
@@ -2915,50 +2918,79 @@ try {
             break;
 
         case 'pause_rota':
-            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+            if (!$isVisitadorSetor && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
                 break;
             }
             $input = json_decode(file_get_contents('php://input'), true) ?: [];
             $sessionNome = trim($_SESSION['user_nome'] ?? '');
-            $visitadorNome = ($userSetor === 'visitador') ? $sessionNome : trim($input['visitador_nome'] ?? $sessionNome);
+            // Mesmo critério do start_rota: prioriza nome enviado pelo app (localStorage)
+            $visitadorNome = trim($input['visitador_nome'] ?? '') !== '' ? trim($input['visitador_nome']) : $sessionNome;
+            // Obrigatório encerrar visita ao prescritor antes de pausar a rota
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS visitas_em_andamento (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    visitador VARCHAR(255) NOT NULL,
+                    prescritor VARCHAR(255) NOT NULL,
+                    inicio DATETIME NOT NULL,
+                    fim DATETIME NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'iniciada',
+                    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_visitador_status (visitador, status)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            $stmtV = $pdo->prepare("
+                SELECT id, prescritor FROM visitas_em_andamento
+                WHERE LOWER(TRIM(visitador)) = LOWER(TRIM(:v)) AND status = 'iniciada' AND fim IS NULL LIMIT 1
+            ");
+            $stmtV->execute(['v' => $visitadorNome]);
+            $visitaAbertaPause = $stmtV->fetch(PDO::FETCH_ASSOC);
+            if ($visitaAbertaPause) {
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Finalize a visita ao prescritor antes de pausar a rota.',
+                    'prescritor' => $visitaAbertaPause['prescritor'] ?? null,
+                ], JSON_UNESCAPED_UNICODE);
+                break;
+            }
             $stmt = $pdo->prepare("
                 UPDATE rotas_diarias
                 SET pausado_em = NOW(), status = 'pausada'
-                WHERE visitador_nome = :v AND status = 'em_andamento'
+                WHERE LOWER(TRIM(visitador_nome)) = LOWER(TRIM(:v)) AND status = 'em_andamento'
             ");
             $stmt->execute(['v' => $visitadorNome]);
             echo json_encode(['success' => true, 'paused' => $stmt->rowCount() > 0], JSON_UNESCAPED_UNICODE);
             break;
 
         case 'resume_rota':
-            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+            if (!$isVisitadorSetor && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
                 break;
             }
             $input = json_decode(file_get_contents('php://input'), true) ?: [];
             $sessionNome = trim($_SESSION['user_nome'] ?? '');
-            $visitadorNome = ($userSetor === 'visitador') ? $sessionNome : trim($input['visitador_nome'] ?? $sessionNome);
+            $visitadorNome = trim($input['visitador_nome'] ?? '') !== '' ? trim($input['visitador_nome']) : $sessionNome;
             $stmt = $pdo->prepare("
                 UPDATE rotas_diarias
                 SET pausado_em = NULL, status = 'em_andamento'
-                WHERE visitador_nome = :v AND status = 'pausada'
+                WHERE LOWER(TRIM(visitador_nome)) = LOWER(TRIM(:v)) AND status = 'pausada'
             ");
             $stmt->execute(['v' => $visitadorNome]);
             echo json_encode(['success' => true, 'resumed' => $stmt->rowCount() > 0], JSON_UNESCAPED_UNICODE);
             break;
 
         case 'finish_rota':
-            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+            if (!$isVisitadorSetor && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
                 break;
             }
             $input = json_decode(file_get_contents('php://input'), true) ?: [];
             $sessionNome = trim($_SESSION['user_nome'] ?? '');
-            $visitadorNome = ($userSetor === 'visitador') ? $sessionNome : trim($input['visitador_nome'] ?? $sessionNome);
+            $visitadorNome = trim($input['visitador_nome'] ?? '') !== '' ? trim($input['visitador_nome']) : $sessionNome;
             // Não permitir finalizar rota com visita em andamento
             $pdo->exec("
                 CREATE TABLE IF NOT EXISTS visitas_em_andamento (
@@ -2975,31 +3007,29 @@ try {
             ");
             $stmt = $pdo->prepare("
                 SELECT id, prescritor FROM visitas_em_andamento
-                WHERE visitador = :v AND status = 'iniciada' AND fim IS NULL LIMIT 1
+                WHERE LOWER(TRIM(visitador)) = LOWER(TRIM(:v)) AND status = 'iniciada' AND fim IS NULL LIMIT 1
             ");
             $stmt->execute(['v' => $visitadorNome]);
             $visitaAberta = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($visitaAberta && isset($encerrarVisitaAbertaAutomatico)) {
-                $encerrarVisitaAbertaAutomatico($pdo, $visitadorNome, 'Encerrada automaticamente ao finalizar a rota.');
-            } elseif ($visitaAberta) {
+            if ($visitaAberta) {
                 echo json_encode([
                     'success' => false,
-                    'error' => 'Encerre a visita em andamento antes de finalizar a rota.',
-                    'prescritor' => $visitaAberta['prescritor'] ?? null
+                    'error' => 'Encerre a visita ao prescritor (fluxo completo) antes de finalizar a rota.',
+                    'prescritor' => $visitaAberta['prescritor'] ?? null,
                 ], JSON_UNESCAPED_UNICODE);
                 break;
             }
             $stmt = $pdo->prepare("
                 UPDATE rotas_diarias
                 SET data_fim = NOW(), pausado_em = NULL, status = 'finalizada'
-                WHERE visitador_nome = :v AND status IN ('em_andamento', 'pausada')
+                WHERE LOWER(TRIM(visitador_nome)) = LOWER(TRIM(:v)) AND status IN ('em_andamento', 'pausada')
             ");
             $stmt->execute(['v' => $visitadorNome]);
             echo json_encode(['success' => true, 'finished' => $stmt->rowCount() > 0], JSON_UNESCAPED_UNICODE);
             break;
 
         case 'save_rota_ponto':
-            if ($userSetor !== 'visitador' && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
+            if (!$isVisitadorSetor && ($_SESSION['user_tipo'] ?? '') !== 'admin') {
                 http_response_code(403);
                 echo json_encode(['error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
                 break;
@@ -3015,7 +3045,7 @@ try {
             $fecharRotasApos19h($pdo);
             $stmt = $pdo->prepare("
                 SELECT id FROM rotas_diarias
-                WHERE visitador_nome = :v AND status = 'em_andamento'
+                WHERE LOWER(TRIM(visitador_nome)) = LOWER(TRIM(:v)) AND status = 'em_andamento'
                 LIMIT 1
             ");
             $stmt->execute(['v' => $visitadorNome]);

@@ -250,9 +250,25 @@
         var data = await apiGet('gestao_comercial_dashboard', params);
         if (data && data.error) {
             console.error('Gestão Comercial (dashboard):', data.error);
+            if (!document.getElementById('gcApiError')) {
+                var errWrap = document.querySelector('.gc-filters');
+                if (errWrap) {
+                    var errEl = document.createElement('div');
+                    errEl.id = 'gcApiError';
+                    errEl.className = 'gc-api-error';
+                    errEl.setAttribute('role', 'alert');
+                    errEl.textContent = data.error;
+                    errWrap.appendChild(errEl);
+                }
+            } else {
+                document.getElementById('gcApiError').textContent = data.error;
+            }
+        } else {
+            var errEl = document.getElementById('gcApiError');
+            if (errEl) errEl.remove();
         }
         if (!data || data.success === false) {
-            data = {};
+            data = data || {};
         }
         gcDashboardData = data;
         gcNomesVendedores = [];
@@ -262,8 +278,95 @@
                 gcNomesVendedores = resLista.nomes;
             }
         } catch (e) {}
+        renderExecutivo(data);
+        renderRdMetricas(data.rd_metricas, data.rd_metricas_error);
         renderVendedoresTabs(data, gcNomesVendedores);
         renderVendedores(data);
+    }
+
+    function fmtVal(v, type) {
+        if (v === null || v === undefined || v === '') return '—';
+        if (type === 'percent') return formatPercent(v);
+        if (type === 'money') return formatMoney(v);
+        if (type === 'int') return Number(v).toLocaleString('pt-BR');
+        if (type === 'float') return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        return String(v);
+    }
+
+    function renderExecutivo(data) {
+        var c = data?.crescimento || {};
+        var e = data?.eficiencia_comercial || {};
+        var r = data?.rentabilidade || {};
+        var f = data?.fidelizacao || {};
+        var map = {
+            gcCrescReceitaMes: fmtVal(c.receita_mes, 'money'),
+            gcCrescCrescimentoMesAnt: c.crescimento_vs_mes_anterior != null ? fmtVal(c.crescimento_vs_mes_anterior, 'percent') : '—',
+            gcCrescCrescimentoAnoPassado: c.crescimento_vs_mes_ano_passado != null ? fmtVal(c.crescimento_vs_mes_ano_passado, 'percent') : '—',
+            gcCrescTicketMedio: fmtVal(c.ticket_medio, 'money'),
+            gcCrescNumVendas: fmtVal(c.numero_vendas, 'int'),
+            gcCrescClientesAtivos6m: fmtVal(c.numero_clientes_ativos_6_meses, 'int'),
+            gcEficLeads: fmtVal(e.leads_recebidos, 'int'),
+            gcEficConversao: e.conversao_geral != null ? fmtVal(e.conversao_geral, 'percent') : '—',
+            gcEficTempoFechamento: e.tempo_medio_fechamento_horas != null && e.tempo_medio_fechamento_horas !== '' ? Number(e.tempo_medio_fechamento_horas).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' h' : '—',
+            gcEficTaxaPerda: e.taxa_perda_cliente != null ? fmtVal(e.taxa_perda_cliente, 'percent') : '—',
+            gcEficLtv: e.ltv != null ? fmtVal(e.ltv, 'money') : '—',
+            gcEficCac: e.cac != null ? fmtVal(e.cac, 'money') : (e.notas && e.notas.cac ? e.notas.cac : '—'),
+            gcEficLtvCac: e.ltv_cac != null ? fmtVal(e.ltv_cac, 'float') : (e.notas && e.notas.ltv_cac ? e.notas.ltv_cac : '—'),
+            gcRentMargemBruta: r.margem_bruta != null ? fmtVal(r.margem_bruta, 'percent') : '—',
+            gcRentMargemContrib: r.margem_contribuicao != null ? fmtVal(r.margem_contribuicao, 'percent') : '—',
+            gcRentCmv: r.cmv_sobre_faturamento != null ? fmtVal(r.cmv_sobre_faturamento, 'percent') : '—',
+            gcRentPontoEquilibrio: r.ponto_equilibrio != null ? fmtVal(r.ponto_equilibrio, 'money') : (r.notas && r.notas.ponto_equilibrio ? r.notas.ponto_equilibrio : '—'),
+            gcRentLucroOper: fmtVal(r.lucro_operacional, 'money'),
+            gcFidTaxaRecompra: f.taxa_recompra != null ? fmtVal(f.taxa_recompra, 'percent') : '—',
+            gcFidFreqMedia: fmtVal(f.frequencia_media_compra, 'float'),
+            gcFidBaseAtiva90: fmtVal(f.base_ativa_90_dias, 'int'),
+            gcFidNps: f.nps != null ? fmtVal(f.nps, 'float') : (f.notas && f.notas.nps_csat ? f.notas.nps_csat : '—'),
+            gcFidCsat: f.csat != null ? fmtVal(f.csat, 'float') : '—',
+        };
+        Object.keys(map).forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.textContent = map[id];
+        });
+    }
+
+    function renderRdMetricas(rd, errorMsg) {
+        const block = document.getElementById('gcBlockRd');
+        if (!block) return;
+        if (!rd && !errorMsg) {
+            block.style.display = 'none';
+            return;
+        }
+        block.style.display = 'block';
+        if (errorMsg) {
+            setRdEl('gcRdReceitaTotal', '—');
+            setRdEl('gcRdTotalGanhos', '—');
+            setRdEl('gcRdTotalPerdidos', '—');
+            setRdEl('gcRdConversao', '—');
+            setRdEl('gcRdOportunidades', '—');
+            setRdEl('gcRdUpdatedAt', errorMsg);
+            document.getElementById('gcRdFunilWrap').style.display = 'none';
+            return;
+        }
+        setRdEl('gcRdReceitaTotal', formatMoney(rd.receita_total));
+        setRdEl('gcRdTotalGanhos', (rd.total_ganhos ?? 0).toLocaleString('pt-BR'));
+        setRdEl('gcRdTotalPerdidos', (rd.total_perdidos ?? 0).toLocaleString('pt-BR'));
+        setRdEl('gcRdConversao', rd.conversao_geral_pct != null ? formatPercent(rd.conversao_geral_pct) : '—');
+        setRdEl('gcRdOportunidades', (rd.oportunidades_abertas ?? 0).toLocaleString('pt-BR'));
+        setRdEl('gcRdUpdatedAt', rd.updated_at || '—');
+        const funilWrap = document.getElementById('gcRdFunilWrap');
+        const funilList = document.getElementById('gcRdFunilList');
+        if (funilList && Array.isArray(rd.funil_estagios) && rd.funil_estagios.length > 0) {
+            funilWrap.style.display = 'block';
+            funilList.innerHTML = rd.funil_estagios.map(function (e) {
+                return '<div class="gc-rd-funil-item"><span class="gc-rd-funil-stage">' + escapeHtml(e.stage_name || '') + '</span> <span class="gc-rd-funil-pipe">' + escapeHtml(e.pipeline_name || '') + '</span> <strong>' + Number(e.quantidade || 0).toLocaleString('pt-BR') + '</strong></div>';
+            }).join('');
+        } else {
+            funilWrap.style.display = 'none';
+        }
+        function setRdEl(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        }
     }
 
     function forceLogoutRedirect() {

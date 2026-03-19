@@ -67,6 +67,7 @@ function getThemeStorageKeyVisitador() {
                 } catch (e) {
                     activeVisit = null;
                 }
+                if (typeof updateVisitaAtivaBanner === 'function') updateVisitaAtivaBanner();
             }
 
             // Na página Prescritores (admin) os dados já vêm agregados por ano em all_prescritores.
@@ -1211,6 +1212,11 @@ function getThemeStorageKeyVisitador() {
                 if (nome) openEncerrarVisitaModal(nome);
                 return;
             }
+            const btnEncerrarBanner = e.target.closest('.btn-encerrar-visita-banner');
+            if (btnEncerrarBanner && typeof openEncerrarVisitaModal === 'function' && activeVisit && activeVisit.prescritor) {
+                openEncerrarVisitaModal(activeVisit.prescritor);
+                return;
+            }
             const btnWhats = e.target.closest('.btn-whatsapp-open');
             if (btnWhats && typeof openWhatsAppModal === 'function') {
                 const nome = btnWhats.getAttribute('data-prescritor');
@@ -1367,6 +1373,7 @@ function getThemeStorageKeyVisitador() {
             if (data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px; color:var(--text-secondary);"><i class="fas fa-search" style="font-size:1.5rem; margin-bottom:8px; display:block; opacity:0.3;"></i>Nenhum prescritor encontrado</td></tr>';
                 document.getElementById('paginationContainer').style.display = 'none';
+                if (typeof updateVisitaAtivaBanner === 'function') updateVisitaAtivaBanner();
                 return;
             }
 
@@ -1437,21 +1444,55 @@ function getThemeStorageKeyVisitador() {
                     </tr>
                 `;
             }).join('');
+            if (typeof updateVisitaAtivaBanner === 'function') updateVisitaAtivaBanner();
         }
 
         function escapeAttr(str) {
             return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
 
+        /** Normaliza nome de prescritor para comparar lista vs registro em visitas_em_andamento (espaços/caixa). */
+        function normalizePrescritorKey(name) {
+            return String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+
+        function prescritoresNomeEquivalente(a, b) {
+            return normalizePrescritorKey(a) === normalizePrescritorKey(b);
+        }
+
+        function updateVisitaAtivaBanner() {
+            const banner = document.getElementById('modalPrescritoresVisitaAtivaBanner');
+            if (!banner) return;
+            const nomeEl = document.getElementById('modalPrescritoresVisitaAtivaNome');
+            const inicioEl = document.getElementById('modalPrescritoresVisitaAtivaInicio');
+            if (canManageVisits && activeVisit && activeVisit.prescritor) {
+                banner.style.display = 'flex';
+                if (nomeEl) nomeEl.textContent = activeVisit.prescritor;
+                if (inicioEl) {
+                    const inicioTxt = activeVisit.inicio ? (() => {
+                        const s = String(activeVisit.inicio).trim().replace(' ', 'T');
+                        const d = new Date(s.indexOf('Z') !== -1 || s.match(/[+-]\d{2}:?\d{2}$/) ? s : s + '-04:00');
+                        return isNaN(d.getTime()) ? '' : d.toLocaleString('pt-BR', { timeZone: 'America/Porto_Velho' });
+                    })() : '';
+                    inicioEl.textContent = inicioTxt ? (' · ' + inicioTxt) : '';
+                }
+            } else {
+                banner.style.display = 'none';
+                if (nomeEl) nomeEl.textContent = '';
+                if (inicioEl) inicioEl.textContent = '';
+            }
+        }
+
         function renderVisitaActionCell(prescritorNome) {
             if (!canManageVisits) return '<span style="color:var(--text-secondary);">-</span>';
-            const safeAttr = escapeAttr(prescritorNome);
+            const nomeLista = prescritorNome;
+            const safeEncerrar = activeVisit && activeVisit.prescritor ? escapeAttr(activeVisit.prescritor) : escapeAttr(prescritorNome);
 
             // Se existe visita ativa
             if (activeVisit && activeVisit.prescritor) {
-                if (activeVisit.prescritor === prescritorNome) {
+                if (prescritoresNomeEquivalente(activeVisit.prescritor, nomeLista)) {
                     return `
-                        <button type="button" class="btn-encerrar-visita" data-prescritor="${safeAttr}"
+                        <button type="button" class="btn-encerrar-visita" data-prescritor="${safeEncerrar}"
                             style="padding:6px 10px; border-radius:8px; border:none; background:#EF4444; color:white; cursor:pointer; font-weight:700; font-size:0.75rem;">
                             Encerrar
                         </button>
@@ -1475,7 +1516,7 @@ function getThemeStorageKeyVisitador() {
                 `;
             }
             return `
-                <button type="button" class="btn-iniciar-visita" data-prescritor="${safeAttr}"
+                <button type="button" class="btn-iniciar-visita" data-prescritor="${escapeAttr(prescritorNome)}"
                     style="padding:6px 10px; border-radius:8px; border:none; background:var(--success); color:white; cursor:pointer; font-weight:700; font-size:0.75rem;">
                     Iniciar
                 </button>
@@ -1740,7 +1781,25 @@ function getThemeStorageKeyVisitador() {
                         renderRelatorioPrescritoresTable(data);
                     }
                 } else {
-                    if (subtitle) subtitle.textContent = (res && res.error) ? res.error : 'Não foi possível iniciar a visita.';
+                    if (res && res.active && res.active.id) {
+                        activeVisit = {
+                            id: res.active.id,
+                            prescritor: res.active.prescritor,
+                            inicio: res.active.inicio || null,
+                            visitador: currentVisitadorName
+                        };
+                        if (subtitle) subtitle.textContent = 'Há uma visita em aberto — finalize antes de iniciar outra.';
+                        renderModalPrescritores(filteredPrescritores);
+                        var relEl2 = document.getElementById('paginaRelatorioVisitas');
+                        if (relEl2 && relEl2.style.display !== 'none') {
+                            var q2 = (document.getElementById('searchRelatorioPrescritor') || {}).value || '';
+                            var term2 = q2.toLowerCase().trim();
+                            var data2 = term2 ? relatorioPrescritoresFiltered.filter(function(p) { return (p.prescritor || '').toLowerCase().includes(term2); }) : relatorioPrescritoresFiltered;
+                            renderRelatorioPrescritoresTable(data2);
+                        }
+                    } else {
+                        if (subtitle) subtitle.textContent = (res && res.error) ? res.error : 'Não foi possível iniciar a visita.';
+                    }
                     if (res && res.error && res.error.indexOf('19h') !== -1) alert(res.error);
                 }
             } catch (e) {
@@ -1777,10 +1836,11 @@ function getThemeStorageKeyVisitador() {
         function openEncerrarVisitaModal(prescritor) {
             if (!canManageVisits) return;
             if (!activeVisit || !activeVisit.id) return;
-            if (activeVisit.prescritor !== prescritor) return;
+            if (!prescritoresNomeEquivalente(prescritor, activeVisit.prescritor)) return;
 
+            const nomePrescritorBd = activeVisit.prescritor;
             encerrarVisitId = activeVisit.id;
-            document.getElementById('encerrarVisitaPrescritor').textContent = prescritor;
+            document.getElementById('encerrarVisitaPrescritor').textContent = nomePrescritorBd;
             const inicioTxt = activeVisit.inicio ? (() => {
                 const s = String(activeVisit.inicio).trim().replace(' ', 'T');
                 const d = new Date(s.indexOf('Z') !== -1 || s.match(/[+-]\d{2}:?\d{2}$/) ? s : s + '-04:00');
@@ -1805,7 +1865,7 @@ function getThemeStorageKeyVisitador() {
             (async function () {
                 try {
                     var vis = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '') || '';
-                    var r = await apiGet('get_prescritor_dados', { nome: prescritor, visitador: vis });
+                    var r = await apiGet('get_prescritor_dados', { nome: nomePrescritorBd, visitador: vis });
                     if (r && r.dados && r.dados.local_atendimento) {
                         var localEl = document.getElementById('visitaLocal');
                         if (localEl && !localEl.value) {
@@ -1872,9 +1932,9 @@ function getThemeStorageKeyVisitador() {
                     var prescritorEncerrado = (activeVisit && activeVisit.prescritor) ? activeVisit.prescritor : ((document.getElementById('encerrarVisitaPrescritor') && document.getElementById('encerrarVisitaPrescritor').textContent) || '').trim();
                     var nowIso = new Date().toISOString();
                     if (prescritorEncerrado) {
-                        relatorioPrescritoresFiltered.forEach(function(p) { if ((p.prescritor || '').trim() === prescritorEncerrado) { p.ultima_visita = nowIso; } });
-                        allPrescritores.forEach(function(p) { if ((p.prescritor || '').trim() === prescritorEncerrado) { p.ultima_visita = nowIso; } });
-                        filteredPrescritores.forEach(function(p) { if ((p.prescritor || '').trim() === prescritorEncerrado) { p.ultima_visita = nowIso; } });
+                        relatorioPrescritoresFiltered.forEach(function(p) { if (prescritoresNomeEquivalente(p.prescritor, prescritorEncerrado)) { p.ultima_visita = nowIso; } });
+                        allPrescritores.forEach(function(p) { if (prescritoresNomeEquivalente(p.prescritor, prescritorEncerrado)) { p.ultima_visita = nowIso; } });
+                        filteredPrescritores.forEach(function(p) { if (prescritoresNomeEquivalente(p.prescritor, prescritorEncerrado)) { p.ultima_visita = nowIso; } });
                     }
                     // atualizar visita ativa
                     const av = await apiGet('visita_ativa', { visitador_nome: currentVisitadorName });
@@ -3317,6 +3377,8 @@ function getThemeStorageKeyVisitador() {
                             var data = term ? relatorioPrescritoresFiltered.filter(function(p) { return (p.prescritor || '').toLowerCase().includes(term); }) : relatorioPrescritoresFiltered;
                             renderRelatorioPrescritoresTable(data);
                         }
+                    } else if (res && res.error) {
+                        alert(res.error + (res.prescritor ? '\n\nPrescritor: ' + res.prescritor : ''));
                     }
                 } else if (rotaState === 'pausada') {
                     const res = await apiPost('resume_rota', { visitador_nome: currentVisitadorName });
@@ -3375,7 +3437,7 @@ function getThemeStorageKeyVisitador() {
                         renderRelatorioPrescritoresTable(data);
                     }
                 } else if (res && res.error) {
-                    alert(res.error);
+                    alert(res.error + (res.prescritor ? '\n\nPrescritor: ' + res.prescritor : ''));
                 }
             } catch (e) {
                 console.error('Finalizar rota', e);
@@ -3458,9 +3520,10 @@ function getThemeStorageKeyVisitador() {
 
             currentVisitadorName = visitadorToLoad || '';
             // Visitador logado pode gerenciar suas visitas; admin também pode ao visualizar outro visitador
-            canManageVisits = (userSetor === 'visitador') || (userType === 'admin');
-            // Rota e GPS são exclusivos do visitador (nunca para admin visualizando carteira)
-            canManageRota = (userSetor === 'visitador') && (userType !== 'admin') && !viewVisitador;
+            const setorEhVisitador = userSetor === 'visitador' || (userSetor && userSetor.indexOf('visitador') !== -1);
+            canManageVisits = setorEhVisitador || (userType === 'admin');
+            // Rota e GPS: qualquer setor que contenha "visitador" (ex.: "Visitador Comercial"), exceto admin ou modo ?visitador=
+            canManageRota = setorEhVisitador && (userType !== 'admin') && !viewVisitador;
             if (!viewVisitador && typeof apiGet === 'function') {
                 try {
                     var session = await apiGet('check_session');

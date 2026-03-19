@@ -45,6 +45,7 @@ $allowedActions = [
     'logout',
     'gestao_comercial_dashboard',
     'gestao_comercial_lista_vendedores',
+    'gestao_rd_metricas',
     'tv_corrida_vendedores',
 ];
 if (!in_array($action, $allowedActions)) {
@@ -311,6 +312,66 @@ if ($action === 'logout') {
     } catch (Throwable $e) {
         $_SESSION = [];
         echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+// Métricas completas do RD Station CRM (exige admin)
+if ($action === 'gestao_rd_metricas') {
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    try {
+        $pdo = getConnection();
+        $sessionCheck = validateAndRefreshUserSession($pdo);
+        if (!($sessionCheck['valid'] ?? true)) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+        if ($tipo !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Acesso restrito ao administrador.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
+        if ($rdToken === '') {
+            echo json_encode([
+                'success' => false,
+                'fonte'   => null,
+                'error'   => 'RDSTATION_CRM_TOKEN não configurado no .env. Configure para usar métricas do RD Station CRM.',
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $today = new DateTimeImmutable('today');
+        $dataDe = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : '';
+        $dataAte = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : '';
+        $isDate = static function ($v) {
+            return (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$v);
+        };
+        if (!$isDate($dataDe) || !$isDate($dataAte)) {
+            $dataDe = $today->modify('first day of this month')->format('Y-m-d');
+            $dataAte = $today->format('Y-m-d');
+        } elseif ($dataDe > $dataAte) {
+            $dataAte = $dataDe;
+        }
+        $metricas = rdFetchTodasMetricas($rdToken, $dataDe, $dataAte);
+        echo json_encode(array_merge(['success' => true], $metricas), JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('gestao_rd_metricas: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'fonte'   => null,
+            'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
+                ? 'Erro ao buscar métricas do RD Station.'
+                : $e->getMessage(),
+        ], JSON_UNESCAPED_UNICODE);
     }
     exit;
 }

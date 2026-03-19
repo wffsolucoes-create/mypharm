@@ -165,6 +165,19 @@ Notas:
 - `config.php` ja aplica configuracoes de conexao e seguranca de sessao.
 - Timezone operacional de dados foi padronizado para Porto Velho (`-04:00` / `America/Porto_Velho` no frontend).
 
+### Integracao RD Station CRM (opcional)
+
+Para usar dados do **RD Station CRM** na TV Corrida de Vendas e em partes do visitador (deals ganhos/perdidos, funil):
+
+1. No `.env`, adicione o token privado do RD Station:
+   ```ini
+   RDSTATION_CRM_TOKEN=seu_token_privado_aqui
+   ```
+2. O token e obtido em: RD Station CRM → Configuracoes → API → Chave de integracao (token privado).
+3. Endpoint utilizado: `https://crm.rdstation.com/api/v1/deals` (GET, parametros: `token`, `win`, `start_date`, `end_date`, `page`, `limit`).
+4. Onde e usado: `api_gestao.php` (TV Corrida), `api/rdstation_tv.php` (proxy e mapeamento de vendedoras). Sem o token, o sistema usa o banco local (gestao_pedidos).
+5. **Métricas completas:** o endpoint `api_gestao.php?action=gestao_rd_metricas` (GET, admin) retorna todas as métricas agregadas do RD Station no período (`data_de`, `data_ate`): receita total, total ganhos/perdidos, conversão geral, oportunidades abertas, funil por estágio, por vendedor (receita, conversão, tempo médio, motivos de perda, origem dos deals), motivos de perda gerais e origens gerais. O dashboard da Gestão Comercial (`gestao_comercial_dashboard`) inclui automaticamente `rd_metricas` no payload quando o token está configurado.
+
 ---
 
 ## Banco de dados

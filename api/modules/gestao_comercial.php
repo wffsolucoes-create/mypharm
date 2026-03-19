@@ -794,6 +794,21 @@ function gestaoComercialDashboard(PDO $pdo): void
         ],
     ];
 
+    // Métricas do RD Station CRM (quando token configurado): enriquece o payload com todas as métricas possíveis da API
+    $rdToken = trim((string)(function_exists('getenv') ? getenv('RDSTATION_CRM_TOKEN') : '') ?: '');
+    if ($rdToken !== '' && function_exists('rdFetchTodasMetricas')) {
+        try {
+            $payload['rd_metricas'] = rdFetchTodasMetricas($rdToken, $start, $end);
+        } catch (Throwable $e) {
+            $payload['rd_metricas'] = null;
+            $payload['rd_metricas_error'] = (defined('IS_PRODUCTION') && IS_PRODUCTION)
+                ? 'Erro ao carregar métricas do RD Station.'
+                : $e->getMessage();
+        }
+    } else {
+        $payload['rd_metricas'] = null;
+    }
+
     echo json_encode($payload, JSON_UNESCAPED_UNICODE);
 }
 

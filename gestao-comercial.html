@@ -89,48 +89,64 @@
                     </button>
                 </div>
                 <section class="gc-section active" id="gc-section-executivo">
+                    <div class="gc-block gc-rd-block" id="gcBlockRd" style="display:none;">
+                        <h3><i class="fas fa-chart-pie"></i> Métricas RD Station CRM</h3>
+                        <div class="gc-note gc-rd-note">Dados em tempo real do RD Station CRM (deals ganhos/perdidos e funil). Período aplicado nos filtros acima.</div>
+                        <div class="gc-grid">
+                            <div class="gc-card"><div class="gc-label">Receita total (período)</div><div class="gc-value" id="gcRdReceitaTotal">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Deals ganhos</div><div class="gc-value" id="gcRdTotalGanhos">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Deals perdidos</div><div class="gc-value" id="gcRdTotalPerdidos">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Conversão geral (%)</div><div class="gc-value" id="gcRdConversao">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Oportunidades abertas</div><div class="gc-value" id="gcRdOportunidades">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Atualizado em</div><div class="gc-value gc-value-sm" id="gcRdUpdatedAt">—</div></div>
+                        </div>
+                        <div class="gc-rd-funil-wrap" id="gcRdFunilWrap" style="display:none;">
+                            <h4 class="gc-block-sub">Funil por estágio</h4>
+                            <div id="gcRdFunilList" class="gc-rd-funil-list"></div>
+                        </div>
+                    </div>
                     <div class="gc-block">
                         <h3>Crescimento</h3>
                         <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Receita do mês</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Crescimento vs mês anterior (%)</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Crescimento vs mesmo mês ano passado (%)</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Ticket médio</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Número de vendas</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Clientes ativos (6 meses)</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Receita do mês</div><div class="gc-value" id="gcCrescReceitaMes">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Crescimento vs mês anterior (%)</div><div class="gc-value" id="gcCrescCrescimentoMesAnt">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Crescimento vs mesmo mês ano passado (%)</div><div class="gc-value" id="gcCrescCrescimentoAnoPassado">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Ticket médio</div><div class="gc-value" id="gcCrescTicketMedio">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Número de vendas</div><div class="gc-value" id="gcCrescNumVendas">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Clientes ativos (6 meses)</div><div class="gc-value" id="gcCrescClientesAtivos6m">—</div></div>
                         </div>
                     </div>
                     <div class="gc-block">
                         <h3>Eficiência Comercial</h3>
                         <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Leads recebidos</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Conversão geral (%)</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Tempo médio de fechamento</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Taxa de perda do cliente</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">LTV (R$)</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">CAC</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">LTV/CAC</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Leads recebidos</div><div class="gc-value" id="gcEficLeads">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Conversão geral (%)</div><div class="gc-value" id="gcEficConversao">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Tempo médio de fechamento</div><div class="gc-value" id="gcEficTempoFechamento">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Taxa de perda do cliente</div><div class="gc-value" id="gcEficTaxaPerda">—</div></div>
+                            <div class="gc-card"><div class="gc-label">LTV (R$)</div><div class="gc-value" id="gcEficLtv">—</div></div>
+                            <div class="gc-card"><div class="gc-label">CAC</div><div class="gc-value" id="gcEficCac">—</div></div>
+                            <div class="gc-card"><div class="gc-label">LTV/CAC</div><div class="gc-value" id="gcEficLtvCac">—</div></div>
                         </div>
                     </div>
                     <div class="gc-block">
                         <h3>Rentabilidade</h3>
                         <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Margem bruta (%)</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Margem de contribuição (%)</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">CMV (% sobre faturamento)</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Ponto de equilíbrio</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Lucro operacional</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Margem bruta (%)</div><div class="gc-value" id="gcRentMargemBruta">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Margem de contribuição (%)</div><div class="gc-value" id="gcRentMargemContrib">—</div></div>
+                            <div class="gc-card"><div class="gc-label">CMV (% sobre faturamento)</div><div class="gc-value" id="gcRentCmv">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Ponto de equilíbrio</div><div class="gc-value" id="gcRentPontoEquilibrio">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Lucro operacional</div><div class="gc-value" id="gcRentLucroOper">—</div></div>
                         </div>
                         <div class="gc-note">Margem de contribuição por: atendente, forma farmacêutica, prescritor e produto.</div>
                     </div>
                     <div class="gc-block">
                         <h3>Fidelização</h3>
                         <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Taxa de recompra</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Frequência média de compra</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Base ativa (90 dias)</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">NPS</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">CSAT</div><div class="gc-value">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Taxa de recompra</div><div class="gc-value" id="gcFidTaxaRecompra">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Frequência média de compra</div><div class="gc-value" id="gcFidFreqMedia">—</div></div>
+                            <div class="gc-card"><div class="gc-label">Base ativa (90 dias)</div><div class="gc-value" id="gcFidBaseAtiva90">—</div></div>
+                            <div class="gc-card"><div class="gc-label">NPS</div><div class="gc-value" id="gcFidNps">—</div></div>
+                            <div class="gc-card"><div class="gc-label">CSAT</div><div class="gc-value" id="gcFidCsat">—</div></div>
                         </div>
                     </div>
                 </section>

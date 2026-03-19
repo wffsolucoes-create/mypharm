@@ -511,6 +511,135 @@ function rdtvFetchFunilEstagios(string $token, string $startDate, string $endDat
 }
 
 /**
+ * Agrega todas as métricas possíveis da API RD Station CRM para o período.
+ * Retorna: receita_total, total_ganhos, total_perdidos, conversao_geral, por_vendedor,
+ * funil_estagios, oportunidades_abertas, motivos_perda_geral, origens_geral.
+ * Uso: Gestão Comercial e dashboards que precisam de todas as métricas em uma chamada.
+ */
+function rdFetchTodasMetricas(string $token, string $startDate, string $endDate): array
+{
+    $wonAndLost = rdtvFetchWonAndLostParallel($token, $startDate, $endDate);
+    $porVendedor = $wonAndLost['porVendedor'];
+    $perdas      = $wonAndLost['perdas'];
+
+    $receitaTotal = 0.0;
+    $totalGanhos  = 0;
+    $totalPerdidos = 0;
+    $motivosGeral = [];
+    $origensGeral = [];
+
+    foreach ($porVendedor as $nome => $dados) {
+        $receitaTotal += (float)($dados['receita'] ?? 0);
+        $totalGanhos  += (int)($dados['count'] ?? 0);
+        foreach ($dados['origem_deals'] ?? [] as $origemNome => $vals) {
+            if (!isset($origensGeral[$origemNome])) {
+                $origensGeral[$origemNome] = ['receita' => 0.0, 'quantidade' => 0];
+            }
+            $origensGeral[$origemNome]['receita'] += (float)($vals['receita'] ?? 0);
+            $origensGeral[$origemNome]['quantidade'] += (int)($vals['quantidade'] ?? 0);
+        }
+    }
+    foreach ($perdas as $nome => $dados) {
+        $totalPerdidos += (int)($dados['total_perdidos'] ?? 0);
+        foreach ($dados['motivos'] ?? [] as $motivoNome => $qty) {
+            if (!isset($motivosGeral[$motivoNome])) {
+                $motivosGeral[$motivoNome] = 0;
+            }
+            $motivosGeral[$motivoNome] += (int)$qty;
+        }
+    }
+
+    $totalDeals = $totalGanhos + $totalPerdidos;
+    $conversaoGeral = $totalDeals > 0 ? round(($totalGanhos / $totalDeals) * 100, 2) : null;
+
+    $funilEstagios = [];
+    $oportunidadesAbertas = 0;
+    try {
+        $funilEstagios = rdtvFetchFunilEstagios($token, $startDate, $endDate);
+        foreach ($funilEstagios as $e) {
+            $oportunidadesAbertas += (int)($e['quantidade'] ?? 0);
+        }
+    } catch (Throwable $e) {
+        // mantém arrays vazios
+    }
+
+    $motivosLista = [];
+    arsort($motivosGeral, SORT_NUMERIC);
+    foreach ($motivosGeral as $nome => $qty) {
+        $motivosLista[] = ['motivo' => $nome, 'quantidade' => (int)$qty];
+    }
+
+    $origensLista = [];
+    foreach ($origensGeral as $nome => $vals) {
+        $origensLista[] = [
+            'origem'     => $nome,
+            'receita'    => round((float)($vals['receita'] ?? 0), 2),
+            'quantidade' => (int)($vals['quantidade'] ?? 0),
+        ];
+    }
+    usort($origensLista, static fn($a, $b) => $b['receita'] <=> $a['receita']);
+
+    $porVendedorLista = [];
+    foreach ($porVendedor as $nome => $dados) {
+        $count    = (int)($dados['count'] ?? 0);
+        $durSeg   = (int)($dados['total_duracao_seg'] ?? 0);
+        $esperaSeg = (int)($dados['total_espera_seg'] ?? 0);
+        $lostData = $perdas[$nome] ?? ['total_perdidos' => 0, 'motivos' => []];
+        $lost     = (int)($lostData['total_perdidos'] ?? 0);
+        $total    = $count + $lost;
+        $taxaPerda = $total > 0 ? round(($lost / $total) * 100, 2) : 0.0;
+        $duracaoMediaMin = $count > 0 && $durSeg > 0 ? round($durSeg / 60 / $count, 0) : null;
+        $esperaMediaMin  = $count > 0 && $esperaSeg > 0 ? round($esperaSeg / 60 / $count, 0) : null;
+
+        $motivosVendedor = [];
+        foreach ($lostData['motivos'] ?? [] as $motivoNome => $qty) {
+            $motivosVendedor[] = ['motivo' => $motivoNome, 'quantidade' => (int)$qty];
+        }
+        arsort($lostData['motivos'] ?? [], SORT_NUMERIC);
+        usort($motivosVendedor, static fn($a, $b) => $b['quantidade'] <=> $a['quantidade']);
+
+        $origemVendedor = [];
+        foreach ($dados['origem_deals'] ?? [] as $origemNome => $vals) {
+            $origemVendedor[] = [
+                'origem'     => $origemNome,
+                'receita'    => round((float)($vals['receita'] ?? 0), 2),
+                'quantidade' => (int)($vals['quantidade'] ?? 0),
+            ];
+        }
+        usort($origemVendedor, static fn($a, $b) => $b['receita'] <=> $a['receita']);
+
+        $porVendedorLista[] = [
+            'vendedor'                 => $nome,
+            'receita'                  => round((float)($dados['receita'] ?? 0), 2),
+            'total_ganhos'              => $count,
+            'total_perdidos'           => $lost,
+            'conversao_pct'            => $total > 0 ? round(($count / $total) * 100, 2) : 0.0,
+            'taxa_perda_pct'           => $taxaPerda,
+            'tempo_medio_fechamento_min' => $duracaoMediaMin,
+            'tempo_medio_espera_min'   => $esperaMediaMin,
+            'motivos_perda'            => array_slice($motivosVendedor, 0, 10),
+            'origem_deals'             => $origemVendedor,
+        ];
+    }
+    usort($porVendedorLista, static fn($a, $b) => $b['receita'] <=> $a['receita']);
+
+    return [
+        'fonte'                    => 'rdstation_crm',
+        'periodo'                  => ['data_de' => $startDate, 'data_ate' => $endDate],
+        'receita_total'            => round($receitaTotal, 2),
+        'total_ganhos'              => $totalGanhos,
+        'total_perdidos'           => $totalPerdidos,
+        'conversao_geral_pct'       => $conversaoGeral,
+        'oportunidades_abertas'     => $oportunidadesAbertas,
+        'funil_estagios'           => $funilEstagios,
+        'por_vendedor'             => $porVendedorLista,
+        'motivos_perda_geral'      => $motivosLista,
+        'origens_geral'            => $origensLista,
+        'updated_at'               => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
+    ];
+}
+
+/**
  * Monta o ranking final no formato esperado pela TV.
  * Ganhos e perdas são buscados em paralelo para reduzir o tempo de resposta.
  */
