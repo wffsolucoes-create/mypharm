@@ -270,16 +270,19 @@ async function openAprovadosRecusadosModal(nome, tipo, visitador) {
     if (!modal || !titleEl || !bodyEl) {
         return;
     }
-    var ano = new Date().getFullYear();
+    var ano = __getAnoAtualDoFiltro();
     var label = tipo === 'aprovados' ? 'Aprovados' : 'Reprovados';
-    titleEl.textContent = 'Lista de ' + label.toLowerCase() + ' — ' + (nome || '') + ' (' + ano + ')';
+    titleEl.textContent = 'Lista de ' + label.toLowerCase() + ' — ' + (nome || '') + ' (' + __periodoSelecionadoLabel() + ')';
     bodyEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin" style="color:var(--primary);"></i> Carregando pedidos...</div>';
     modal.style.display = 'flex';
     try {
         var nomeVisitador = (visitador !== undefined && visitador !== '') ? visitador : ((localStorage.getItem('userName') || '').trim() || 'My Pharm');
         var params = { nome: nomeVisitador, ano: ano, prescritor: nome || '' };
         var res = await apiGetPrescritores('list_pedidos_visitador', params);
-        var base = tipo === 'aprovados' ? ((res && res.aprovados) || []) : ((res && res.recusados_carrinho) || []);
+        var baseRaw = tipo === 'aprovados' ? ((res && res.aprovados) || []) : ((res && res.recusados_carrinho) || []);
+        var base = (baseRaw || []).filter(function (p) {
+            return __inPeriodoSelecionado(p.data_aprovacao || p.data_orcamento || p.data);
+        });
 
         var esc = function (s) {
             return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
@@ -306,7 +309,7 @@ async function openAprovadosRecusadosModal(nome, tipo, visitador) {
         };
 
         if (!Array.isArray(base) || base.length === 0) {
-            bodyEl.innerHTML = '<div style="text-align:center; padding:26px; color:var(--text-secondary);">Nenhum pedido ' + esc(label.toLowerCase()) + ' para este prescritor.</div>';
+            bodyEl.innerHTML = '<div style="text-align:center; padding:26px; color:var(--text-secondary);">Nenhum pedido ' + esc(label.toLowerCase()) + ' para este prescritor no período selecionado.</div>';
             return;
         }
 
@@ -315,7 +318,7 @@ async function openAprovadosRecusadosModal(nome, tipo, visitador) {
                 return '<tr style="border-bottom:1px solid var(--border);">' +
                     '<td style="padding:10px 12px;">' + (idx + 1) + '</td>' +
                     '<td style="padding:10px 12px;">' + esc(p.numero_pedido || '—') + '</td>' +
-                    '<td style="padding:10px 12px;">' + esc(p.serie_pedido || '—') + '</td>' +
+                    '<td style="padding:10px 12px;">' + esc(__normalizeSeriePedido(p.serie_pedido)) + '</td>' +
                     '<td style="padding:10px 12px;">' + esc(fmtDate(p.data_aprovacao || p.data_orcamento || '')) + '</td>' +
                     '<td style="padding:10px 12px;">' + esc(p.prescritor || '—') + '</td>' +
                     '<td style="padding:10px 12px;">' + esc(p.cliente || '—') + '</td>' +
@@ -386,7 +389,8 @@ async function openRelatorioVisitasPrescritorModal(nome, visitador) {
     modal.style.display = 'flex';
     bodyEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
     try {
-        var params = { prescritor: nome || '' };
+        var per = __getPeriodoFiltro();
+        var params = { prescritor: nome || '', data_de: per.data_de, data_ate: per.data_ate };
         if (visitador !== undefined && visitador !== '') {
             params.visitador = visitador;
         }
@@ -413,5 +417,243 @@ function closeRelatorioVisitasPrescritorModal() {
     var modal = document.getElementById('modalRelatorioVisitasPrescritor');
     if (modal) {
         modal.style.display = 'none';
+    }
+}
+
+function __ensureAdminActionModal() {
+    var modal = document.getElementById('modalAdminPrescritorAcoes');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'modalAdminPrescritorAcoes';
+    modal.style.cssText = 'display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:4000; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;';
+    modal.innerHTML = '' +
+        '<div style="background:var(--bg-card); border-radius:12px; width:100%; max-width:1200px; max-height:88vh; border:1px solid var(--border); box-shadow:var(--shadow-lg); overflow:hidden; display:flex; flex-direction:column;">' +
+            '<div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">' +
+                '<h3 id="modalAdminPrescritorAcoesTitle" style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary);">Detalhes</h3>' +
+                '<button type="button" onclick="closeAdminActionModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>' +
+            '</div>' +
+            '<div id="modalAdminPrescritorAcoesBody" style="padding:16px 20px; overflow:auto; flex:1;"></div>' +
+            '<div style="padding:14px 20px; border-top:1px solid var(--border); text-align:right;">' +
+                '<button type="button" onclick="closeAdminActionModal()" style="padding:10px 18px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(modal);
+    return modal;
+}
+
+function closeAdminActionModal() {
+    var modal = document.getElementById('modalAdminPrescritorAcoes');
+    if (modal) modal.style.display = 'none';
+}
+
+function __getAnoAtualDoFiltro() {
+    var deEl = document.getElementById('dataDeFilter');
+    var ateEl = document.getElementById('dataAteFilter');
+    var ate = (ateEl && ateEl.value) ? ateEl.value : '';
+    var de = (deEl && deEl.value) ? deEl.value : '';
+    var ref = ate || de;
+    if (ref && /^\d{4}-\d{2}-\d{2}$/.test(ref)) return parseInt(ref.slice(0, 4), 10);
+    return new Date().getFullYear();
+}
+
+function __getPeriodoFiltro() {
+    var deEl = document.getElementById('dataDeFilter');
+    var ateEl = document.getElementById('dataAteFilter');
+    return {
+        data_de: (deEl && deEl.value) ? deEl.value : undefined,
+        data_ate: (ateEl && ateEl.value) ? ateEl.value : undefined
+    };
+}
+
+function __dateToISOOnly(value) {
+    if (!value) return '';
+    var s = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+        var p = s.split('/');
+        return p[2] + '-' + p[1] + '-' + p[0];
+    }
+    var d = new Date(s);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().slice(0, 10);
+}
+
+function __inPeriodoSelecionado(dataValue) {
+    var per = __getPeriodoFiltro();
+    var d = __dateToISOOnly(dataValue);
+    if (!d) return false;
+    if (per.data_de && d < per.data_de) return false;
+    if (per.data_ate && d > per.data_ate) return false;
+    return true;
+}
+
+function __periodoSelecionadoLabel() {
+    var per = __getPeriodoFiltro();
+    if (per.data_de && per.data_ate) return __formatDateBr(per.data_de) + ' até ' + __formatDateBr(per.data_ate);
+    return 'Período atual';
+}
+
+function __normalizeSeriePedido(serie) {
+    if (serie === null || serie === undefined) return '0';
+    var s = String(serie).trim();
+    return s === '' ? '0' : s;
+}
+
+function __formatDateBr(value) {
+    var iso = __dateToISOOnly(value);
+    if (!iso) return '—';
+    var p = iso.split('-');
+    if (p.length !== 3) return iso;
+    return p[2] + '/' + p[1] + '/' + p[0];
+}
+
+async function openPedidosPrescritorModal(nome, visitador) {
+    var modal = __ensureAdminActionModal();
+    var title = document.getElementById('modalAdminPrescritorAcoesTitle');
+    var body = document.getElementById('modalAdminPrescritorAcoesBody');
+    if (!modal || !title || !body) return;
+    title.innerHTML = '<i class="fas fa-list-alt" style="margin-right:8px; color:var(--primary);"></i>Pedidos do prescritor — ' + String(nome || '').replace(/</g, '&lt;') + ' (' + __periodoSelecionadoLabel() + ')';
+    body.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+    modal.style.display = 'flex';
+    try {
+        var params = { nome: visitador || 'My Pharm', ano: __getAnoAtualDoFiltro(), prescritor: nome || '' };
+        var res = await apiGetPrescritores('list_pedidos_visitador', params);
+        var aprov = (res && Array.isArray(res.aprovados)) ? res.aprovados : [];
+        var rec = (res && Array.isArray(res.recusados_carrinho)) ? res.recusados_carrinho : [];
+        var rowsRaw = aprov.map(function (p) { return Object.assign({}, p, { __tipo: 'Aprovado' }); })
+            .concat(rec.map(function (p) { return Object.assign({}, p, { __tipo: 'Recusado/No Carrinho' }); }));
+        var rows = rowsRaw.filter(function (p) {
+            return __inPeriodoSelecionado(p.data_aprovacao || p.data_orcamento || p.data);
+        });
+        if (!rows.length) {
+            body.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-secondary);">Nenhum pedido encontrado para este prescritor no período selecionado.</div>';
+            return;
+        }
+        var fmtMoney = function (v) { return (parseFloat(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
+        var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+        var html = '<div style="overflow:auto; border:1px solid var(--border); border-radius:10px;">' +
+            '<table style="width:100%; border-collapse:collapse; min-width:900px;">' +
+            '<thead><tr>' +
+            '<th style="text-align:left; padding:10px 12px;">Nº</th>' +
+            '<th style="text-align:left; padding:10px 12px;">Série</th>' +
+            '<th style="text-align:left; padding:10px 12px;">Data</th>' +
+            '<th style="text-align:left; padding:10px 12px;">Cliente</th>' +
+            '<th style="text-align:right; padding:10px 12px;">Valor</th>' +
+            '<th style="text-align:left; padding:10px 12px;">Status</th>' +
+            '</tr></thead><tbody>';
+        rows.forEach(function (r) {
+            html += '<tr style="border-top:1px solid var(--border);">' +
+                '<td style="padding:10px 12px;">' + esc(r.numero_pedido || '-') + '</td>' +
+                '<td style="padding:10px 12px;">' + esc(__normalizeSeriePedido(r.serie_pedido)) + '</td>' +
+                '<td style="padding:10px 12px;">' + esc(__formatDateBr(r.data_aprovacao || r.data_orcamento || '')) + '</td>' +
+                '<td style="padding:10px 12px;">' + esc(r.cliente || '-') + '</td>' +
+                '<td style="padding:10px 12px; text-align:right; font-weight:600; color:' + (r.__tipo === 'Aprovado' ? 'var(--success)' : 'var(--danger)') + ';">' + esc(fmtMoney(r.valor)) + '</td>' +
+                '<td style="padding:10px 12px;">' + esc(r.__tipo) + '</td>' +
+                '</tr>';
+        });
+        html += '</tbody></table></div>';
+        body.innerHTML = html;
+    } catch (e) {
+        body.innerHTML = '<div style="text-align:center; padding:24px; color:var(--danger);">Erro ao carregar pedidos.</div>';
+    }
+}
+
+async function openComponentesPrescritorModal(nome, tipo, visitador) {
+    var modal = __ensureAdminActionModal();
+    var title = document.getElementById('modalAdminPrescritorAcoesTitle');
+    var body = document.getElementById('modalAdminPrescritorAcoesBody');
+    if (!modal || !title || !body) return;
+    var isRec = String(tipo || '').toLowerCase() === 'recusados';
+    title.innerHTML = '<i class="fas fa-atom" style="margin-right:8px; color:' + (isRec ? '#EF4444' : '#10B981') + ';"></i>Componentes ' + (isRec ? 'recusados' : 'aprovados') + ' — ' + String(nome || '').replace(/</g, '&lt;');
+    body.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+    modal.style.display = 'flex';
+    try {
+        var periodo = __getPeriodoFiltro();
+        var params = {
+            nome: visitador || 'My Pharm',
+            ano: __getAnoAtualDoFiltro(),
+            prescritor: nome || '',
+            tipo: isRec ? 'recusados' : 'aprovados',
+            data_de: periodo.data_de,
+            data_ate: periodo.data_ate
+        };
+        var res = await apiGetPrescritores('list_componentes_prescritor', params);
+        var list = (res && Array.isArray(res.componentes)) ? res.componentes : [];
+        if (!list.length) {
+            body.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-secondary);">Nenhum componente encontrado.</div>';
+            return;
+        }
+        var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+        var html = '<div style="overflow:auto; border:1px solid var(--border); border-radius:10px;">' +
+            '<table style="width:100%; border-collapse:collapse; min-width:700px;">' +
+            '<thead><tr>' +
+            '<th style="text-align:left; padding:10px 12px;">Componente</th>' +
+            '<th style="text-align:left; padding:10px 12px;">Unidade</th>' +
+            '<th style="text-align:right; padding:10px 12px;">Qtd Total</th>' +
+            '<th style="text-align:right; padding:10px 12px;">Pedidos</th>' +
+            '</tr></thead><tbody>';
+        list.forEach(function (c) {
+            html += '<tr style="border-top:1px solid var(--border);">' +
+                '<td style="padding:10px 12px;">' + esc(c.componente || '-') + '</td>' +
+                '<td style="padding:10px 12px;">' + esc(c.unidade || '-') + '</td>' +
+                '<td style="padding:10px 12px; text-align:right; font-weight:600;">' + esc(c.quantidade_total || 0) + '</td>' +
+                '<td style="padding:10px 12px; text-align:right;">' + esc(c.qtd_pedidos || 0) + '</td>' +
+                '</tr>';
+        });
+        html += '</tbody></table></div>';
+        body.innerHTML = html;
+    } catch (e) {
+        body.innerHTML = '<div style="text-align:center; padding:24px; color:var(--danger);">Erro ao carregar componentes.</div>';
+    }
+}
+
+async function openAnalisePrescritorModal(nome, visitador) {
+    var modal = __ensureAdminActionModal();
+    var title = document.getElementById('modalAdminPrescritorAcoesTitle');
+    var body = document.getElementById('modalAdminPrescritorAcoesBody');
+    if (!modal || !title || !body) return;
+    title.innerHTML = '<i class="fas fa-chart-line" style="margin-right:8px; color:#8B5CF6;"></i>Análise do prescritor — ' + String(nome || '').replace(/</g, '&lt;') + ' (' + __periodoSelecionadoLabel() + ')';
+    body.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+    modal.style.display = 'flex';
+    try {
+        var per = __getPeriodoFiltro();
+        var params = { nome: visitador || 'My Pharm', ano: __getAnoAtualDoFiltro(), prescritor: nome || '' };
+        var res = await apiGetPrescritores('list_pedidos_visitador', params);
+        if (!res || res.error) {
+            body.innerHTML = '<div style="text-align:center; padding:24px; color:var(--danger);">' + (res && res.error ? res.error : 'Erro ao carregar análise.') + '</div>';
+            return;
+        }
+        var aprov = ((res && res.aprovados) || []).filter(function (p) { return __inPeriodoSelecionado(p.data_aprovacao || p.data_orcamento || p.data); });
+        var rec = ((res && res.recusados_carrinho) || []).filter(function (p) { return __inPeriodoSelecionado(p.data_aprovacao || p.data_orcamento || p.data); });
+        var totalAprovado = aprov.reduce(function (s, p) { return s + (parseFloat(p.valor) || 0); }, 0);
+        var totalReprovado = rec.reduce(function (s, p) { return s + (parseFloat(p.valor) || 0); }, 0);
+        var qtdAprov = aprov.length;
+        var qtdReprov = rec.length;
+        var qtdTotal = qtdAprov + qtdReprov;
+        var taxaAprov = (totalAprovado + totalReprovado) > 0 ? ((totalAprovado / (totalAprovado + totalReprovado)) * 100) : 0;
+        var ticketMedio = qtdAprov > 0 ? (totalAprovado / qtdAprov) : 0;
+        var visitasRes = await apiGetPrescritores('get_visitas_prescritor', { prescritor: nome || '', visitador: visitador || 'My Pharm', data_de: per.data_de, data_ate: per.data_ate });
+        var totalVisitas = (visitasRes && Array.isArray(visitasRes.visitas)) ? visitasRes.visitas.length : 0;
+        var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+        var fmtMoney = function (v) { return (parseFloat(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
+        var fmtPct = function (v) { return (parseFloat(v) || 0).toFixed(1) + '%'; };
+        body.innerHTML =
+            '<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px;">' +
+                '<div style="padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);"><div style="font-size:0.75rem; color:var(--text-secondary);">Valor aprovado</div><div style="font-weight:700; color:var(--success);">' + esc(fmtMoney(totalAprovado)) + '</div></div>' +
+                '<div style="padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);"><div style="font-size:0.75rem; color:var(--text-secondary);">Valor recusado</div><div style="font-weight:700; color:var(--danger);">' + esc(fmtMoney(totalReprovado)) + '</div></div>' +
+                '<div style="padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);"><div style="font-size:0.75rem; color:var(--text-secondary);">Taxa aprovação</div><div style="font-weight:700;">' + esc(fmtPct(taxaAprov)) + '</div></div>' +
+                '<div style="padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);"><div style="font-size:0.75rem; color:var(--text-secondary);">Ticket médio</div><div style="font-weight:700;">' + esc(fmtMoney(ticketMedio)) + '</div></div>' +
+            '</div>' +
+            '<div style="margin-top:12px; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);">' +
+                '<div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:8px;">Resumo do período</div>' +
+                '<div style="display:flex; gap:16px; flex-wrap:wrap; font-size:0.9rem;">' +
+                    '<span><b>Qtd aprovados:</b> ' + esc(qtdAprov) + '</span>' +
+                    '<span><b>Qtd recusados:</b> ' + esc(qtdReprov) + '</span>' +
+                    '<span><b>Total pedidos:</b> ' + esc(qtdTotal) + '</span>' +
+                    '<span><b>Visitas registradas:</b> ' + esc(totalVisitas) + '</span>' +
+                '</div>' +
+            '</div>';
+    } catch (e) {
+        body.innerHTML = '<div style="text-align:center; padding:24px; color:var(--danger);">Erro ao carregar análise.</div>';
     }
 }

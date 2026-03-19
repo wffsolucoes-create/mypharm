@@ -716,6 +716,12 @@
                     <input type="text" id="searchTerm" placeholder="Pesquisar prescritor..." onkeyup="filterTable()">
                 </div>
                 <div class="select-wrapper">
+                    <input type="date" id="dataDeFilter" onchange="onDateFilterChange()" title="Data inicial">
+                </div>
+                <div class="select-wrapper">
+                    <input type="date" id="dataAteFilter" onchange="onDateFilterChange()" title="Data final">
+                </div>
+                <div class="select-wrapper">
                     <select id="visitadorFilter" onchange="loadData()">
                         <option value="">Todos os visitadores</option>
                     </select>
@@ -1017,10 +1023,52 @@
         const itemsPerPage = 200;
         let searchDebounceTimer = null;
 
+        function getDateRangeFilters() {
+            const deEl = document.getElementById('dataDeFilter');
+            const ateEl = document.getElementById('dataAteFilter');
+            const hoje = new Date();
+            const hojeStr = hoje.toISOString().slice(0, 10);
+            const dataDe = (deEl && deEl.value) ? deEl.value : hojeStr;
+            let dataAte = (ateEl && ateEl.value) ? ateEl.value : hojeStr;
+            if (dataAte < dataDe) dataAte = dataDe;
+            return { data_de: dataDe, data_ate: dataAte };
+        }
+
+        function onDateFilterChange() {
+            const deEl = document.getElementById('dataDeFilter');
+            const ateEl = document.getElementById('dataAteFilter');
+            if (deEl && ateEl && deEl.value && ateEl.value && ateEl.value < deEl.value) {
+                ateEl.value = deEl.value;
+            }
+            saveDateRangeFilters();
+            loadData(1);
+        }
+
+        function saveDateRangeFilters() {
+            try {
+                const de = document.getElementById('dataDeFilter')?.value || '';
+                const ate = document.getElementById('dataAteFilter')?.value || '';
+                localStorage.setItem('mypharm_prescritores_data_de', de);
+                localStorage.setItem('mypharm_prescritores_data_ate', ate);
+            } catch (_) {}
+        }
+
+        function restoreDateRangeFilters() {
+            const deEl = document.getElementById('dataDeFilter');
+            const ateEl = document.getElementById('dataAteFilter');
+            if (!deEl || !ateEl) return;
+            const hoje = new Date();
+            const hojeStr = hoje.toISOString().slice(0, 10);
+            const deSaved = localStorage.getItem('mypharm_prescritores_data_de') || hojeStr;
+            const ateSaved = localStorage.getItem('mypharm_prescritores_data_ate') || hojeStr;
+            deEl.value = deSaved;
+            ateEl.value = (ateSaved < deSaved) ? deSaved : ateSaved;
+        }
+
         function setLoadingPrescritores(loading) {
             const body = document.getElementById('prescritoresBody');
             const btnAtualizar = document.getElementById('btnAtualizarPrescritores');
-            const selects = document.querySelectorAll('#visitadorFilter');
+            const selects = document.querySelectorAll('#visitadorFilter, #dataDeFilter, #dataAteFilter');
             if (loading) {
                 body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 80px 24px; color: var(--text-secondary);">
                     <i class="fas fa-circle-notch fa-spin" style="font-size: 2.5rem; margin-bottom: 16px; display: block; color: var(--primary);"></i>
@@ -1045,8 +1093,9 @@
 
             setLoadingPrescritores(true);
 
+            const fp = getDateRangeFilters();
             const q = searchTerm.trim() ? '&q=' + encodeURIComponent(searchTerm.trim()) : '';
-            const url = `api.php?action=all_prescritores&visitador=${encodeURIComponent(visitador)}&limit=${itemsPerPage}&offset=${offset}${q}`;
+            const url = `api.php?action=all_prescritores&visitador=${encodeURIComponent(visitador)}&limit=${itemsPerPage}&offset=${offset}&data_de=${encodeURIComponent(fp.data_de)}&data_ate=${encodeURIComponent(fp.data_ate)}${q}`;
             try {
                 const response = await fetch(url);
 
@@ -1162,10 +1211,15 @@
                     </td>
                     <td style="text-align:center;">
                         <div style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center;">
+                            ${d.whatsapp ? `<a href="https://wa.me/55${String(d.whatsapp).replace(/\D/g,'')}" target="_blank" rel="noopener noreferrer" title="Enviar mensagem no WhatsApp" style="background:var(--bg-body); border:1px solid var(--border); color:#25D366; padding:6px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; text-decoration:none;"><i class="fab fa-whatsapp"></i></a>` : `<button onclick="openEditarPrescritorModal('${(d.prescritor||'').replace(/'/g, "\\'")}', '${(d.visitador||'').replace(/'/g, "\\'")}')" title="Cadastrar WhatsApp" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer;"><i class="fab fa-whatsapp"></i></button>`}
+                            <button onclick="openPedidosPrescritorModal('${(d.prescritor||'').replace(/'/g, "\\'")}', '${((d.visitador || 'My Pharm')).replace(/'/g, "\\'")}')" title="Ver pedidos (aprovados e recusados)" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer;" onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"><i class="fas fa-list-alt"></i></button>
                             <button onclick="openEditarPrescritorModal('${(d.prescritor||'').replace(/'/g, "\\'")}', '${(d.visitador||'').replace(/'/g, "\\'")}')" title="Editar" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer;" onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"><i class="fas fa-user-edit"></i></button>
                             <button onclick="openRelatorioVisitasPrescritorModal('${(d.prescritor||'').replace(/'/g, "\\'")}', '${(d.visitador||'').replace(/'/g, "\\'")}')" title="Relatório de visitas" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer;" onmouseover="this.style.borderColor='#0ea5e9'; this.style.color='#0ea5e9';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"><i class="fas fa-clipboard-list"></i></button>
                             <button onclick="openAprovadosRecusadosModal('${(d.prescritor||'').replace(/'/g, "\\'")}', 'aprovados', '${(d.visitador||'').replace(/'/g, "\\'")}')" title="Aprovados" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer;" onmouseover="this.style.borderColor='#10B981'; this.style.color='#10B981';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"><i class="fas fa-check-circle"></i></button>
                             <button onclick="openAprovadosRecusadosModal('${(d.prescritor||'').replace(/'/g, "\\'")}', 'recusados', '${(d.visitador||'').replace(/'/g, "\\'")}')" title="Recusados" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer;" onmouseover="this.style.borderColor='#EF4444'; this.style.color='#EF4444';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"><i class="fas fa-times-circle"></i></button>
+                            <button onclick="openComponentesPrescritorModal('${(d.prescritor||'').replace(/'/g, "\\'")}', 'aprovados', '${((d.visitador || 'My Pharm')).replace(/'/g, "\\'")}')" title="Componentes aprovados" style="background:var(--bg-body); border:1px solid var(--border); color:#10B981; padding:6px 8px; border-radius:6px; cursor:pointer;"><i class="fas fa-atom"></i></button>
+                            <button onclick="openComponentesPrescritorModal('${(d.prescritor||'').replace(/'/g, "\\'")}', 'recusados', '${((d.visitador || 'My Pharm')).replace(/'/g, "\\'")}')" title="Componentes recusados" style="background:var(--bg-body); border:1px solid var(--border); color:#EF4444; padding:6px 8px; border-radius:6px; cursor:pointer;"><i class="fas fa-atom"></i></button>
+                            <button onclick="openAnalisePrescritorModal('${(d.prescritor||'').replace(/'/g, "\\'")}', '${((d.visitador || 'My Pharm')).replace(/'/g, "\\'")}')" title="Análises e evolução" style="background:var(--bg-body); border:1px solid var(--border); color:#8B5CF6; padding:6px 8px; border-radius:6px; cursor:pointer;"><i class="fas fa-chart-line"></i></button>
                             <button onclick="openTransferModal('${(d.prescritor||'').replace(/'/g, "\\'")}', '${(d.visitador || 'My Pharm').replace(/'/g, "\\'")}')" title="Transferir Prescritor" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer;" onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"><i class="fas fa-exchange-alt"></i></button>
                         </div>
                     </td>
@@ -1331,6 +1385,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const savedTheme = getSavedThemePrescritores() || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
+            restoreDateRangeFilters();
 
             // Verificação básica de autenticação (persiste entre abas)
             if (!localStorage.getItem('loggedIn')) {

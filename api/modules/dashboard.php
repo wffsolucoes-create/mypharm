@@ -284,37 +284,6 @@ function dashboardRecusadosPorPrescritorFromItens(PDO $pdo): array
     return $map;
 }
 
-/**
- * Fallback anual quando itens não retorna nada (sem faixa de datas no GET).
- */
-function dashboardRecusadosPorPrescritorFromResumido(PDO $pdo, int $anoRef): array
-{
-    $sql = "
-        SELECT
-            UPPER(TRIM(COALESCE(NULLIF(TRIM(pr.nome), ''), 'My Pharm'))) AS k,
-            (COALESCE(SUM(pr.valor_recusado), 0) + COALESCE(SUM(pr.valor_no_carrinho), 0)) AS valor_recusado,
-            (COALESCE(SUM(pr.recusados), 0) + COALESCE(SUM(pr.no_carrinho), 0)) AS qtd_recusados
-        FROM prescritor_resumido pr
-        WHERE pr.ano_referencia = :ano_ref
-        GROUP BY k
-    ";
-    $map = [];
-    try {
-        $stmt = $pdo->prepare($sql);
-        $stmt->bindValue(':ano_ref', $anoRef, PDO::PARAM_INT);
-        $stmt->execute();
-        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
-            $key = (string)($r['k'] ?? '');
-            if ($key !== '') {
-                $map[$key] = [(float)($r['valor_recusado'] ?? 0), (int)($r['qtd_recusados'] ?? 0)];
-            }
-        }
-    } catch (Throwable $e) {
-        return [];
-    }
-    return $map;
-}
-
 function dashboardNormPrescritorKey(string $nome): string
 {
     $n = trim($nome);
@@ -361,16 +330,9 @@ function dashboardTopPrescritores(PDO $pdo): void
     $stmt->execute();
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Regra do dashboard: recusados vêm da mesma fonte do CSV de itens
+    // (Dados/Relatório de Itens de Orçamentos e Pedidos 2026.csv -> itens_orcamentos_pedidos).
     $recMap = dashboardRecusadosPorPrescritorFromItens($pdo);
-    $dataDe = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : '';
-    $dataAte = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : '';
-    $temFaixaDatas = ($dataDe !== '' && $dataAte !== ''
-        && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDe) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAte));
-    // Com faixa de datas, só itens (por data) — evita misturar resumo anual incorreto no período.
-    if (empty($recMap) && !$temFaixaDatas) {
-        $anoFb = isset($paramsPresc['ano']) ? (int)$paramsPresc['ano'] : (int)date('Y');
-        $recMap = dashboardRecusadosPorPrescritorFromResumido($pdo, $anoFb);
-    }
 
     foreach ($rows as &$row) {
         $k = dashboardNormPrescritorKey((string)($row['prescritor'] ?? ''));

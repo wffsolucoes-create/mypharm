@@ -1010,9 +1010,10 @@ try {
             else {
                 // Sem filtro de visitador: listar TODOS os prescritores (prescritores_cadastro)
                 // com indicadores do ano/mês, para que apareçam mesmo sem pedidos no período (ex.: Renata Cortes).
-                $filtroMesGp = $mes ? "AND MONTH(gp.data_aprovacao) = :mes" : "";
-                $filtroDiaGp = ($dia && $mes && $anoUsar) ? "AND DATE(gp.data_aprovacao) = :data_filtro" : "";
-                $dataFiltro = ($dia && $mes && $anoUsar) ? sprintf('%04d-%02d-%02d', (int)$anoUsar, (int)$mes, (int)$dia) : null;
+                $filtroMesGp = !$useRange && $mes ? "AND MONTH(gp.data_aprovacao) = :mes" : "";
+                $filtroDiaGp = !$useRange && ($dia && $mes && $anoUsar) ? "AND DATE(gp.data_aprovacao) = :data_filtro" : "";
+                $filtroDataGp = $useRange ? "AND DATE(gp.data_aprovacao) BETWEEN :data_de AND :data_ate" : "";
+                $dataFiltro = !$useRange && ($dia && $mes && $anoUsar) ? sprintf('%04d-%02d-%02d', (int)$anoUsar, (int)$mes, (int)$dia) : null;
 
                 if ($useLimit) {
                     $countSql = "SELECT COUNT(*) as total FROM prescritores_cadastro pc WHERE 1=1 $filtroSearch";
@@ -1050,6 +1051,7 @@ try {
                     LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pc.nome
                     LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome 
                         AND gp.ano_referencia = :ano_gp
+                        $filtroDataGp
                         $filtroMesGp
                         $filtroDiaGp
                     LEFT JOIN (
@@ -1064,8 +1066,13 @@ try {
                 $stmt = $pdo->prepare($sql);
                 $paramsTodos = ['ano_gp' => $anoUsar];
                 if ($searchTerm !== null) $paramsTodos['search'] = '%' . $searchTerm . '%';
-                if ($mes) $paramsTodos['mes'] = (int)$mes;
-                if ($dataFiltro) $paramsTodos['data_filtro'] = $dataFiltro;
+                if ($useRange) {
+                    $paramsTodos['data_de'] = $dataDe;
+                    $paramsTodos['data_ate'] = $dataAte;
+                } else {
+                    if ($mes) $paramsTodos['mes'] = (int)$mes;
+                    if ($dataFiltro) $paramsTodos['data_filtro'] = $dataFiltro;
+                }
                 $stmt->execute($paramsTodos);
             }
             $data = ($dataFallback !== null) ? $dataFallback : $stmt->fetchAll();
