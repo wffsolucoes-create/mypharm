@@ -777,15 +777,6 @@
                     </div>
                 </div>
 
-                <div class="kpi-card">
-                    <div class="icon-box icon-gold">
-                        <i class="fas fa-coins"></i>
-                    </div>
-                    <div class="info">
-                        <div class="label">Previsão de ganhos</div>
-                        <div class="value kpi-ganhos" id="kpiGanhosPrevistos">R$ 0,00</div>
-                    </div>
-                </div>
             </div>
 
             <div class="table-container">
@@ -812,7 +803,7 @@
                                 <th onclick="sortTable('dias_sem_visita')" style="text-align:center; cursor:pointer;">
                                     <div class="th-sort">Dias s/ Visita <i class="fas fa-sort"></i></div>
                                 </th>
-                                <th style="text-align:center; width: 200px;">Ações</th>
+                                <th style="text-align:center; width: 360px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="prescritoresBody">
@@ -1023,11 +1014,19 @@
         const itemsPerPage = 200;
         let searchDebounceTimer = null;
 
+        function getTodayLocalYmd() {
+            // Usa data local do navegador (evita deslocamento UTC do toISOString)
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
         function getDateRangeFilters() {
             const deEl = document.getElementById('dataDeFilter');
             const ateEl = document.getElementById('dataAteFilter');
-            const hoje = new Date();
-            const hojeStr = hoje.toISOString().slice(0, 10);
+            const hojeStr = getTodayLocalYmd();
             const dataDe = (deEl && deEl.value) ? deEl.value : hojeStr;
             let dataAte = (ateEl && ateEl.value) ? ateEl.value : hojeStr;
             if (dataAte < dataDe) dataAte = dataDe;
@@ -1057,8 +1056,7 @@
             const deEl = document.getElementById('dataDeFilter');
             const ateEl = document.getElementById('dataAteFilter');
             if (!deEl || !ateEl) return;
-            const hoje = new Date();
-            const hojeStr = hoje.toISOString().slice(0, 10);
+            const hojeStr = getTodayLocalYmd();
             const deSaved = localStorage.getItem('mypharm_prescritores_data_de') || hojeStr;
             const ateSaved = localStorage.getItem('mypharm_prescritores_data_ate') || hojeStr;
             deEl.value = deSaved;
@@ -1202,7 +1200,7 @@
                     <td style="font-weight: 500;">${d.prescritor}</td>
                     <td style="color: var(--text-secondary);">${d.visitador || 'My Pharm'}</td>
                     <td class="val-approved" style="text-align:right;">${formatMoney(d.valor_aprovado)}<br><small style="opacity:0.9;">${formatNumber(d.total_pedidos ?? 0)} ped.</small></td>
-                    <td class="val-refused" style="text-align:right;">${formatMoney(d.valor_recusado)}<br><small style="opacity:0.9;">${formatNumber(d.qtd_recusados ?? 0)} ped.</small></td>
+                    <td class="val-refused" style="text-align:right; color: var(--danger, #EF4444);">${formatMoney(d.valor_recusado)}<br><small style="opacity:0.95; color: var(--danger, #EF4444);">${formatNumber(d.qtd_recusados ?? 0)} ped.</small></td>
                     <td style="text-align:center;">
                         ${getDaysBadge(d.dias_sem_compra)}
                     </td>

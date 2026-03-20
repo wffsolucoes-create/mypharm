@@ -315,7 +315,11 @@ async function openAprovadosRecusadosModal(nome, tipo, visitador) {
 
         var renderRows = function (list) {
             return list.map(function (p, idx) {
-                return '<tr style="border-bottom:1px solid var(--border);">' +
+                var n = parseInt(p.numero_pedido || 0, 10) || 0;
+                var sNorm = __normalizeSeriePedido(p.serie_pedido);
+                var sNum = parseInt(sNorm, 10);
+                if (isNaN(sNum)) sNum = 0;
+                return '<tr style="border-bottom:1px solid var(--border); cursor:pointer;" title="Ver detalhes e componentes" onclick="openModalDetalhePedidoAdmin(' + n + ',' + sNum + ',\'' + String(ano).replace(/'/g, "\\'") + '\')">' +
                     '<td style="padding:10px 12px;">' + (idx + 1) + '</td>' +
                     '<td style="padding:10px 12px;">' + esc(p.numero_pedido || '—') + '</td>' +
                     '<td style="padding:10px 12px;">' + esc(__normalizeSeriePedido(p.serie_pedido)) + '</td>' +
@@ -542,7 +546,11 @@ async function openPedidosPrescritorModal(nome, visitador) {
             '<th style="text-align:left; padding:10px 12px;">Status</th>' +
             '</tr></thead><tbody>';
         rows.forEach(function (r) {
-            html += '<tr style="border-top:1px solid var(--border);">' +
+            var n = parseInt(r.numero_pedido || 0, 10) || 0;
+            var sNorm = __normalizeSeriePedido(r.serie_pedido);
+            var sNum = parseInt(sNorm, 10);
+            if (isNaN(sNum)) sNum = 0;
+            html += '<tr style="border-top:1px solid var(--border); cursor:pointer;" title="Ver detalhes e componentes" onclick="openModalDetalhePedidoAdmin(' + n + ',' + sNum + ',\'' + String(__getAnoAtualDoFiltro()).replace(/'/g, "\\'") + '\')">' +
                 '<td style="padding:10px 12px;">' + esc(r.numero_pedido || '-') + '</td>' +
                 '<td style="padding:10px 12px;">' + esc(__normalizeSeriePedido(r.serie_pedido)) + '</td>' +
                 '<td style="padding:10px 12px;">' + esc(__formatDateBr(r.data_aprovacao || r.data_orcamento || '')) + '</td>' +
@@ -655,5 +663,93 @@ async function openAnalisePrescritorModal(nome, visitador) {
             '</div>';
     } catch (e) {
         body.innerHTML = '<div style="text-align:center; padding:24px; color:var(--danger);">Erro ao carregar análise.</div>';
+    }
+}
+
+function __ensureModalDetalhePedidoAdmin() {
+    var modal = document.getElementById('modalDetalhePedidoAdmin');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'modalDetalhePedidoAdmin';
+    modal.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:4300; padding:20px; box-sizing:border-box; align-items:center; justify-content:center;';
+    modal.innerHTML =
+        '<div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; width:100%; max-width:1200px; max-height:90vh; overflow:hidden; display:flex; flex-direction:column;">' +
+            '<div style="padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">' +
+                '<h3 id="modalDetalhePedidoAdminTitle" style="margin:0; font-size:1.02rem; color:var(--text-primary);"><i class="fas fa-file-invoice" style="margin-right:8px; color:var(--primary);"></i>Detalhe do pedido</h3>' +
+                '<button type="button" onclick="closeModalDetalhePedidoAdmin()" style="background:none; border:none; color:var(--text-secondary); font-size:1.4rem; cursor:pointer;">&times;</button>' +
+            '</div>' +
+            '<div id="modalDetalhePedidoAdminBody" style="padding:16px 18px; overflow:auto; flex:1;"></div>' +
+            '<div style="padding:12px 18px; border-top:1px solid var(--border); text-align:right;">' +
+                '<button type="button" onclick="closeModalDetalhePedidoAdmin()" style="padding:9px 16px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(modal);
+    return modal;
+}
+
+function closeModalDetalhePedidoAdmin() {
+    var modal = document.getElementById('modalDetalhePedidoAdmin');
+    if (modal) modal.style.display = 'none';
+}
+
+async function openModalDetalhePedidoAdmin(numero, serie, ano) {
+    var modal = __ensureModalDetalhePedidoAdmin();
+    var titleEl = document.getElementById('modalDetalhePedidoAdminTitle');
+    var bodyEl = document.getElementById('modalDetalhePedidoAdminBody');
+    if (!modal || !titleEl || !bodyEl) return;
+    var serieNorm = __normalizeSeriePedido(serie);
+    titleEl.innerHTML = '<i class="fas fa-file-invoice" style="margin-right:8px; color:var(--primary);"></i>Pedido #' + numero + ' / Série ' + serieNorm;
+    bodyEl.innerHTML = '<div style="text-align:center; padding:28px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando detalhe...</div>';
+    modal.style.display = 'flex';
+    try {
+        var params = { numero: numero, serie: serieNorm };
+        if (ano) params.ano = ano;
+        var det = await apiGetPrescritores('get_pedido_detalhe', params);
+        var comp = await apiGetPrescritores('get_pedido_componentes', params);
+        var p = (det && det.pedido) ? det.pedido : {};
+        var componentes = (comp && Array.isArray(comp.componentes)) ? comp.componentes : [];
+        var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+        var fmtMoney = function (v) { return (parseFloat(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
+        var status = p.status_financeiro || p.status || '—';
+        var statusColor = /aprovad/i.test(status) ? 'var(--success)' : (/recusad|cancel|carrinho/i.test(status) ? 'var(--danger)' : 'var(--text-primary)');
+        var html =
+            '<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-bottom:12px;">' +
+                '<div style="padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);"><div style="font-size:0.72rem; color:var(--text-secondary);">Nº / Série</div><div style="font-weight:700;">' + esc((p.numero_pedido || numero) + ' / ' + __normalizeSeriePedido(p.serie_pedido || serieNorm)) + '</div></div>' +
+                '<div style="padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);"><div style="font-size:0.72rem; color:var(--text-secondary);">Data</div><div style="font-weight:700;">' + esc(__formatDateBr(p.data || p.data_aprovacao || p.data_orcamento || '')) + '</div></div>' +
+                '<div style="padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);"><div style="font-size:0.72rem; color:var(--text-secondary);">Status</div><div style="font-weight:700; color:' + statusColor + ';">' + esc(status) + '</div></div>' +
+                '<div style="padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body);"><div style="font-size:0.72rem; color:var(--text-secondary);">Valor líquido</div><div style="font-weight:700;">' + esc(fmtMoney(p.valor_liquido || p.valor || 0)) + '</div></div>' +
+            '</div>' +
+            '<div style="padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); margin-bottom:12px;">' +
+                '<div style="font-size:0.72rem; color:var(--text-secondary); margin-bottom:4px;">Prescritor / Cliente</div>' +
+                '<div style="font-weight:600;">' + esc(p.prescritor || '—') + ' / ' + esc(p.cliente || p.paciente || '—') + '</div>' +
+            '</div>';
+        if (!componentes.length) {
+            html += '<div style="padding:16px; border:1px dashed var(--border); border-radius:10px; color:var(--text-secondary); text-align:center;">Nenhum componente disponível para este pedido.</div>';
+        } else {
+            html += '<div style="overflow:auto; border:1px solid var(--border); border-radius:10px;">' +
+                '<table style="width:100%; border-collapse:collapse; min-width:760px;">' +
+                '<thead><tr>' +
+                '<th style="padding:10px 12px; text-align:left;">#</th>' +
+                '<th style="padding:10px 12px; text-align:left;">Descrição</th>' +
+                '<th style="padding:10px 12px; text-align:left;">Quantidade</th>' +
+                '<th style="padding:10px 12px; text-align:left;">QSP</th>' +
+                '<th style="padding:10px 12px; text-align:left;">Tipo</th>' +
+                '<th style="padding:10px 12px; text-align:right;">Qtd calculada</th>' +
+                '</tr></thead><tbody>';
+            componentes.forEach(function (c, i) {
+                html += '<tr style="border-top:1px solid var(--border);">' +
+                    '<td style="padding:10px 12px;">' + (i + 1) + '</td>' +
+                    '<td style="padding:10px 12px;">' + esc(c.descricao || c.componente || '—') + '</td>' +
+                    '<td style="padding:10px 12px;">' + esc(c.quantidade || '—') + '</td>' +
+                    '<td style="padding:10px 12px;">' + esc(c.qsp || 'Não') + '</td>' +
+                    '<td style="padding:10px 12px;">' + esc(c.tipo || 'Componente') + '</td>' +
+                    '<td style="padding:10px 12px; text-align:right;">' + esc(c.qtd_calculada != null ? c.qtd_calculada : '—') + '</td>' +
+                    '</tr>';
+            });
+            html += '</tbody></table></div>';
+        }
+        bodyEl.innerHTML = html;
+    } catch (e) {
+        bodyEl.innerHTML = '<div style="padding:18px; color:var(--danger); text-align:center;">Erro ao carregar detalhe do pedido.</div>';
     }
 }
