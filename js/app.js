@@ -2147,10 +2147,17 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
         const anoSelect = document.getElementById('anoSelect');
         const mesSelect = document.getElementById('mesSelect');
         const ano = anoSelecionado !== null ? anoSelecionado : (anoSelect ? anoSelect.value : '');
-        const mes = mesSelecionado !== null ? mesSelecionado : (mesSelect ? mesSelect.value : '');
+        let mes = mesSelecionado !== null ? mesSelecionado : (mesSelect ? mesSelect.value : '');
+        const mesCacheKey = 'mypharm_visitador_ultimo_mes_' + String(nome || '').trim().toLowerCase() + '_' + String(ano || '');
 
         // Atualiza o select se não for o valor atual (ex: carga inicial)
         if (anoSelect && ano !== null && anoSelect.value != ano) anoSelect.value = ano;
+        if ((!mes || String(mes).trim() === '') && typeof localStorage !== 'undefined') {
+            try {
+                var mesCached = localStorage.getItem(mesCacheKey) || '';
+                if (mesCached) mes = mesCached;
+            } catch (_) {}
+        }
         if (mesSelect && mes !== null && mesSelect.value != mes) mesSelect.value = mes;
 
         const dia = null; // Removed dia filter logic
@@ -2167,12 +2174,15 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
             return;
         }
 
-        // Na primeira carga, definir o mês padrão como o último mês com dados
-        if (mesSelect && !mesSelect.getAttribute('data-default-set') && data.kpis?.ultimo_mes_com_dados) {
+        if (data.kpis?.ultimo_mes_com_dados && typeof localStorage !== 'undefined') {
+            try { localStorage.setItem(mesCacheKey, String(data.kpis.ultimo_mes_com_dados)); } catch (_) {}
+        }
+
+        // Primeira carga sem mês explícito: busca uma vez com o último mês disponível.
+        if (mesSelect && !mesSelect.getAttribute('data-default-set') && (!mes || String(mes).trim() === '') && data.kpis?.ultimo_mes_com_dados) {
             mesSelect.setAttribute('data-default-set', 'true');
-            const ultimoMes = data.kpis.ultimo_mes_com_dados.toString();
+            const ultimoMes = String(data.kpis.ultimo_mes_com_dados);
             mesSelect.value = ultimoMes;
-            // Recarregar com o mês correto
             loadVisitadorDashboard(nome, ano, ultimoMes);
             return;
         }

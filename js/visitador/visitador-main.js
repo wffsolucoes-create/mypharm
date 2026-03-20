@@ -3487,7 +3487,9 @@ function getThemeStorageKeyVisitador() {
                 return;
             }
             // Garantir token CSRF antes de qualquer POST (evita 403 em save_rota_ponto, start_rota, etc.)
-            if (typeof fetchCsrfToken === 'function') await fetchCsrfToken();
+            if (typeof fetchCsrfToken === 'function') {
+                Promise.resolve(fetchCsrfToken()).catch(function () {});
+            }
 
             const userName = localStorage.getItem('userName');
             const userType = localStorage.getItem('userType') || '';
@@ -3535,7 +3537,9 @@ function getThemeStorageKeyVisitador() {
             }
             setupAvatarUpload(!viewVisitador);
             loadVisitadorDashboard(visitadorToLoad);
-            await syncRotaState();
+            setTimeout(function () {
+                Promise.resolve(syncRotaState()).catch(function () {});
+            }, 120);
         });
 
         function applyAvatarInHeader(initial, fotoUrl) {

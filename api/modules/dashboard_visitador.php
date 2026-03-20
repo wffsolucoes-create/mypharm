@@ -940,16 +940,23 @@ function dashboardListPedidosVisitador(PDO $pdo): void
         ORDER BY i.numero DESC, i.serie DESC
     ";
 
+    // Params para recusados: quando isMyPharmList, :nome NÃO existe no SQL
+    // (a condição de visitador é hardcoded), então remover para evitar HY093.
+    $paramsRec = $params;
+    if ($isMyPharmList) {
+        unset($paramsRec['nome']);
+    }
+
     $recPr = [];
     $recPc = [];
     try {
         $stmtR = $pdo->prepare($sqlRecusadosPr);
-        $stmtR->execute($params);
+        $stmtR->execute($paramsRec);
         $recPr = $stmtR->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable $e) { /* ignora */ }
     try {
         $stmtR2 = $pdo->prepare($sqlRecusadosPc);
-        $stmtR2->execute($params);
+        $stmtR2->execute($paramsRec);
         $recPc = $stmtR2->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable $e) { /* ignora */ }
 
