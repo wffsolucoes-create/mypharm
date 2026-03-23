@@ -185,16 +185,40 @@ function rdtvFetchDealsPair(string $token, int $page, int $limit, string $startD
 }
 
 /**
+ * Resolve nome para agregação: TV usa só o mapeamento MyPharm; dashboard gestão usa todos do CRM.
+ *
+ * @param bool $somenteMapeadas true = ignora responsáveis fora de rdtvGetMapeamento() (TV corrida)
+ */
+function rdtvResolveNomeParaAgregacao(string $nomeCrm, bool $somenteMapeadas): ?string
+{
+    $nomeCrm = trim($nomeCrm);
+    if ($nomeCrm === '') {
+        return null;
+    }
+    $mapeado = rdtvResolveNome($nomeCrm);
+    if ($mapeado !== null) {
+        return $mapeado;
+    }
+    if ($somenteMapeadas) {
+        return null;
+    }
+    return $nomeCrm;
+}
+
+/**
  * Busca ganhos e perdas em paralelo (uma rodada de requisições por página).
  * Retorna ['porVendedor' => ..., 'perdas' => ...] no mesmo formato das funções individuais.
+ *
+ * @param bool $somenteMapeadas Se true (padrão), só conta as vendedoras do mapeamento TV → MyPharm.
+ *                             Se false, conta todos os responsáveis do CRM (alinha totais ao funil RD na Gestão Comercial).
  */
-function rdtvFetchWonAndLostParallel(string $token, string $startDate, string $endDate): array
+function rdtvFetchWonAndLostParallel(string $token, string $startDate, string $endDate, bool $somenteMapeadas = true): array
 {
     $porVendedor = [];
     $perdas      = [];
     $page        = 1;
     $limit       = 200;
-    $maxPages    = 10;
+    $maxPages    = $somenteMapeadas ? 10 : 20;
     $earlyStopWon = false;
     $earlyStopLost = false;
 
@@ -213,9 +237,13 @@ function rdtvFetchWonAndLostParallel(string $token, string $startDate, string $e
             }
             if ($date === '' || $date > $endDate) continue;
             $nomeCrm = trim((string)($deal['user']['name'] ?? ''));
-            if ($nomeCrm === '') continue;
-            $nomeExibicao = rdtvResolveNome($nomeCrm);
-            if ($nomeExibicao === null) continue;
+            if ($nomeCrm === '') {
+                continue;
+            }
+            $nomeExibicao = rdtvResolveNomeParaAgregacao($nomeCrm, $somenteMapeadas);
+            if ($nomeExibicao === null) {
+                continue;
+            }
             $amount = (float)($deal['amount_total'] ?? 0);
             if ($amount <= 0) {
                 $amount  = (float)($deal['amount_montly'] ?? 0);
@@ -254,9 +282,13 @@ function rdtvFetchWonAndLostParallel(string $token, string $startDate, string $e
             }
             if ($date === '' || $date > $endDate) continue;
             $nomeCrm = trim((string)($deal['user']['name'] ?? ''));
-            if ($nomeCrm === '') continue;
-            $nomeExibicao = rdtvResolveNome($nomeCrm);
-            if ($nomeExibicao === null) continue;
+            if ($nomeCrm === '') {
+                continue;
+            }
+            $nomeExibicao = rdtvResolveNomeParaAgregacao($nomeCrm, $somenteMapeadas);
+            if ($nomeExibicao === null) {
+                continue;
+            }
             $lostReason = $deal['deal_lost_reason'] ?? null;
             $motivoNome = is_array($lostReason) ? trim((string)($lostReason['name'] ?? $lostReason['id'] ?? '')) : trim((string)$lostReason);
             if ($motivoNome === '' && is_array($lostReason) && !empty($lostReason['id'])) $motivoNome = 'Motivo ' . $lostReason['id'];
@@ -274,12 +306,14 @@ function rdtvFetchWonAndLostParallel(string $token, string $startDate, string $e
         $page++;
     }
 
-    foreach (array_unique(array_values(rdtvGetMapeamento())) as $nome) {
-        if (!isset($porVendedor[$nome])) {
-            $porVendedor[$nome] = ['receita' => 0.0, 'total_duracao_seg' => 0, 'total_espera_seg' => 0, 'count' => 0, 'origem_deals' => []];
-        }
-        if (!isset($perdas[$nome])) {
-            $perdas[$nome] = ['total_perdidos' => 0, 'motivos' => []];
+    if ($somenteMapeadas) {
+        foreach (array_unique(array_values(rdtvGetMapeamento())) as $nome) {
+            if (!isset($porVendedor[$nome])) {
+                $porVendedor[$nome] = ['receita' => 0.0, 'total_duracao_seg' => 0, 'total_espera_seg' => 0, 'count' => 0, 'origem_deals' => []];
+            }
+            if (!isset($perdas[$nome])) {
+                $perdas[$nome] = ['total_perdidos' => 0, 'motivos' => []];
+            }
         }
     }
 
@@ -518,7 +552,8 @@ function rdtvFetchFunilEstagios(string $token, string $startDate, string $endDat
  */
 function rdFetchTodasMetricas(string $token, string $startDate, string $endDate): array
 {
-    $wonAndLost = rdtvFetchWonAndLostParallel($token, $startDate, $endDate);
+    // false = todos os responsáveis do CRM (totais próximos ao funil / Kanban RD). TV continua com mapeamento fixo.
+    $wonAndLost = rdtvFetchWonAndLostParallel($token, $startDate, $endDate, false);
     $porVendedor = $wonAndLost['porVendedor'];
     $perdas      = $wonAndLost['perdas'];
 
@@ -636,6 +671,10 @@ function rdFetchTodasMetricas(string $token, string $startDate, string $endDate)
         'motivos_perda_geral'      => $motivosLista,
         'origens_geral'            => $origensLista,
         'updated_at'               => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
+        'notas'                    => [
+            'totais'              => 'Totais incluem todas as negociações ganhas/perdidas no período, por data de fechamento (ou criação, se fechamento vazio), alinhado ao filtro de datas da API — como a TV Corrida, mas sem limitar aos nomes mapeados no MyPharm.',
+            'divergencia_funil'   => 'No Kanban RD, colunas podem somar valores de cards ainda abertos ou com regra de exibição diferente; aqui só entram negociações já marcadas como ganha (win) ou perdida. Use o mesmo intervalo de datas que no RD (ex.: data de fechamento).',
+        ],
     ];
 }
 

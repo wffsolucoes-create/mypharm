@@ -176,7 +176,8 @@ Para usar dados do **RD Station CRM** na TV Corrida de Vendas e em partes do vis
 2. O token e obtido em: RD Station CRM → Configuracoes → API → Chave de integracao (token privado).
 3. Endpoint utilizado: `https://crm.rdstation.com/api/v1/deals` (GET, parametros: `token`, `win`, `start_date`, `end_date`, `page`, `limit`).
 4. Onde e usado: `api_gestao.php` (TV Corrida), `api/rdstation_tv.php` (proxy e mapeamento de vendedoras). Sem o token, o sistema usa o banco local (gestao_pedidos).
-5. **Métricas completas:** o endpoint `api_gestao.php?action=gestao_rd_metricas` (GET, admin) retorna todas as métricas agregadas do RD Station no período (`data_de`, `data_ate`): receita total, total ganhos/perdidos, conversão geral, oportunidades abertas, funil por estágio, por vendedor (receita, conversão, tempo médio, motivos de perda, origem dos deals), motivos de perda gerais e origens gerais. O dashboard da Gestão Comercial (`gestao_comercial_dashboard`) inclui automaticamente `rd_metricas` no payload quando o token está configurado.
+5. **Métricas completas:** o endpoint `api_gestao.php?action=gestao_rd_metricas` (GET, admin) retorna todas as métricas agregadas do RD Station no período (`data_de`, `data_ate`): receita total, total ganhos/perdidos, conversão geral, oportunidades abertas, funil por estágio, por vendedor (receita, conversão, tempo médio, motivos de perda, origem dos deals), motivos de perda gerais e origens gerais. O dashboard `gestao_comercial_dashboard` pode incluir `rd_metricas` no mesmo JSON **ou** receber `skip_rd=1` para não bloquear a resposta na API externa; nesse caso o front da Gestão Comercial chama `gestao_rd_metricas` em segundo plano quando `rd_metricas_deferred` vier `true` (token RD configurado).
+6. **Totais vs TV Corrida:** na Gestão Comercial (`rdFetchTodasMetricas`), ganhos/perdas e receita somam **todos** os responsáveis retornados pela API no intervalo (para aproximar o funil/Kanban). Na **TV Corrida**, o ranking continua limitado ao **mapeamento** em `api/rdstation_tv.php` (`rdtvGetMapeamento`). Pequenas diferenças vs o Kanban ainda podem ocorrer por regra de data (fechamento vs criação) ou por colunas que somam negociações ainda abertas no RD.
 
 ---
 
@@ -267,7 +268,7 @@ Constantes em `scripts/carteira_inativa_mypharm.php`: `CARTEIRA_INATIVA_DATA_INI
 - `dashboard`
 - `anos`
 - `admin_visitas`
-- `admin_visitas_relatorio`
+- `admin_visitas_relatorio` — totais, por visitador, rotas/km, mapa; também `prescritores_mais_visitados`, `prescritores_sem_visita_periodo` (carteira `prescritores_cadastro` sem `historico_visitas` no intervalo) e KPIs `prescritores_distintos_visitados` / `prescritores_sem_visita_count`.
 - `run_carteira_inativa_mypharm` — move para My Pharm prescritores com 40+ dias sem visita (desde 02/03/2026); apenas admin.
 
 ### Visitador

@@ -442,6 +442,26 @@ try {
                 $paramsH['visitador'] = $visitadorFiltroR;
             }
 
+            // Mesmas condições de período/visitador com alias hv (agregações por prescritor)
+            $whereHV = "WHERE hv.data_visita IS NOT NULL";
+            $paramsHV = [];
+            if ($dataDeR !== null && $dataAteR !== null) {
+                $whereHV .= " AND DATE(hv.data_visita) BETWEEN :hv_data_de AND :hv_data_ate";
+                $paramsHV['hv_data_de'] = $dataDeR;
+                $paramsHV['hv_data_ate'] = $dataAteR;
+            } else {
+                $whereHV .= " AND YEAR(hv.data_visita) = :hv_ano";
+                $paramsHV['hv_ano'] = $anoR;
+                if ($mesR !== null) {
+                    $whereHV .= " AND MONTH(hv.data_visita) = :hv_mes";
+                    $paramsHV['hv_mes'] = $mesR;
+                }
+            }
+            if ($visitadorFiltroR !== null) {
+                $whereHV .= " AND TRIM(COALESCE(hv.visitador, '')) = TRIM(:hv_visitador)";
+                $paramsHV['hv_visitador'] = $visitadorFiltroR;
+            }
+
             // Totais: período e semana atual
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM historico_visitas $whereH");
             $stmt->execute($paramsH);
@@ -463,9 +483,25 @@ try {
             }
             $total_visitas_semana_atual = (int)$stmt->fetchColumn();
 
+            $prescritores_distintos = 0;
+            try {
+                $stmt = $pdo->prepare("
+                    SELECT COUNT(DISTINCT TRIM(hv.prescritor))
+                    FROM historico_visitas hv
+                    $whereHV
+                    AND TRIM(COALESCE(hv.prescritor, '')) != ''
+                    AND UPPER(TRIM(hv.prescritor)) NOT IN ('MY PHARM', '')
+                ");
+                $stmt->execute($paramsHV);
+                $prescritores_distintos = (int)$stmt->fetchColumn();
+            } catch (Throwable $e) {
+                $prescritores_distintos = 0;
+            }
+
             $totais = [
                 'total_visitas_periodo' => $total_visitas_periodo,
-                'total_visitas_semana_atual' => $total_visitas_semana_atual
+                'total_visitas_semana_atual' => $total_visitas_semana_atual,
+                'prescritores_distintos_visitados' => $prescritores_distintos,
             ];
 
             // Por visitador: total visitas + km (rotas)
@@ -616,12 +652,102 @@ try {
                 // Tabela visitas_geolocalizacao pode não existir ainda
             }
 
+            // Prescritores mais visitados no período (gestão / cobertura)
+            $prescritores_mais_visitados = [];
+            try {
+                $stmt = $pdo->prepare("
+                    SELECT TRIM(hv.prescritor) AS prescritor,
+                           COUNT(*) AS total_visitas,
+                           MAX(TRIM(hv.visitador)) AS visitador_referencia
+                    FROM historico_visitas hv
+                    $whereHV
+                    AND TRIM(COALESCE(hv.prescritor, '')) != ''
+                    AND UPPER(TRIM(hv.prescritor)) NOT IN ('MY PHARM', '')
+                    GROUP BY TRIM(hv.prescritor)
+                    ORDER BY total_visitas DESC, prescritor ASC
+                    LIMIT 25
+                ");
+                $stmt->execute($paramsHV);
+                $prescritores_mais_visitados = array_map(static function ($row) {
+                    return [
+                        'prescritor' => (string)($row['prescritor'] ?? ''),
+                        'total_visitas' => (int)($row['total_visitas'] ?? 0),
+                        'visitador_referencia' => (string)($row['visitador_referencia'] ?? ''),
+                    ];
+                }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+            } catch (Throwable $e) {
+                $prescritores_mais_visitados = [];
+            }
+
+            // Carteira (prescritores_cadastro) sem nenhuma visita registrada no período
+            $prescritores_sem_visita_periodo = [];
+            $totais['prescritores_carteira_total'] = 0;
+            $totais['prescritores_sem_visita_count'] = 0;
+            try {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS prescritores_cadastro (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(200) NOT NULL, visitador VARCHAR(150), usuario_id INT NULL, INDEX idx_nome (nome(120)), INDEX idx_visitador (visitador(80))) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                $wherePC = "WHERE TRIM(COALESCE(pc.nome, '')) != '' AND UPPER(TRIM(pc.nome)) NOT IN ('MY PHARM', '')";
+                $paramsPC = [];
+                if ($visitadorFiltroR !== null) {
+                    if (strcasecmp(trim($visitadorFiltroR), 'My Pharm') === 0) {
+                        $wherePC .= " AND (pc.visitador IS NULL OR TRIM(pc.visitador) = '' OR pc.visitador = 'My Pharm' OR UPPER(TRIM(pc.visitador)) = 'MY PHARM')";
+                    } else {
+                        $wherePC .= " AND TRIM(COALESCE(pc.visitador, '')) = TRIM(:pc_visitador)";
+                        $paramsPC['pc_visitador'] = $visitadorFiltroR;
+                    }
+                }
+                $notExistsSql = '';
+                if ($dataDeR !== null && $dataAteR !== null) {
+                    $notExistsSql = "hv2.data_visita IS NOT NULL AND DATE(hv2.data_visita) BETWEEN :hv_data_de AND :hv_data_ate";
+                } else {
+                    $notExistsSql = "hv2.data_visita IS NOT NULL AND YEAR(hv2.data_visita) = :hv_ano";
+                    if ($mesR !== null) {
+                        $notExistsSql .= " AND MONTH(hv2.data_visita) = :hv_mes";
+                    }
+                }
+                $stmtCnt = $pdo->prepare("SELECT COUNT(*) FROM prescritores_cadastro pc $wherePC");
+                $stmtCnt->execute($paramsPC);
+                $totais['prescritores_carteira_total'] = (int)$stmtCnt->fetchColumn();
+
+                $sqlSemBase = "
+                    FROM prescritores_cadastro pc
+                    $wherePC
+                    AND NOT EXISTS (
+                        SELECT 1 FROM historico_visitas hv2
+                        WHERE UPPER(TRIM(COALESCE(hv2.prescritor, ''))) = UPPER(TRIM(pc.nome))
+                        AND $notExistsSql
+                    )
+                ";
+                $stmtCntSem = $pdo->prepare("SELECT COUNT(*) $sqlSemBase");
+                $stmtCntSem->execute(array_merge($paramsPC, $paramsHV));
+                $totais['prescritores_sem_visita_count'] = (int)$stmtCntSem->fetchColumn();
+
+                $sqlSem = "
+                    SELECT pc.nome AS prescritor,
+                           COALESCE(NULLIF(TRIM(pc.visitador), ''), 'My Pharm') AS visitador_carteira
+                    $sqlSemBase
+                    ORDER BY visitador_carteira ASC, pc.nome ASC
+                    LIMIT 250
+                ";
+                $stmtSem = $pdo->prepare($sqlSem);
+                $stmtSem->execute(array_merge($paramsPC, $paramsHV));
+                $prescritores_sem_visita_periodo = array_map(static function ($row) {
+                    return [
+                        'prescritor' => (string)($row['prescritor'] ?? ''),
+                        'visitador_carteira' => (string)($row['visitador_carteira'] ?? ''),
+                    ];
+                }, $stmtSem->fetchAll(PDO::FETCH_ASSOC));
+            } catch (Throwable $e) {
+                $prescritores_sem_visita_periodo = [];
+            }
+
             echo json_encode([
                 'totais' => $totais,
                 'por_visitador' => $por_visitador,
                 'rotas' => $rotas_com_km,
                 'pontos_rotas' => $pontos_rotas,
-                'pontos_atendimento' => $pontos_atendimento
+                'pontos_atendimento' => $pontos_atendimento,
+                'prescritores_mais_visitados' => $prescritores_mais_visitados,
+                'prescritores_sem_visita_periodo' => $prescritores_sem_visita_periodo,
             ], JSON_UNESCAPED_UNICODE);
             break;
 

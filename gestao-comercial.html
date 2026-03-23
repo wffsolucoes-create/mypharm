@@ -4,47 +4,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#3B82F6">
+    <meta name="description" content="Painel executivo MyPharm: vendas, funil, equipe, financeiro e integração RD Station.">
     <title>Gestão Comercial | MyPharm</title>
     <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260315loading2">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260322datefix">
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
+    <a href="#gcMain" class="gc-skip-link">Ir para o conteúdo</a>
     <div id="gcApp" class="app-layout" style="display:none;">
-        <aside class="sidebar">
+        <aside class="sidebar" aria-label="Menu lateral">
             <div class="sidebar-header">
                 <img src="imagens/logoMypharm.png" alt="MyPharm">
             </div>
-            <nav class="sidebar-nav">
-                <div class="nav-section-title">Gestão Comercial</div>
-                <a class="nav-item gc-menu-item active" href="#" data-section="executivo">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Painel Executivo</span>
+            <nav class="sidebar-nav" aria-label="Seções do relatório e atalhos">
+                <div class="nav-section-title" id="gcNavRelatorio">Relatório</div>
+                <div class="gc-sidebar-tablist" role="tablist" aria-labelledby="gcNavRelatorio">
+                    <button type="button" class="nav-item gc-menu-item active" role="tab" id="gc-tab-executivo" data-section="executivo" aria-selected="true" aria-controls="gc-section-executivo">
+                        <i class="fas fa-chart-line" aria-hidden="true"></i>
+                        <span>Painel executivo</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-vendas" data-section="vendas" aria-selected="false" aria-controls="gc-section-vendas">
+                        <i class="fas fa-filter" aria-hidden="true"></i>
+                        <span>Gestão de vendas</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-vendedores" data-section="vendedores" aria-selected="false" aria-controls="gc-section-vendedores">
+                        <i class="fas fa-users" aria-hidden="true"></i>
+                        <span>Vendedores</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-financeiro" data-section="financeiro" aria-selected="false" aria-controls="gc-section-financeiro">
+                        <i class="fas fa-coins" aria-hidden="true"></i>
+                        <span>Financeiro aplicado</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-reuniao" data-section="reuniao" aria-selected="false" aria-controls="gc-section-reuniao">
+                        <i class="fas fa-clipboard-check" aria-hidden="true"></i>
+                        <span>Reunião mensal</span>
+                    </button>
+                </div>
+                <div class="nav-section-title">Atalhos</div>
+                <a class="nav-item" href="tv-vendedores.html" target="_blank" rel="noopener noreferrer">
+                    <i class="fas fa-tv" aria-hidden="true"></i>
+                    <span>TV corrida de vendas</span>
+                    <span class="gc-sr-only"> (abre em nova aba)</span>
                 </a>
-                <a class="nav-item gc-menu-item" href="#" data-section="vendas">
-                    <i class="fas fa-filter"></i>
-                    <span>Gestão de Vendas</span>
-                </a>
-                <a class="nav-item gc-menu-item" href="#" data-section="vendedores">
-                    <i class="fas fa-users"></i>
-                    <span>Vendedores</span>
-                </a>
-                <a class="nav-item gc-menu-item" href="#" data-section="financeiro">
-                    <i class="fas fa-coins"></i>
-                    <span>Financeiro Aplicado</span>
-                </a>
-                <a class="nav-item gc-menu-item" href="#" data-section="reuniao">
-                    <i class="fas fa-clipboard-check"></i>
-                    <span>Reunião Mensal</span>
-                </a>
-                <a class="nav-item" href="tv-vendedores.html" target="_blank" rel="noopener">
-                    <i class="fas fa-tv"></i>
-                    <span>TV Corrida de Vendas</span>
-                </a>
-                <a class="nav-item" href="gestao-comercial.html">
-                    <i class="fas fa-briefcase"></i>
-                    <span>Visão Geral</span>
+                <a class="nav-item" href="index.html">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    <span>Painel administrativo</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
@@ -62,165 +69,353 @@
             <div class="topbar">
                 <div class="topbar-left">
                     <div>
-                        <h1>Gestão Comercial</h1>
-                        <div class="gc-topbar-subtitle">Módulo exclusivo da Gestão Comercial</div>
+                        <h1>Gestão comercial</h1>
+                        <div class="gc-topbar-subtitle">Indicadores comerciais, financeiros e CRM no período selecionado</div>
                     </div>
                 </div>
                 <div class="topbar-right">
-                    <button type="button" class="topbar-btn" id="gcThemeBtn" title="Alternar tema">
-                        <i class="fas fa-circle-half-stroke"></i>
+                    <button type="button" class="topbar-btn" id="gcThemeBtn" title="Alternar tema claro/escuro" aria-label="Alternar tema claro ou escuro" aria-pressed="false">
+                        <i class="fas fa-circle-half-stroke" aria-hidden="true"></i>
                     </button>
-                    <button type="button" class="logout-btn" id="gcLogoutBtn">
-                        <i class="fas fa-sign-out-alt"></i> Sair
+                    <button type="button" class="logout-btn" id="gcLogoutBtn" aria-label="Encerrar sessão">
+                        <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair
                     </button>
                 </div>
             </div>
 
-            <div class="page-content">
-                <div class="gc-filters">
-                    <label>De
-                        <input type="date" id="gcDataDe">
-                    </label>
-                    <label>Até
-                        <input type="date" id="gcDataAte">
-                    </label>
-                    <button type="button" id="gcApplyFiltersBtn" class="gc-filter-btn">
-                        <i class="fas fa-filter"></i> Aplicar
-                    </button>
-                </div>
-                <section class="gc-section active" id="gc-section-executivo">
+            <main id="gcMain" class="page-content gc-analytics" tabindex="-1">
+                <fieldset class="gc-filters">
+                    <legend class="gc-filters-legend">Período do relatório</legend>
+                    <div class="gc-filters-row">
+                        <label>Data inicial
+                            <input type="date" id="gcDataDe" autocomplete="off" aria-describedby="gcFiltersHint">
+                        </label>
+                        <label>Data final
+                            <input type="date" id="gcDataAte" autocomplete="off" aria-describedby="gcFiltersHint">
+                        </label>
+                        <button type="button" id="gcApplyFiltersBtn" class="gc-filter-btn" aria-describedby="gcFiltersHint">
+                            <i class="fas fa-sync-alt" aria-hidden="true"></i> Atualizar dados
+                        </button>
+                    </div>
+                    <p id="gcFiltersHint" class="gc-filters-hint">Os gráficos e tabelas refletem pedidos e movimentos no intervalo acima.</p>
+                </fieldset>
+                <section class="gc-section active" id="gc-section-executivo" role="tabpanel" aria-labelledby="gc-tab-executivo" aria-hidden="false">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Painel executivo</p>
+                        <p class="gc-tab-head__desc">Consolidação de KPIs, integração RD (quando configurada) e gráficos de receita, funil, canais e eficiência no intervalo selecionado acima.</p>
+                    </header>
+
                     <div class="gc-block gc-rd-block" id="gcBlockRd" style="display:none;">
-                        <h3><i class="fas fa-chart-pie"></i> Métricas RD Station CRM</h3>
-                        <div class="gc-note gc-rd-note">Dados em tempo real do RD Station CRM (deals ganhos/perdidos e funil). Período aplicado nos filtros acima.</div>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Receita total (período)</div><div class="gc-value" id="gcRdReceitaTotal">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Deals ganhos</div><div class="gc-value" id="gcRdTotalGanhos">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Deals perdidos</div><div class="gc-value" id="gcRdTotalPerdidos">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Conversão geral (%)</div><div class="gc-value" id="gcRdConversao">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Oportunidades abertas</div><div class="gc-value" id="gcRdOportunidades">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Atualizado em</div><div class="gc-value gc-value-sm" id="gcRdUpdatedAt">—</div></div>
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-plug"></i></span> Integração RD Station CRM</h3>
+                        <p class="gc-note gc-note--lead">Síntese de deals e funil no RD para o <strong>mesmo período dos filtros</strong>. Com token válido, estes números podem carregar alguns segundos após o restante do painel.</p>
+                        <p id="gcRdMetodologia" class="gc-note gc-rd-metodologia" hidden></p>
+                        <div class="gc-rd-charts-row">
+                            <div class="gc-chart-panel gc-chart-panel--sm">
+                                <h4 class="gc-chart-title">Deals ganhos × perdidos</h4>
+                                <div class="gc-chart-canvas-wrap"><canvas id="gcChartRdDeals" aria-label="Gráfico deals RD"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel gc-chart-panel--grow">
+                                <div class="kpi-grid gc-kpi-grid gc-rd-kpi-grid" role="list">
+                                    <div class="kpi-card" role="listitem">
+                                        <div class="kpi-icon"><i class="fas fa-dollar-sign" aria-hidden="true"></i></div>
+                                        <div class="kpi-label">Receita RD</div>
+                                        <div class="kpi-value gc-metric-value" id="gcRdReceitaTotal">—</div>
+                                        <div class="kpi-sub">Deals no RD Station (período)</div>
+                                    </div>
+                                    <div class="kpi-card" role="listitem">
+                                        <div class="kpi-icon"><i class="fas fa-check-circle" aria-hidden="true"></i></div>
+                                        <div class="kpi-label">Ganhos</div>
+                                        <div class="kpi-value gc-metric-value" id="gcRdTotalGanhos">—</div>
+                                        <div class="kpi-sub">Deals ganhos</div>
+                                    </div>
+                                    <div class="kpi-card" role="listitem">
+                                        <div class="kpi-icon"><i class="fas fa-times-circle" aria-hidden="true"></i></div>
+                                        <div class="kpi-label">Perdidos</div>
+                                        <div class="kpi-value gc-metric-value" id="gcRdTotalPerdidos">—</div>
+                                        <div class="kpi-sub">Deals perdidos</div>
+                                    </div>
+                                    <div class="kpi-card" role="listitem">
+                                        <div class="kpi-icon"><i class="fas fa-percentage" aria-hidden="true"></i></div>
+                                        <div class="kpi-label">Conversão</div>
+                                        <div class="kpi-value gc-metric-value" id="gcRdConversao">—</div>
+                                        <div class="kpi-sub">Taxa geral (RD)</div>
+                                    </div>
+                                    <div class="kpi-card" role="listitem">
+                                        <div class="kpi-icon"><i class="fas fa-folder-open" aria-hidden="true"></i></div>
+                                        <div class="kpi-label">Abertas</div>
+                                        <div class="kpi-value gc-metric-value" id="gcRdOportunidades">—</div>
+                                        <div class="kpi-sub">Oportunidades em aberto</div>
+                                    </div>
+                                    <div class="kpi-card" role="listitem">
+                                        <div class="kpi-icon"><i class="fas fa-clock" aria-hidden="true"></i></div>
+                                        <div class="kpi-label">Atualizado</div>
+                                        <div class="kpi-value gc-metric-value gc-kpi-value--compact" id="gcRdUpdatedAt">—</div>
+                                        <div class="kpi-sub">Última consulta à API</div>
+                                    </div>
+                                </div>
+                                <div class="gc-rd-funil-wrap" id="gcRdFunilWrap" style="display:none;">
+                                    <h4 class="gc-block-sub">Funil por estágio</h4>
+                                    <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--short"><canvas id="gcChartRdFunil" aria-label="Funil RD"></canvas></div>
+                                    <div id="gcRdFunilList" class="gc-rd-funil-list gc-rd-funil-list--below"></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="gc-rd-funil-wrap" id="gcRdFunilWrap" style="display:none;">
-                            <h4 class="gc-block-sub">Funil por estágio</h4>
-                            <div id="gcRdFunilList" class="gc-rd-funil-list"></div>
+                        <div class="gc-rd-motivos-wrap" id="gcRdMotivosWrap" style="display:none;">
+                            <h4 class="gc-chart-title gc-chart-title--rd-motivos">Top 3 motivos de perda</h4>
+                            <p class="gc-note gc-note--tight">Dados do campo <strong>Motivo da perda</strong> no RD Station (negócios perdidos no período dos filtros).</p>
+                            <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--rd-motivos"><canvas id="gcChartRdMotivos" aria-label="Top motivos de perda RD Station"></canvas></div>
                         </div>
                     </div>
+
                     <div class="gc-block">
-                        <h3>Crescimento</h3>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Receita do mês</div><div class="gc-value" id="gcCrescReceitaMes">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Crescimento vs mês anterior (%)</div><div class="gc-value" id="gcCrescCrescimentoMesAnt">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Crescimento vs mesmo mês ano passado (%)</div><div class="gc-value" id="gcCrescCrescimentoAnoPassado">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Ticket médio</div><div class="gc-value" id="gcCrescTicketMedio">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Número de vendas</div><div class="gc-value" id="gcCrescNumVendas">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Clientes ativos (6 meses)</div><div class="gc-value" id="gcCrescClientesAtivos6m">—</div></div>
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-gauge-high"></i></span> Indicadores-chave do período</h3>
+                        <p class="gc-note gc-note--tight">Valores calculados a partir de pedidos aprovados e regras do funil no MyPharm.</p>
+                        <div class="kpi-grid gc-kpi-grid" role="list">
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-chart-line" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Receita</div>
+                                <div class="kpi-value gc-metric-value" id="gcCrescReceitaMes">—</div>
+                                <div class="kpi-sub">Pedidos aprovados no período</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-shopping-cart" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Vendas (pedidos)</div>
+                                <div class="kpi-value gc-metric-value" id="gcCrescNumVendas">—</div>
+                                <div class="kpi-sub">Volume no período</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-receipt" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Ticket médio</div>
+                                <div class="kpi-value gc-metric-value" id="gcCrescTicketMedio">—</div>
+                                <div class="kpi-sub">Valor médio por pedido</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-users" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Clientes (6 meses)</div>
+                                <div class="kpi-value gc-metric-value" id="gcCrescClientesAtivos6m">—</div>
+                                <div class="kpi-sub">Com atividade em 6 meses</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-arrow-trend-up" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Δ vs mês anterior</div>
+                                <div class="kpi-value gc-metric-value" id="gcCrescCrescimentoMesAnt">—</div>
+                                <div class="kpi-sub">Receita vs mês anterior</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-calendar-alt" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Δ vs ano anterior</div>
+                                <div class="kpi-value gc-metric-value" id="gcCrescCrescimentoAnoPassado">—</div>
+                                <div class="kpi-sub">Mesmo mês, ano passado</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-chart-pie" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Margem bruta</div>
+                                <div class="kpi-value gc-metric-value" id="gcRentMargemBruta">—</div>
+                                <div class="kpi-sub">Sobre a receita do período</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-funnel-dollar" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Conversão</div>
+                                <div class="kpi-value gc-metric-value" id="gcEficConversao">—</div>
+                                <div class="kpi-sub">Taxa geral do funil</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="gc-block">
-                        <h3>Eficiência Comercial</h3>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Leads recebidos</div><div class="gc-value" id="gcEficLeads">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Conversão geral (%)</div><div class="gc-value" id="gcEficConversao">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Tempo médio de fechamento</div><div class="gc-value" id="gcEficTempoFechamento">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Taxa de perda do cliente</div><div class="gc-value" id="gcEficTaxaPerda">—</div></div>
-                            <div class="gc-card"><div class="gc-label">LTV (R$)</div><div class="gc-value" id="gcEficLtv">—</div></div>
-                            <div class="gc-card"><div class="gc-label">CAC</div><div class="gc-value" id="gcEficCac">—</div></div>
-                            <div class="gc-card"><div class="gc-label">LTV/CAC</div><div class="gc-value" id="gcEficLtvCac">—</div></div>
+
+                    <div class="gc-subsection">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-chart-column"></i></span> Análises gráficas</h3>
+                        <p class="gc-subsection__desc">Comparativos monetários, percentuais, volume do funil e participação por canal.</p>
+                    <div class="gc-chart-grid">
+                        <div class="gc-chart-panel">
+                            <h4 class="gc-chart-title">Receita, CMV e lucro operacional</h4>
+                            <p class="gc-chart-sub">Valores no período filtrado (pedidos aprovados).</p>
+                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecFinance" aria-label="Receita custo lucro"></canvas></div>
+                        </div>
+                        <div class="gc-chart-panel">
+                            <h4 class="gc-chart-title">Indicadores em %</h4>
+                            <p class="gc-chart-sub">Crescimento, conversão, margem CMV, recompra e perda.</p>
+                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecPercent" aria-label="Indicadores percentuais"></canvas></div>
+                        </div>
+                        <div class="gc-chart-panel">
+                            <h4 class="gc-chart-title">Funil comercial (volume)</h4>
+                            <p class="gc-chart-sub">Atendimentos → oportunidades → vendas fechadas.</p>
+                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecFunil" aria-label="Funil volume"></canvas></div>
+                        </div>
+                        <div class="gc-chart-panel">
+                            <h4 class="gc-chart-title">Receita por canal</h4>
+                            <p class="gc-chart-sub">Top canais no período.</p>
+                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecCanais" aria-label="Canais"></canvas></div>
                         </div>
                     </div>
-                    <div class="gc-block">
-                        <h3>Rentabilidade</h3>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Margem bruta (%)</div><div class="gc-value" id="gcRentMargemBruta">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Margem de contribuição (%)</div><div class="gc-value" id="gcRentMargemContrib">—</div></div>
-                            <div class="gc-card"><div class="gc-label">CMV (% sobre faturamento)</div><div class="gc-value" id="gcRentCmv">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Ponto de equilíbrio</div><div class="gc-value" id="gcRentPontoEquilibrio">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Lucro operacional</div><div class="gc-value" id="gcRentLucroOper">—</div></div>
+
+                    <div class="gc-chart-grid gc-chart-grid--2">
+                        <div class="gc-chart-panel">
+                            <h4 class="gc-chart-title">Eficiência (volume e tempo)</h4>
+                            <p class="gc-chart-sub">Leads, vendas no funil e métricas de ciclo / LTV quando disponíveis.</p>
+                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecEfic" aria-label="Eficiência"></canvas></div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcEficLeads">Leads: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcEficTempoFechamento">Tempo médio fechamento: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcEficTaxaPerda">Taxa perda cliente: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcEficLtv">LTV: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcEficCac">CAC: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcEficLtvCac">LTV/CAC: —</div>
                         </div>
-                        <div class="gc-note">Margem de contribuição por: atendente, forma farmacêutica, prescritor e produto.</div>
+                        <div class="gc-chart-panel">
+                            <h4 class="gc-chart-title">Rentabilidade e fidelização</h4>
+                            <p class="gc-chart-sub">Margem por produto (top), lucro, recompra e indicadores de satisfação.</p>
+                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecFidel" aria-label="Fidelização"></canvas></div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcRentMargemContrib">Margem contrib.: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcRentCmv">CMV s/ faturamento: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcRentPontoEquilibrio">Ponto equilíbrio: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcRentLucroOper">Lucro operacional: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcFidTaxaRecompra">Taxa recompra: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcFidFreqMedia">Freq. média compra: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcFidBaseAtiva90">Base ativa 90d: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcFidNps">NPS: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcFidCsat">CSAT: —</div>
+                        </div>
                     </div>
+                    </div>
+                    <div class="gc-callout">
+                        <strong>Dica:</strong> margem por atendente, forma farmacêutica, prescritor e produto estão na aba <strong>Gestão de vendas</strong>, com o mesmo período.
+                    </div>
+                </section>
+
+                <section class="gc-section" id="gc-section-vendas" role="tabpanel" aria-labelledby="gc-tab-vendas" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Gestão de vendas</p>
+                        <p class="gc-tab-head__desc">Funil operacional (itens e orçamentos), desempenho por canal e rankings de produtos, margem e prescritores — sempre no período do filtro global.</p>
+                    </header>
+
                     <div class="gc-block">
-                        <h3>Fidelização</h3>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Taxa de recompra</div><div class="gc-value" id="gcFidTaxaRecompra">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Frequência média de compra</div><div class="gc-value" id="gcFidFreqMedia">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Base ativa (90 dias)</div><div class="gc-value" id="gcFidBaseAtiva90">—</div></div>
-                            <div class="gc-card"><div class="gc-label">NPS</div><div class="gc-value" id="gcFidNps">—</div></div>
-                            <div class="gc-card"><div class="gc-label">CSAT</div><div class="gc-value" id="gcFidCsat">—</div></div>
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-filter"></i></span> Funil comercial</h3>
+                        <p class="gc-note gc-note--tight">Macro-funil e distribuição de status nos itens do período.</p>
+                        <div class="gc-chart-grid gc-chart-grid--2">
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Macro-funil</h4>
+                                <p class="gc-chart-sub">Volume agregado por etapa comercial.</p>
+                                <div class="gc-chart-canvas-wrap"><canvas id="gcChartVendasFunilMacro" aria-label="Macro funil"></canvas></div>
+                                <p class="gc-chart-legend-text gc-metric-value" id="gcVendasGargalo">Gargalo estimado: —</p>
+                            </div>
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Status nos itens</h4>
+                                <p class="gc-chart-sub">Distribuição por situação nos orçamentos/itens.</p>
+                                <div class="gc-chart-canvas-wrap"><canvas id="gcChartVendasEtapas" aria-label="Etapas status"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-broadcast-tower"></i></span> Performance por canal</h3>
+                        <div class="gc-chart-panel gc-chart-panel--wide">
+                            <h4 class="gc-chart-title">Receita e margem estimada por canal</h4>
+                            <p class="gc-chart-sub">Com base em pedidos aprovados e canal de atendimento registrado.</p>
+                            <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasCanais" aria-label="Canais vendas"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-lightbulb"></i></span> Inteligência comercial</h3>
+                        <p class="gc-note gc-note--tight">Rankings para priorizar produtos, prescritores e oportunidades de margem.</p>
+                        <div class="gc-chart-grid gc-chart-grid--2">
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Top produtos (quantidade)</h4>
+                                <p class="gc-chart-sub">Itens mais vendidos no período.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasTopProdQtd" aria-label="Top produtos qtd"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Top prescritores (receita)</h4>
+                                <p class="gc-chart-sub">Maiores geradores de receita aprovada.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasTopPresc" aria-label="Top prescritores"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="gc-chart-grid gc-chart-grid--2 gc-stack-20">
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Maior margem % (produto)</h4>
+                                <p class="gc-chart-sub">Produtos com melhor contribuição percentual estimada.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasMargemProd" aria-label="Margem produto"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Ticket médio por especialidade</h4>
+                                <p class="gc-chart-sub">Comparação entre especialidades médicas.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasEspecialidade" aria-label="Especialidade"></canvas></div>
+                            </div>
                         </div>
                     </div>
                 </section>
 
-                <section class="gc-section" id="gc-section-vendas">
+                <section class="gc-section" id="gc-section-vendedores" role="tabpanel" aria-labelledby="gc-tab-vendedores" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Equipe comercial</p>
+                        <p class="gc-tab-head__desc">Filtre por consultora ou visualize a equipe inteira: KPIs, gráficos, produtividade, motivos de perda e clientes com contato após rejeição.</p>
+                    </header>
+
+                    <div class="gc-filter-panel">
+                        <p class="gc-filter-panel__label" id="gcVendTabsLabel">Filtrar por consultora</p>
+                        <div id="gcVendedoresTabs" class="gc-vendedor-tabs" role="tablist" aria-labelledby="gcVendTabsLabel"></div>
+                    </div>
+
                     <div class="gc-block">
-                        <h3>Funil Comercial</h3>
-                        <div class="gc-note">Atendimentos WhatsApp → Negociação → Orçamento → Venda → Recompra</div>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Volume de atendimentos</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Oportunidades abertas</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Orçamentos enviados</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Vendas fechadas</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Conversão por etapa (%)</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Gargalo do funil</div><div class="gc-value">—</div></div>
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-users"></i></span> Painel da equipe</h3>
+                        <p class="gc-note gc-note--tight">Resumo agregado conforme o filtro de consultora acima.</p>
+                        <div class="kpi-grid gc-kpi-grid gc-kpi-grid--tight-bottom" role="list">
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-user-tie" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Consultoras</div>
+                                <div class="kpi-value gc-metric-value" id="gcVendConsultorasAtivas">—</div>
+                                <div class="kpi-sub">No filtro atual</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-hand-holding-usd" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Receita equipe</div>
+                                <div class="kpi-value gc-metric-value" id="gcVendReceitaEquipe">—</div>
+                                <div class="kpi-sub">Soma no período</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-percentage" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Conv. média</div>
+                                <div class="kpi-value gc-metric-value" id="gcVendConversaoMedia">—</div>
+                                <div class="kpi-sub">Média da equipe</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-stopwatch" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Tempo médio</div>
+                                <div class="kpi-value gc-metric-value" id="gcVendTempoMedio">—</div>
+                                <div class="kpi-sub">Espera / resposta</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-user-friends" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Clientes</div>
+                                <div class="kpi-value gc-metric-value" id="gcVendClientesAtendidos">—</div>
+                                <div class="kpi-sub">Atendidos no período</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-chart-bar" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Perda média</div>
+                                <div class="kpi-value gc-metric-value" id="gcVendTaxaPerda">—</div>
+                                <div class="kpi-sub">Taxa média</div>
+                            </div>
+                        </div>
+                        <div class="gc-chart-grid gc-chart-grid--2">
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Receita por consultora</h4>
+                                <p class="gc-chart-sub">Comparativo no período selecionado.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendReceita" aria-label="Receita consultoras"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Aprovados × rejeitados</h4>
+                                <p class="gc-chart-sub">Pedidos por desfecho no período.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendAprovRej" aria-label="Aprovados rejeitados"></canvas></div>
+                            </div>
                         </div>
                     </div>
 
                     <div class="gc-block">
-                        <h3>Performance por Vendedor</h3>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Vendas por consultor</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Conversão individual</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Ticket médio individual</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Follow-ups realizados</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Motivos de perda</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Tempo médio espera/resposta</div><div class="gc-value">—</div></div>
-                        </div>
-                    </div>
-
-                    <div class="gc-block">
-                        <h3>Performance por Canal</h3>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Receita por canal</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Conversão por canal</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">CAC por canal</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Margem por canal</div><div class="gc-value">—</div></div>
-                        </div>
-                        <div class="gc-note">Canais: WhatsApp, Loja física, Médico parceiro, Academia e Indicação.</div>
-                    </div>
-
-                    <div class="gc-block">
-                        <h3>Inteligência Comercial</h3>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Top 20 fórmulas mais vendidas</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Fórmulas com maior margem</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Prescritores com maior receita</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Ticket médio por especialidade</div><div class="gc-value">—</div></div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="gc-section" id="gc-section-vendedores">
-                    <div class="gc-vendedor-tabs-wrap">
-                        <div class="gc-vendedor-tabs-title">Consultoras cadastradas</div>
-                        <div id="gcVendedoresTabs" class="gc-vendedor-tabs"></div>
-                    </div>
-
-                    <div class="gc-block">
-                        <h3>Painel de Vendedores (Visão Gestão)</h3>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Consultoras ativas</div><div class="gc-value" id="gcVendConsultorasAtivas">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Receita da equipe</div><div class="gc-value" id="gcVendReceitaEquipe">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Conversão média</div><div class="gc-value" id="gcVendConversaoMedia">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Tempo médio de espera</div><div class="gc-value" id="gcVendTempoMedio">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Clientes atendidos</div><div class="gc-value" id="gcVendClientesAtendidos">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Taxa de perda média</div><div class="gc-value" id="gcVendTaxaPerda">—</div></div>
-                        </div>
-                    </div>
-
-                    <div class="gc-block">
-                        <h3>Produtividade por Consultora</h3>
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-table"></i></span> Produtividade por consultora</h3>
+                        <p class="gc-note gc-note--tight">Detalhamento linha a linha para auditoria e coaching.</p>
                         <div class="gc-table-wrap">
                             <table class="gc-table">
+                                <caption class="gc-sr-only">Desempenho individual no período: receita, pedidos e conversão</caption>
                                 <thead>
                                     <tr>
                                         <th>Consultora</th>
@@ -240,9 +435,14 @@
                     </div>
 
                     <div class="gc-block">
-                        <h3>Motivos de Perda</h3>
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-chart-pie"></i></span> Motivos de perda</h3>
+                        <p class="gc-note gc-note--tight">Distribuição e valores associados às perdas registradas.</p>
+                        <div class="gc-chart-panel gc-chart-panel--embed">
+                            <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--short"><canvas id="gcChartVendMotivos" aria-label="Motivos perda"></canvas></div>
+                        </div>
                         <div class="gc-table-wrap">
                             <table class="gc-table">
+                                <caption class="gc-sr-only">Motivos de perda e valores associados</caption>
                                 <thead>
                                     <tr>
                                         <th>Motivo</th>
@@ -256,9 +456,11 @@
                     </div>
 
                     <div class="gc-block">
-                        <h3>Clientes Rejeitados com Contato</h3>
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-address-book"></i></span> Clientes rejeitados com contato</h3>
+                        <p class="gc-note gc-note--tight">Leads com rejeição e dado de contato para possível recuperação.</p>
                         <div class="gc-table-wrap">
                             <table class="gc-table">
+                                <caption class="gc-sr-only">Clientes com rejeições e dados de contato</caption>
                                 <thead>
                                     <tr>
                                         <th>Cliente</th>
@@ -274,53 +476,89 @@
                     </div>
                 </section>
 
-                <section class="gc-section" id="gc-section-financeiro">
+                <section class="gc-section" id="gc-section-financeiro" role="tabpanel" aria-labelledby="gc-tab-financeiro" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Financeiro aplicado</p>
+                        <p class="gc-tab-head__desc">Visão sintética ligada ao período do relatório: composição de faturamento, custos e margem. Campos sem base cadastrada aparecem como —.</p>
+                    </header>
+
                     <div class="gc-block">
-                        <h3>Receita</h3>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Faturamento bruto</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Faturamento líquido</div><div class="gc-value">—</div></div>
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-scale-balanced"></i></span> Visão financeira do período</h3>
+                        <div class="gc-chart-panel gc-chart-panel--wide">
+                            <h4 class="gc-chart-title">Composição (faturamento, CMV, lucro)</h4>
+                            <p class="gc-chart-sub">Resumo visual alinhado aos KPIs abaixo.</p>
+                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartFinResumo" aria-label="Resumo financeiro"></canvas></div>
                         </div>
+                        <div class="kpi-grid gc-kpi-grid gc-stack-16" role="list">
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Faturamento</div>
+                                <div class="kpi-value gc-metric-value" id="gcFinFatBruto">—</div>
+                                <div class="kpi-sub">Bruto no período</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-wallet" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Líquido</div>
+                                <div class="kpi-value gc-metric-value" id="gcFinFatLiq">—</div>
+                                <div class="kpi-sub">Após ajustes</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-boxes" aria-hidden="true"></i></div>
+                                <div class="kpi-label">CMV</div>
+                                <div class="kpi-value gc-metric-value" id="gcFinCmv">—</div>
+                                <div class="kpi-sub">Custo da mercadoria vendida</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-tag" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Custo / venda</div>
+                                <div class="kpi-value gc-metric-value" id="gcFinCustoVenda">—</div>
+                                <div class="kpi-sub">Variável por pedido</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-headset" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Custo / atend.</div>
+                                <div class="kpi-value gc-metric-value" id="gcFinCustoAtend">—</div>
+                                <div class="kpi-sub">Por atendimento</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-balance-scale" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Margem</div>
+                                <div class="kpi-value gc-metric-value" id="gcFinMargem">—</div>
+                                <div class="kpi-sub">Margem bruta %</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-coins" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Lucro operacional</div>
+                                <div class="kpi-value gc-metric-value" id="gcFinLucro">—</div>
+                                <div class="kpi-sub">Resultado no período</div>
+                            </div>
+                        </div>
+                        <p class="gc-note gc-metric-value" id="gcFinNotas">Campos sem base no sistema aparecem como —.</p>
                     </div>
 
                     <div class="gc-block">
-                        <h3>Custos</h3>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">CMV</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Custo fixo mensal</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Custo variável por venda</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Custo por atendimento</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">CAC</div><div class="gc-value">—</div></div>
-                        </div>
-                    </div>
-
-                    <div class="gc-block">
-                        <h3>Rentabilidade</h3>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Margem bruta</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Margem de contribuição</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Lucro operacional</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Ponto de equilíbrio</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">ROI de campanhas</div><div class="gc-value">—</div></div>
-                        </div>
-                        <div class="gc-note">Margem de contribuição por forma farmacêutica, atendente e produto.</div>
-                    </div>
-
-                    <div class="gc-block">
-                        <h3>Caixa</h3>
-                        <div class="gc-grid">
-                            <div class="gc-card"><div class="gc-label">Prazo médio de recebimento</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Índice de inadimplência</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Taxa de antecipação</div><div class="gc-value">—</div></div>
-                            <div class="gc-card"><div class="gc-label">Fluxo projetado (3 meses)</div><div class="gc-value">—</div></div>
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-piggy-bank"></i></span> Caixa e projeções</h3>
+                        <div class="gc-chart-panel gc-chart-panel--wide">
+                            <h4 class="gc-chart-title">Indicadores de caixa</h4>
+                            <p class="gc-chart-sub">Preenchidos quando houver dados de contas a receber / financeiro na base.</p>
+                            <ul class="gc-metric-list">
+                                <li><span class="gc-metric-list__text gc-metric-value" id="gcFinCaixaLinha1">Prazo médio recebimento: —</span></li>
+                                <li><span class="gc-metric-list__text gc-metric-value" id="gcFinCaixaLinha2">Inadimplência: —</span></li>
+                                <li><span class="gc-metric-list__text gc-metric-value" id="gcFinCaixaLinha3">Antecipação / fluxo 3 meses: —</span></li>
+                            </ul>
                         </div>
                     </div>
                 </section>
 
-                <section class="gc-section" id="gc-section-reuniao">
+                <section class="gc-section" id="gc-section-reuniao" role="tabpanel" aria-labelledby="gc-tab-reuniao" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Reunião mensal</p>
+                        <p class="gc-tab-head__desc">Roteiro de perguntas para cruzar com os números deste painel no fechamento com a diretoria.</p>
+                    </header>
+
                     <div class="gc-block">
-                        <h3>Perguntas da Diretoria no Fechamento Mensal</h3>
-                        <div class="gc-checklist">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-clipboard-list"></i></span> Perguntas da diretoria — fechamento mensal</h3>
+                        <div class="gc-checklist gc-checklist--meeting">
                             <div class="gc-card">
                                 <div class="gc-label">Receita</div>
                                 <ul>
@@ -360,16 +598,16 @@
                         </div>
                     </div>
                 </section>
-            </div>
+            </main>
         </div>
     </div>
     <div id="gcLoadingOverlay" class="gc-loading-overlay" aria-hidden="true">
-        <div class="gc-loading-overlay-content">
+        <div class="gc-loading-overlay-content" role="status" aria-live="polite" aria-atomic="true">
             <span class="gc-loading-spinner" aria-hidden="true"></span>
-            <span class="gc-loading-text">Carregando dados...</span>
+            <span class="gc-loading-text">Carregando indicadores…</span>
         </div>
     </div>
 
-    <script src="js/gestao-comercial.js?v=20260315loading2"></script>
+    <script defer src="js/gestao-comercial.js?v=20260316coerente"></script>
 </body>
 </html>

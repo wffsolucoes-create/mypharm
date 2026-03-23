@@ -217,6 +217,12 @@ function gestaoComercialDashboard(PDO $pdo): void
     [$startObj, $endObj, $periodType] = gcDateRangeFromInput();
     $start = $startObj->format('Y-m-d');
     $end = $endObj->format('Y-m-d');
+    // Evita travar o painel na API externa do RD (carregamento pesado); o front pode buscar depois.
+    $skipRd = false;
+    if (isset($_GET['skip_rd'])) {
+        $sr = strtolower(trim((string)$_GET['skip_rd']));
+        $skipRd = in_array($sr, ['1', 'true', 'yes', 'on'], true);
+    }
     $prevStart = $startObj->modify('-1 month')->format('Y-m-d');
     $prevEnd = $endObj->modify('-1 month')->format('Y-m-d');
     $lyStart = $startObj->modify('-1 year')->format('Y-m-d');
@@ -307,12 +313,14 @@ function gestaoComercialDashboard(PDO $pdo): void
         WHERE x.qtd_aprov = 0 AND x.qtd_nao_aprov > 0
     ", ['ini' => $start, 'fim' => $end]);
 
+    // LTV no período filtrado (antes: full scan em gestao_pedidos — muito lento com base grande).
     $ltvRow = gcFetchRow($pdo, "
         SELECT
             COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS receita_total,
             COALESCE(COUNT(DISTINCT CASE WHEN {$approvedGp} THEN gp.cliente END), 0) AS clientes_total
         FROM gestao_pedidos gp
-    ");
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+    ", ['ini' => $start, 'fim' => $end]);
 
     $freqRecompraRow = gcFetchRow($pdo, "
         SELECT
@@ -408,6 +416,7 @@ function gestaoComercialDashboard(PDO $pdo): void
             COALESCE(u.setor, '') AS setor,
             COALESCE(u.ativo, 1) AS ativo
         FROM usuarios u
+        WHERE LOWER(TRIM(COALESCE(u.setor, ''))) LIKE '%vendedor%'
         ORDER BY TRIM(u.nome) ASC
     ");
     $vendedoresCadastrados = [];
@@ -685,7 +694,8 @@ function gestaoComercialDashboard(PDO $pdo): void
         'ltv_cac' => null,
         'notas' => [
             'cac' => 'Não há base de custo de marketing/campanhas no banco atual.',
-            'ltv_cac' => 'Depende do CAC para cálculo.'
+            'ltv_cac' => 'Depende do CAC para cálculo.',
+            'ltv' => 'LTV = receita aprovada no período filtrado ÷ clientes distintos com compra nesse período (agilidade do painel; não é LTV vitalício).',
         ],
     ];
 
@@ -796,7 +806,7 @@ function gestaoComercialDashboard(PDO $pdo): void
 
     // Métricas do RD Station CRM (quando token configurado): enriquece o payload com todas as métricas possíveis da API
     $rdToken = trim((string)(function_exists('getenv') ? getenv('RDSTATION_CRM_TOKEN') : '') ?: '');
-    if ($rdToken !== '' && function_exists('rdFetchTodasMetricas')) {
+    if (!$skipRd && $rdToken !== '' && function_exists('rdFetchTodasMetricas')) {
         try {
             $payload['rd_metricas'] = rdFetchTodasMetricas($rdToken, $start, $end);
         } catch (Throwable $e) {
@@ -807,6 +817,9 @@ function gestaoComercialDashboard(PDO $pdo): void
         }
     } else {
         $payload['rd_metricas'] = null;
+        if ($skipRd && $rdToken !== '') {
+            $payload['rd_metricas_deferred'] = true;
+        }
     }
 
     $jsonFlags = JSON_UNESCAPED_UNICODE;

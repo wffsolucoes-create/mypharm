@@ -10,6 +10,11 @@ let currentPage = 'dashboard';
 let __csrfToken = '';
 const MAIN_LAST_PAGE_KEY = 'mypharm_main_last_page';
 
+/** Estado da API de notificações — deve existir antes de qualquer chamada a loadNotificacoesFromAPI (evita TDZ). */
+let __notificacoesApi = [];
+let __mensagensApi = [];
+let __mensagensRecebidasApi = [];
+
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -21,14 +26,16 @@ function escapeHtml(str) {
 }
 
 // ============ Chart.js Global Config ============
-Chart.defaults.color = '#9CA3B8';
-Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
-Chart.defaults.font.family = "'Inter', sans-serif";
-Chart.defaults.font.size = 12;
-Chart.defaults.plugins.legend.labels.usePointStyle = true;
-Chart.defaults.plugins.legend.labels.padding = 16;
-Chart.defaults.responsive = true;
-Chart.defaults.maintainAspectRatio = false;
+if (typeof Chart !== 'undefined') {
+    Chart.defaults.color = '#9CA3B8';
+    Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.plugins.legend.labels.usePointStyle = true;
+    Chart.defaults.plugins.legend.labels.padding = 16;
+    Chart.defaults.responsive = true;
+    Chart.defaults.maintainAspectRatio = false;
+}
 
 const CHART_COLORS = [
     '#E63946', '#06D6A0', '#118AB2', '#FFD166', '#7B68EE',
@@ -618,10 +625,6 @@ function escNotif(x) {
     return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
-let __notificacoesApi = [];
-let __mensagensApi = [];
-let __mensagensRecebidasApi = [];
-
 async function loadNotificacoesFromAPI() {
     const btn = document.getElementById('btnNotifications');
     if (!btn) return;
@@ -944,8 +947,10 @@ function renderKPIs(kpis) {
 }
 
 function renderChartFaturamentoMensal(data) {
+    if (typeof Chart === 'undefined' || !data || !Array.isArray(data)) return;
     destroyChart('chartFaturamentoMensal');
     const ctx = document.getElementById('chartFaturamentoMensal');
+    if (!ctx) return;
 
     const labels = data.map(d => MONTH_NAMES[(d.mes || 1) - 1]);
 
@@ -1288,12 +1293,82 @@ async function loadVisitadoresPage() {
 }
 
 // ============ VISITAS (PÁGINA ADMIN) ============
-let __visitasRelatorioCache = null; // para mapa (dropdown visitador)
+const VISITAS_VISITADOR_FILTER_KEY = 'mypharm_visitas_visitador_filter';
+let __visitasRelatorioCache = null;
+let __visitasSemVisitaRowsCache = [];
 let __modalDetalheVisitaAdminMap = null;
 
+function getVisitasGlobalVisitadorParam() {
+    const sel = document.getElementById('visitasGlobalVisitador');
+    const v = sel ? String(sel.value || '').trim() : '';
+    return v || null;
+}
+
+async function ensureVisitasGlobalVisitadorSelect() {
+    const sel = document.getElementById('visitasGlobalVisitador');
+    if (!sel) return;
+    let saved = '';
+    try { saved = (localStorage.getItem(VISITAS_VISITADOR_FILTER_KEY) || '').trim(); } catch (e) { /* ignore */ }
+    const prior = saved || String(sel.value || '').trim();
+    try {
+        const list = await apiGet('list_visitadores') || [];
+        const names = Array.isArray(list)
+            ? list.map(x => String(x.visitador || '').trim()).filter(Boolean)
+            : [];
+        const uniq = [...new Set(names)].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        sel.innerHTML = '<option value="">Todos os visitadores</option>' +
+            uniq.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+        if (prior && uniq.some(n => n === prior)) {
+            sel.value = prior;
+        } else {
+            sel.value = '';
+            if (prior) {
+                try { localStorage.removeItem(VISITAS_VISITADOR_FILTER_KEY); } catch (e2) { /* ignore */ }
+            }
+        }
+    } catch (e) {
+        console.error('list_visitadores (página Visitas):', e);
+    }
+}
+
+function onVisitasGlobalVisitadorChange() {
+    const sel = document.getElementById('visitasGlobalVisitador');
+    const v = sel ? String(sel.value || '').trim() : '';
+    try {
+        if (v) localStorage.setItem(VISITAS_VISITADOR_FILTER_KEY, v);
+        else localStorage.removeItem(VISITAS_VISITADOR_FILTER_KEY);
+    } catch (e) { /* ignore */ }
+    if (typeof currentPage !== 'undefined' && currentPage === 'visitas') {
+        loadVisitasPage();
+    }
+}
+window.onVisitasGlobalVisitadorChange = onVisitasGlobalVisitadorChange;
+
+function initVisitasGestaoFiltersOnce() {
+    const page = document.getElementById('page-visitas');
+    if (!page || page.dataset.gestaoFilterBound === '1') return;
+    page.dataset.gestaoFilterBound = '1';
+    const inp = document.getElementById('visitasSemVisitaFilter');
+    if (inp) {
+        inp.addEventListener('input', function () {
+            const q = (this.value || '').trim().toLowerCase();
+            renderPrescritoresSemVisitaFiltered(q);
+        });
+    }
+    const selGlobal = document.getElementById('visitasGlobalVisitador');
+    if (selGlobal) {
+        selGlobal.addEventListener('change', onVisitasGlobalVisitadorChange);
+    }
+}
+
 async function loadVisitasPage() {
+    initVisitasGestaoFiltersOnce();
+    await ensureVisitasGlobalVisitadorSelect();
     const fp = getFilterParams();
     const params = { data_de: fp.data_de, data_ate: fp.data_ate };
+    const visitadorFiltro = getVisitasGlobalVisitadorParam();
+    if (visitadorFiltro) params.visitador = visitadorFiltro;
+
     let lista = [];
     try {
         lista = await apiGet('admin_visitas', params) || [];
@@ -1312,13 +1387,17 @@ async function loadVisitasPage() {
         const pontos_atendimento = rel.pontos_atendimento || [];
         const totalKm = por_visitador.reduce((s, p) => s + parseFloat(p.total_km_rotas || 0), 0);
         renderVisitasKPIs(totais, totalKm);
+        renderPrescritoresMaisVisitados(rel.prescritores_mais_visitados || []);
+        renderPrescritoresSemVisitaStore(rel.prescritores_sem_visita_periodo || [], totais);
         renderVisitasPorVisitador(por_visitador);
         renderRotasDetalhes(rotas);
-        renderVisitasMapaVisitadorOptions(por_visitador);
+        // Mapa: dados já vêm filtrados pela API quando há visitador
         renderMapaRotas(pontos_rotas, '', pontos_atendimento);
     } catch (e) {
         console.error('Erro ao carregar relatório visitas', e);
         renderVisitasKPIs({}, 0);
+        renderPrescritoresMaisVisitados([]);
+        renderPrescritoresSemVisitaStore([], {});
         renderVisitasPorVisitador([]);
         renderRotasDetalhes([]);
         renderMapaRotas([], '', []);
@@ -1327,11 +1406,83 @@ async function loadVisitasPage() {
 
 function renderVisitasKPIs(totais, totalKm) {
     const elPeriodo = document.getElementById('visitasKpiPeriodo');
+    const elPresc = document.getElementById('visitasKpiPrescritores');
     const elSemana = document.getElementById('visitasKpiSemana');
     const elKm = document.getElementById('visitasKpiKm');
     if (elPeriodo) elPeriodo.textContent = formatNumber(totais.total_visitas_periodo ?? 0);
+    if (elPresc) elPresc.textContent = formatNumber(totais.prescritores_distintos_visitados ?? 0);
     if (elSemana) elSemana.textContent = formatNumber(totais.total_visitas_semana_atual ?? 0);
     if (elKm) elKm.textContent = (totalKm > 0 ? totalKm.toFixed(1) : '0');
+}
+
+function renderPrescritoresMaisVisitados(rows) {
+    const tbody = document.querySelector('#tablePrescritoresMaisVisitados tbody');
+    const emptyEl = document.getElementById('visitasMaisVisitadosEmpty');
+    if (!tbody) return;
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (!Array.isArray(rows) || rows.length === 0) {
+        tbody.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+    }
+    tbody.innerHTML = rows.map((r, i) => `
+        <tr>
+            <td>${i + 1}</td>
+            <td><strong>${escapeHtml((r.prescritor || '—').trim())}</strong></td>
+            <td><span class="visitas-pill visitas-pill--ok">${formatNumber(r.total_visitas ?? 0)}</span></td>
+            <td>${escapeHtml((r.visitador_referencia || '—').trim())}</td>
+        </tr>
+    `).join('');
+}
+
+function renderPrescritoresSemVisitaStore(rows, totais) {
+    __visitasSemVisitaRowsCache = Array.isArray(rows) ? rows.slice() : [];
+    const inp = document.getElementById('visitasSemVisitaFilter');
+    if (inp) inp.value = '';
+    renderPrescritoresSemVisitaFiltered('');
+    const badge = document.getElementById('visitasSemVisitaCountBadge');
+    const trunc = document.getElementById('visitasSemVisitaTruncNote');
+    const totalSem = totais.prescritores_sem_visita_count ?? __visitasSemVisitaRowsCache.length;
+    if (badge) badge.textContent = formatNumber(totalSem);
+    if (trunc) {
+        if (totalSem > __visitasSemVisitaRowsCache.length && __visitasSemVisitaRowsCache.length >= 250) {
+            trunc.textContent = `Lista limitada a 250 linhas; o total sem visita no período é ${formatNumber(totalSem)}. Use o filtro ou exporte do banco para a lista completa.`;
+            trunc.style.display = 'block';
+        } else {
+            trunc.textContent = '';
+            trunc.style.display = 'none';
+        }
+    }
+}
+
+function renderPrescritoresSemVisitaFiltered(q) {
+    const tbody = document.querySelector('#tablePrescritoresSemVisita tbody');
+    const emptyEl = document.getElementById('visitasSemVisitaEmpty');
+    if (!tbody) return;
+    const src = __visitasSemVisitaRowsCache || [];
+    const filtered = !q ? src : src.filter(r => {
+        const p = ((r.prescritor || '') + ' ' + (r.visitador_carteira || '')).toLowerCase();
+        return p.includes(q);
+    });
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (filtered.length === 0) {
+        tbody.innerHTML = '';
+        if (emptyEl) {
+            emptyEl.style.display = 'block';
+            if (q && src.length > 0) {
+                emptyEl.textContent = 'Nenhum prescritor corresponde ao filtro.';
+            } else {
+                emptyEl.textContent = 'Todos os prescritores da carteira têm pelo menos uma visita no período — ou a carteira está vazia.';
+            }
+        }
+        return;
+    }
+    tbody.innerHTML = filtered.map(r => `
+        <tr>
+            <td>${escapeHtml((r.prescritor || '—').trim())}</td>
+            <td>${escapeHtml((r.visitador_carteira || '—').trim())}</td>
+        </tr>
+    `).join('');
 }
 
 function renderVisitasPorVisitador(por_visitador) {
@@ -1380,21 +1531,12 @@ function renderRotasDetalhes(rotas) {
     `).join('');
 }
 
-function renderVisitasMapaVisitadorOptions(por_visitador) {
-    const sel = document.getElementById('visitasMapaVisitador');
-    if (!sel) return;
-    const names = [...new Set((por_visitador || []).map(p => p.visitador_nome).filter(Boolean))].sort();
-    sel.innerHTML = '<option value="">Todos os visitadores</option>' +
-        names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
-}
-
+/** Recarrega o mapa a partir do cache (ex.: após redimensionar). Usa filtro global de visitador nos dados já carregados. */
 function renderMapaRotasFromStore() {
-    const sel = document.getElementById('visitasMapaVisitador');
-    const visitador = sel ? sel.value || '' : '';
     const rel = __visitasRelatorioCache;
     const pontos_rotas = rel && rel.pontos_rotas ? rel.pontos_rotas : [];
     const pontos_atendimento = rel && rel.pontos_atendimento ? rel.pontos_atendimento : [];
-    renderMapaRotas(pontos_rotas, visitador, pontos_atendimento);
+    renderMapaRotas(pontos_rotas, '', pontos_atendimento);
 }
 
 let __mapaRotasVisitasInstance = null;
@@ -3493,6 +3635,7 @@ function toggleTheme() {
 }
 
 function applyChartTheme(theme) {
+    if (typeof Chart === 'undefined') return;
     if (theme === 'light') {
         Chart.defaults.color = '#5A6178';
         Chart.defaults.borderColor = 'rgba(0,0,0,0.06)';

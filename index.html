@@ -649,6 +649,12 @@
             <!-- ==================== VISITADORES PAGE ==================== -->
             <div id="page-visitadores" class="section-page">
                 <div class="page-content">
+                    <div class="visitas-crosslink-banner" role="note">
+                        <i class="fas fa-route" aria-hidden="true"></i>
+                        <div>
+                            <strong>Cobertura de visitas e prescritores</strong> ficam no menu <strong>Análises → Visitas</strong> (mapa, rotas, quem mais foi visitado e carteira sem visita no período).
+                        </div>
+                    </div>
                     <div class="kpi-grid stagger" id="kpiGridVisitadores"></div>
                     <div class="charts-grid single">
                         <div class="chart-card full-width">
@@ -692,13 +698,27 @@
             <!-- ==================== VISITAS PAGE ==================== -->
             <div id="page-visitas" class="section-page">
                 <div class="page-content">
+                    <p class="visitas-page-lead">Visão de <strong>gestão</strong>: use o <strong>período</strong> no topo da aplicação e o <strong>visitador</strong> abaixo. Tudo na página (KPIs, tabelas, rotas e mapa) respeita os dois filtros.</p>
+                    <div class="visitas-global-filtro" role="toolbar" aria-label="Filtro por visitador">
+                        <label for="visitasGlobalVisitador" class="visitas-global-filtro__label"><i class="fas fa-user-tie" aria-hidden="true"></i> Visitador</label>
+                        <select id="visitasGlobalVisitador" class="filter-select visitas-global-filtro__select" title="Filtrar toda a página por visitador">
+                            <option value="">Todos os visitadores</option>
+                        </select>
+                    </div>
                     <!-- KPIs -->
-                    <div class="kpi-grid stagger" id="visitasKpiGrid">
+                    <div class="kpi-grid stagger visitas-kpi-grid" id="visitasKpiGrid">
                         <div class="kpi-card">
                             <div class="kpi-icon"><i class="fas fa-clipboard-check"></i></div>
                             <div class="kpi-info">
                                 <span class="kpi-value" id="visitasKpiPeriodo">0</span>
                                 <p class="kpi-label">Total de visitas (período)</p>
+                            </div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-icon"><i class="fas fa-user-md"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-value" id="visitasKpiPrescritores">0</span>
+                                <p class="kpi-label">Prescritores distintos visitados</p>
                             </div>
                         </div>
                         <div class="kpi-card">
@@ -714,6 +734,55 @@
                                 <span class="kpi-value" id="visitasKpiKm">0</span>
                                 <p class="kpi-label">Km percorridos (rotas)</p>
                             </div>
+                        </div>
+                    </div>
+                    <div class="visitas-gestao-grid">
+                        <div class="table-card visitas-gestao-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title"><i class="fas fa-trophy" style="color:#f59e0b;margin-right:6px;"></i>Prescritores mais visitados</div>
+                                    <div class="chart-subtitle">No período selecionado (quantidade de registros em histórico)</div>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table" id="tablePrescritoresMaisVisitados">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Prescritor</th>
+                                            <th>Visitas</th>
+                                            <th>Visitador (ref.)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            <div id="visitasMaisVisitadosEmpty" class="empty-state" style="display:none; text-align:center; padding:1.25rem; color:var(--text-secondary);">Nenhuma visita a prescritor no período.</div>
+                        </div>
+                        <div class="table-card visitas-gestao-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title"><i class="fas fa-exclamation-circle" style="color:#ef4444;margin-right:6px;"></i>Sem visita no período</div>
+                                    <div class="chart-subtitle">Cadastro na carteira sem nenhuma visita registrada no período · <strong id="visitasSemVisitaCountBadge">0</strong> prescritores</div>
+                                </div>
+                            </div>
+                            <div class="visitas-filter-inline">
+                                <label for="visitasSemVisitaFilter" class="sr-only">Filtrar lista</label>
+                                <input type="search" id="visitasSemVisitaFilter" class="filter-search-input" placeholder="Filtrar por nome ou visitador…" autocomplete="off">
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table" id="tablePrescritoresSemVisita">
+                                    <thead>
+                                        <tr>
+                                            <th>Prescritor</th>
+                                            <th>Visitador (carteira)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            <div id="visitasSemVisitaEmpty" class="empty-state" style="display:none; text-align:center; padding:1.25rem; color:var(--text-secondary);">Todos os prescritores da carteira têm pelo menos uma visita no período — ou a carteira está vazia.</div>
+                            <p id="visitasSemVisitaTruncNote" class="visitas-trunc-note" style="display:none; margin:0.5rem 1rem 1rem; font-size:0.8rem; color:var(--text-secondary);"></p>
                         </div>
                     </div>
                     <!-- Visitas por visitador -->
@@ -768,12 +837,7 @@
                         <div class="chart-header">
                             <div>
                                 <div class="chart-title">Mapa de rotas</div>
-                                <div class="chart-subtitle">Trajetos por visitador (use os filtros Ano/Mês no topo)</div>
-                            </div>
-                            <div>
-                                <select class="filter-select" id="visitasMapaVisitador" onchange="renderMapaRotasFromStore()" title="Filtrar por visitador" style="min-width:180px;">
-                                    <option value="">Todos os visitadores</option>
-                                </select>
+                                <div class="chart-subtitle">Trajetos e pontos de atendimento · usa o <strong>filtro de visitador</strong> acima</div>
                             </div>
                         </div>
                         <div class="chart-body" style="height:400px; position:relative;">
@@ -786,7 +850,7 @@
                         <div class="chart-header">
                             <div>
                                 <div class="chart-title">Visitas realizadas</div>
-                                <div class="chart-subtitle">Histórico de visitas da equipe (use os filtros Ano/Mês no topo)</div>
+                                <div class="chart-subtitle">Histórico detalhado da equipe no período do topo</div>
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -1465,7 +1529,8 @@
             document.body.style.visibility = 'visible';
         })();
     </script>
-    <script src="js/app.js?v=20260315keep-page1"></script>
+    <!-- defer: executa após Chart.js/Leaflet (também defer no <head>), nesta ordem -->
+    <script defer src="js/app.js?v=20260315keep-page1"></script>
 </body>
 
 </html>
