@@ -589,10 +589,14 @@
                 <div style="padding:20px 24px;">
                     <input type="hidden" id="novoAgendamentoId" value="">
                     <div style="margin-bottom:16px;">
-                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Prescritor</label>
-                        <select id="novoAgendamentoPrescritor" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
-                            <option value="">Selecione o prescritor</option>
-                        </select>
+                        <label for="novoAgendamentoPrescritor" style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Prescritor</label>
+                        <div class="agenda-prescritor-combo">
+                            <input type="text" id="novoAgendamentoPrescritor" autocomplete="off" spellcheck="false"
+                                placeholder="Digite para buscar na sua carteira…"
+                                style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                            <div id="novoAgendamentoPrescritorDropdown" class="agenda-prescritor-dropdown" role="listbox" aria-label="Sugestões de prescritores" hidden></div>
+                        </div>
+                        <p class="agenda-prescritor-combo-hint" style="margin:6px 0 0; font-size:0.7rem; color:var(--text-secondary);">Sugestões da carteira ao digitar; toque num nome ou escolha na lista.</p>
                     </div>
                     <div style="margin-bottom:16px;">
                         <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Data</label>
@@ -1551,7 +1555,7 @@
     <script src="js/app.js"></script>
     <script src="js/shared/mypharm-utils.js"></script>
     <script src="js/visitador/prescritores-feature.js"></script>
-    <script src="js/visitador/visitador-main.js?v=20260315visita2"></script>
+    <script src="js/visitador/visitador-main.js?v=20260316agenda-autocomplete"></script>
 </body>
 
 </html>

@@ -2404,6 +2404,102 @@ function getThemeStorageKeyVisitador() {
         var __agendaAno = new Date().getFullYear();
         var __agendaMes = new Date().getMonth() + 1;
         var __agendaVisitas = [];
+        /** Nomes canônicos da carteira (para autocomplete do modal de agendamento) */
+        var __agendaPrescritoresCarteira = [];
+        var __agendaPrescritorDropdownMatches = [];
+        var __agendaPrescritorComboInited = false;
+
+        function escAgendaHtml(s) {
+            return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function hideAgendaPrescritorDropdown() {
+            var dd = document.getElementById('novoAgendamentoPrescritorDropdown');
+            if (dd) {
+                dd.innerHTML = '';
+                dd.hidden = true;
+            }
+            __agendaPrescritorDropdownMatches = [];
+        }
+
+        function pickAgendaPrescritorNome(nome) {
+            var inp = document.getElementById('novoAgendamentoPrescritor');
+            if (inp) inp.value = nome || '';
+            hideAgendaPrescritorDropdown();
+        }
+
+        function renderAgendaPrescritorSuggestions(query) {
+            var dd = document.getElementById('novoAgendamentoPrescritorDropdown');
+            var inp = document.getElementById('novoAgendamentoPrescritor');
+            if (!dd || !inp) return;
+            var q = String(query || '').trim().toLowerCase();
+            var list = __agendaPrescritoresCarteira || [];
+            var maxShow = 50;
+            var previewNoQuery = 20;
+            var matches;
+            if (!q) {
+                matches = list.slice(0, previewNoQuery);
+            } else {
+                matches = list.filter(function (n) {
+                    return String(n).toLowerCase().indexOf(q) !== -1;
+                }).slice(0, maxShow);
+            }
+            __agendaPrescritorDropdownMatches = matches;
+            if (matches.length === 0) {
+                dd.innerHTML = '<div class="agenda-prescritor-dropdown-empty">Nenhum prescritor encontrado na carteira.</div>';
+                dd.hidden = false;
+                return;
+            }
+            dd.innerHTML = matches.map(function (n, i) {
+                return '<button type="button" class="agenda-prescritor-option" data-idx="' + i + '">' + escAgendaHtml(n) + '</button>';
+            }).join('');
+            dd.hidden = false;
+            dd.querySelectorAll('.agenda-prescritor-option').forEach(function (btn) {
+                btn.addEventListener('mousedown', function (ev) {
+                    ev.preventDefault();
+                    var idx = parseInt(btn.getAttribute('data-idx'), 10);
+                    var nome = __agendaPrescritorDropdownMatches[idx];
+                    if (nome) pickAgendaPrescritorNome(nome);
+                });
+            });
+        }
+
+        function initAgendaPrescritorComboOnce() {
+            if (__agendaPrescritorComboInited) return;
+            __agendaPrescritorComboInited = true;
+            var inp = document.getElementById('novoAgendamentoPrescritor');
+            if (!inp) return;
+            inp.addEventListener('input', function () {
+                renderAgendaPrescritorSuggestions(inp.value);
+            });
+            inp.addEventListener('focus', function () {
+                renderAgendaPrescritorSuggestions(inp.value);
+            });
+            inp.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') hideAgendaPrescritorDropdown();
+            });
+            document.addEventListener('click', function (e) {
+                var wrap = document.querySelector('.agenda-prescritor-combo');
+                if (wrap && !wrap.contains(e.target)) hideAgendaPrescritorDropdown();
+            });
+        }
+
+        /** Resolve o nome exato da carteira a partir do texto digitado (igualdade sem acento de caixa ou match único). */
+        function resolveNovoAgendamentoPrescritorNome() {
+            var raw = (document.getElementById('novoAgendamentoPrescritor') || {}).value.trim();
+            if (!raw) return '';
+            var list = __agendaPrescritoresCarteira || [];
+            var lower = raw.toLowerCase();
+            var i;
+            for (i = 0; i < list.length; i++) {
+                if (String(list[i]).toLowerCase() === lower) return list[i];
+            }
+            var partial = list.filter(function (n) {
+                return String(n).toLowerCase().indexOf(lower) !== -1;
+            });
+            if (partial.length === 1) return partial[0];
+            return '';
+        }
 
         function renderPaginaAgenda() {
             var titulo = document.getElementById('agendaMesTitulo');
@@ -2520,18 +2616,23 @@ function getThemeStorageKeyVisitador() {
         }
 
         async function openNovoAgendamentoModal(editItem) {
+            initAgendaPrescritorComboOnce();
             var idEl = document.getElementById('novoAgendamentoId');
             var titleEl = document.getElementById('modalNovoAgendamentoTitle');
             var btnSalvar = document.getElementById('btnSalvarNovoAgendamento');
-            var sel = document.getElementById('novoAgendamentoPrescritor');
+            var prescInp = document.getElementById('novoAgendamentoPrescritor');
             var dataEl = document.getElementById('novoAgendamentoData');
             var horaEl = document.getElementById('novoAgendamentoHora');
-            if (!sel || !dataEl) return;
+            if (!prescInp || !dataEl) return;
             var isEdit = editItem && (editItem.id || (editItem.dataset && (editItem.dataset.agendamentoId || editItem.dataset.id)));
             if (idEl) idEl.value = isEdit ? (editItem.dataset && (editItem.dataset.agendamentoId || editItem.dataset.id)) || editItem.id || '' : '';
             if (titleEl) titleEl.innerHTML = isEdit ? '<i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Editar agendamento' : '<i class="fas fa-calendar-plus" style="margin-right:8px; color:var(--primary);"></i>Novo agendamento';
             if (btnSalvar) btnSalvar.innerHTML = isEdit ? '<i class="fas fa-save" style="margin-right:6px;"></i>Salvar alterações' : '<i class="fas fa-check" style="margin-right:6px;"></i>Agendar';
-            sel.innerHTML = '<option value="">Carregando...</option>';
+            prescInp.value = '';
+            prescInp.placeholder = 'Carregando carteira…';
+            prescInp.disabled = true;
+            hideAgendaPrescritorDropdown();
+            __agendaPrescritoresCarteira = [];
             document.getElementById('modalNovoAgendamento').style.display = 'flex';
             if (isEdit && (editItem.dataset || editItem)) {
                 var d = editItem.dataset || {};
@@ -2542,19 +2643,27 @@ function getThemeStorageKeyVisitador() {
                 if (horaEl) horaEl.value = '';
             }
             try {
-                var list = await apiGet('all_prescritores', { visitador: currentVisitadorName || '', ano: __agendaAno });
-                var prescritores = Array.isArray(list) ? list : [];
-                sel.innerHTML = '<option value="">Selecione o prescritor</option>';
-                prescritores.forEach(function (p) {
-                    var nome = p.prescritor || p.nome || '-';
-                    sel.appendChild(new Option(nome, nome));
+                var list = await apiGet('all_prescritores', { visitador: currentVisitadorName || '', ano: __agendaAno, limit: 5000 });
+                var prescritores = Array.isArray(list) ? list : (list && list.data && Array.isArray(list.data) ? list.data : []);
+                var nomes = prescritores.map(function (p) {
+                    return (p.prescritor || p.nome || '').trim();
+                }).filter(function (n) { return n && n !== '-'; });
+                __agendaPrescritoresCarteira = nomes.filter(function (n, idx, a) {
+                    return a.indexOf(n) === idx;
                 });
+                __agendaPrescritoresCarteira.sort(function (a, b) {
+                    return String(a).localeCompare(String(b), 'pt-BR');
+                });
+                prescInp.disabled = false;
+                prescInp.placeholder = 'Digite para buscar na sua carteira…';
                 if (isEdit && (editItem.dataset || editItem)) {
                     var presc = (editItem.dataset && editItem.dataset.agendamentoPrescritor) || editItem.prescritor || '';
-                    sel.value = presc;
+                    prescInp.value = presc;
                 }
             } catch (e) {
-                sel.innerHTML = '<option value="">Erro ao carregar prescritores</option>';
+                prescInp.disabled = false;
+                prescInp.placeholder = 'Erro ao carregar — tente de novo';
+                __agendaPrescritoresCarteira = [];
             }
         }
 
@@ -2598,16 +2707,32 @@ function getThemeStorageKeyVisitador() {
             document.getElementById('modalNovoAgendamento').style.display = 'none';
             var idEl = document.getElementById('novoAgendamentoId');
             if (idEl) idEl.value = '';
+            hideAgendaPrescritorDropdown();
+            var pi = document.getElementById('novoAgendamentoPrescritor');
+            if (pi) {
+                pi.value = '';
+                pi.disabled = false;
+                pi.placeholder = 'Digite para buscar na sua carteira…';
+            }
         }
 
         async function saveNovoAgendamento() {
             var idEl = document.getElementById('novoAgendamentoId');
             var id = (idEl && idEl.value) ? idEl.value.trim() : '';
-            var prescritor = (document.getElementById('novoAgendamentoPrescritor') || {}).value;
+            var prescritor = resolveNovoAgendamentoPrescritorNome();
             var data = (document.getElementById('novoAgendamentoData') || {}).value;
             var hora = (document.getElementById('novoAgendamentoHora') || {}).value;
-            if (!prescritor || !data) {
-                alert('Selecione o prescritor e a data.');
+            if (!prescritor) {
+                var tentativa = (document.getElementById('novoAgendamentoPrescritor') || {}).value.trim();
+                if (!tentativa) {
+                    alert('Informe o prescritor e a data.');
+                } else {
+                    alert('Escolha um nome da lista de sugestões ou digite o nome exatamente como está na carteira.');
+                }
+                return;
+            }
+            if (!data) {
+                alert('Informe a data.');
                 return;
             }
             var btn = document.getElementById('btnSalvarNovoAgendamento');

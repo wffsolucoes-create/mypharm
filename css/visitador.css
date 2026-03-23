@@ -1566,3 +1566,67 @@ tr:last-child td {
         max-height: 85vh !important;
     }
 }
+
+/* Modal agendamento: autocomplete prescritor (carteira) */
+.agenda-prescritor-combo {
+    position: relative;
+    width: 100%;
+}
+
+.agenda-prescritor-dropdown {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 3200;
+    max-height: 240px;
+    overflow-y: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    box-shadow: var(--shadow-lg);
+    -webkit-overflow-scrolling: touch;
+}
+
+.agenda-prescritor-dropdown[hidden] {
+    display: none !important;
+}
+
+.agenda-prescritor-dropdown:not([hidden]) {
+    display: block;
+}
+
+.agenda-prescritor-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    cursor: pointer;
+    line-height: 1.35;
+}
+
+.agenda-prescritor-option:last-child {
+    border-bottom: none;
+}
+
+.agenda-prescritor-option:hover,
+.agenda-prescritor-option:focus {
+    background: var(--bg-body);
+    outline: none;
+}
+
+.agenda-prescritor-dropdown-empty {
+    padding: 12px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.agenda-prescritor-combo-hint {
+    line-height: 1.35;
+}
