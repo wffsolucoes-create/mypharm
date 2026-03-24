@@ -215,6 +215,13 @@ function gcApprovedCase(string $alias = 'gp'): string
  */
 function gestaoComercialDashboardRdOnly(PDO $pdo): void
 {
+    if (function_exists('set_time_limit')) {
+        @set_time_limit(300);
+    }
+    if (function_exists('ini_set')) {
+        @ini_set('max_execution_time', '300');
+    }
+
     if (strtolower((string)($_SESSION['user_tipo'] ?? '')) !== 'admin') {
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Acesso restrito ao administrador.'], JSON_UNESCAPED_UNICODE);
@@ -247,7 +254,7 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
     $forceRefresh = in_array($refreshRd, ['1', 'true', 'yes', 'on'], true);
 
     $rdNow = null;
-    $cacheKey = 'gc_rd_dashboard_' . md5($start . '|' . $end);
+    $cacheKey = 'gc_rd_dashboard_v5_' . md5($start . '|' . $end);
     $cacheFile = rtrim((string)sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $cacheKey . '.json';
     try {
         if (is_file($cacheFile) && !$forceRefresh) {
@@ -372,7 +379,7 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
 
     $clientesRejeitadosComContato = [];
     try {
-        $detalhesRej = rdFetchRejeitadosDetalhados($rdToken, $start, $end, 6);
+        $detalhesRej = rdFetchRejeitadosDetalhados($rdToken, $start, $end, 3);
         $registrosRej = $detalhesRej['registros'] ?? [];
         if (is_array($registrosRej) && $registrosRej) {
             $rejMap = [];
