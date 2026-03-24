@@ -1270,8 +1270,6 @@ try {
                 if ($k !== '') $recMapNormalized[$k] = $pair;
             }
 
-            $usarRecusadosPorPeriodo = $useRange || !empty($mes) || !empty($dia);
-
             $results = [];
             foreach ($data as $row) {
                 $row['dias_sem_visita'] = null;
@@ -1294,19 +1292,8 @@ try {
                 $results[] = $row;
             }
 
-            // Quando há filtro por período (dia/mês/faixa), retornar apenas prescritores com movimento no período.
-            // Na carteira do visitador (visitador informado) sempre mostrar a lista completa para bater com o card "Prescritores Ativos".
-            if ($usarRecusadosPorPeriodo && !$visitadorFilter) {
-                $results = array_values(array_filter($results, function ($row) {
-                    $ap = (float)($row['valor_aprovado'] ?? 0);
-                    $rc = (float)($row['valor_recusado'] ?? 0);
-                    $qp = (int)($row['total_pedidos'] ?? 0);
-                    $qr = (int)($row['qtd_recusados'] ?? 0);
-                    return ($ap > 0) || ($rc > 0) || ($qp > 0) || ($qr > 0);
-                }));
-                // Para o card "Total de prescritores" refletir o carregado no período.
-                $totalRows = count($results);
-            }
+            // Importante: a lista de prescritores deve permanecer completa mesmo com filtro por período.
+            // O período afeta apenas os valores/contadores (aprovado, recusado, pedidos etc.).
 
             if (ob_get_length())
                 ob_clean();
