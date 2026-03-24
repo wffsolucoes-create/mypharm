@@ -503,6 +503,21 @@
             var el = document.getElementById(id);
             if (el) el.textContent = map[id];
         });
+
+        var quickMap = {
+            gcEficQuickLeads: fmtVal(e.leads_recebidos, 'int'),
+            gcEficQuickVendas: fmtVal(data?.funil_comercial?.vendas_fechadas, 'int'),
+            gcEficQuickTempo: (e.tempo_medio_fechamento_horas != null && e.tempo_medio_fechamento_horas !== '')
+                ? (Number(e.tempo_medio_fechamento_horas).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' h')
+                : '—',
+            gcFidelQuickLucro: fmtVal(r.lucro_operacional, 'money'),
+            gcFidelQuickRecompra: f.taxa_recompra != null ? fmtVal(f.taxa_recompra, 'percent') : '—',
+            gcFidelQuickBase: fmtVal(f.base_ativa_90_dias, 'int')
+        };
+        Object.keys(quickMap).forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.textContent = quickMap[id];
+        });
     }
 
     function renderFinanceiroKpis(data) {
@@ -791,42 +806,52 @@
 
         /* —— Margem por produto (top 6) —— */
         var segProd = (r.margem_contribuicao_por && r.margem_contribuicao_por.produto) ? r.margem_contribuicao_por.produto.slice(0, 6) : [];
-        gcEnsureChart('execFidel', 'gcChartExecFidel', function () {
-            return {
-                type: 'bar',
-                data: {
-                    labels: segProd.length ? segProd.map(function (x) { return String(x.nome || '').slice(0, 22); }) : ['Sem dados'],
-                    datasets: [{
-                        label: 'Margem %',
-                        data: segProd.length ? segProd.map(function (x) { return Number(x.margem_percentual || 0); }) : [0],
-                        backgroundColor: col.purple,
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function (ctx) {
-                                    return Number(ctx.parsed.x).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+        var fidelWrap = document.getElementById('gcExecFidelChartWrap');
+        var fidelEmpty = document.getElementById('gcExecFidelEmpty');
+        if (!segProd.length) {
+            gcDestroyChartKeys(['execFidel']);
+            if (fidelWrap) fidelWrap.style.display = 'none';
+            if (fidelEmpty) fidelEmpty.style.display = 'block';
+        } else {
+            if (fidelWrap) fidelWrap.style.display = '';
+            if (fidelEmpty) fidelEmpty.style.display = 'none';
+            gcEnsureChart('execFidel', 'gcChartExecFidel', function () {
+                return {
+                    type: 'bar',
+                    data: {
+                        labels: segProd.map(function (x) { return String(x.nome || '').slice(0, 22); }),
+                        datasets: [{
+                            label: 'Margem %',
+                            data: segProd.map(function (x) { return Number(x.margem_percentual || 0); }),
+                            backgroundColor: col.purple,
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (ctx) {
+                                        return Number(ctx.parsed.x).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+                                    }
                                 }
                             }
+                        },
+                        scales: {
+                            x: Object.assign({}, commonAxis, {
+                                max: 100,
+                                ticks: { color: col.muted, callback: function (v) { return v + '%'; } }
+                            }),
+                            y: { ticks: { color: col.muted, font: { size: 10 } }, grid: { display: false } }
                         }
-                    },
-                    scales: {
-                        x: Object.assign({}, commonAxis, {
-                            max: 100,
-                            ticks: { color: col.muted, callback: function (v) { return v + '%'; } }
-                        }),
-                        y: { ticks: { color: col.muted, font: { size: 10 } }, grid: { display: false } }
                     }
-                }
-            };
-        });
+                };
+            });
+        }
 
         scheduleGcBackgroundCharts(data);
     }

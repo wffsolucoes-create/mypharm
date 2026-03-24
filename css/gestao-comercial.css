@@ -1046,3 +1046,150 @@ html:not([data-theme="light"]) .gc-filters input[type="date"]::-webkit-calendar-
     font-weight: 700;
     letter-spacing: -0.02em;
 }
+
+/* ========== Modo compacto (menos texto, foco em métricas) ========== */
+body.gc-compact-ui .gc-topbar-subtitle,
+body.gc-compact-ui .gc-filters-hint,
+body.gc-compact-ui .gc-tab-head__desc,
+body.gc-compact-ui .gc-note,
+body.gc-compact-ui .gc-chart-sub,
+body.gc-compact-ui .gc-callout,
+body.gc-compact-ui #gcRdMetodologia,
+body.gc-compact-ui .gc-chart-legend-text {
+    display: none !important;
+}
+
+body.gc-compact-ui .kpi-sub {
+    display: none !important;
+}
+
+body.gc-compact-ui .gc-tab-head {
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+}
+
+body.gc-compact-ui .gc-block {
+    margin-bottom: 18px;
+}
+
+body.gc-compact-ui .gc-block-title {
+    margin-bottom: 10px;
+}
+
+body.gc-compact-ui #gcMain .kpi-grid.gc-kpi-grid {
+    margin-bottom: 14px;
+}
+
+body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-card {
+    padding: 12px 12px;
+    min-height: 112px;
+}
+
+body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-label {
+    font-size: 0.68rem;
+    margin-bottom: 6px;
+}
+
+body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-value {
+    font-size: 1.5rem;
+    line-height: 1.15;
+}
+
+body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 0.95rem;
+}
+
+body.gc-compact-ui #gcMain .gc-chart-panel {
+    min-height: 290px;
+    padding: 12px 12px 14px;
+}
+
+body.gc-compact-ui .gc-chart-canvas-wrap {
+    height: 205px;
+    min-height: 190px;
+}
+
+body.gc-compact-ui .gc-chart-canvas-wrap--tall {
+    height: 235px;
+    min-height: 220px;
+}
+
+body.gc-compact-ui .gc-chart-canvas-wrap--short {
+    height: 185px;
+    min-height: 170px;
+}
+
+body.gc-compact-ui .gc-rd-motivos-wrap {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+}
+
+.gc-quick-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.gc-quick-kpi {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: var(--bg-surface);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.gc-quick-kpi__label {
+    font-size: 0.66rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.gc-quick-kpi strong {
+    font-size: 0.95rem;
+    line-height: 1.2;
+    color: var(--text-primary);
+}
+
+.gc-chart-empty {
+    margin-top: 6px;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    text-align: center;
+}
+
+body.gc-compact-ui .gc-table th,
+body.gc-compact-ui .gc-table td {
+    padding: 9px 10px;
+    font-size: 0.82rem;
+}
+
+body.gc-compact-ui .gc-table th {
+    font-size: 0.7rem;
+}
+
+body.gc-compact-ui .gc-filter-panel {
+    margin-bottom: 14px;
+    padding: 10px 12px;
+}
+
+body.gc-compact-ui .gc-block-title__icon {
+    width: 30px;
+    height: 30px;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+    .gc-quick-kpis {
+        grid-template-columns: 1fr;
+    }
+}

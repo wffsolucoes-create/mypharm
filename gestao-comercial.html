@@ -9,10 +9,10 @@
     <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260324layoutalign">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260324compact2">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
-<body>
+<body class="gc-compact-ui">
     <a href="#gcMain" class="gc-skip-link">Ir para o conteúdo</a>
     <div id="gcApp" class="app-layout" style="display:none;">
         <aside class="sidebar" aria-label="Menu lateral">
@@ -263,6 +263,11 @@
                             <h4 class="gc-chart-title">Eficiência (volume e tempo)</h4>
                             <p class="gc-chart-sub">Leads, vendas no funil e métricas de ciclo / LTV quando disponíveis.</p>
                             <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecEfic" aria-label="Eficiência"></canvas></div>
+                            <div class="gc-quick-kpis" id="gcEficQuickKpis" role="list" aria-label="Resumo rápido de eficiência">
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Leads</span><strong id="gcEficQuickLeads">—</strong></div>
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Vendas</span><strong id="gcEficQuickVendas">—</strong></div>
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Fechamento</span><strong id="gcEficQuickTempo">—</strong></div>
+                            </div>
                             <div class="gc-chart-legend-text gc-metric-value" id="gcEficLeads">Leads: —</div>
                             <div class="gc-chart-legend-text gc-metric-value" id="gcEficTempoFechamento">Tempo médio fechamento: —</div>
                             <div class="gc-chart-legend-text gc-metric-value" id="gcEficTaxaPerda">Taxa perda cliente: —</div>
@@ -273,7 +278,13 @@
                         <div class="gc-chart-panel">
                             <h4 class="gc-chart-title">Rentabilidade e fidelização</h4>
                             <p class="gc-chart-sub">Margem por produto (top), lucro, recompra e indicadores de satisfação.</p>
-                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecFidel" aria-label="Fidelização"></canvas></div>
+                            <div class="gc-chart-canvas-wrap" id="gcExecFidelChartWrap"><canvas id="gcChartExecFidel" aria-label="Fidelização"></canvas></div>
+                            <div class="gc-chart-empty" id="gcExecFidelEmpty" style="display:none;">Sem base de margem por produto no período.</div>
+                            <div class="gc-quick-kpis" id="gcFidelQuickKpis" role="list" aria-label="Resumo rápido de rentabilidade e fidelização">
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Lucro operacional</span><strong id="gcFidelQuickLucro">—</strong></div>
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Taxa recompra</span><strong id="gcFidelQuickRecompra">—</strong></div>
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Base ativa 90d</span><strong id="gcFidelQuickBase">—</strong></div>
+                            </div>
                             <div class="gc-chart-legend-text gc-metric-value" id="gcRentMargemContrib">Margem contrib.: —</div>
                             <div class="gc-chart-legend-text gc-metric-value" id="gcRentCmv">CMV s/ faturamento: —</div>
                             <div class="gc-chart-legend-text gc-metric-value" id="gcRentPontoEquilibrio">Ponto equilíbrio: —</div>
@@ -618,6 +629,6 @@
         </div>
     </div>
 
-    <script defer src="js/gestao-comercial.js?v=20260324perf1"></script>
+    <script defer src="js/gestao-comercial.js?v=20260324ultraclean1"></script>
 </body>
 </html>
