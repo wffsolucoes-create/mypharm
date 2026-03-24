@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug RD Dump | MyPharm</title>
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #0b1020;
+            --panel: #141b31;
+            --panel-2: #1c2642;
+            --text: #e7ecf7;
+            --muted: #9fb0d1;
+            --line: rgba(255,255,255,.08);
+            --accent: #4fd1c5;
+            --danger: #fb7185;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(180deg, #0b1020 0%, #10162a 100%);
+            color: var(--text);
+        }
+        .wrap {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 22px;
+        }
+        h1 { margin: 0 0 8px; font-size: 1.8rem; }
+        .sub { color: var(--muted); margin: 0 0 18px; }
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        label { display: flex; flex-direction: column; gap: 6px; font-size: .82rem; color: var(--muted); }
+        input, button {
+            height: 40px;
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            background: var(--panel);
+            color: var(--text);
+            padding: 0 12px;
+        }
+        button { cursor: pointer; font-weight: 700; }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(180px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .card, details {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+        }
+        .card { padding: 14px; }
+        .k { color: var(--muted); font-size: .78rem; margin-bottom: 8px; }
+        .v { font-size: 1.15rem; font-weight: 800; }
+        details { margin-bottom: 12px; overflow: hidden; }
+        summary {
+            cursor: pointer;
+            list-style: none;
+            padding: 14px 16px;
+            font-weight: 700;
+            background: var(--panel-2);
+            border-bottom: 1px solid var(--line);
+        }
+        summary::-webkit-details-marker { display: none; }
+        .block { padding: 14px 16px; }
+        pre {
+            margin: 0;
+            padding: 14px;
+            border-radius: 10px;
+            background: #0a0f1d;
+            border: 1px solid var(--line);
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: .82rem;
+            line-height: 1.45;
+        }
+        .status { margin: 10px 0 14px; color: var(--muted); }
+        .status.error { color: var(--danger); }
+        .hint { color: var(--muted); font-size: .82rem; margin-bottom: 8px; }
+        @media (max-width: 960px) {
+            .filters, .cards { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>Debug temporário RD</h1>
+        <p class="sub">Página sem autenticação, apenas para localhost (ou IP da rede se <code>RD_DEBUG_ALLOW_LAN=1</code> no .env). Abra sempre por <strong>http://localhost/.../rd-debug-dump.html</strong> — não use arquivo <code>file://</code>. A primeira carga pode levar 1–2 minutos (API do RD).</p>
+
+        <div class="filters">
+            <label>Data inicial
+                <input type="date" id="dbgDataDe">
+            </label>
+            <label>Data final
+                <input type="date" id="dbgDataAte">
+            </label>
+            <label>Buscar no JSON
+                <input type="text" id="dbgSearch" placeholder="Opcional, filtra visualmente">
+            </label>
+            <label>Atualizar
+                <button type="button" id="dbgApplyBtn">Carregar dump</button>
+            </label>
+        </div>
+
+        <div id="dbgStatus" class="status">Aguardando carregamento...</div>
+
+        <div class="cards">
+            <div class="card"><div class="k">Receita RD</div><div class="v" id="dbgReceita">—</div></div>
+            <div class="card"><div class="k">Ganhos / Perdidos</div><div class="v" id="dbgGanhos">—</div></div>
+            <div class="card"><div class="k">Kanban</div><div class="v" id="dbgKanban">—</div></div>
+            <div class="card"><div class="k">Rejeitados</div><div class="v" id="dbgRejeitados">—</div></div>
+        </div>
+
+        <details open>
+            <summary>Resumo calculado</summary>
+            <div class="block"><pre id="dbgSummary">{}</pre></div>
+        </details>
+        <details>
+            <summary>Usuários vendedores</summary>
+            <div class="block"><pre id="dbgUsuarios">{}</pre></div>
+        </details>
+        <details>
+            <summary>RD métricas completas</summary>
+            <div class="block"><div class="hint">Inclui funil, kanban snapshot, por vendedor, motivos e origens.</div><pre id="dbgFull">{}</pre></div>
+        </details>
+        <details>
+            <summary>RD métricas sem funil</summary>
+            <div class="block"><pre id="dbgNoFunil">{}</pre></div>
+        </details>
+        <details>
+            <summary>TV ranking</summary>
+            <div class="block"><pre id="dbgTv">{}</pre></div>
+        </details>
+        <details>
+            <summary>Rejeitados detalhados</summary>
+            <div class="block"><pre id="dbgRej">{}</pre></div>
+        </details>
+    </div>
+
+    <script src="js/rd-debug-dump.js?v=20260324debug3"></script>
+</body>
+</html>

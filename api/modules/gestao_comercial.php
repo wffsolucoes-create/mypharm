@@ -11,6 +11,9 @@ function handleGestaoComercialModuleAction(string $action, PDO $pdo): void
             case 'gestao_comercial_dashboard':
                 gestaoComercialDashboard($pdo);
                 return;
+            case 'gestao_comercial_dashboard_rd':
+                gestaoComercialDashboardRdOnly($pdo);
+                return;
             case 'gestao_comercial_lista_vendedores':
                 gestaoComercialListaVendedores($pdo);
                 return;
@@ -204,6 +207,465 @@ function gcApprovedCase(string $alias = 'gp'): string
             AND {$alias}.status_financeiro NOT LIKE '%carrinho%'
         )
     )";
+}
+
+/**
+ * Painel Gestão Comercial com métricas exclusivamente da API RD Station CRM (crm.rdstation.com).
+ * Mantém o mesmo formato JSON do dashboard MySQL para o frontend não duplicar renderização.
+ */
+function gestaoComercialDashboardRdOnly(PDO $pdo): void
+{
+    if (strtolower((string)($_SESSION['user_tipo'] ?? '')) !== 'admin') {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito ao administrador.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $rdToken = trim((string)(function_exists('getenv') ? getenv('RDSTATION_CRM_TOKEN') : '') ?: '');
+    if ($rdToken === '') {
+        echo json_encode([
+            'success' => false,
+            'error'   => 'RDSTATION_CRM_TOKEN não configurado no .env. Sem token não é possível carregar o painel só com o CRM.',
+        ], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    if (!function_exists('rdFetchTodasMetricas')) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Integração RD Station indisponível no servidor.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    [$startObj, $endObj, $periodType] = gcDateRangeFromInput();
+    $start = $startObj->format('Y-m-d');
+    $end = $endObj->format('Y-m-d');
+    $prevStart = $startObj->modify('-1 month')->format('Y-m-d');
+    $prevEnd = $endObj->modify('-1 month')->format('Y-m-d');
+    $lyStart = $startObj->modify('-1 year')->format('Y-m-d');
+    $lyEnd = $endObj->modify('-1 year')->format('Y-m-d');
+
+    $refreshRd = isset($_GET['refresh_rd']) ? strtolower(trim((string)$_GET['refresh_rd'])) : '';
+    $forceRefresh = in_array($refreshRd, ['1', 'true', 'yes', 'on'], true);
+
+    $rdNow = null;
+    $cacheKey = 'gc_rd_dashboard_' . md5($start . '|' . $end);
+    $cacheFile = rtrim((string)sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $cacheKey . '.json';
+    try {
+        if (is_file($cacheFile) && !$forceRefresh) {
+            $cached = @file_get_contents($cacheFile);
+            $cachedArr = is_string($cached) ? json_decode($cached, true) : null;
+            if (is_array($cachedArr) && isset($cachedArr['receita_total'])) {
+                $rdNow = $cachedArr;
+            }
+        }
+    } catch (Throwable $e) {
+        // cache é opcional
+    }
+    try {
+        if (!is_array($rdNow)) {
+            // Traz o período completo para manter aderência aos números do Kanban RD.
+            // O cache de 30 min preserva performance nas próximas consultas.
+            $rdNow = rdFetchTodasMetricas($rdToken, $start, $end, null, false);
+            @file_put_contents($cacheFile, json_encode($rdNow, JSON_UNESCAPED_UNICODE));
+        }
+    } catch (Throwable $e) {
+        // Se houver cache antigo, serve versão stale em caso de falha no RD.
+        try {
+            if (is_file($cacheFile)) {
+                $cached = @file_get_contents($cacheFile);
+                $cachedArr = is_string($cached) ? json_decode($cached, true) : null;
+                if (is_array($cachedArr) && isset($cachedArr['receita_total'])) {
+                    $rdNow = $cachedArr;
+                }
+            }
+        } catch (Throwable $ignored) {}
+        if (is_array($rdNow)) {
+            // segue com cache stale
+        } else {
+            http_response_code(500);
+            $msg = (defined('IS_PRODUCTION') && IS_PRODUCTION)
+                ? 'Erro ao consultar o RD Station CRM.'
+                : $e->getMessage();
+            echo json_encode(['success' => false, 'error' => $msg], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+    }
+
+    $receitaMes = (float)($rdNow['receita_total'] ?? 0);
+    $totalGanhos = (int)($rdNow['total_ganhos'] ?? 0);
+    $totalPerdidos = (int)($rdNow['total_perdidos'] ?? 0);
+    $oportunidadesAbertas = (int)($rdNow['oportunidades_abertas'] ?? 0);
+    $ticketMedio = $totalGanhos > 0 ? round($receitaMes / $totalGanhos, 2) : 0.0;
+
+    $volumeMacro = $totalGanhos + $totalPerdidos + $oportunidadesAbertas;
+
+    $porLista = $rdNow['por_vendedor'] ?? [];
+    $tempoFechHoras = null;
+    $sumMinWeighted = 0.0;
+    $cntDeals = 0;
+    foreach ($porLista as $row) {
+        $c = (int)($row['total_ganhos'] ?? 0);
+        $tMin = $row['tempo_medio_fechamento_min'] ?? null;
+        if ($c > 0 && $tMin !== null && $tMin !== '') {
+            $sumMinWeighted += (float)$tMin * $c;
+            $cntDeals += $c;
+        }
+    }
+    if ($cntDeals > 0) {
+        $tempoFechHoras = round($sumMinWeighted / $cntDeals / 60, 2);
+    }
+
+    $fechadosNoPeriodo = $totalGanhos + $totalPerdidos;
+    $taxaPerdaCliente = gcPercent((float)$totalPerdidos, (float)max($fechadosNoPeriodo, 0));
+
+    $funilEstagios = $rdNow['funil_estagios'] ?? [];
+    $funilMap = [];
+    foreach ($funilEstagios as $e) {
+        $pipe = trim((string)($e['pipeline_name'] ?? 'Geral'));
+        $st = trim((string)($e['stage_name'] ?? ''));
+        $label = $pipe . ' — ' . ($st !== '' ? $st : 'Etapa');
+        $funilMap[$label] = ($funilMap[$label] ?? 0) + (int)($e['quantidade'] ?? 0);
+    }
+    $gargalo = null;
+
+    $equipe = [];
+    foreach ($porLista as $row) {
+        $nome = trim((string)($row['vendedor'] ?? ''));
+        if ($nome === '') {
+            continue;
+        }
+        $ganhos = (int)($row['total_ganhos'] ?? 0);
+        $perd = (int)($row['total_perdidos'] ?? 0);
+        $totalPedidos = $ganhos + $perd;
+        $equipe[] = [
+            'atendente'                   => $nome,
+            'total_pedidos'               => $totalPedidos,
+            'vendas_aprovadas'            => $ganhos,
+            'vendas_rejeitadas'           => $perd,
+            'receita'                     => (float)($row['receita'] ?? 0),
+            'ticket_medio'                => $ganhos > 0 ? round((float)($row['receita'] ?? 0) / $ganhos, 2) : 0.0,
+            'tempo_medio_espera_min'      => (float)($row['tempo_medio_espera_min'] ?? 0),
+            'clientes_atendidos'          => $ganhos,
+            'conversao_individual'        => (float)($row['conversao_pct'] ?? 0),
+            'follow_ups_realizados'       => null,
+            'motivos_perda'               => null,
+            'tempo_medio_espera_resposta' => round((float)($row['tempo_medio_espera_min'] ?? 0), 1),
+            'taxa_perda'                  => (float)($row['taxa_perda_pct'] ?? 0),
+        ];
+    }
+
+    $motivosPerda = [];
+    foreach ($porLista as $row) {
+        $nome = trim((string)($row['vendedor'] ?? ''));
+        foreach ($row['motivos_perda'] ?? [] as $m) {
+            $motivosPerda[] = [
+                'atendente'   => $nome,
+                'motivo'      => (string)($m['motivo'] ?? ''),
+                'quantidade'  => (int)($m['quantidade'] ?? 0),
+                'valor_total' => 0.0,
+            ];
+        }
+    }
+    usort($motivosPerda, static function (array $a, array $b): int {
+        return ($b['quantidade'] ?? 0) <=> ($a['quantidade'] ?? 0);
+    });
+    $motivosPerda = array_slice($motivosPerda, 0, 50);
+
+    $clientesRejeitadosComContato = [];
+    try {
+        $detalhesRej = rdFetchRejeitadosDetalhados($rdToken, $start, $end, 6);
+        $registrosRej = $detalhesRej['registros'] ?? [];
+        if (is_array($registrosRej) && $registrosRej) {
+            $rejMap = [];
+            foreach ($registrosRej as $rj) {
+                if (!is_array($rj)) continue;
+                $cliente = trim((string)($rj['cliente'] ?? ''));
+                $prescritor = trim((string)($rj['prescritor'] ?? 'Não informado'));
+                $contato = trim((string)($rj['contato'] ?? ''));
+                if ($cliente === '' || $contato === '') continue;
+                $atendente = trim((string)($rj['atendente'] ?? 'Não informado'));
+                $valor = (float)($rj['valor_rejeitado'] ?? 0);
+                $kRaw = trim((string)($cliente . '|' . $prescritor . '|' . $contato . '|' . $atendente));
+                $k = function_exists('mb_strtolower') ? mb_strtolower($kRaw, 'UTF-8') : strtolower($kRaw);
+                if (!isset($rejMap[$k])) {
+                    $rejMap[$k] = [
+                        'cliente' => $cliente,
+                        'prescritor' => $prescritor,
+                        'contato' => $contato,
+                        'qtd_rejeicoes' => 0,
+                        'valor_rejeitado' => 0.0,
+                        'atendente' => $atendente,
+                    ];
+                }
+                $rejMap[$k]['qtd_rejeicoes']++;
+                $rejMap[$k]['valor_rejeitado'] += $valor;
+            }
+            $clientesRejeitadosComContato = array_values($rejMap);
+            usort($clientesRejeitadosComContato, static function (array $a, array $b): int {
+                if (($b['qtd_rejeicoes'] ?? 0) !== ($a['qtd_rejeicoes'] ?? 0)) return ($b['qtd_rejeicoes'] ?? 0) <=> ($a['qtd_rejeicoes'] ?? 0);
+                return ($b['valor_rejeitado'] ?? 0) <=> ($a['valor_rejeitado'] ?? 0);
+            });
+            $clientesRejeitadosComContato = array_slice($clientesRejeitadosComContato, 0, 80);
+            foreach ($clientesRejeitadosComContato as &$itRej) {
+                $itRej['valor_rejeitado'] = round((float)($itRej['valor_rejeitado'] ?? 0), 2);
+            }
+            unset($itRej);
+        }
+    } catch (Throwable $e) {
+        // bloco opcional
+    }
+
+    $vendedoresCadastrados = [];
+    foreach ($equipe as $ev) {
+        $vendedoresCadastrados[] = [
+            'nome'  => (string)($ev['atendente'] ?? ''),
+            'ativo' => 1,
+        ];
+    }
+
+    $consultorasAtivas = count($equipe);
+    $receitaEquipe = 0.0;
+    $conversaoMedia = 0.0;
+    $tempoMedioEquipe = 0.0;
+    $clientesAtendidosEquipe = 0;
+    $taxaPerdaMedia = 0.0;
+    if ($consultorasAtivas > 0) {
+        foreach ($equipe as $v) {
+            $receitaEquipe += (float)($v['receita'] ?? 0);
+            $conversaoMedia += (float)($v['conversao_individual'] ?? 0);
+            $tempoMedioEquipe += (float)($v['tempo_medio_espera_resposta'] ?? 0);
+            $clientesAtendidosEquipe += (int)($v['clientes_atendidos'] ?? 0);
+            $taxaPerdaMedia += (float)($v['taxa_perda'] ?? 0);
+        }
+        $conversaoMedia = round($conversaoMedia / $consultorasAtivas, 2);
+        $tempoMedioEquipe = round($tempoMedioEquipe / $consultorasAtivas, 1);
+        $taxaPerdaMedia = round($taxaPerdaMedia / $consultorasAtivas, 2);
+    }
+
+    $canais = [];
+    foreach ($rdNow['origens_geral'] ?? [] as $o) {
+        $q = (int)($o['quantidade'] ?? 0);
+        $canais[] = [
+            'canal'              => (string)($o['origem'] ?? ''),
+            'total_pedidos'      => $q,
+            'vendas_aprovadas'   => $q,
+            'receita'            => (float)($o['receita'] ?? 0),
+            'conversao'          => null,
+            'margem_percentual'  => null,
+            'cac'                => null,
+        ];
+    }
+
+    // No modo RD-only, não há produto/prescritor/especialidade nativos no mesmo formato legado.
+    // Então montamos estes blocos a partir dos detalhamentos disponíveis no CRM.
+    $topFormulas = [];
+    foreach (($rdNow['origens_geral'] ?? []) as $o) {
+        $topFormulas[] = [
+            'produto'    => (string)($o['origem'] ?? 'Não informada'),
+            'quantidade' => (int)($o['quantidade'] ?? 0),
+        ];
+    }
+    usort($topFormulas, static function (array $a, array $b): int {
+        return ($b['quantidade'] ?? 0) <=> ($a['quantidade'] ?? 0);
+    });
+    $topFormulas = array_slice($topFormulas, 0, 15);
+
+    $topPrescritores = [];
+    foreach ($porLista as $row) {
+        $topPrescritores[] = [
+            'prescritor' => (string)($row['vendedor'] ?? 'Não informado'),
+            'receita'    => round((float)($row['receita'] ?? 0), 2),
+        ];
+    }
+    usort($topPrescritores, static function (array $a, array $b): int {
+        return ($b['receita'] ?? 0) <=> ($a['receita'] ?? 0);
+    });
+    $topPrescritores = array_slice($topPrescritores, 0, 15);
+
+    $formulasMargem = [];
+    $baseReceita = max((float)$receitaMes, 0.0);
+    foreach (($rdNow['origens_geral'] ?? []) as $o) {
+        $receitaOrigem = (float)($o['receita'] ?? 0);
+        $formulasMargem[] = [
+            'produto'           => (string)($o['origem'] ?? 'Não informada'),
+            'margem_percentual' => $baseReceita > 0 ? round(($receitaOrigem / $baseReceita) * 100, 2) : 0.0,
+        ];
+    }
+    usort($formulasMargem, static function (array $a, array $b): int {
+        return ($b['margem_percentual'] ?? 0) <=> ($a['margem_percentual'] ?? 0);
+    });
+    $formulasMargem = array_slice($formulasMargem, 0, 15);
+
+    $ticketEspecialidade = [];
+    foreach ($porLista as $row) {
+        $ganhos = (int)($row['total_ganhos'] ?? 0);
+        $receitaVendedor = (float)($row['receita'] ?? 0);
+        $ticketEspecialidade[] = [
+            'especialidade' => (string)($row['vendedor'] ?? 'Não informado'),
+            'ticket_medio'  => $ganhos > 0 ? round($receitaVendedor / $ganhos, 2) : 0.0,
+        ];
+    }
+    usort($ticketEspecialidade, static function (array $a, array $b): int {
+        return ($b['ticket_medio'] ?? 0) <=> ($a['ticket_medio'] ?? 0);
+    });
+    $ticketEspecialidade = array_slice($ticketEspecialidade, 0, 15);
+
+    $crescimento = [
+        'receita_mes'                     => round($receitaMes, 2),
+        'crescimento_vs_mes_anterior'     => null,
+        'crescimento_vs_mes_ano_passado'  => null,
+        'ticket_medio'                    => $ticketMedio,
+        'numero_vendas'                   => $totalGanhos,
+        'numero_clientes_ativos_6_meses'  => null,
+    ];
+
+    $eficiencia = [
+        'leads_recebidos'             => $volumeMacro,
+        'conversao_geral'             => $rdNow['conversao_geral_pct'] ?? null,
+        'tempo_medio_fechamento_horas' => $tempoFechHoras,
+        'taxa_perda_cliente'          => $taxaPerdaCliente,
+        'ltv'                         => null,
+        'cac'                         => null,
+        'ltv_cac'                     => null,
+        'notas'                       => [
+            'cac'     => 'CAC não disponível na API do CRM.',
+            'ltv_cac' => '—',
+            'ltv'     => 'LTV não calculado a partir do CRM neste modo.',
+            'leads'   => '“Leads / volume” = negociações fechadas no período (ganhos + perdidos) + oportunidades abertas no funil (RD).',
+        ],
+    ];
+
+    $rentabilidade = [
+        'margem_bruta'            => null,
+        'margem_contribuicao'     => null,
+        'cmv_sobre_faturamento'   => null,
+        'ponto_equilibrio'        => null,
+        'lucro_operacional'       => round($receitaMes, 2),
+        'margem_contribuicao_por' => [
+            'atendente'          => [],
+            'forma_farmaceutica' => [],
+            'prescritor'         => [],
+            'produto'            => [],
+        ],
+        'notas' => [
+            'ponto_equilibrio' => 'Custos e margens de produto não vêm do RD Station CRM.',
+            'modo'             => 'Receita e “lucro” exibidos refletem o valor dos deals ganhos no CRM; não há CMV do ERP.',
+        ],
+    ];
+
+    $fidelizacao = [
+        'taxa_recompra'            => null,
+        'frequencia_media_compra'  => null,
+        'base_ativa_90_dias'       => null,
+        'nps'                      => null,
+        'csat'                     => null,
+        'notas'                    => [
+            'nps_csat' => 'Fidelização e NPS não estão neste modo (somente CRM).',
+        ],
+    ];
+
+    $conversoes = [
+        'atendimento_para_orcamento' => gcPercent((float)$oportunidadesAbertas, (float)max($volumeMacro, 0)),
+        'orcamento_para_venda'       => gcPercent((float)$totalGanhos, (float)max($oportunidadesAbertas + $totalGanhos + $totalPerdidos, 0)),
+        'venda_para_recompra'        => null,
+    ];
+
+    $payload = [
+        'success'        => true,
+        'fonte_dados'    => 'rdstation_crm',
+        'generated_at'   => date('c'),
+        'periodo'        => [
+            'tipo'         => $periodType,
+            'data_de'      => $start,
+            'data_ate'     => $end,
+            'comparativos' => [
+                'mes_anterior'              => ['data_de' => $prevStart, 'data_ate' => $prevEnd],
+                'mesmo_periodo_ano_passado' => ['data_de' => $lyStart, 'data_ate' => $lyEnd],
+            ],
+        ],
+        'crescimento'            => $crescimento,
+        'eficiencia_comercial'   => $eficiencia,
+        'rentabilidade'          => $rentabilidade,
+        'fidelizacao'            => $fidelizacao,
+        'funil_comercial'        => [
+            'volume_atendimentos' => $volumeMacro,
+            'oportunidades_abertas' => $oportunidadesAbertas,
+            'orcamentos_enviados' => $oportunidadesAbertas,
+            'vendas_fechadas'     => $totalGanhos,
+            'conversao_por_etapa' => $conversoes,
+            'gargalo_funil'       => $gargalo,
+            'etapas_raw'          => $funilMap,
+        ],
+        'performance_vendedor'   => $equipe,
+        'vendedor_gestao'        => [
+            'resumo'                         => [
+                'consultoras_ativas'       => $consultorasAtivas,
+                'receita_equipe'           => round($receitaEquipe, 2),
+                'conversao_media'          => $conversaoMedia,
+                'tempo_medio_espera_min'   => $tempoMedioEquipe,
+                'clientes_atendidos'       => $clientesAtendidosEquipe,
+                'taxa_perda_media'         => $taxaPerdaMedia,
+            ],
+            'vendedores_cadastrados'         => $vendedoresCadastrados,
+            'equipe'                         => $equipe,
+            'motivos_perda'                  => $motivosPerda,
+            'clientes_rejeitados_com_contato' => $clientesRejeitadosComContato,
+        ],
+        'performance_canal'      => $canais,
+        'inteligencia_comercial' => [
+            'top_formulas_mais_vendidas'     => $topFormulas,
+            'formulas_maior_margem'          => $formulasMargem,
+            'prescritores_maior_receita'     => $topPrescritores,
+            'ticket_medio_por_especialidade' => $ticketEspecialidade,
+        ],
+        'financeiro_aplicado'    => [
+            'receita' => [
+                'faturamento_bruto'  => round($receitaMes, 2),
+                'faturamento_liquido' => round($receitaMes, 2),
+            ],
+            'custos' => [
+                'cmv'                    => 0.0,
+                'custo_fixo_mensal'      => null,
+                'custo_variavel_por_venda' => null,
+                'custo_por_atendimento'    => null,
+                'cac'                      => null,
+            ],
+            'rentabilidade' => [
+                'margem_bruta'        => null,
+                'margem_contribuicao' => null,
+                'lucro_operacional'   => round($receitaMes, 2),
+                'ponto_equilibrio'    => null,
+                'roi_campanhas'       => null,
+            ],
+            'caixa' => [
+                'prazo_medio_recebimento' => null,
+                'indice_inadimplencia'    => null,
+                'taxa_antecipacao'        => null,
+                'fluxo_projetado_3_meses' => null,
+            ],
+            'notas' => [
+                'campos_nulos' => 'Painel alimentado só pelo RD Station CRM: sem CMV, inadimplência ou fluxo de caixa do ERP.',
+            ],
+        ],
+        'rd_metricas'            => $rdNow,
+        'rd_metricas_deferred'   => false,
+        'rd_metricas_error'      => null,
+        'lista_vendedores_nomes' => array_values(array_map(static function ($r) {
+            return (string)($r['atendente'] ?? '');
+        }, $equipe)),
+    ];
+
+    $jsonFlags = JSON_UNESCAPED_UNICODE;
+    if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+        $jsonFlags |= JSON_INVALID_UTF8_SUBSTITUTE;
+    }
+    $json = json_encode($payload, $jsonFlags);
+    if ($json === false) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao montar JSON do painel (dados inválidos para serialização).'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    echo $json;
+    exit;
 }
 
 function gestaoComercialDashboard(PDO $pdo): void

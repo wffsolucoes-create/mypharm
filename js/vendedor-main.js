@@ -167,23 +167,30 @@
         setText('vdAvatar', nome ? nome.charAt(0).toUpperCase() : 'V');
 
         const range = currentMonthRange();
-        const data = await apiGet('tv_corrida_vendedores', range);
+        const data = await apiGet('vendedor_dashboard_rd', range);
         if (!data || data.success === false) {
             const elRd = document.getElementById('vdRdIntegracao');
-            if (elRd) elRd.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:var(--danger);"></i> <span>Erro ao carregar dados. Verifique RDSTATION_CRM_TOKEN no .env ou a conexão com a API.</span>';
-            showError((data && data.error) || 'Falha ao carregar dados da corrida de vendas.');
+            if (elRd) elRd.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:var(--danger);"></i> <span>Erro ao carregar dados externos do RD Station CRM.</span>';
+            showError((data && data.error) || 'Falha ao carregar dados externos do vendedor.');
             return;
         }
 
         const ranking = Array.isArray(data.ranking) ? data.ranking : [];
         const nomeNorm = normalizarNome(nome);
-        const me = ranking.find(function (r) {
+        const meFromPayload = data && data.me ? data.me : null;
+        const me = meFromPayload || ranking.find(function (r) {
             return normalizarNome(r.vendedor) === nomeNorm;
         });
 
         const meta_mensal = me ? (Number(me.meta_mensal_utilizada) || Number(me.meta_mensal) || 0) : 0;
         const faturamento_mes = me ? Number(me.receita || 0) : 0;
         const pctMeta = me ? Number(me.percentual_meta || 0) : 0;
+        const comissaoPct = me
+            ? Number(me.comissao_percentual != null ? me.comissao_percentual : (data.comissao_percentual_usuario != null ? data.comissao_percentual_usuario : 1))
+            : Number(data.comissao_percentual_usuario != null ? data.comissao_percentual_usuario : 1);
+        const comissaoEstimada = me
+            ? Number(me.comissao_estimada_valor != null ? me.comissao_estimada_valor : ((faturamento_mes * comissaoPct) / 100))
+            : 0;
 
         const fakeDiaria = meta_mensal > 0 ? meta_mensal / 22 : 0;
         const fatDiariaMock = faturamento_mes / 22;
@@ -203,8 +210,8 @@
         setText('vdFatSemAtual', 'Atual: ' + formatMoney(faturamento_mes / 4));
         setText('vdFatMesAtual', 'Atual: ' + formatMoney(faturamento_mes));
 
-        setText('vdComissaoIndividualDetalhe', 'Meta do mês: ' + formatPercent(pctMeta));
-        setText('vdComissaoEstimValor', formatMoney(faturamento_mes));
+        setText('vdComissaoIndividualDetalhe', 'Comissão definida: ' + formatPercent(comissaoPct) + ' · Meta do mês: ' + formatPercent(pctMeta));
+        setText('vdComissaoEstimValor', formatMoney(comissaoEstimada));
 
         setProgress('vdProgFatDia', fatDiariaMock, fakeDiaria);
         setProgress('vdProgFatSem', faturamento_mes / 4, meta_mensal / 4);
@@ -223,7 +230,7 @@
         const elRd = document.getElementById('vdRdIntegracao');
         if (elRd) {
             if (fonteRD) {
-                elRd.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success);"></i> <span>Integrado ao <strong>RD Station CRM</strong> · ganhos, perdas, funil e origem em tempo real</span>';
+                elRd.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success);"></i> <span>Integrado ao <strong>RD Station CRM</strong> · dados completos externos em tempo real</span>';
                 elRd.style.color = 'var(--text-secondary)';
             } else {
                 elRd.innerHTML = '<i class="fas fa-info-circle" style="color:var(--warning);"></i> <span>Integração RD Station: adicione <code>RDSTATION_CRM_TOKEN</code> no .env para usar a API do RD Station.</span>';

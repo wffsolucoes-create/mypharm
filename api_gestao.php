@@ -43,9 +43,15 @@ $action = $_GET['action'] ?? '';
 $allowedActions = [
     'check_session',
     'logout',
+    'debug_rd_metricas_public',
+    'debug_rd_tv_public',
+    'debug_rd_rejeitados_public',
     'gestao_comercial_dashboard',
+    'gestao_comercial_dashboard_rd',
     'gestao_comercial_lista_vendedores',
     'gestao_rd_metricas',
+    'gestao_rejeitados_rd',
+    'vendedor_dashboard_rd',
     'tv_corrida_vendedores',
 ];
 if (!in_array($action, $allowedActions)) {
@@ -79,6 +85,607 @@ function gcEnsureSessionIsValidOrRepair(PDO $pdo): array
         }
     }
     return $sessionCheck;
+}
+
+function gcDateRangeFromQuery(): array
+{
+    $today = new DateTimeImmutable('today');
+    $dataDe = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : '';
+    $dataAte = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : '';
+    $isDate = static function ($v) {
+        return (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$v);
+    };
+    if (!$isDate($dataDe) || !$isDate($dataAte)) {
+        $dataDe = $today->modify('first day of this month')->format('Y-m-d');
+        $dataAte = $today->format('Y-m-d');
+    } elseif ($dataDe > $dataAte) {
+        $dataAte = $dataDe;
+    }
+    return [$dataDe, $dataAte];
+}
+
+function gcIsLocalDebugRequest(): bool
+{
+    $remote = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    $host = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? '')));
+    if (in_array($remote, ['127.0.0.1', '::1'], true)) {
+        return true;
+    }
+    // IPv4 mapeado em IPv6 (comum no Windows / Apache)
+    if ($remote !== '' && strpos($remote, '127.0.0.1') !== false) {
+        return true;
+    }
+    if ($host !== '' && (strpos($host, 'localhost') !== false || strpos($host, '127.0.0.1') !== false)) {
+        return true;
+    }
+    // Opcional: acessar pelo IP da máquina na rede (ex.: http://192.168.x.x/mypharm/)
+    if (getenv('RD_DEBUG_ALLOW_LAN') === '1' && $remote !== '') {
+        if (preg_match('/^(127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})$/', $remote)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function gcNormalizeNome(string $v): string
+{
+    $v = trim($v);
+    $v = strtr($v, [
+        'Á'=>'A','À'=>'A','Â'=>'A','Ã'=>'A','Ä'=>'A',
+        'á'=>'a','à'=>'a','â'=>'a','ã'=>'a','ä'=>'a',
+        'É'=>'E','È'=>'E','Ê'=>'E','Ë'=>'E',
+        'é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
+        'Í'=>'I','Ì'=>'I','Î'=>'I','Ï'=>'I',
+        'í'=>'i','ì'=>'i','î'=>'i','ï'=>'i',
+        'Ó'=>'O','Ò'=>'O','Ô'=>'O','Õ'=>'O','Ö'=>'O',
+        'ó'=>'o','ò'=>'o','ô'=>'o','õ'=>'o','ö'=>'o',
+        'Ú'=>'U','Ù'=>'U','Û'=>'U','Ü'=>'U',
+        'ú'=>'u','ù'=>'u','û'=>'u','ü'=>'u',
+        'Ç'=>'C','ç'=>'c',
+    ]);
+    return function_exists('mb_strtolower') ? mb_strtolower($v, 'UTF-8') : strtolower($v);
+}
+
+function gcResolveMetaPorNome(string $nome, array $metasByKey): float
+{
+    $key = gcNormalizeNome($nome);
+    if ($key !== '' && isset($metasByKey[$key])) {
+        return (float)$metasByKey[$key];
+    }
+    foreach ($metasByKey as $metaKey => $metaVal) {
+        if ($metaKey === '') continue;
+        if (str_contains($key, (string)$metaKey) || str_contains((string)$metaKey, $key)) {
+            return (float)$metaVal;
+        }
+    }
+    return 0.0;
+}
+
+function gcResolveComissaoPorNome(string $nome, array $comissaoByKey): float
+{
+    $key = gcNormalizeNome($nome);
+    if ($key !== '' && array_key_exists($key, $comissaoByKey)) {
+        return (float)$comissaoByKey[$key];
+    }
+    foreach ($comissaoByKey as $cKey => $cVal) {
+        if ($cKey === '') continue;
+        if (str_contains($key, (string)$cKey) || str_contains((string)$cKey, $key)) {
+            return (float)$cVal;
+        }
+    }
+    return 1.0;
+}
+
+function handleVendedorDashboardRd(PDO $pdo): void
+{
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    $isAdmin = ($tipo === 'admin');
+    $isVendedor = (strpos($setor, 'vendedor') !== false);
+    if (!$isAdmin && !$isVendedor) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito ao setor vendedor ou administrador.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
+    if ($rdToken === '') {
+        echo json_encode([
+            'success' => false,
+            'fonte'   => null,
+            'error'   => 'RDSTATION_CRM_TOKEN não configurado no .env. Configure para usar dados externos do RD Station CRM.',
+        ], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    [$dataDe, $dataAte] = gcDateRangeFromQuery();
+    $metricas = rdFetchTodasMetricas($rdToken, $dataDe, $dataAte);
+
+    $metasByKey = [];
+    $comissaoByKey = [];
+    $nomesByKey = [];
+    $userComissaoPct = 1.0;
+    try {
+        $stMe = $pdo->prepare("
+            SELECT COALESCE(comissao_percentual, 1) AS comissao_percentual
+            FROM usuarios
+            WHERE id = :id
+            LIMIT 1
+        ");
+        $stMe->execute(['id' => (int)($_SESSION['user_id'] ?? 0)]);
+        $rowMe = $stMe->fetch(PDO::FETCH_ASSOC) ?: null;
+        if ($rowMe !== null && array_key_exists('comissao_percentual', $rowMe)) {
+            $userComissaoPct = (float)$rowMe['comissao_percentual'];
+        }
+    } catch (Throwable $e) {
+        // usa fallback 1%
+    }
+    try {
+        $stVend = $pdo->query("
+            SELECT
+                TRIM(nome) AS nome,
+                COALESCE(meta_mensal, 0) AS meta_mensal,
+                COALESCE(comissao_percentual, 1) AS comissao_percentual
+            FROM usuarios
+            WHERE LOWER(TRIM(COALESCE(setor, ''))) LIKE '%vendedor%'
+              AND COALESCE(ativo, 1) = 1
+              AND TRIM(COALESCE(nome, '')) <> ''
+        ");
+        foreach ($stVend->fetchAll(PDO::FETCH_ASSOC) ?: [] as $v) {
+            $nome = trim((string)($v['nome'] ?? ''));
+            if ($nome === '') continue;
+            $k = gcNormalizeNome($nome);
+            $metasByKey[$k] = (float)($v['meta_mensal'] ?? 0);
+            $comissaoByKey[$k] = (float)($v['comissao_percentual'] ?? 1);
+            $nomesByKey[$k] = $nome;
+        }
+    } catch (Throwable $e) {
+        // Metas locais são opcionais; mantém fallback.
+    }
+
+    $ranking = [];
+    $seen = [];
+    foreach (($metricas['por_vendedor'] ?? []) as $row) {
+        $nome = trim((string)($row['vendedor'] ?? ''));
+        if ($nome === '') continue;
+        $key = gcNormalizeNome($nome);
+        $seen[$key] = true;
+        $meta = gcResolveMetaPorNome($nome, $metasByKey);
+        if ($meta <= 0) $meta = 60000.0;
+        $comissaoPct = gcResolveComissaoPorNome($nome, $comissaoByKey);
+        $receita = round((float)($row['receita'] ?? 0), 2);
+        $comissaoEstimada = round(($receita * $comissaoPct) / 100, 2);
+
+        $motivos = [];
+        foreach (($row['motivos_perda'] ?? []) as $m) {
+            $motivos[] = [
+                'nome' => (string)($m['motivo'] ?? ''),
+                'quantidade' => (int)($m['quantidade'] ?? 0),
+            ];
+        }
+
+        $origens = [];
+        foreach (($row['origem_deals'] ?? []) as $o) {
+            $origens[] = [
+                'nome' => (string)($o['origem'] ?? ''),
+                'receita' => round((float)($o['receita'] ?? 0), 2),
+                'quantidade' => (int)($o['quantidade'] ?? 0),
+            ];
+        }
+
+        $ranking[] = [
+            'vendedor' => $nome,
+            'receita' => $receita,
+            'meta_mensal' => $meta,
+            'comissao_percentual' => $comissaoPct,
+            'comissao_estimada_valor' => $comissaoEstimada,
+            'duracao_media_min' => $row['tempo_medio_fechamento_min'] ?? null,
+            'tempo_medio_espera_min' => $row['tempo_medio_espera_min'] ?? null,
+            'total_deals_ganhos' => (int)($row['total_ganhos'] ?? 0),
+            'total_deals_perdidos' => (int)($row['total_perdidos'] ?? 0),
+            'taxa_perda_pct' => (float)($row['taxa_perda_pct'] ?? 0),
+            'top_motivos_perda' => array_slice($motivos, 0, 10),
+            'origem_deals' => $origens,
+            'meta_mensal_utilizada' => $meta,
+            'percentual_meta' => $meta > 0 ? round(($receita / $meta) * 100, 2) : 0.0,
+            'percentual_lider' => 0.0,
+            'posicao' => 0,
+        ];
+    }
+
+    foreach ($metasByKey as $k => $meta) {
+        if (isset($seen[$k])) continue;
+        $metaUtilizada = (float)$meta;
+        if ($metaUtilizada <= 0) $metaUtilizada = 60000.0;
+        $comissaoPct = array_key_exists($k, $comissaoByKey) ? (float)$comissaoByKey[$k] : 1.0;
+        $ranking[] = [
+            'vendedor' => (string)($nomesByKey[$k] ?? $k),
+            'receita' => 0.0,
+            'meta_mensal' => $metaUtilizada,
+            'comissao_percentual' => $comissaoPct,
+            'comissao_estimada_valor' => 0.0,
+            'duracao_media_min' => null,
+            'tempo_medio_espera_min' => null,
+            'total_deals_ganhos' => 0,
+            'total_deals_perdidos' => 0,
+            'taxa_perda_pct' => 0.0,
+            'top_motivos_perda' => [],
+            'origem_deals' => [],
+            'meta_mensal_utilizada' => $metaUtilizada,
+            'percentual_meta' => 0.0,
+            'percentual_lider' => 0.0,
+            'posicao' => 0,
+        ];
+    }
+
+    usort($ranking, static function (array $a, array $b): int {
+        $ra = (float)($a['receita'] ?? 0);
+        $rb = (float)($b['receita'] ?? 0);
+        if (($rb <=> $ra) !== 0) return $rb <=> $ra;
+        return strcmp((string)($a['vendedor'] ?? ''), (string)($b['vendedor'] ?? ''));
+    });
+
+    $maxReceita = 0.0;
+    foreach ($ranking as $it) {
+        $val = (float)($it['receita'] ?? 0);
+        if ($val > $maxReceita) $maxReceita = $val;
+    }
+
+    foreach ($ranking as $i => &$it) {
+        $it['posicao'] = $i + 1;
+        $it['percentual_lider'] = $maxReceita > 0
+            ? round((((float)$it['receita']) / $maxReceita) * 100, 2)
+            : 0.0;
+    }
+    unset($it);
+
+    $me = null;
+    $meKey = gcNormalizeNome((string)($_SESSION['user_nome'] ?? ''));
+    if ($meKey !== '') {
+        foreach ($ranking as $it) {
+            $rk = gcNormalizeNome((string)($it['vendedor'] ?? ''));
+            if ($rk === $meKey || str_contains($rk, $meKey) || str_contains($meKey, $rk)) {
+                $me = $it;
+                break;
+            }
+        }
+    }
+    if (is_array($me)) {
+        $me['comissao_percentual'] = $userComissaoPct;
+        $me['comissao_estimada_valor'] = round((((float)($me['receita'] ?? 0)) * $userComissaoPct) / 100, 2);
+    }
+
+    echo json_encode([
+        'success' => true,
+        'fonte' => 'rdstation_crm',
+        'periodo' => [
+            'data_de' => $dataDe,
+            'data_ate' => $dataAte,
+        ],
+        'ranking' => $ranking,
+        'me' => $me,
+        'funil_estagios' => $metricas['funil_estagios'] ?? [],
+        'motivos_perda_geral' => $metricas['motivos_perda_geral'] ?? [],
+        'origens_geral' => $metricas['origens_geral'] ?? [],
+        'comissao_percentual_usuario' => $userComissaoPct,
+        'rd_metricas' => $metricas,
+        'updated_at' => (string)($metricas['updated_at'] ?? (new DateTimeImmutable('now'))->format('Y-m-d H:i:s')),
+    ], JSON_UNESCAPED_UNICODE);
+}
+
+function handleGestaoRejeitadosRd(PDO $pdo): void
+{
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    if ($tipo !== 'admin') {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito ao administrador.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
+    if ($rdToken === '') {
+        echo json_encode([
+            'success' => false,
+            'fonte'   => null,
+            'error'   => 'RDSTATION_CRM_TOKEN não configurado no .env.',
+        ], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    [$dataDe, $dataAte] = gcDateRangeFromQuery();
+    $detalhe = rdFetchRejeitadosDetalhados($rdToken, $dataDe, $dataAte, 12);
+    $registros = $detalhe['registros'] ?? [];
+    if (!is_array($registros)) $registros = [];
+
+    $porClienteMap = [];
+    $porPrescMap = [];
+    $motivosGeral = [];
+    $totalValor = 0.0;
+    $totalComContato = 0;
+
+    foreach ($registros as $row) {
+        if (!is_array($row)) continue;
+        $cliente = trim((string)($row['cliente'] ?? '(Sem cliente)'));
+        $prescritor = trim((string)($row['prescritor'] ?? 'Não informado'));
+        $contato = trim((string)($row['contato'] ?? ''));
+        $atendente = trim((string)($row['atendente'] ?? 'Não informado'));
+        $motivo = trim((string)($row['motivo'] ?? 'Não informado'));
+        $valor = (float)($row['valor_rejeitado'] ?? 0);
+        $dataPerda = trim((string)($row['data_perda'] ?? ''));
+
+        $totalValor += $valor;
+        if ($contato !== '') $totalComContato++;
+        if (!isset($motivosGeral[$motivo])) $motivosGeral[$motivo] = 0;
+        $motivosGeral[$motivo]++;
+
+        $kCli = gcNormalizeNome($cliente . '|' . $prescritor . '|' . $contato);
+        if (!isset($porClienteMap[$kCli])) {
+            $porClienteMap[$kCli] = [
+                'cliente' => $cliente,
+                'prescritor' => $prescritor,
+                'contato' => $contato,
+                'qtd_rejeicoes' => 0,
+                'valor_rejeitado' => 0.0,
+                'motivos' => [],
+                'ultima_perda' => '',
+                'atendentes' => [],
+            ];
+        }
+        $porClienteMap[$kCli]['qtd_rejeicoes']++;
+        $porClienteMap[$kCli]['valor_rejeitado'] += $valor;
+        if (!isset($porClienteMap[$kCli]['motivos'][$motivo])) $porClienteMap[$kCli]['motivos'][$motivo] = 0;
+        $porClienteMap[$kCli]['motivos'][$motivo]++;
+        $porClienteMap[$kCli]['atendentes'][$atendente] = true;
+        if ($dataPerda !== '' && ($porClienteMap[$kCli]['ultima_perda'] === '' || $dataPerda > $porClienteMap[$kCli]['ultima_perda'])) {
+            $porClienteMap[$kCli]['ultima_perda'] = $dataPerda;
+        }
+
+        $kPre = gcNormalizeNome($prescritor . '|' . $contato);
+        if (!isset($porPrescMap[$kPre])) {
+            $porPrescMap[$kPre] = [
+                'prescritor' => $prescritor,
+                'contato' => $contato,
+                'qtd_rejeicoes' => 0,
+                'valor_rejeitado' => 0.0,
+                'clientes' => [],
+                'motivos' => [],
+                'ultima_perda' => '',
+                'atendentes' => [],
+            ];
+        }
+        $porPrescMap[$kPre]['qtd_rejeicoes']++;
+        $porPrescMap[$kPre]['valor_rejeitado'] += $valor;
+        $porPrescMap[$kPre]['clientes'][gcNormalizeNome($cliente)] = $cliente;
+        if (!isset($porPrescMap[$kPre]['motivos'][$motivo])) $porPrescMap[$kPre]['motivos'][$motivo] = 0;
+        $porPrescMap[$kPre]['motivos'][$motivo]++;
+        $porPrescMap[$kPre]['atendentes'][$atendente] = true;
+        if ($dataPerda !== '' && ($porPrescMap[$kPre]['ultima_perda'] === '' || $dataPerda > $porPrescMap[$kPre]['ultima_perda'])) {
+            $porPrescMap[$kPre]['ultima_perda'] = $dataPerda;
+        }
+    }
+
+    $porCliente = [];
+    foreach ($porClienteMap as $it) {
+        $motivos = $it['motivos'];
+        arsort($motivos, SORT_NUMERIC);
+        $motivoPrincipal = '';
+        foreach ($motivos as $m => $q) { $motivoPrincipal = (string)$m; break; }
+        $atendentes = array_keys($it['atendentes']);
+        sort($atendentes);
+        $porCliente[] = [
+            'cliente' => $it['cliente'],
+            'prescritor' => $it['prescritor'],
+            'contato' => $it['contato'],
+            'qtd_rejeicoes' => (int)$it['qtd_rejeicoes'],
+            'valor_rejeitado' => round((float)$it['valor_rejeitado'], 2),
+            'motivo_principal' => $motivoPrincipal !== '' ? $motivoPrincipal : 'Não informado',
+            'ultima_perda' => $it['ultima_perda'],
+            'atendente' => implode(', ', $atendentes),
+        ];
+    }
+    usort($porCliente, static function (array $a, array $b): int {
+        if (($b['qtd_rejeicoes'] ?? 0) !== ($a['qtd_rejeicoes'] ?? 0)) return ($b['qtd_rejeicoes'] ?? 0) <=> ($a['qtd_rejeicoes'] ?? 0);
+        return ($b['valor_rejeitado'] ?? 0) <=> ($a['valor_rejeitado'] ?? 0);
+    });
+
+    $porPrescritor = [];
+    foreach ($porPrescMap as $it) {
+        $motivos = $it['motivos'];
+        arsort($motivos, SORT_NUMERIC);
+        $motivoPrincipal = '';
+        foreach ($motivos as $m => $q) { $motivoPrincipal = (string)$m; break; }
+        $atendentes = array_keys($it['atendentes']);
+        sort($atendentes);
+        $porPrescritor[] = [
+            'prescritor' => $it['prescritor'],
+            'contato' => $it['contato'],
+            'qtd_rejeicoes' => (int)$it['qtd_rejeicoes'],
+            'valor_rejeitado' => round((float)$it['valor_rejeitado'], 2),
+            'clientes_unicos' => count($it['clientes']),
+            'motivo_principal' => $motivoPrincipal !== '' ? $motivoPrincipal : 'Não informado',
+            'ultima_perda' => $it['ultima_perda'],
+            'atendentes' => implode(', ', $atendentes),
+        ];
+    }
+    usort($porPrescritor, static function (array $a, array $b): int {
+        if (($b['qtd_rejeicoes'] ?? 0) !== ($a['qtd_rejeicoes'] ?? 0)) return ($b['qtd_rejeicoes'] ?? 0) <=> ($a['qtd_rejeicoes'] ?? 0);
+        return ($b['valor_rejeitado'] ?? 0) <=> ($a['valor_rejeitado'] ?? 0);
+    });
+
+    arsort($motivosGeral, SORT_NUMERIC);
+    $topMotivos = [];
+    foreach ($motivosGeral as $mot => $qty) {
+        $topMotivos[] = ['motivo' => (string)$mot, 'quantidade' => (int)$qty];
+        if (count($topMotivos) >= 8) break;
+    }
+
+    echo json_encode([
+        'success' => true,
+        'fonte' => 'rdstation_crm',
+        'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte],
+        'resumo' => [
+            'total_rejeicoes' => count($registros),
+            'total_valor_rejeitado' => round($totalValor, 2),
+            'total_com_contato' => $totalComContato,
+            'top_motivos' => $topMotivos,
+        ],
+        'por_cliente' => $porCliente,
+        'por_prescritor' => $porPrescritor,
+        'updated_at' => (string)($detalhe['updated_at'] ?? (new DateTimeImmutable('now'))->format('Y-m-d H:i:s')),
+    ], JSON_UNESCAPED_UNICODE);
+}
+
+function handleDebugRdMetricasPublic(PDO $pdo): void
+{
+    if (!gcIsLocalDebugRequest()) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Endpoint temporário disponível apenas em localhost.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
+    if ($rdToken === '') {
+        echo json_encode(['success' => false, 'fonte' => null, 'error' => 'RDSTATION_CRM_TOKEN não configurado no .env.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    [$dataDe, $dataAte] = gcDateRangeFromQuery();
+
+    $usuarios = [];
+    try {
+        $st = $pdo->query("
+            SELECT id, TRIM(nome) AS nome, TRIM(COALESCE(setor, '')) AS setor, COALESCE(meta_mensal, 0) AS meta_mensal, COALESCE(comissao_percentual, 1) AS comissao_percentual
+            FROM usuarios
+            WHERE TRIM(COALESCE(nome, '')) <> ''
+            ORDER BY TRIM(nome) ASC
+        ");
+        $usuarios = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        $usuarios = [];
+    }
+
+    $rdFull = rdFetchTodasMetricas($rdToken, $dataDe, $dataAte, null, true);
+    $rdSemFunil = [
+        'receita_total' => $rdFull['receita_total'] ?? 0,
+        'total_ganhos' => $rdFull['total_ganhos'] ?? 0,
+        'total_perdidos' => $rdFull['total_perdidos'] ?? 0,
+        'conversao_geral_pct' => $rdFull['conversao_geral_pct'] ?? null,
+        'kanban_snapshot' => $rdFull['kanban_snapshot'] ?? [],
+        'por_vendedor' => $rdFull['por_vendedor'] ?? [],
+        'motivos_perda_geral' => $rdFull['motivos_perda_geral'] ?? [],
+        'origens_geral' => $rdFull['origens_geral'] ?? [],
+        'updated_at' => $rdFull['updated_at'] ?? null,
+    ];
+    echo json_encode([
+        'success' => true,
+        'fonte' => 'rdstation_crm',
+        'temporary_debug' => true,
+        'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte],
+        'summary' => [
+            'rd_receita_total' => $rdFull['receita_total'] ?? 0,
+            'rd_total_ganhos' => $rdFull['total_ganhos'] ?? 0,
+            'rd_total_perdidos' => $rdFull['total_perdidos'] ?? 0,
+            'kanban_total_negociacoes' => $rdFull['kanban_snapshot']['total_negociacoes'] ?? 0,
+            'kanban_ganhos' => $rdFull['kanban_snapshot']['ganhos'] ?? 0,
+            'kanban_perdidos' => $rdFull['kanban_snapshot']['perdidos'] ?? 0,
+            'kanban_abertos' => $rdFull['kanban_snapshot']['abertos'] ?? 0,
+        ],
+        'usuarios_vendedores' => array_values(array_filter($usuarios, static function (array $u): bool {
+            return strpos(strtolower(trim((string)($u['setor'] ?? ''))), 'vendedor') !== false;
+        })),
+        'rd_metricas_full' => $rdFull,
+        'rd_metricas_sem_funil' => $rdSemFunil,
+        'generated_at' => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
+    ], JSON_UNESCAPED_UNICODE);
+}
+
+function handleDebugRdTvPublic(PDO $pdo): void
+{
+    if (!gcIsLocalDebugRequest()) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Endpoint temporário disponível apenas em localhost.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
+    if ($rdToken === '') {
+        echo json_encode(['success' => false, 'fonte' => null, 'error' => 'RDSTATION_CRM_TOKEN não configurado no .env.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    [$dataDe, $dataAte] = gcDateRangeFromQuery();
+    $metas = [];
+    try {
+        $st = $pdo->query("
+            SELECT TRIM(nome) AS nome, COALESCE(meta_mensal, 0) AS meta_mensal
+            FROM usuarios
+            WHERE LOWER(TRIM(COALESCE(setor, ''))) LIKE '%vendedor%'
+              AND COALESCE(ativo, 1) = 1
+              AND TRIM(COALESCE(nome, '')) <> ''
+        ");
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $v) {
+            $nome = trim((string)($v['nome'] ?? ''));
+            if ($nome === '') continue;
+            $metas[gcNormalizeNome($nome)] = (float)($v['meta_mensal'] ?? 0);
+        }
+    } catch (Throwable $e) {
+        $metas = [];
+    }
+    $tvRanking = rdtvBuildRanking($rdToken, $dataDe, $dataAte, $metas);
+    echo json_encode([
+        'success' => true,
+        'fonte' => 'rdstation_crm',
+        'temporary_debug' => true,
+        'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte],
+        'tv_ranking' => $tvRanking,
+        'generated_at' => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
+    ], JSON_UNESCAPED_UNICODE);
+}
+
+function handleDebugRdRejeitadosPublic(PDO $pdo): void
+{
+    if (!gcIsLocalDebugRequest()) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Endpoint temporário disponível apenas em localhost.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
+    if ($rdToken === '') {
+        echo json_encode(['success' => false, 'fonte' => null, 'error' => 'RDSTATION_CRM_TOKEN não configurado no .env.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    [$dataDe, $dataAte] = gcDateRangeFromQuery();
+    $rejeitados = rdFetchRejeitadosDetalhados($rdToken, $dataDe, $dataAte, 8);
+    echo json_encode([
+        'success' => true,
+        'fonte' => 'rdstation_crm',
+        'temporary_debug' => true,
+        'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte],
+        'rejeitados_detalhados' => $rejeitados,
+        'generated_at' => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
+    ], JSON_UNESCAPED_UNICODE);
 }
 
 function handleTvCorridaVendedores(PDO $pdo): void
@@ -304,6 +911,39 @@ if ($action === 'check_session') {
     exit;
 }
 
+if ($action === 'debug_rd_metricas_public') {
+    try {
+        $pdo = getConnection();
+        handleDebugRdMetricasPublic($pdo);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'fonte' => null, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'debug_rd_tv_public') {
+    try {
+        $pdo = getConnection();
+        handleDebugRdTvPublic($pdo);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'fonte' => null, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'debug_rd_rejeitados_public') {
+    try {
+        $pdo = getConnection();
+        handleDebugRdRejeitadosPublic($pdo);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'fonte' => null, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
 // logout: exige sessão, encerra e retorna
 if ($action === 'logout') {
     if (!isset($_SESSION['user_id'])) {
@@ -397,6 +1037,46 @@ if ($action === 'gestao_rd_metricas') {
             'fonte'   => null,
             'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
                 ? 'Erro ao buscar métricas do RD Station.'
+                : $e->getMessage(),
+        ], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'gestao_rejeitados_rd') {
+    try {
+        $pdo = getConnection();
+        handleGestaoRejeitadosRd($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('gestao_rejeitados_rd: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'fonte'   => null,
+            'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
+                ? 'Erro ao buscar rejeitados no RD Station.'
+                : $e->getMessage(),
+        ], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_dashboard_rd') {
+    try {
+        $pdo = getConnection();
+        handleVendedorDashboardRd($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_dashboard_rd: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'fonte'   => null,
+            'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
+                ? 'Erro ao buscar dados do vendedor no RD Station.'
                 : $e->getMessage(),
         ], JSON_UNESCAPED_UNICODE);
     }

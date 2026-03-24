@@ -18,6 +18,12 @@
     
     --bg-glow-1: rgba(59, 130, 246, 0.3);
     --bg-glow-2: rgba(139, 92, 246, 0.25);
+
+    --lane-label-w: 156px;
+    --track-left-gap: 186px;
+    --track-right-gap: 52px;
+    --cart-w: 138px;
+    --cart-h: 62px;
 }
 
 * { box-sizing: border-box; }
@@ -287,13 +293,16 @@ html, body {
 .lane {
     position: relative;
     flex: 1;
-    min-height: 80px;
+    min-height: 84px;
     display: flex;
     align-items: center;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
     background: linear-gradient(90deg, rgba(3,5,12,0.8) 0%, rgba(15,23,42,0.6) 100%);
 }
 .lane:last-child { border-bottom: none; }
+.lane:nth-child(even) {
+    background: linear-gradient(90deg, rgba(3,5,12,0.85) 0%, rgba(17,27,48,0.6) 100%);
+}
 
 /* Grid no chão da pista individual */
 .lane::before {
@@ -311,9 +320,9 @@ html, body {
     top: 50%;
     transform: translateY(-50%);
     z-index: 10;
-    width: 140px;
+    width: var(--lane-label-w);
     font-weight: 800;
-    font-size: 1.1rem;
+    font-size: clamp(0.95rem, 1.2vw, 1.1rem);
     color: #fff;
     white-space: normal;
     word-break: break-word;
@@ -336,8 +345,8 @@ html, body {
 /* Pista Animada (Grid em Movimento) */
 .track {
     position: absolute;
-    left: 170px;
-    right: 50px;
+    left: var(--track-left-gap);
+    right: var(--track-right-gap);
     top: 0;
     bottom: 0;
     z-index: 5;
@@ -362,9 +371,15 @@ html, body {
     position: absolute;
     top: 0;
     right: 0;
-    width: 12px;
+    width: 14px;
     height: 100%;
-    background: #fff;
+    background:
+        linear-gradient(0deg, rgba(255,255,255,0.95), rgba(255,255,255,0.95)),
+        repeating-linear-gradient(
+            180deg,
+            rgba(15, 23, 42, 0.85) 0 6px,
+            rgba(255,255,255,0.95) 6px 12px
+        );
     box-shadow: 0 0 15px #fff, 0 0 30px var(--neon-blue);
     z-index: 2;
 }
@@ -384,26 +399,35 @@ html, body {
     top: 50%;
     left: 0;
     transform: translate(-50%, -50%);
-    transition: left 2.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: left 1.8s cubic-bezier(0.22, 1, 0.36, 1);
     z-index: 20;
     display: flex;
     align-items: center;
     justify-content: center;
+    will-change: left;
 }
 .cart-img-wrap.cart {
-    width: 130px;
-    height: 52px;
+    width: calc(var(--cart-w) * var(--car-scale, 1));
+    height: calc(var(--cart-h) * var(--car-scale, 1));
 }
 .cart-img {
     display: block;
     width: 100%;
     height: 100%;
+    transform-origin: center center;
     animation: floatCar 2s ease-in-out infinite, pulseGlow 1.5s infinite alternate;
 }
-.cart-img svg {
+.cart-photo {
     width: 100%;
     height: 100%;
     object-fit: contain;
+    transform: scaleX(1);
+    filter: drop-shadow(0 6px 12px rgba(15, 23, 42, .9)) drop-shadow(0 0 18px rgba(255,255,255,.2));
+}
+.cart-photo--flip {
+    transform: scaleX(-1);
+}
+.cart-photo--fallback {
     filter: drop-shadow(0 4px 12px currentColor) drop-shadow(0 0 20px currentColor);
 }
 
@@ -413,11 +437,11 @@ html, body {
     position: absolute;
     top: 50%;
     right: 85%;
-    width: 140px;
-    height: 6px;
+    width: 120px;
+    height: 5px;
     transform: translateY(-50%) skewX(-15deg);
     background: linear-gradient(to right, transparent 0%, currentColor 70%);
-    opacity: 0.5;
+    opacity: 0.35;
     filter: blur(6px);
     border-radius: 20px;
     z-index: -1;
@@ -429,11 +453,11 @@ html, body {
     top: -35px;
     left: 50%;
     transform: translateX(-50%) translateY(10px);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     background: rgba(3, 5, 12, 0.9);
     backdrop-filter: blur(5px);
     border: 1px solid currentColor;
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 8px;
     color: #fff;
     font-family: monospace;
@@ -464,7 +488,7 @@ html, body {
 .cart.leader .cart-img {
     animation: floatCar 1.5s ease-in-out infinite, pulseGlowStrong 1s infinite alternate;
 }
-.cart.leader .cart-img svg {
+.cart.leader .cart-photo {
     filter: drop-shadow(0 4px 14px currentColor) drop-shadow(0 0 25px currentColor);
 }
 .cart.leader::before {
@@ -475,11 +499,15 @@ html, body {
     opacity: 0.7;
 }
 
+.cart.pos-1 { z-index: 28; }
+.cart.pos-2 { z-index: 27; }
+.cart.pos-3 { z-index: 26; }
+
 /* Animações carro */
 @keyframes floatCar {
-    0%, 100% { transform: scaleX(-1) translateY(0) rotate(0deg); }
-    33% { transform: scaleX(-1) translateY(-3px) rotate(1deg); }
-    66% { transform: scaleX(-1) translateY(2px) rotate(-1deg); }
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    33% { transform: translateY(-3px) rotate(1deg); }
+    66% { transform: translateY(2px) rotate(-1deg); }
 }
 @keyframes pulseGlow {
     from { filter: drop-shadow(0 0 5px currentColor); }
@@ -527,7 +555,13 @@ html, body {
     .tv-header { flex-direction: column; text-align: center; }
     .tv-positions-sky { display: none; }
     .podium { grid-template-columns: 1fr; gap: 10px; }
-    .track { left: 120px; }
-    .lane-label { width: 100px; font-size: 0.9rem; }
+    :root {
+        --lane-label-w: 104px;
+        --track-left-gap: 128px;
+        --track-right-gap: 40px;
+        --cart-w: 114px;
+        --cart-h: 52px;
+    }
+    .lane-label { font-size: 0.9rem; }
     .overtake-overlay h2 { font-size: 3rem; }
 }

@@ -20,10 +20,24 @@
         { body: '#14b8a6', glow: 'rgba(20,184,166,.8)' },   // Teal
         { body: '#d946ef', glow: 'rgba(217,70,239,.8)' }    // Fuschia
     ];
-    const lastPosByVendor = {};
+    const REAL_CAR_MODELS = [
+        { name: 'Ferrari', src: 'imagens/tv-real/ferrari.png', flipX: false },
+        { name: 'Camaro', src: 'imagens/tv-real/camaro.png', flipX: true },
+        { name: 'Mustang', src: 'imagens/tv-real/mustang.png', flipX: true },
+        { name: 'Lamborghini', src: 'imagens/tv-real/lamborghini.png', flipX: false },
+        { name: 'Porsche', src: 'imagens/tv-real/porsche.png', flipX: true },
+        { name: 'BMW', src: 'imagens/tv-real/bmw.png', flipX: false },
+        { name: 'Mercedes', src: 'imagens/tv-real/mercedes.png', flipX: true },
+        { name: 'Pickup', src: 'imagens/tv-real/pickup.png', flipX: false }
+    ];
+    const lastPctByVendor = {};
+    const lastRankByVendor = {};
     const lastReceitaByVendor = {};
+    const lastRaceRevenueByVendor = {};
     const assignedThemeIndices = {};
     let nextThemeIdx = 0;
+    let lastRaceFingerprint = '';
+    let lastRaceUpdatedAt = '';
 
     // Sons nas ações (Web Audio API - sem arquivos externos)
     var tvAudioCtx = null;
@@ -244,50 +258,91 @@
         return CAR_THEMES[idx];
     }
 
-    // Baseado na referência: coupe esportivo, teto fastback, spoiler, faróis — cores do tema (currentColor)
-    var SVG_CAR = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 46" fill="currentColor">' +
-        '<path d="M4 44 L6 40 L10 36 L18 32 L22 28 L24 24 L28 20 L52 16 L74 20 L78 26 L82 30 L88 34 L94 38 L96 42 L96 46 L4 46 Z"/>' +
-        '<path d="M22 28 L24 24 L28 22 L26 28 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
-        '<path d="M28 22 L40 20 L42 26 L30 28 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
-        '<path d="M42 20 L60 18 L62 24 L44 26 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
-        '<path d="M60 18 L74 20 L76 26 L62 24 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
-        '<path d="M4 38 L8 34 L10 36 L6 40 Z" fill="rgba(255,255,255,0.9)" stroke="currentColor" stroke-opacity="0.4"/>' +
-        '<path d="M92 36 L96 34 L96 38 L94 40 Z" fill="currentColor" fill-opacity="0.7"/>' +
-        '<circle cx="24" cy="44" r="6" fill="#0f172a"/>' +
-        '<circle cx="78" cy="44" r="6" fill="#0f172a"/>' +
-        '</svg>';
-    // Líder: mesmo perfil, mais agressivo
-    var SVG_CAR_LIDER = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 46" fill="currentColor">' +
-        '<path d="M4 44 L6 39 L12 34 L20 28 L24 22 L28 18 L54 12 L76 18 L80 24 L84 28 L90 32 L95 36 L97 42 L97 46 L4 46 Z"/>' +
-        '<path d="M22 28 L24 22 L28 20 L26 28 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
-        '<path d="M28 20 L42 16 L44 24 L30 26 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
-        '<path d="M44 16 L62 14 L64 22 L46 24 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
-        '<path d="M62 14 L76 18 L78 24 L64 22 Z" fill="currentColor" fill-opacity="0.38" stroke="currentColor" stroke-opacity="0.5"/>' +
-        '<path d="M4 36 L8 32 L10 34 L6 38 Z" fill="rgba(255,255,255,0.9)" stroke="currentColor" stroke-opacity="0.4"/>' +
-        '<path d="M92 34 L97 32 L97 36 L95 38 Z" fill="currentColor" fill-opacity="0.7"/>' +
-        '<circle cx="22" cy="44" r="6" fill="#0f172a"/>' +
-        '<circle cx="80" cy="44" r="6" fill="#0f172a"/>' +
-        '</svg>';
+    function modelIndexByName(name) {
+        const n = String(name || '').toLowerCase();
+        for (let i = 0; i < REAL_CAR_MODELS.length; i++) {
+            if (String(REAL_CAR_MODELS[i].name || '').toLowerCase() === n) return i;
+        }
+        return -1;
+    }
 
-    function getCarSvg(posicao) { return posicao === 1 ? SVG_CAR_LIDER : SVG_CAR; }
+    function assignModelsForRace(ranking) {
+        const used = new Set();
+        const assigned = [];
+        const preferredByPos = ['Ferrari', 'Lamborghini', 'Porsche'];
 
-    function laneTemplate(r, targetPct) {
+        for (let i = 0; i < ranking.length; i++) {
+            const prefName = preferredByPos[i] || null;
+            let idx = prefName ? modelIndexByName(prefName) : -1;
+
+            if (idx >= 0 && !used.has(idx)) {
+                used.add(idx);
+                assigned.push(REAL_CAR_MODELS[idx]);
+                continue;
+            }
+
+            idx = -1;
+            for (let j = 0; j < REAL_CAR_MODELS.length; j++) {
+                if (!used.has(j)) {
+                    idx = j;
+                    break;
+                }
+            }
+
+            if (idx === -1) {
+                // fallback raro quando ranking > quantidade de modelos
+                idx = i % REAL_CAR_MODELS.length;
+            }
+            used.add(idx);
+            assigned.push(REAL_CAR_MODELS[idx]);
+        }
+        return assigned;
+    }
+
+    function scaleForPosition(posicao) {
+        const p = Number(posicao || 0);
+        if (p <= 1) return 1.45;
+        if (p === 2) return 1.30;
+        if (p === 3) return 1.18;
+        if (p === 4) return 1.06;
+        if (p === 5) return 0.96;
+        if (p === 6) return 0.88;
+        if (p === 7) return 0.80;
+        return 0.74;
+    }
+
+    function buildRaceFingerprint(ranking) {
+        if (!Array.isArray(ranking) || !ranking.length) return '';
+        return ranking.map(function (r, i) {
+            const key = safeKey(r.vendedor);
+            const receita = Number(r.receita || 0).toFixed(2);
+            const meta = Number(r.percentual_meta || 0).toFixed(2);
+            const lider = Number(r.percentual_lider || 0).toFixed(2);
+            return `${i + 1}:${key}:${receita}:${meta}:${lider}`;
+        }).join('|');
+    }
+
+    function laneTemplate(r, targetPct, carModel) {
         const key = safeKey(r.vendedor);
         const theme = pickTheme(key || r.posicao);
         const profile = getCarProfile(r.posicao);
-        const prev = Number(lastPosByVendor[key] || 0);
-        const startLeft = `${Math.max(0, Math.min(100, prev)).toFixed(2)}%`;
-        const pct = Math.max(0, Math.min(100, Number(targetPct || 0)));
+        const prev = Number(lastPctByVendor[key] || 6);
+        const startLeft = `${Math.max(4, Math.min(96, prev)).toFixed(2)}%`;
+        const pct = Math.max(4, Math.min(96, Number(targetPct || 0)));
         const targetLeft = `${pct.toFixed(2)}%`;
         const pctMetaText = `${Math.max(0, Number(r.percentual_meta || 0)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% meta`;
         const posLabel = r.posicao + 'º';
+        const carScale = scaleForPosition(r.posicao);
+        const posClass = 'pos-' + String(r.posicao || '');
 
         return `<div class="lane">
             <div class="lane-label"><span class="lane-pos">${posLabel}</span> ${r.vendedor || '-'}</div>
             <div class="track">
-                <div class="cart cart-img-wrap ${profile.cls}" data-vendor="${key}" data-target-left="${targetLeft}" data-money="${fmtMoney(r.receita || 0)} | ${pctMetaText}"
-                     style="color:${theme.body}; left:${startLeft};">
-                    <span class="cart-img">${getCarSvg(r.posicao)}</span>
+                <div class="cart cart-img-wrap ${profile.cls} ${posClass}" data-vendor="${key}" data-target-left="${targetLeft}" data-money="${fmtMoney(r.receita || 0)} | ${pctMetaText}"
+                     style="color:${theme.body}; left:${startLeft}; --car-scale:${carScale};">
+                    <span class="cart-img">
+                        <img class="cart-photo ${carModel.flipX ? 'cart-photo--flip' : ''}" src="${carModel.src}" alt="${carModel.name}" data-fallback="imagens/tv-carro.svg" loading="eager" decoding="async" />
+                    </span>
                 </div>
                 <div class="finish-line"></div>
                 <div class="finish-flag"><i class="fas fa-flag-checkered"></i></div>
@@ -296,20 +351,21 @@
     }
 
     function buildTargetPositions(ranking) {
-        const minGap = 2; // evita sobreposição na chegada
+        const minGap = 4.5; // mantém uma separação visual estável entre posições
+        const minPct = 8;
+        const maxPct = 92;
         const out = [];
         if (!Array.isArray(ranking) || !ranking.length) return out;
 
         let prev = null;
         for (let i = 0; i < ranking.length; i++) {
+            const rawLeaderPct = Number(ranking[i].percentual_lider || 0);
             const rawMetaPct = Number(ranking[i].percentual_meta || 0);
-            let p = Math.max(0, Math.min(100, rawMetaPct));
-            // Espalha se estourar o limite
-            if(p > 100) p = 100;
+            const base = rawLeaderPct > 0 ? rawLeaderPct : Math.max(0, Math.min(100, rawMetaPct));
+            let p = minPct + (Math.max(0, Math.min(100, base)) / 100) * (maxPct - minPct);
             
-            // Corrida disputada, não permite sobrepor visualmente quem tá na frente
             if (prev !== null && p > (prev - minGap)) {
-                p = Math.max(0, prev - minGap);
+                p = Math.max(minPct, prev - minGap);
             }
             out.push(p);
             prev = p;
@@ -317,15 +373,22 @@
         return out;
     }
 
-    function renderRace(ranking, maxReceita) {
+    function renderRace(ranking, maxReceita, updatedAt) {
         const wrap = document.getElementById('tvRace');
         if (!wrap) return;
         if (!Array.isArray(ranking) || !ranking.length) {
             wrap.innerHTML = '<div class="race-empty">Sem vendas no período.</div>';
             return;
         }
+        const currentFingerprint = buildRaceFingerprint(ranking);
+        const hasUpdatedAt = String(updatedAt || '').trim() !== '';
+        const hasDataChanged = hasUpdatedAt
+            ? (lastRaceUpdatedAt === '' || String(updatedAt) !== lastRaceUpdatedAt)
+            : (lastRaceFingerprint === '' || currentFingerprint !== lastRaceFingerprint);
+
         const positions = buildTargetPositions(ranking);
-        wrap.innerHTML = ranking.map(function (r, i) { return laneTemplate(r, positions[i] || 0); }).join('');
+        const modelsByLane = assignModelsForRace(ranking);
+        wrap.innerHTML = ranking.map(function (r, i) { return laneTemplate(r, positions[i] || 0, modelsByLane[i]); }).join('');
         
         // Verifica Ultrapassagem (Overtake Detection)
         let overtakeOccurred = "";
@@ -334,11 +397,16 @@
             const key = safeKey(r.vendedor);
             const currentPosition = i + 1; // 1-indexed
 
-            if (!isFirstLoad && lastPosByVendor[key] !== undefined) {
+            if (!isFirstLoad && hasDataChanged && lastRankByVendor[key] !== undefined) {
                 // se ele tava numa posição maior (pior) e agora tá numa melhor (menor)
-                if (currentPosition < lastPosByVendor[key]) {
-                    // Ele subiu de posição, logo houve ultrapassagem
-                    overtakeOccurred = r.vendedor; 
+                if (currentPosition < lastRankByVendor[key]) {
+                    const currentRevenue = Number(r.receita || 0);
+                    const previousRevenue = Number(lastRaceRevenueByVendor[key] || 0);
+                    const revenueMoved = Math.abs(currentRevenue - previousRevenue) > 0.009;
+                    if (revenueMoved) {
+                        // Ele subiu de posição com mudança real de receita
+                        overtakeOccurred = r.vendedor;
+                    }
                 }
             }
         });
@@ -361,10 +429,24 @@
             });
         }, 100);
 
+        wrap.querySelectorAll('.cart-photo').forEach(function (img) {
+            img.addEventListener('error', function () {
+                const fb = img.getAttribute('data-fallback') || 'imagens/tv-carro.svg';
+                if (img.getAttribute('src') !== fb) {
+                    img.setAttribute('src', fb);
+                    img.classList.add('cart-photo--fallback');
+                }
+            }, { once: true });
+        });
+
         ranking.forEach(function (r, i) {
             const key = safeKey(r.vendedor);
-            lastPosByVendor[key] = i + 1; // Guarda a posição (ranking final) e não a %
+            lastRankByVendor[key] = i + 1;
+            lastPctByVendor[key] = Number(positions[i] || 0);
+            lastRaceRevenueByVendor[key] = Number(r.receita || 0);
         });
+        lastRaceFingerprint = currentFingerprint;
+        lastRaceUpdatedAt = String(updatedAt || '').trim();
     }
 
     function triggerOvertake(nome) {
@@ -409,7 +491,7 @@
         const max = Number(data.max_receita || 0);
         
         renderPodium(ranking);
-        renderRace(ranking, max);
+        renderRace(ranking, max, data.updated_at || '');
 
         const p = data.periodo || {};
         const updated = data.updated_at || '--';

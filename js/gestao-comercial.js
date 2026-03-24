@@ -9,6 +9,7 @@
     const gcChartInstances = {};
     let gcBgChartsTimer = null;
     let gcDeferredChartsPending = false;
+    let gcDeferredChartsData = null;
 
     function gcDestroyAllCharts() {
         Object.keys(gcChartInstances).forEach(function (key) {
@@ -417,26 +418,24 @@
         })();
     }
 
-    async function loadDashboardData() {
+    async function loadDashboardData(forceRefresh = false) {
         setGcLoading(true);
         try {
             const deEl = document.getElementById('gcDataDe');
             const ateEl = document.getElementById('gcDataAte');
-            const params = { skip_rd: '1' };
+            const params = {};
             if (deEl?.value) params.data_de = deEl.value;
             if (ateEl?.value) params.data_ate = ateEl.value;
+            if (forceRefresh) params.refresh_rd = '1';
 
-            const [data, resLista] = await Promise.all([
-                apiGet('gestao_comercial_dashboard', params),
-                apiGet('gestao_comercial_lista_vendedores', {}).catch(function () { return {}; })
-            ]);
+            const data = await apiGet('gestao_comercial_dashboard_rd', params);
 
             var dashboardOk = data && data.success === true && data.crescimento && typeof data.crescimento === 'object';
             if (!dashboardOk) {
                 var msg = (data && data.error) ? data.error : '';
                 if (!msg) {
                     if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
-                        msg = 'Resposta vazia da API. Abra o DevTools (F12) → aba Network → gestao_comercial_dashboard e veja o corpo da resposta.';
+                        msg = 'Resposta vazia da API. Abra o DevTools (F12) → aba Network → gestao_comercial_dashboard_rd e veja o corpo da resposta.';
                     } else {
                         msg = 'O painel não retornou dados válidos (success ou bloco crescimento ausente). Confirme login como administrador e tente Aplicar de novo.';
                     }
@@ -447,17 +446,11 @@
             clearGcDashboardError();
 
             gcDashboardData = data;
-            gcNomesVendedores = [];
-            if (resLista && resLista.success && Array.isArray(resLista.nomes)) {
-                gcNomesVendedores = resLista.nomes;
-            }
+            gcNomesVendedores = Array.isArray(data.lista_vendedores_nomes) ? data.lista_vendedores_nomes : [];
             renderExecutivo(data);
             renderFinanceiroKpis(data);
             renderGcCharts(data);
             renderRdMetricas(data.rd_metricas, data.rd_metricas_error);
-            if (data.rd_metricas_deferred) {
-                loadRdMetricasDeferred(params.data_de, params.data_ate);
-            }
             renderVendedoresTabs(data, gcNomesVendedores);
             renderVendedores(data);
         } finally {
@@ -557,17 +550,8 @@
     }
 
     function scheduleGcBackgroundCharts(data) {
-        if (gcBgChartsTimer) {
-            clearTimeout(gcBgChartsTimer);
-            gcBgChartsTimer = null;
-        }
         gcDeferredChartsPending = true;
-        gcBgChartsTimer = setTimeout(function () {
-            gcBgChartsTimer = null;
-            if (!gcDeferredChartsPending || !data) return;
-            gcDeferredChartsPending = false;
-            renderGcChartsBackground(data);
-        }, 0);
+        gcDeferredChartsData = data || null;
     }
 
     function ensureGcBackgroundCharts() {
@@ -578,7 +562,8 @@
             gcBgChartsTimer = null;
         }
         gcDeferredChartsPending = false;
-        renderGcChartsBackground(gcDashboardData);
+        renderGcChartsBackground(gcDeferredChartsData || gcDashboardData);
+        gcDeferredChartsData = null;
     }
 
     function renderGcCharts(data) {
@@ -1309,7 +1294,9 @@
             };
         });
 
-        var estagios = Array.isArray(rd.funil_estagios) ? rd.funil_estagios : [];
+        var estagios = (rd.kanban_snapshot && Array.isArray(rd.kanban_snapshot.etapas) && rd.kanban_snapshot.etapas.length)
+            ? rd.kanban_snapshot.etapas
+            : (Array.isArray(rd.funil_estagios) ? rd.funil_estagios : []);
         if (estagios.length > 0) {
             gcEnsureChart('rdFunil', 'gcChartRdFunil', function () {
                 return {
@@ -1442,11 +1429,12 @@
             if (mwErr) mwErr.style.display = 'none';
             return;
         }
-        setRdEl('gcRdReceitaTotal', formatMoney(rd.receita_total));
-        setRdEl('gcRdTotalGanhos', (rd.total_ganhos ?? 0).toLocaleString('pt-BR'));
-        setRdEl('gcRdTotalPerdidos', (rd.total_perdidos ?? 0).toLocaleString('pt-BR'));
+        var kanban = rd && rd.kanban_snapshot ? rd.kanban_snapshot : null;
+        setRdEl('gcRdReceitaTotal', formatMoney(kanban && kanban.valor_ganho != null ? kanban.valor_ganho : rd.receita_total));
+        setRdEl('gcRdTotalGanhos', ((kanban && kanban.ganhos != null ? kanban.ganhos : rd.total_ganhos) ?? 0).toLocaleString('pt-BR'));
+        setRdEl('gcRdTotalPerdidos', ((kanban && kanban.perdidos != null ? kanban.perdidos : rd.total_perdidos) ?? 0).toLocaleString('pt-BR'));
         setRdEl('gcRdConversao', rd.conversao_geral_pct != null ? formatPercent(rd.conversao_geral_pct) : '—');
-        setRdEl('gcRdOportunidades', (rd.oportunidades_abertas ?? 0).toLocaleString('pt-BR'));
+        setRdEl('gcRdOportunidades', ((kanban && kanban.abertos != null ? kanban.abertos : rd.oportunidades_abertas) ?? 0).toLocaleString('pt-BR'));
         setRdEl('gcRdUpdatedAt', rd.updated_at || '—');
         const metaEl = document.getElementById('gcRdMetodologia');
         if (metaEl) {
@@ -1463,10 +1451,16 @@
             }
         }
         const funilList = document.getElementById('gcRdFunilList');
-        if (funilWrap && funilList && Array.isArray(rd.funil_estagios) && rd.funil_estagios.length > 0) {
+        var kanbanEtapas = kanban && Array.isArray(kanban.etapas) ? kanban.etapas : [];
+        var funilEtapas = Array.isArray(rd.funil_estagios) ? rd.funil_estagios : [];
+        var etapasLista = kanbanEtapas.length ? kanbanEtapas : funilEtapas;
+        if (funilWrap && funilList && etapasLista.length > 0) {
             funilWrap.style.display = 'block';
-            funilList.innerHTML = rd.funil_estagios.map(function (e) {
-                return '<div class="gc-rd-funil-item"><span class="gc-rd-funil-stage">' + escapeHtml(e.stage_name || '') + '</span> <span class="gc-rd-funil-pipe">' + escapeHtml(e.pipeline_name || '') + '</span> <strong>' + Number(e.quantidade || 0).toLocaleString('pt-BR') + '</strong></div>';
+            funilList.innerHTML = etapasLista.map(function (e) {
+                var valorTxt = e.valor_total != null && Number(e.valor_total || 0) > 0
+                    ? ' · ' + formatMoney(e.valor_total || 0)
+                    : '';
+                return '<div class="gc-rd-funil-item"><span class="gc-rd-funil-stage">' + escapeHtml(e.stage_name || '') + '</span> <span class="gc-rd-funil-pipe">' + escapeHtml(e.pipeline_name || '') + '</span> <strong>' + Number(e.quantidade || 0).toLocaleString('pt-BR') + valorTxt + '</strong></div>';
             }).join('');
         } else if (funilWrap) {
             funilWrap.style.display = 'none';
@@ -1575,7 +1569,7 @@
         const applyBtn = document.getElementById('gcApplyFiltersBtn');
         if (applyBtn) {
             applyBtn.addEventListener('click', function () {
-                loadDashboardData().catch(function () {});
+                loadDashboardData(true).catch(function () {});
             });
         }
 
@@ -1585,7 +1579,7 @@
             inp.addEventListener('keydown', function (ev) {
                 if (ev.key === 'Enter') {
                     ev.preventDefault();
-                    loadDashboardData().catch(function () {});
+                    loadDashboardData(true).catch(function () {});
                 }
             });
         });
@@ -1602,6 +1596,6 @@
         const app = document.getElementById('gcApp');
         if (app) app.style.display = 'flex';
         bindUi(session);
-        loadDashboardData().catch(function () {});
+        loadDashboardData(false).catch(function () {});
     });
 })();

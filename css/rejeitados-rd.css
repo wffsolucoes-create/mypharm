@@ -1,0 +1,136 @@
+.rej-page {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 24px 20px 36px;
+}
+
+.rej-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.rej-title {
+    margin: 0;
+    font-size: 1.55rem;
+}
+
+.rej-sub {
+    margin: 6px 0 0 0;
+    color: var(--text-secondary);
+    font-size: .92rem;
+}
+
+.rej-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.rej-btn {
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-radius: 10px;
+    padding: 8px 12px;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.rej-btn:hover { filter: brightness(1.05); }
+
+.rej-filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.rej-filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: .82rem;
+    color: var(--text-secondary);
+}
+
+.rej-filters input,
+.rej-filters button {
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: 0 10px;
+}
+
+.rej-filters button {
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.rej-cards {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.rej-card {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-card);
+    padding: 12px;
+}
+
+.rej-card .k {
+    color: var(--text-secondary);
+    font-size: .78rem;
+    margin-bottom: 6px;
+}
+
+.rej-card .v {
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.rej-table-wrap {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-card);
+    overflow: auto;
+}
+
+.rej-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px;
+}
+
+.rej-table th,
+.rej-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    font-size: .88rem;
+}
+
+.rej-table th {
+    font-size: .76rem;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.rej-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 18px;
+}
+
+@media (max-width: 900px) {
+    .rej-filters { grid-template-columns: 1fr 1fr; }
+    .rej-cards { grid-template-columns: 1fr 1fr; }
+}
