@@ -178,6 +178,13 @@ function gcResolveComissaoPorNome(string $nome, array $comissaoByKey): float
 
 function handleVendedorDashboardRd(PDO $pdo): void
 {
+    if (function_exists('set_time_limit')) {
+        @set_time_limit(300);
+    }
+    if (function_exists('ini_set')) {
+        @ini_set('max_execution_time', '300');
+    }
+
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);
         echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
@@ -212,7 +219,61 @@ function handleVendedorDashboardRd(PDO $pdo): void
     }
 
     [$dataDe, $dataAte] = gcDateRangeFromQuery();
-    $metricas = rdFetchTodasMetricas($rdToken, $dataDe, $dataAte);
+    $maxPagesVend = (int)(getenv('RD_VENDEDOR_MAX_PAGES') ?: 12);
+    if ($maxPagesVend <= 0) {
+        $maxPagesVend = 12;
+    }
+    $cacheKey = 'gc_vendedor_rd_v2_' . md5($dataDe . '|' . $dataAte . '|' . $maxPagesVend);
+    $cacheFile = rtrim((string)sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $cacheKey . '.json';
+    $metricas = null;
+    try {
+        if (is_file($cacheFile)) {
+            $cached = @file_get_contents($cacheFile);
+            $cachedArr = is_string($cached) ? json_decode($cached, true) : null;
+            if (is_array($cachedArr) && isset($cachedArr['por_vendedor'])) {
+                $metricas = $cachedArr;
+            }
+        }
+    } catch (Throwable $e) {
+        // cache opcional
+    }
+    try {
+        // Para a página do vendedor, limita páginas para reduzir 429/timeout.
+        // O objetivo aqui é estabilidade do painel individual.
+        $metricasFresh = rdFetchTodasMetricas($rdToken, $dataDe, $dataAte, $maxPagesVend, false);
+        if (is_array($metricasFresh) && isset($metricasFresh['por_vendedor'])) {
+            $metricas = $metricasFresh;
+            @file_put_contents($cacheFile, json_encode($metricasFresh, JSON_UNESCAPED_UNICODE));
+        }
+    } catch (Throwable $e) {
+        if (!is_array($metricas)) {
+            // fallback final: evita 500 no painel do vendedor quando o RD limita/oscila.
+            $metricas = [
+                'fonte' => 'rdstation_crm',
+                'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte],
+                'receita_total' => 0.0,
+                'total_ganhos' => 0,
+                'total_perdidos' => 0,
+                'conversao_geral_pct' => null,
+                'oportunidades_abertas' => 0,
+                'funil_estagios' => [],
+                'kanban_snapshot' => [
+                    'total_negociacoes' => 0,
+                    'ganhos' => 0,
+                    'perdidos' => 0,
+                    'abertos' => 0,
+                    'valor_ganho' => 0.0,
+                    'etapas' => [],
+                ],
+                'por_vendedor' => [],
+                'motivos_perda_geral' => [],
+                'origens_geral' => [],
+                'updated_at' => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
+                'warning' => (string)$e->getMessage(),
+            ];
+        }
+        // fallback: usa cache stale se disponível; caso contrário usa payload vazio acima
+    }
 
     $metasByKey = [];
     $comissaoByKey = [];
@@ -690,6 +751,13 @@ function handleDebugRdRejeitadosPublic(PDO $pdo): void
 
 function handleTvCorridaVendedores(PDO $pdo): void
 {
+    if (function_exists('set_time_limit')) {
+        @set_time_limit(180);
+    }
+    if (function_exists('ini_set')) {
+        @ini_set('max_execution_time', '180');
+    }
+
     $today = new DateTimeImmutable('today');
     $dataDe = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : '';
     $dataAte = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : '';
@@ -701,6 +769,39 @@ function handleTvCorridaVendedores(PDO $pdo): void
         $dataAte = $today->format('Y-m-d');
     } elseif ($dataDe > $dataAte) {
         $dataAte = $dataDe;
+    }
+
+    $refreshRd = isset($_GET['refresh_rd']) ? strtolower(trim((string)$_GET['refresh_rd'])) : '';
+    $forceRefresh = in_array($refreshRd, ['1', 'true', 'yes', 'on'], true);
+
+    $cacheTtlSec = (int)(getenv('RD_TV_CACHE_TTL') ?: 90);
+    if ($cacheTtlSec < 30) {
+        $cacheTtlSec = 30;
+    }
+    $cacheKey = 'gc_tv_rd_v2_' . md5($dataDe . '|' . $dataAte);
+    $cacheFile = rtrim((string)sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $cacheKey . '.json';
+    $cachedTv = null;
+    try {
+        if (is_file($cacheFile)) {
+            $raw = @file_get_contents($cacheFile);
+            $arr = is_string($raw) ? json_decode($raw, true) : null;
+            if (is_array($arr) && isset($arr['ranking']) && is_array($arr['ranking'])) {
+                $cachedTv = $arr;
+            }
+        }
+    } catch (Throwable $e) {
+        $cachedTv = null;
+    }
+
+    // Se houver cache recente e não for refresh forçado, responde rápido para a TV.
+    try {
+        if (!$forceRefresh && is_file($cacheFile) && (time() - @filemtime($cacheFile) <= $cacheTtlSec) && is_array($cachedTv)) {
+            $cachedTv['cache'] = ['hit' => true, 'stale' => false];
+            echo json_encode($cachedTv, JSON_UNESCAPED_UNICODE);
+            return;
+        }
+    } catch (Throwable $e) {
+        // segue fluxo normal
     }
 
     // ===== Tenta usar RD Station CRM =====
@@ -726,12 +827,21 @@ function handleTvCorridaVendedores(PDO $pdo): void
             } catch (Throwable $e) { /* sem metas: usa default */ }
 
             $result = rdtvBuildRanking($rdToken, $dataDe, $dataAte, $metas);
+            try {
+                @file_put_contents($cacheFile, json_encode($result, JSON_UNESCAPED_UNICODE));
+            } catch (Throwable $e) { /* cache opcional */ }
             echo json_encode($result, JSON_UNESCAPED_UNICODE);
             return;
         } catch (Throwable $e) {
             // Log do erro e fallback para o banco
             if (function_exists('error_log')) {
                 error_log('RD Station TV proxy error: ' . $e->getMessage());
+            }
+            // Prioriza cache stale real do RD antes de cair no legado
+            if (is_array($cachedTv)) {
+                $cachedTv['cache'] = ['hit' => true, 'stale' => true];
+                echo json_encode($cachedTv, JSON_UNESCAPED_UNICODE);
+                return;
             }
             // Continua para o fallback abaixo
         }

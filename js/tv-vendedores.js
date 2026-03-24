@@ -1,6 +1,7 @@
 (function () {
     const API_URL = 'api_gestao.php';
-    const REFRESH_MS = 15000;
+    const REFRESH_MS = 5000;
+    let tvRequestInFlight = false;
     
     // Lista ampliada de cores neon vibrantes (garantindo variedade)
     const CAR_THEMES = [
@@ -482,27 +483,38 @@
     }
 
     async function loadRace() {
+        if (tvRequestInFlight) return;
+        tvRequestInFlight = true;
         // Tentaremos pegar os dados do período padrão. O sistema de vcs aceita os mesmos params.
         const range = currentMonthRange();
-        const data = await apiGet('tv_corrida_vendedores', range);
-        if (!data || data.success === false) return;
+        try {
+            const data = await apiGet('tv_corrida_vendedores', Object.assign({}, range, { refresh_rd: 1 }));
+            if (!data || data.success === false) return;
 
-        const ranking = data.ranking || [];
-        const max = Number(data.max_receita || 0);
-        
-        renderPodium(ranking);
-        renderRace(ranking, max, data.updated_at || '');
+            const ranking = data.ranking || [];
+            const max = Number(data.max_receita || 0);
+            
+            renderPodium(ranking);
+            renderRace(ranking, max, data.updated_at || '');
 
-        const p = data.periodo || {};
-        const updated = data.updated_at || '--';
-        const periodoEl = document.getElementById('tvPeriodo');
-        const updEl = document.getElementById('tvUpdatedAt');
-        if (periodoEl) {
-            let inicio = p.data_de ? fmtDateBr(p.data_de) : fmtDateBr(range.data_de);
-            let fim = p.data_ate ? fmtDateBr(p.data_ate) : fmtDateBr(range.data_ate);
-            periodoEl.textContent = `Período: ${inicio} até ${fim}`;
+            const p = data.periodo || {};
+            const updated = data.updated_at || '--';
+            const periodoEl = document.getElementById('tvPeriodo');
+            const updEl = document.getElementById('tvUpdatedAt');
+            if (periodoEl) {
+                let inicio = p.data_de ? fmtDateBr(p.data_de) : fmtDateBr(range.data_de);
+                let fim = p.data_ate ? fmtDateBr(p.data_ate) : fmtDateBr(range.data_ate);
+                periodoEl.textContent = `Período: ${inicio} até ${fim}`;
+            }
+            if (updEl) {
+                const stale = data.cache && data.cache.stale === true;
+                updEl.textContent = stale
+                    ? `Atualizado (cache): ${fmtDateTimeBr(updated)}`
+                    : `Atualizado: ${fmtDateTimeBr(updated)}`;
+            }
+        } finally {
+            tvRequestInFlight = false;
         }
-        if (updEl) updEl.textContent = `Atualizado: ${fmtDateTimeBr(updated)}`;
     }
 
     function bindUi() {
