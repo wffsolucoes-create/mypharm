@@ -57,6 +57,13 @@ Options -Indexes
         Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https://*.tile.openstreetmap.org https://unpkg.com; connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://viacep.com.br;"
         Header set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
     </FilesMatch>
+
+    # TV Corrida: sem cache agressivo (Hostinger/LiteSpeed costuma servir HTML/CSS/JS antigos)
+    <FilesMatch "^tv-vendedores\.html$">
+        Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Header set Pragma "no-cache"
+        Header unset ETag
+    </FilesMatch>
 </IfModule>
 
 # ----- Prevenir acesso a arquivos ocultos (.git, .env, etc) -----

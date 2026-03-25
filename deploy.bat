@@ -34,4 +34,8 @@ echo cerca de 1-2 minutos. Confira em hPanel ^> Git ^> ultimo deploy / logs.
 echo Se nada mudar no site, veja se o auto-deploy ao push esta ativo ou rode
 echo deploy manual no painel.
 echo.
+echo IMPORTANTE (Hostinger): apos FTP ou Git deploy, abra o hPanel e use
+echo "Purge cache" / "Limpar cache" (LiteSpeed). Sem isso, CSS e JS antigos
+echo podem continuar no ar — parece que o upload "nao salvou".
+echo.
 timeout /t 8
