@@ -151,7 +151,7 @@ body {
     align-items: center;
     flex-wrap: wrap;
     gap: clamp(8px, 1.2vmin, 16px);
-    margin-bottom: clamp(12px, 2vmin, 28px);
+    margin-bottom: clamp(8px, 1.4vmin, 20px);
     width: 100%;
     background: rgba(11, 15, 30, 0.6);
     backdrop-filter: blur(12px);
@@ -233,26 +233,34 @@ body {
 .podium {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: clamp(10px, 1.8vmin, 24px);
-    margin-bottom: clamp(12px, 2vmin, 28px);
+    gap: clamp(8px, 1.4vmin, 18px);
+    margin-bottom: clamp(8px, 1.5vmin, 20px);
     width: 100%;
+    align-items: stretch;
 }
 .podium-item {
     position: relative;
-    padding: clamp(14px, 2.2vmin, 28px) clamp(12px, 1.8vmin, 24px);
+    padding: clamp(8px, 1.2vmin, 18px) clamp(10px, 1.5vmin, 16px) clamp(10px, 1.4vmin, 20px);
     min-height: 0;
+    max-height: clamp(100px, 18vh, 168px);
     text-align: center;
     overflow: hidden;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 .podium-item:hover {
-    transform: translateY(-5px);
+    transform: translateY(-3px);
 }
 
 /* Gradient borders based on rank */
 .podium-item[data-place="1º"] {
     border-top: 3px solid var(--neon-gold);
-    box-shadow: 0 10px 30px rgba(251, 191, 36, 0.15), inset 0 20px 40px rgba(251, 191, 36, 0.05);
+    box-shadow: 0 8px 22px rgba(251, 191, 36, 0.12), inset 0 12px 28px rgba(251, 191, 36, 0.04);
+    max-height: clamp(96px, 17vh, 158px);
+    padding: clamp(6px, 1vmin, 14px) clamp(8px, 1.2vmin, 14px) clamp(8px, 1.2vmin, 16px);
 }
 .podium-item[data-place="2º"] {
     border-top: 3px solid var(--neon-silver);
@@ -269,44 +277,76 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: clamp(4rem, 18vmin, 10rem);
+    font-size: clamp(2.25rem, 9vmin, 5rem);
     font-weight: 900;
-    color: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.04);
     z-index: 0;
     pointer-events: none;
+    max-width: 100%;
+    overflow: hidden;
+}
+.podium-item[data-place="1º"]::before {
+    font-size: clamp(2rem, 8vmin, 4.25rem);
 }
 .podium-item > * { position: relative; z-index: 1; }
 
 .podium-item .place {
-    font-size: 0.9rem;
+    font-size: clamp(0.72rem, 1.5vw, 0.85rem);
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 0.12em;
     font-weight: 800;
-    margin-bottom: 8px;
+    margin-bottom: clamp(2px, 0.6vmin, 6px);
+    line-height: 1.15;
 }
 .podium-item[data-place="1º"] .place { color: var(--neon-gold); text-shadow: 0 0 10px rgba(251,191,36,0.5); }
 .podium-item[data-place="2º"] .place { color: var(--neon-silver); text-shadow: 0 0 10px rgba(203,213,225,0.5); }
 .podium-item[data-place="3º"] .place { color: var(--neon-bronze); text-shadow: 0 0 10px rgba(217,119,6,0.5); }
 
 .podium-item .name {
-    font-size: clamp(1.1rem, 3.2vw, 2.1rem);
+    font-size: clamp(0.95rem, 2.4vw, 1.55rem);
     font-weight: 800;
     color: #fff;
-    margin-bottom: 6px;
+    margin-bottom: 0;
+    line-height: 1.2;
+    max-width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.podium-item[data-place="1º"] .name {
+    font-size: clamp(0.9rem, 2.2vw, 1.45rem);
 }
 .podium-item .value {
-    font-size: clamp(1rem, 2.6vw, 1.75rem);
+    position: absolute;
+    left: 50%;
+    bottom: clamp(4px, 0.9vmin, 10px);
+    transform: translateX(-50%) translateY(4px);
+    font-size: clamp(0.8rem, 2vw, 1.25rem);
     font-weight: 900;
     color: #4ade80;
-    text-shadow: 0 0 15px rgba(74, 222, 128, 0.4);
+    text-shadow: 0 0 12px rgba(74, 222, 128, 0.35);
     font-family: monospace;
+    white-space: nowrap;
     opacity: 0;
-    transform: translateY(6px);
-    transition: opacity 0.35s ease, transform 0.35s ease;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 2;
 }
 .podium-item:hover .value {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(-50%) translateY(0);
+}
+
+/* TV / touch: sem hover — mostrar valor compacto */
+@media (hover: none), (pointer: coarse) {
+    .podium-item .value {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+        font-size: clamp(0.7rem, 1.65vw, 1.05rem);
+        bottom: clamp(3px, 0.7vmin, 8px);
+    }
 }
 
 

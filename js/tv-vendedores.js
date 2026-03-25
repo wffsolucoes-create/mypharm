@@ -302,12 +302,12 @@
 
     function scaleForPosition(posicao) {
         const p = Number(posicao || 0);
-        if (p <= 1) return 1.45;
-        if (p === 2) return 1.30;
-        if (p === 3) return 1.18;
-        if (p === 4) return 1.06;
-        if (p === 5) return 0.96;
-        if (p === 6) return 0.88;
+        if (p <= 1) return 1.12;
+        if (p === 2) return 1.08;
+        if (p === 3) return 1.02;
+        if (p === 4) return 0.98;
+        if (p === 5) return 0.92;
+        if (p === 6) return 0.86;
         if (p === 7) return 0.80;
         return 0.74;
     }
