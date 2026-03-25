@@ -382,10 +382,9 @@
             return;
         }
         const currentFingerprint = buildRaceFingerprint(ranking);
-        const hasUpdatedAt = String(updatedAt || '').trim() !== '';
-        const hasDataChanged = hasUpdatedAt
-            ? (lastRaceUpdatedAt === '' || String(updatedAt) !== lastRaceUpdatedAt)
-            : (lastRaceFingerprint === '' || currentFingerprint !== lastRaceFingerprint);
+        // NÃO usar updated_at da API como "mudou": o PHP gera timestamp novo a cada request,
+        // então online hasDataChanged ficava sempre true e disparava ultrapassagem falsa.
+        const fingerprintChanged = lastRaceFingerprint === '' || currentFingerprint !== lastRaceFingerprint;
 
         const positions = buildTargetPositions(ranking);
         const modelsByLane = assignModelsForRace(ranking);
@@ -398,14 +397,12 @@
             const key = safeKey(r.vendedor);
             const currentPosition = i + 1; // 1-indexed
 
-            if (!isFirstLoad && hasDataChanged && lastRankByVendor[key] !== undefined) {
+            if (!isFirstLoad && fingerprintChanged && lastRankByVendor[key] !== undefined) {
                 // se ele tava numa posição maior (pior) e agora tá numa melhor (menor)
                 if (currentPosition < lastRankByVendor[key]) {
-                    const currentRevenue = Number(r.receita || 0);
-                    const previousRevenue = Number(lastRaceRevenueByVendor[key] || 0);
-                    const revenueMoved = Math.abs(currentRevenue - previousRevenue) > 0.009;
+                    const cents = function (v) { return Math.round(Number(v || 0) * 100); };
+                    const revenueMoved = Math.abs(cents(r.receita) - cents(lastRaceRevenueByVendor[key] || 0)) >= 1;
                     if (revenueMoved) {
-                        // Ele subiu de posição com mudança real de receita
                         overtakeOccurred = r.vendedor;
                     }
                 }
