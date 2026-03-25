@@ -508,9 +508,20 @@
             }
             if (updEl) {
                 const stale = data.cache && data.cache.stale === true;
-                updEl.textContent = stale
-                    ? `Atualizado (cache): ${fmtDateTimeBr(updated)}`
+                const idade = stale && data.cache.idade_segundos != null
+                    ? ` ${data.cache.idade_segundos}s`
+                    : '';
+                let line = stale
+                    ? `Atualizado (cache${idade}): ${fmtDateTimeBr(updated)}`
                     : `Atualizado: ${fmtDateTimeBr(updated)}`;
+                if (String(data.fonte || '') === 'banco_local') {
+                    line += ' · BD interno';
+                }
+                updEl.textContent = line;
+                const tip = String(data.aviso_rd || '').trim();
+                updEl.title = tip || (String(data.fonte || '') === 'banco_local'
+                    ? 'Ranking pela base importada (gestão_pedidos), não pelo RD Station.'
+                    : '');
             }
         } finally {
             tvRequestInFlight = false;

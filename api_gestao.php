@@ -751,6 +751,44 @@ function handleDebugRdRejeitadosPublic(PDO $pdo): void
     ], JSON_UNESCAPED_UNICODE);
 }
 
+/**
+ * Diretório gravável para cache JSON da TV (evita /tmp partilhado na Hostinger).
+ * Opcional: RD_TV_CACHE_DIR=/caminho/absoluto no .env
+ */
+function gcTvCacheDir(): string
+{
+    $env = trim((string)(getenv('RD_TV_CACHE_DIR') ?: ''));
+    if ($env !== '' && is_dir($env) && is_writable($env)) {
+        return rtrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $env), DIRECTORY_SEPARATOR);
+    }
+    $base = __DIR__ . DIRECTORY_SEPARATOR . 'storage_tv_cache';
+    if (!is_dir($base)) {
+        @mkdir($base, 0755, true);
+    }
+    if (is_dir($base) && is_writable($base)) {
+        return $base;
+    }
+
+    return rtrim((string)sys_get_temp_dir(), DIRECTORY_SEPARATOR);
+}
+
+/**
+ * Idade máxima (segundos) do ficheiro de cache RD ao servir como stale após falha da API.
+ * Acima disto passa a usar o ranking do MySQL (importação), para não “congelar” números velhos.
+ */
+function gcTvStaleMaxSec(): int
+{
+    $n = (int)(getenv('RD_TV_STALE_MAX_SEC') ?: 900);
+    if ($n < 120) {
+        return 120;
+    }
+    if ($n > 86400) {
+        return 86400;
+    }
+
+    return $n;
+}
+
 function handleTvCorridaVendedores(PDO $pdo): void
 {
     if (function_exists('set_time_limit')) {
@@ -776,12 +814,16 @@ function handleTvCorridaVendedores(PDO $pdo): void
     $refreshRd = isset($_GET['refresh_rd']) ? strtolower(trim((string)$_GET['refresh_rd'])) : '';
     $forceRefresh = in_array($refreshRd, ['1', 'true', 'yes', 'on'], true);
 
+    $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
+    $tokenFp = $rdToken !== '' ? substr(hash('sha256', $rdToken), 0, 24) : 'sem_token';
+    $cacheKey = 'gc_tv_rd_v3_' . md5($dataDe . '|' . $dataAte . '|' . $tokenFp);
+    $cacheFile = gcTvCacheDir() . DIRECTORY_SEPARATOR . $cacheKey . '.json';
+    $rdFalhouAntesMysql = false;
+
     $cacheTtlSec = (int)(getenv('RD_TV_CACHE_TTL') ?: 90);
     if ($cacheTtlSec < 30) {
         $cacheTtlSec = 30;
     }
-    $cacheKey = 'gc_tv_rd_v2_' . md5($dataDe . '|' . $dataAte);
-    $cacheFile = rtrim((string)sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $cacheKey . '.json';
     $cachedTv = null;
     try {
         if (is_file($cacheFile)) {
@@ -807,7 +849,6 @@ function handleTvCorridaVendedores(PDO $pdo): void
     }
 
     // ===== Tenta usar RD Station CRM =====
-    $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
     if ($rdToken !== '') {
         try {
             // Busca metas do banco para cruzar com os dados do CRM
@@ -835,17 +876,24 @@ function handleTvCorridaVendedores(PDO $pdo): void
             echo json_encode($result, JSON_UNESCAPED_UNICODE);
             return;
         } catch (Throwable $e) {
-            // Log do erro e fallback para o banco
             if (function_exists('error_log')) {
                 error_log('RD Station TV proxy error: ' . $e->getMessage());
             }
-            // Prioriza cache stale real do RD antes de cair no legado
-            if (is_array($cachedTv)) {
-                $cachedTv['cache'] = ['hit' => true, 'stale' => true];
-                echo json_encode($cachedTv, JSON_UNESCAPED_UNICODE);
-                return;
+            // Snapshot RD recente; cache muito velho não serve (Hostinger mostrava números irreais vs localhost)
+            if (is_array($cachedTv) && is_file($cacheFile)) {
+                $fm = @filemtime($cacheFile);
+                $age = is_int($fm) && $fm > 0 ? (time() - $fm) : PHP_INT_MAX;
+                $maxStale = gcTvStaleMaxSec();
+                if ($age >= 0 && $age <= $maxStale) {
+                    $cachedTv['cache'] = ['hit' => true, 'stale' => true, 'idade_segundos' => $age];
+                    $cachedTv['fonte'] = 'rdstation_crm_cache_stale';
+                    $cachedTv['aviso_rd'] = 'RD indisponível; último snapshot do CRM (' . $age . 's).';
+                    echo json_encode($cachedTv, JSON_UNESCAPED_UNICODE);
+                    return;
+                }
+                @unlink($cacheFile);
             }
-            // Continua para o fallback abaixo
+            $rdFalhouAntesMysql = true;
         }
     }
 
@@ -981,7 +1029,7 @@ function handleTvCorridaVendedores(PDO $pdo): void
     }
     unset($it);
 
-    echo json_encode([
+    $payloadTvMysql = [
         'success'         => true,
         'fonte'           => 'banco_local',
         'periodo'         => ['data_de' => $dataDe, 'data_ate' => $dataAte],
@@ -989,7 +1037,11 @@ function handleTvCorridaVendedores(PDO $pdo): void
         'ranking'         => $lista,
         'funil_estagios'  => [],
         'updated_at'      => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
-    ], JSON_UNESCAPED_UNICODE);
+    ];
+    if (!empty($rdFalhouAntesMysql)) {
+        $payloadTvMysql['aviso_rd'] = 'RD Station falhou; ranking pelo banco interno (importação) — pode divergir do CRM.';
+    }
+    echo json_encode($payloadTvMysql, JSON_UNESCAPED_UNICODE);
 }
 
 // check_session: não exige login, só retorna estado da sessão
