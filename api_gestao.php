@@ -17,6 +17,8 @@ require_once __DIR__ . '/api/modules/gestao_comercial.php';
 require_once __DIR__ . '/api/rdstation_tv.php';
 
 header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 
 $allowedOrigins = [
     'http://localhost',

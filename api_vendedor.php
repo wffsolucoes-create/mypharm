@@ -10,6 +10,8 @@ if (function_exists('ini_set')) {
 require_once __DIR__ . '/config.php';
 
 header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 
 $allowedOrigins = [
     'http://localhost',

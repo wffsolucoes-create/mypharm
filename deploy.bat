@@ -35,7 +35,8 @@ echo Se nada mudar no site, veja se o auto-deploy ao push esta ativo ou rode
 echo deploy manual no painel.
 echo.
 echo IMPORTANTE (Hostinger): apos FTP ou Git deploy, abra o hPanel e use
-echo "Purge cache" / "Limpar cache" (LiteSpeed). Sem isso, CSS e JS antigos
-echo podem continuar no ar — parece que o upload "nao salvou".
+echo "Purge cache" / "Limpar cache" (LiteSpeed). Sem isso, paginas e APIs
+echo podem continuar antigas — parece que nada "salvou" no online.
+echo Confirme tambem que os arquivos foram para a pasta correta (ex. public_html).
 echo.
 timeout /t 8

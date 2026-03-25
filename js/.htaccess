@@ -1,6 +1,6 @@
-# TV / telão: evitar JS antigo após deploy (cache LiteSpeed/CDN)
+# JS: evitar versao antiga apos deploy (Hostinger / LiteSpeed / CDN)
 <IfModule mod_headers.c>
-    <FilesMatch "^tv-vendedores\.js$">
+    <FilesMatch "\.js$">
         Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
         Header set Pragma "no-cache"
         Header unset ETag
