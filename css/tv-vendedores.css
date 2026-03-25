@@ -306,6 +306,7 @@ body {
     font-weight: 800;
     margin-bottom: clamp(2px, 0.6vmin, 6px);
     line-height: 1.15;
+    transition: opacity 0.2s ease, transform 0.2s ease;
 }
 .podium-item[data-place="1º"] .place { color: var(--neon-gold); text-shadow: 0 0 10px rgba(251,191,36,0.5); }
 .podium-item[data-place="2º"] .place { color: var(--neon-silver); text-shadow: 0 0 10px rgba(203,213,225,0.5); }
@@ -323,6 +324,7 @@ body {
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    transition: opacity 0.2s ease, transform 0.2s ease;
 }
 .podium-item[data-place="1º"] .name {
     font-size: clamp(0.9rem, 2.2vw, 1.45rem);
@@ -346,6 +348,14 @@ body {
 .podium-item:hover .value {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
+}
+.podium-item:hover .place,
+.podium-item:hover .name {
+    opacity: 0;
+    transform: translateY(-4px);
+}
+.podium-item:hover::before {
+    opacity: 0;
 }
 
 /* TV / touch: sem hover — mostrar valor compacto */
@@ -473,6 +483,30 @@ body {
     color: #fff;
     font-size: clamp(1.1rem, 2.8vw, 2rem);
     text-shadow: 0 0 10px #fff;
+}
+.meta-hit-badge {
+    position: absolute;
+    right: clamp(28px, 3.8vw, 74px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 24;
+    font-size: clamp(0.62rem, 1.45vw, 1rem);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #052e16;
+    background: linear-gradient(90deg, #86efac, #4ade80);
+    border: 1px solid rgba(255,255,255,0.55);
+    border-radius: 999px;
+    padding: clamp(2px, 0.55vmin, 6px) clamp(6px, 1.2vmin, 12px);
+    box-shadow: 0 0 18px rgba(74, 222, 128, 0.55);
+    white-space: nowrap;
+    pointer-events: none;
+    animation: metaPulse 1.35s ease-in-out infinite;
+}
+@keyframes metaPulse {
+    0%, 100% { transform: translateY(-50%) scale(1); opacity: .95; }
+    50% { transform: translateY(-50%) scale(1.04); opacity: 1; }
 }
 
 /* ================= CARROS ================= */
@@ -647,6 +681,10 @@ body {
     }
     .lane-label { font-size: 0.88rem; }
     .overtake-overlay h2 { font-size: clamp(1.5rem, 10vw, 2.75rem); }
+    .meta-hit-badge {
+        right: clamp(24px, 5.5vw, 52px);
+        font-size: clamp(0.56rem, 2.6vw, 0.84rem);
+    }
 }
 
 /* TVs / monitores grandes: um pouco mais de respiro no cabeçalho */
@@ -655,3 +693,5 @@ body {
         padding: clamp(14px, 1.6vmin, 22px) clamp(18px, 2vmin, 32px);
     }
 }
+
+

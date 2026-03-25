@@ -328,10 +328,16 @@
         const theme = pickTheme(key || r.posicao);
         const profile = getCarProfile(r.posicao);
         const prev = Number(lastPctByVendor[key] || 6);
-        const startLeft = `${Math.max(4, Math.min(96, prev)).toFixed(2)}%`;
-        const pct = Math.max(4, Math.min(96, Number(targetPct || 0)));
-        const targetLeft = `${pct.toFixed(2)}%`;
-        const pctMetaText = `${Math.max(0, Number(r.percentual_meta || 0)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% meta`;
+        const metaPct = Number(r.percentual_meta || 0);
+        const isMetaBatida = metaPct >= 100;
+        const startClampMax = isMetaBatida ? 102 : 96;
+        const targetClampMax = isMetaBatida ? 102 : 96;
+        const startLeft = `${Math.max(4, Math.min(startClampMax, prev)).toFixed(2)}%`;
+        const pct = Math.max(4, Math.min(targetClampMax, Number(targetPct || 0)));
+        const boostedPct = isMetaBatida ? Math.max(99.2, pct) : pct;
+        const targetLeft = `${boostedPct.toFixed(2)}%`;
+        const pctMetaText = `${Math.max(0, metaPct).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% meta`;
+        const metaBadgeHtml = isMetaBatida ? '<span class="meta-hit-badge">META BATIDA</span>' : '';
         const posLabel = r.posicao + 'º';
         const carScale = scaleForPosition(r.posicao);
         const posClass = 'pos-' + String(r.posicao || '');
@@ -347,6 +353,7 @@
                 </div>
                 <div class="finish-line"></div>
                 <div class="finish-flag"><i class="fas fa-flag-checkered"></i></div>
+                ${metaBadgeHtml}
             </div>
         </div>`;
     }
@@ -580,3 +587,4 @@
         setTimeout(tryAutoFullscreen, 300);
     });
 })();
+
