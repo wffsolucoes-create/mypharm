@@ -554,7 +554,11 @@
         if (!w || !h) return;
         root.style.setProperty('--app-vw', w + 'px');
         root.style.setProperty('--app-vh', h + 'px');
-        root.style.setProperty('--app-vmin', Math.min(w, h) / 100 + 'px');
+        var unit = Math.min(w, h) / 100;
+        root.style.setProperty('--app-vmin', unit + 'px');
+        /* 1% da largura/altura em px — permite calc(var(--vw) * N) ≈ N% da largura */
+        root.style.setProperty('--vw', w / 100 + 'px');
+        root.style.setProperty('--vh', h / 100 + 'px');
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -562,6 +566,9 @@
         resumeAudioOnFirstInteraction();
         applyTvLayoutVars();
         window.addEventListener('resize', applyTvLayoutVars);
+        window.addEventListener('orientationchange', function () {
+            setTimeout(applyTvLayoutVars, 150);
+        });
         if (window.visualViewport) {
             window.visualViewport.addEventListener('resize', applyTvLayoutVars);
             window.visualViewport.addEventListener('scroll', applyTvLayoutVars);

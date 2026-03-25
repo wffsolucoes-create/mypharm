@@ -19,12 +19,17 @@
     --bg-glow-1: rgba(59, 130, 246, 0.3);
     --bg-glow-2: rgba(139, 92, 246, 0.25);
 
-    /* Escala com o tamanho da tela (TV, ultrawide, tablet) */
-    --lane-label-w: clamp(104px, 14vw, 260px);
-    --track-left-gap: calc(var(--lane-label-w) + clamp(22px, 3.2vw, 52px));
-    --track-right-gap: clamp(36px, 3.8vw, 80px);
-    --cart-w: clamp(92px, 12vw, 210px);
-    --cart-h: clamp(42px, 5.8vw, 96px);
+    /* Unidade fluida: menor dimensão do ecrã (monitor pequeno vs TV) */
+    --tv-unit: min(2.2vmin, 1.35vw + 0.35vh);
+    --tv-space: clamp(0.35rem, var(--tv-unit), 1.75rem);
+    --tv-radius: clamp(0.55rem, min(1.8vw, 2.8vh), 1.35rem);
+
+    /* Pista: % da viewport + limites em rem — adapta monitor estreito vs TV larga */
+    --lane-label-w: clamp(5rem, min(14vw, 24vh), 18rem);
+    --track-left-gap: calc(var(--lane-label-w) + min(3.2vw, 4.5vh));
+    --track-right-gap: clamp(2rem, min(3.8vw, 5vh), 5.5rem);
+    --cart-w: clamp(4.25rem, min(11.5vw, 13vh), 13.5rem);
+    --cart-h: clamp(1.9rem, min(5.8vw, 6.5vh), 6.25rem);
 }
 
 * { box-sizing: border-box; }
@@ -33,8 +38,8 @@ html {
     padding: 0;
     width: 100%;
     height: 100%;
-    /* Base rem fluida: legível de longe em TV e ok em desktop */
-    font-size: clamp(14px, calc(0.38vw + 0.72vh), 38px);
+    /* rem escala com a menor dimensão (TV grande ou monitor pequeno) */
+    font-size: clamp(11px, min(2.4vmin, 0.62vw + 0.85vh), 40px);
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
 }
@@ -42,6 +47,8 @@ body {
     margin: 0;
     padding: 0;
     width: 100%;
+    min-width: 100%;
+    max-width: 100vw;
     min-height: 100%;
     min-height: 100vh;
     min-height: 100dvh;
@@ -70,18 +77,18 @@ body {
     opacity: 0.6;
 }
 .tv-glow-1 {
-    width: 600px;
-    height: 600px;
-    top: -200px;
-    left: -100px;
+    width: min(85vmin, 120vw);
+    height: min(85vmin, 120vw);
+    top: max(-25vmin, -18vh);
+    left: max(-18vmin, -12vw);
     background: var(--bg-glow-1);
     animation: drift 20s infinite alternate ease-in-out;
 }
 .tv-glow-2 {
-    width: 500px;
-    height: 500px;
-    bottom: -150px;
-    right: -100px;
+    width: min(72vmin, 100vw);
+    height: min(72vmin, 100vw);
+    bottom: max(-20vmin, -15vh);
+    right: max(-15vmin, -10vw);
     background: var(--bg-glow-2);
     animation: drift 25s infinite alternate-reverse ease-in-out;
 }
@@ -100,7 +107,7 @@ body {
     background-image: 
         linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
         linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
-    background-size: 80px 80px;
+    background-size: min(8vmin, 12vw) min(8vmin, 12vw);
     transform: perspective(600px) rotateX(60deg) translateY(0);
     transform-origin: center center;
     animation: gridMove 5s linear infinite;
@@ -118,9 +125,11 @@ body {
     position: relative;
     z-index: 10;
     width: 100%;
-    max-width: none;
+    max-width: 100%;
     margin: 0 auto;
-    padding: clamp(10px, 1.8vmin, 28px) clamp(12px, 2.2vmin, 40px) clamp(12px, 2vmin, 32px);
+    padding: clamp(0.5rem, min(1.8vmin, 2.4vw), 1.75rem)
+             clamp(0.55rem, min(2.2vmin, 3.2vw), 2.25rem)
+             clamp(0.5rem, min(2vmin, 2.8vh), 2rem);
     padding-left: max(clamp(12px, 2.2vmin, 40px), env(safe-area-inset-left, 0px));
     padding-right: max(clamp(12px, 2.2vmin, 40px), env(safe-area-inset-right, 0px));
     padding-bottom: max(clamp(12px, 2vmin, 32px), env(safe-area-inset-bottom, 0px));
@@ -140,8 +149,8 @@ body {
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--panel-border);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    border-radius: 20px;
+    box-shadow: 0 min(0.8vmin, 0.5vw) min(2vmin, 1.5vw) rgba(0, 0, 0, 0.4);
+    border-radius: var(--tv-radius);
 }
 
 /* ================= HEADER ================= */
@@ -352,20 +361,21 @@ body {
 
 /* ================= RACE TRACK ================= */
 .race {
-    flex: 1;
+    flex: 1 1 0%;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     padding: 0;
     overflow: hidden;
-    /* Sombreamento interno para profundidade */
-    box-shadow: inset 0 4px 20px rgba(0,0,0,0.8), 0 8px 32px rgba(0,0,0,0.5);
+    width: 100%;
+    box-shadow: inset 0 min(0.4vmin, 0.35vw) min(1.8vmin, 1.2vw) rgba(0,0,0,0.8), 0 min(0.6vmin, 0.45vw) min(2vmin, 1.4vw) rgba(0,0,0,0.5);
 }
 .race-empty { padding: clamp(20px, 4vmin, 48px); text-align: center; color: var(--text-muted); font-size: clamp(1rem, 2.5vw, 1.45rem); }
 
 .lane {
     position: relative;
-    flex: 1;
-    min-height: clamp(72px, 9vh, 150px);
+    flex: 1 1 0%;
+    min-height: clamp(3rem, min(8.5vh, 12vmin), 9rem);
     display: flex;
     align-items: center;
     border-bottom: 1px solid rgba(255,255,255,0.08);
@@ -382,7 +392,7 @@ body {
     position: absolute;
     inset: 0;
     background-image: linear-gradient(90deg, transparent 0%, transparent 95%, rgba(255,255,255,0.03) 95%, rgba(255,255,255,0.03) 100%);
-    background-size: 50px 100%;
+    background-size: min(5vmin, 8vw) 100%;
     z-index: 1;
 }
 
@@ -408,9 +418,9 @@ body {
 }
 .lane-pos {
     color: var(--neon-blue);
-    margin-right: 8px;
+    margin-right: min(1vw, 0.6rem);
     display: inline-block;
-    width: 24px;
+    width: min(6vmin, 1.75rem);
     font-style: italic;
 }
 
@@ -430,7 +440,7 @@ body {
         rgba(14, 165, 233, 0.1) 20px,
         rgba(14, 165, 233, 0.1) 40px
     );
-    background-size: 56px 100%;
+    background-size: min(5.5vmin, 7vw) 100%;
     animation: trackMove 1s linear infinite;
 }
 @keyframes trackMove {
@@ -509,8 +519,8 @@ body {
     position: absolute;
     top: 50%;
     right: 85%;
-    width: 120px;
-    height: 5px;
+    width: min(18vmin, 28vw);
+    height: max(3px, min(0.45vmin, 0.35vw));
     transform: translateY(-50%) skewX(-15deg);
     background: linear-gradient(to right, transparent 0%, currentColor 70%);
     opacity: 0.35;
@@ -564,8 +574,8 @@ body {
     filter: drop-shadow(0 4px 14px currentColor) drop-shadow(0 0 25px currentColor);
 }
 .cart.leader::before {
-    width: 220px;
-    height: 8px;
+    width: min(32vmin, 42vw);
+    height: max(4px, min(0.65vmin, 0.5vw));
     background: linear-gradient(to right, transparent 0%, currentColor 60%);
     filter: blur(8px);
     opacity: 0.7;
@@ -625,15 +635,15 @@ body {
 
 /* Só empilha pódio em telemóveis estreitos — evita layout “telefone” em TVs com largura mal reportada */
 @media (max-width: 640px) {
-    .tv-header { flex-direction: column; text-align: center; gap: 10px; }
+    .tv-header { flex-direction: column; text-align: center; gap: min(2.5vw, 12px); }
     .tv-positions-sky { display: none; }
-    .podium { grid-template-columns: 1fr; gap: 10px; }
+    .podium { grid-template-columns: 1fr; gap: min(2.5vw, 12px); }
     :root {
-        --lane-label-w: clamp(88px, 28vw, 120px);
-        --track-left-gap: calc(var(--lane-label-w) + 18px);
-        --track-right-gap: 32px;
-        --cart-w: clamp(76px, 22vw, 108px);
-        --cart-h: clamp(36px, 11vw, 50px);
+        --lane-label-w: clamp(4.5rem, 28vw, 8rem);
+        --track-left-gap: calc(var(--lane-label-w) + min(5vw, 1.25rem));
+        --track-right-gap: min(10vw, 2.25rem);
+        --cart-w: clamp(3.75rem, 22vw, 7rem);
+        --cart-h: clamp(1.75rem, 11vw, 3.25rem);
     }
     .lane-label { font-size: 0.88rem; }
     .overtake-overlay h2 { font-size: clamp(1.5rem, 10vw, 2.75rem); }
