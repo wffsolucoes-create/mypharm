@@ -537,9 +537,27 @@
         goFullscreen();
     }
 
+    /** Navegadores de TV às vezes reportam viewport errado; visualViewport ajuda em alguns WebKit. */
+    function applyTvLayoutVars() {
+        var root = document.documentElement;
+        var vv = window.visualViewport;
+        var w = vv && vv.width ? vv.width : window.innerWidth;
+        var h = vv && vv.height ? vv.height : window.innerHeight;
+        if (!w || !h) return;
+        root.style.setProperty('--app-vw', w + 'px');
+        root.style.setProperty('--app-vh', h + 'px');
+        root.style.setProperty('--app-vmin', Math.min(w, h) / 100 + 'px');
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         bindUi();
         resumeAudioOnFirstInteraction();
+        applyTvLayoutVars();
+        window.addEventListener('resize', applyTvLayoutVars);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', applyTvLayoutVars);
+            window.visualViewport.addEventListener('scroll', applyTvLayoutVars);
+        }
         loadRace().catch(function () {});
         setInterval(function () { loadRace().catch(function () {}); }, REFRESH_MS);
         // Forçar tela cheia ao abrir a página (tentativa imediata e após 300ms para quando o navegador exige primeiro frame)
