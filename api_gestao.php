@@ -54,6 +54,9 @@ $allowedActions = [
     'gestao_rd_metricas',
     'gestao_rejeitados_rd',
     'vendedor_dashboard_rd',
+    'vendedor_dashboard_gestao',
+    'vendedor_perdas_lista',
+    'vendedor_perdas_salvar_acao',
     'tv_corrida_vendedores',
 ];
 if (!in_array($action, $allowedActions)) {
@@ -446,6 +449,538 @@ function handleVendedorDashboardRd(PDO $pdo): void
         'comissao_percentual_usuario' => $userComissaoPct,
         'rd_metricas' => $metricas,
         'updated_at' => (string)($metricas['updated_at'] ?? (new DateTimeImmutable('now'))->format('Y-m-d H:i:s')),
+    ], JSON_UNESCAPED_UNICODE);
+}
+
+/**
+ * Painel do vendedor (vendedor.html) com métricas da tabela gestao_pedidos (importação),
+ * alinhado ao critério de aprovação da TV / gestão comercial.
+ */
+function handleVendedorDashboardGestao(PDO $pdo): void
+{
+    if (function_exists('set_time_limit')) {
+        @set_time_limit(120);
+    }
+    if (function_exists('ini_set')) {
+        @ini_set('max_execution_time', '120');
+    }
+
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    $isAdmin = ($tipo === 'admin');
+    $isVendedor = (strpos($setor, 'vendedor') !== false);
+    if (!$isAdmin && !$isVendedor) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito ao setor vendedor ou administrador.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    [$dataDe, $dataAte] = gcDateRangeFromQuery();
+    $approvedCase = function_exists('gcApprovedCase') ? gcApprovedCase('gp') : "(
+        gp.status_financeiro IS NULL OR
+        (
+            gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+            AND gp.status_financeiro NOT LIKE '%carrinho%'
+        )
+    )";
+    $calcComissaoIndividualPct = static function (float $percentualMeta): float {
+        if ($percentualMeta >= 110.0) return 2.0;
+        if ($percentualMeta >= 100.0) return 1.8;
+        if ($percentualMeta >= 90.0) return 1.3;
+        if ($percentualMeta >= 70.0) return 1.0;
+        return 0.5;
+    };
+    $calcComissaoGrupoPct = static function (float $receitaGrupo): float {
+        if ($receitaGrupo >= 370000.0) return 2.5;
+        if ($receitaGrupo >= 350000.0) return 2.0;
+        if ($receitaGrupo >= 320000.0) return 1.5;
+        return 0.0;
+    };
+    $calcScore = static function (array $item, float $penalidadeErros = 0.0): array {
+        $pctMeta = (float)($item['percentual_meta'] ?? 0);
+        $conv = (float)($item['taxa_conversao_linhas_pct'] ?? 0);
+        $perda = (float)($item['taxa_perda_pct'] ?? 0);
+        $atividade = ((int)($item['linhas_aprovadas'] ?? 0) + (int)($item['linhas_orcamento'] ?? 0) + (int)($item['linhas_perdidas'] ?? 0)) > 0;
+
+        $pFaturamento = max(0.0, min(50.0, round($pctMeta * 0.5, 2)));   // 100% meta = 50 pts
+        $pConversao = max(0.0, min(20.0, round($conv * 0.2, 2)));         // 100% conv = 20 pts
+        $pErrosBase = max(0.0, min(20.0, round(20.0 - ($perda * 0.2), 2))); // 0% perda = 20 pts
+        $penalidade = max(0.0, round($penalidadeErros, 2));
+        $pErros = max(0.0, round($pErrosBase - $penalidade, 2));
+        $pOrgCrm = $atividade ? 10.0 : 0.0;                                // sem métrica dedicada no BD
+
+        $total = round($pFaturamento + $pConversao + $pErros + $pOrgCrm, 2);
+        return [
+            'faturamento' => $pFaturamento,
+            'conversao' => $pConversao,
+            'erros' => $pErros,
+            'erros_base' => $pErrosBase,
+            'penalidade_manual_erros' => $penalidade,
+            'organizacao_crm' => $pOrgCrm,
+            'total' => $total,
+        ];
+    };
+    $metaSistemaVendedor = (float)(getenv('VENDEDOR_META_SISTEMA') ?: 59000);
+    if ($metaSistemaVendedor <= 0) {
+        $metaSistemaVendedor = 59000.0;
+    }
+
+    $rowsAgg = [];
+    try {
+        $sqlAgg = "
+            SELECT
+                COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS vendedor,
+                COALESCE(SUM(CASE WHEN {$approvedCase} THEN gp.preco_liquido ELSE 0 END), 0) AS receita,
+                COUNT(CASE WHEN {$approvedCase} THEN 1 END) AS linhas_aprovadas,
+                COUNT(CASE WHEN gp.status_financeiro = 'Orçamento' THEN 1 END) AS linhas_orcamento,
+                COUNT(DISTINCT CASE WHEN {$approvedCase} THEN CONCAT(gp.ano_referencia, '-', gp.numero_pedido) END) AS pedidos_aprovados_distintos,
+                COUNT(DISTINCT gp.cliente) AS clientes_distintos
+            FROM gestao_pedidos gp
+            WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
+            GROUP BY COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
+        ";
+        $st = $pdo->prepare($sqlAgg);
+        $st->execute(['de' => $dataDe, 'ate' => $dataAte]);
+        $rowsAgg = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        $rowsAgg = [];
+    }
+
+    // Rejeitados vêm de itens_orcamentos_pedidos; vínculo por numero/serie/ano para recuperar atendente.
+    $rejeitadosByVendedor = [];
+    try {
+        $sqlRej = "
+            SELECT
+                COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)') AS vendedor,
+                COUNT(*) AS linhas_rejeitadas,
+                COUNT(DISTINCT CONCAT(i.ano_referencia, '-', i.numero)) AS pedidos_rejeitados,
+                COALESCE(SUM(i.valor_liquido), 0) AS valor_rejeitado
+            FROM itens_orcamentos_pedidos i
+            LEFT JOIN gestao_pedidos gpLink
+              ON gpLink.numero_pedido = i.numero
+             AND gpLink.serie_pedido = i.serie
+             AND gpLink.ano_referencia = i.ano_referencia
+            WHERE DATE(i.data) BETWEEN :de AND :ate
+              AND LOWER(TRIM(COALESCE(i.status, ''))) IN ('recusado', 'no carrinho')
+            GROUP BY COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)')
+        ";
+        $stRej = $pdo->prepare($sqlRej);
+        $stRej->execute(['de' => $dataDe, 'ate' => $dataAte]);
+        foreach ($stRej->fetchAll(PDO::FETCH_ASSOC) ?: [] as $rr) {
+            $nomeVend = trim((string)($rr['vendedor'] ?? ''));
+            if ($nomeVend === '') continue;
+            $kRej = gcNormalizeNome($nomeVend);
+            if ($kRej === '') continue;
+            $rejeitadosByVendedor[$kRej] = [
+                'vendedor' => $nomeVend,
+                'linhas_rejeitadas' => (int)($rr['linhas_rejeitadas'] ?? 0),
+                'pedidos_rejeitados' => (int)($rr['pedidos_rejeitados'] ?? 0),
+                'valor_rejeitado' => round((float)($rr['valor_rejeitado'] ?? 0), 2),
+            ];
+        }
+    } catch (Throwable $e) {
+        $rejeitadosByVendedor = [];
+    }
+
+    $duracaoPorVendedor = [];
+    try {
+        $stDur = $pdo->prepare("
+            SELECT
+                COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS vendedor,
+                ROUND(AVG(TIMESTAMPDIFF(MINUTE, gp.data_orcamento, gp.data_aprovacao)), 0) AS duracao_media_min
+            FROM gestao_pedidos gp
+            WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
+              AND gp.data_orcamento IS NOT NULL AND gp.data_aprovacao IS NOT NULL
+              AND {$approvedCase}
+            GROUP BY COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
+        ");
+        $stDur->execute(['de' => $dataDe, 'ate' => $dataAte]);
+        foreach ($stDur->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $duracaoPorVendedor[trim((string)($row['vendedor'] ?? ''))] = (int)$row['duracao_media_min'];
+        }
+    } catch (Throwable $e) {
+        $duracaoPorVendedor = [];
+    }
+
+    $metasByKey = [];
+    $nomesByKey = [];
+    try {
+        $stVend = $pdo->query("
+            SELECT
+                TRIM(nome) AS nome
+            FROM usuarios
+            WHERE LOWER(TRIM(COALESCE(setor, ''))) LIKE '%vendedor%'
+              AND COALESCE(ativo, 1) = 1
+              AND TRIM(COALESCE(nome, '')) <> ''
+        ");
+        foreach ($stVend->fetchAll(PDO::FETCH_ASSOC) ?: [] as $v) {
+            $nome = trim((string)($v['nome'] ?? ''));
+            if ($nome === '') continue;
+            $k = gcNormalizeNome($nome);
+            $metasByKey[$k] = $metaSistemaVendedor;
+            $nomesByKey[$k] = $nome;
+        }
+    } catch (Throwable $e) {
+        // opcional
+    }
+
+    $ranking = [];
+    $seen = [];
+    foreach ($rowsAgg as $row) {
+        $nome = trim((string)($row['vendedor'] ?? ''));
+        if ($nome === '') continue;
+        $key = gcNormalizeNome($nome);
+        $seen[$key] = true;
+        $meta = $metaSistemaVendedor;
+        $receita = round((float)($row['receita'] ?? 0), 2);
+        $la = (int)($row['linhas_aprovadas'] ?? 0);
+        $lo = (int)($row['linhas_orcamento'] ?? 0);
+        $rej = $rejeitadosByVendedor[$key] ?? null;
+        $lp = (int)($rej['linhas_rejeitadas'] ?? 0);
+        $denConv = $la + $lo + $lp;
+        $taxaConvLinhas = $denConv > 0 ? round(($la / $denConv) * 100, 2) : 0.0;
+        $totalG = (int)($row['pedidos_aprovados_distintos'] ?? 0);
+        $totalP = (int)($rej['pedidos_rejeitados'] ?? 0);
+        $taxaPerda = ($totalG + $totalP) > 0 ? round(($totalP / ($totalG + $totalP)) * 100, 2) : 0.0;
+        $percentualMeta = $meta > 0 ? round(($receita / $meta) * 100, 2) : 0.0;
+        $comissaoIndividualPct = $calcComissaoIndividualPct($percentualMeta);
+
+        $ranking[] = [
+            'vendedor' => $nome,
+            'receita' => $receita,
+            'meta_mensal' => $meta,
+            'comissao_percentual' => $comissaoIndividualPct,
+            'comissao_percentual_individual' => $comissaoIndividualPct,
+            'comissao_percentual_grupo' => 0.0,
+            'comissao_estimada_valor' => round(($receita * $comissaoIndividualPct) / 100, 2),
+            'duracao_media_min' => $duracaoPorVendedor[$nome] ?? null,
+            'tempo_medio_espera_min' => null,
+            'total_deals_ganhos' => $totalG,
+            'total_deals_perdidos' => $totalP,
+            'valor_rejeitado' => round((float)($rej['valor_rejeitado'] ?? 0), 2),
+            'taxa_perda_pct' => $taxaPerda,
+            'top_motivos_perda' => [],
+            'origem_deals' => [],
+            'meta_mensal_utilizada' => $meta,
+            'percentual_meta' => $percentualMeta,
+            'percentual_lider' => 0.0,
+            'posicao' => 0,
+            'volume_clientes' => (int)($row['clientes_distintos'] ?? 0),
+            'linhas_aprovadas' => $la,
+            'linhas_orcamento' => $lo,
+            'linhas_perdidas' => $lp,
+            'taxa_conversao_linhas_pct' => $taxaConvLinhas,
+        ];
+    }
+
+    foreach ($metasByKey as $k => $meta) {
+        if (isset($seen[$k])) continue;
+        $nome = (string)($nomesByKey[$k] ?? $k);
+        $metaUtilizada = (float)$meta;
+        if ($metaUtilizada <= 0) $metaUtilizada = $metaSistemaVendedor;
+        $rej = $rejeitadosByVendedor[$k] ?? null;
+        $lp = (int)($rej['linhas_rejeitadas'] ?? 0);
+        $totalP = (int)($rej['pedidos_rejeitados'] ?? 0);
+        $comissaoIndividualPct = $calcComissaoIndividualPct(0.0);
+        $ranking[] = [
+            'vendedor' => $nome,
+            'receita' => 0.0,
+            'meta_mensal' => $metaUtilizada,
+            'comissao_percentual' => $comissaoIndividualPct,
+            'comissao_percentual_individual' => $comissaoIndividualPct,
+            'comissao_percentual_grupo' => 0.0,
+            'comissao_estimada_valor' => 0.0,
+            'duracao_media_min' => null,
+            'tempo_medio_espera_min' => null,
+            'total_deals_ganhos' => 0,
+            'total_deals_perdidos' => $totalP,
+            'valor_rejeitado' => round((float)($rej['valor_rejeitado'] ?? 0), 2),
+            'taxa_perda_pct' => $totalP > 0 ? 100.0 : 0.0,
+            'top_motivos_perda' => [],
+            'origem_deals' => [],
+            'meta_mensal_utilizada' => $metaUtilizada,
+            'percentual_meta' => 0.0,
+            'percentual_lider' => 0.0,
+            'posicao' => 0,
+            'volume_clientes' => 0,
+            'linhas_aprovadas' => 0,
+            'linhas_orcamento' => 0,
+            'linhas_perdidas' => $lp,
+            'taxa_conversao_linhas_pct' => 0.0,
+        ];
+        $seen[$k] = true;
+    }
+
+    foreach ($rejeitadosByVendedor as $k => $rej) {
+        if (isset($seen[$k])) continue;
+        $nome = (string)($rej['vendedor'] ?? $k);
+        $lp = (int)($rej['linhas_rejeitadas'] ?? 0);
+        $totalP = (int)($rej['pedidos_rejeitados'] ?? 0);
+        $comissaoIndividualPct = $calcComissaoIndividualPct(0.0);
+        $ranking[] = [
+            'vendedor' => $nome,
+            'receita' => 0.0,
+            'meta_mensal' => $metaSistemaVendedor,
+            'comissao_percentual' => $comissaoIndividualPct,
+            'comissao_percentual_individual' => $comissaoIndividualPct,
+            'comissao_percentual_grupo' => 0.0,
+            'comissao_estimada_valor' => 0.0,
+            'duracao_media_min' => null,
+            'tempo_medio_espera_min' => null,
+            'total_deals_ganhos' => 0,
+            'total_deals_perdidos' => $totalP,
+            'valor_rejeitado' => round((float)($rej['valor_rejeitado'] ?? 0), 2),
+            'taxa_perda_pct' => $totalP > 0 ? 100.0 : 0.0,
+            'top_motivos_perda' => [],
+            'origem_deals' => [],
+            'meta_mensal_utilizada' => $metaSistemaVendedor,
+            'percentual_meta' => 0.0,
+            'percentual_lider' => 0.0,
+            'posicao' => 0,
+            'volume_clientes' => 0,
+            'linhas_aprovadas' => 0,
+            'linhas_orcamento' => 0,
+            'linhas_perdidas' => $lp,
+            'taxa_conversao_linhas_pct' => 0.0,
+        ];
+        $seen[$k] = true;
+    }
+
+    usort($ranking, static function (array $a, array $b): int {
+        $ra = (float)($a['receita'] ?? 0);
+        $rb = (float)($b['receita'] ?? 0);
+        if (($rb <=> $ra) !== 0) return $rb <=> $ra;
+        return strcmp((string)($a['vendedor'] ?? ''), (string)($b['vendedor'] ?? ''));
+    });
+
+    $maxReceita = 0.0;
+    foreach ($ranking as $it) {
+        $val = (float)($it['receita'] ?? 0);
+        if ($val > $maxReceita) $maxReceita = $val;
+    }
+
+    foreach ($ranking as $i => &$it) {
+        $it['posicao'] = $i + 1;
+        $it['percentual_lider'] = $maxReceita > 0
+            ? round((((float)$it['receita']) / $maxReceita) * 100, 2)
+            : 0.0;
+    }
+    unset($it);
+
+    $receitaGrupo = 0.0;
+    foreach ($ranking as $it) {
+        $receitaGrupo += (float)($it['receita'] ?? 0);
+    }
+    $comissaoGrupoPct = $calcComissaoGrupoPct($receitaGrupo);
+
+    $penalidadeErrosByVendedor = [];
+    try {
+        gcEnsureVendedorPerdasAcoesTable($pdo);
+        $stPen = $pdo->prepare("
+            SELECT vendedor_nome, COALESCE(SUM(pontos_descontados), 0) AS pontos
+            FROM vendedor_perdas_acoes
+            WHERE (data_perda IS NULL OR DATE(data_perda) BETWEEN :de AND :ate)
+            GROUP BY vendedor_nome
+        ");
+        $stPen->execute(['de' => $dataDe, 'ate' => $dataAte]);
+        foreach ($stPen->fetchAll(PDO::FETCH_ASSOC) ?: [] as $rp) {
+            $kPen = gcNormalizeNome((string)($rp['vendedor_nome'] ?? ''));
+            if ($kPen === '') continue;
+            $penalidadeErrosByVendedor[$kPen] = round((float)($rp['pontos'] ?? 0), 2);
+        }
+    } catch (Throwable $e) {
+        $penalidadeErrosByVendedor = [];
+    }
+
+    foreach ($ranking as &$it) {
+        $receita = (float)($it['receita'] ?? 0);
+        $comissaoIndPct = (float)($it['comissao_percentual_individual'] ?? 0);
+        $comissaoTotalPct = round($comissaoIndPct + $comissaoGrupoPct, 2);
+        $it['comissao_percentual_grupo'] = $comissaoGrupoPct;
+        $it['comissao_percentual'] = $comissaoTotalPct;
+        $it['comissao_estimada_valor'] = round(($receita * $comissaoTotalPct) / 100, 2);
+
+        $kVendScore = gcNormalizeNome((string)($it['vendedor'] ?? ''));
+        $penalidadeErros = (float)($penalidadeErrosByVendedor[$kVendScore] ?? 0);
+        $score = $calcScore($it, $penalidadeErros);
+        $scoreTotal = (float)($score['total'] ?? 0);
+        $pctMeta = (float)($it['percentual_meta'] ?? 0);
+        $premio = 0.0;
+        if ($pctMeta > 100.0 && $scoreTotal > 95.0) {
+            $premio = 400.0;
+        } elseif ($pctMeta >= 100.0 && $scoreTotal > 85.0) {
+            $premio = 200.0;
+        }
+        $it['score_performance'] = $score;
+        $it['premio_performance_valor'] = $premio;
+        $it['total_estimado_com_premio'] = round((float)$it['comissao_estimada_valor'] + $premio, 2);
+    }
+    unset($it);
+
+    $me = null;
+    $meKey = gcNormalizeNome((string)($_SESSION['user_nome'] ?? ''));
+    if ($meKey !== '') {
+        foreach ($ranking as $it) {
+            $rk = gcNormalizeNome((string)($it['vendedor'] ?? ''));
+            if ($rk === $meKey || str_contains($rk, $meKey) || str_contains($meKey, $rk)) {
+                $me = $it;
+                break;
+            }
+        }
+    }
+
+    if (is_array($me)) {
+        $vNomeMe = trim((string)($me['vendedor'] ?? ''));
+
+        if ($vNomeMe !== '') {
+            try {
+                $stMot = $pdo->prepare("
+                    SELECT
+                        TRIM(COALESCE(i.status, '')) AS motivo,
+                        COUNT(*) AS quantidade
+                    FROM itens_orcamentos_pedidos i
+                    LEFT JOIN gestao_pedidos gpLink
+                      ON gpLink.numero_pedido = i.numero
+                     AND gpLink.serie_pedido = i.serie
+                     AND gpLink.ano_referencia = i.ano_referencia
+                    WHERE DATE(i.data) BETWEEN :de AND :ate
+                      AND COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)') = :vend
+                      AND LOWER(TRIM(COALESCE(i.status, ''))) IN ('recusado', 'no carrinho')
+                    GROUP BY TRIM(COALESCE(i.status, ''))
+                    HAVING motivo <> ''
+                    ORDER BY quantidade DESC
+                    LIMIT 10
+                ");
+                $stMot->execute(['de' => $dataDe, 'ate' => $dataAte, 'vend' => $vNomeMe]);
+                $motivos = [];
+                foreach ($stMot->fetchAll(PDO::FETCH_ASSOC) ?: [] as $m) {
+                    $motivos[] = [
+                        'nome' => (string)($m['motivo'] ?? ''),
+                        'quantidade' => (int)($m['quantidade'] ?? 0),
+                    ];
+                }
+                $me['top_motivos_perda'] = $motivos;
+            } catch (Throwable $e) {
+                // mantém vazio
+            }
+
+            try {
+                $stCanal = $pdo->prepare("
+                    SELECT
+                        COALESCE(NULLIF(TRIM(gp.canal_atendimento), ''), '(Sem canal)') AS origem,
+                        COUNT(*) AS quantidade,
+                        COALESCE(SUM(CASE WHEN {$approvedCase} THEN gp.preco_liquido ELSE 0 END), 0) AS receita
+                    FROM gestao_pedidos gp
+                    WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
+                      AND COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') = :vend
+                    GROUP BY COALESCE(NULLIF(TRIM(gp.canal_atendimento), ''), '(Sem canal)')
+                    ORDER BY receita DESC
+                    LIMIT 12
+                ");
+                $stCanal->execute(['de' => $dataDe, 'ate' => $dataAte, 'vend' => $vNomeMe]);
+                $origens = [];
+                foreach ($stCanal->fetchAll(PDO::FETCH_ASSOC) ?: [] as $o) {
+                    $origens[] = [
+                        'nome' => (string)($o['origem'] ?? ''),
+                        'receita' => round((float)($o['receita'] ?? 0), 2),
+                        'quantidade' => (int)($o['quantidade'] ?? 0),
+                    ];
+                }
+                $me['origem_deals'] = $origens;
+            } catch (Throwable $e) {
+                // mantém vazio
+            }
+        }
+    }
+
+    $funilEstagios = [];
+    try {
+        $stFun = $pdo->prepare("
+            SELECT
+                TRIM(COALESCE(gp.status_financeiro, '(sem status)')) AS stage_name,
+                COUNT(*) AS quantidade
+            FROM gestao_pedidos gp
+            WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
+            GROUP BY TRIM(COALESCE(gp.status_financeiro, '(sem status)'))
+            ORDER BY quantidade DESC
+            LIMIT 20
+        ");
+        $stFun->execute(['de' => $dataDe, 'ate' => $dataAte]);
+        foreach ($stFun->fetchAll(PDO::FETCH_ASSOC) ?: [] as $f) {
+            $funilEstagios[] = [
+                'stage_name' => (string)($f['stage_name'] ?? ''),
+                'quantidade' => (int)($f['quantidade'] ?? 0),
+            ];
+        }
+    } catch (Throwable $e) {
+        $funilEstagios = [];
+    }
+
+    $updatedAt = (new DateTimeImmutable('now'))->format('Y-m-d H:i:s');
+
+    echo json_encode([
+        'success' => true,
+        'fonte' => 'gestao_pedidos',
+        'periodo' => [
+            'data_de' => $dataDe,
+            'data_ate' => $dataAte,
+        ],
+        'ranking' => $ranking,
+        'me' => $me,
+        'funil_estagios' => $funilEstagios,
+        'motivos_perda_geral' => [],
+        'origens_geral' => [],
+        'comissao_percentual_usuario' => is_array($me)
+            ? (float)($me['comissao_percentual'] ?? 0)
+            : 0.0,
+        'meta_sistema_vendedor' => $metaSistemaVendedor,
+        'regras_comissao' => [
+            'individual_percentual_meta' => [
+                ['max' => 69.99, 'comissao_pct' => 0.5],
+                ['min' => 70.0, 'max' => 89.99, 'comissao_pct' => 1.0],
+                ['min' => 90.0, 'max' => 99.99, 'comissao_pct' => 1.3],
+                ['min' => 100.0, 'max' => 109.99, 'comissao_pct' => 1.8],
+                ['min' => 110.0, 'comissao_pct' => 2.0],
+            ],
+            'grupo_receita' => [
+                ['min' => 320000.0, 'max' => 349999.99, 'comissao_pct' => 1.5],
+                ['min' => 350000.0, 'max' => 369999.99, 'comissao_pct' => 2.0],
+                ['min' => 370000.0, 'comissao_pct' => 2.5],
+            ],
+            'score' => [
+                'faturamento_max' => 50,
+                'conversao_max' => 20,
+                'erros_max' => 20,
+                'organizacao_crm_max' => 10,
+                'total_max' => 100,
+            ],
+            'premio_performance' => [
+                ['condicao' => 'bate_meta_e_score_maior_85', 'valor' => 200],
+                ['condicao' => 'ultrapassa_meta_e_score_maior_95', 'valor' => 400],
+            ],
+        ],
+        'receita_grupo_total' => round($receitaGrupo, 2),
+        'comissao_grupo_percentual_aplicada' => $comissaoGrupoPct,
+        'ganho_total_usuario' => is_array($me)
+            ? (float)($me['total_estimado_com_premio'] ?? 0)
+            : 0.0,
+        'premio_performance_usuario' => is_array($me)
+            ? (float)($me['premio_performance_valor'] ?? 0)
+            : 0.0,
+        'updated_at' => $updatedAt,
     ], JSON_UNESCAPED_UNICODE);
 }
 
@@ -1033,6 +1568,29 @@ function handleTvCorridaVendedores(PDO $pdo): void
     }
     unset($it);
 
+    // Assinatura da base no período para detectar mudanças reais após importação/script.
+    $dbVersion = '';
+    try {
+        $stSig = $pdo->prepare("
+            SELECT
+                COUNT(*) AS registros,
+                COALESCE(SUM(CASE WHEN {$approvedCase} THEN gp.preco_liquido ELSE 0 END), 0) AS soma_aprovado,
+                COALESCE(MAX(gp.data_aprovacao), '') AS max_data_aprovacao,
+                COALESCE(MAX(gp.data_orcamento), '') AS max_data_orcamento
+            FROM gestao_pedidos gp
+            WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
+        ");
+        $stSig->execute(['de' => $dataDe, 'ate' => $dataAte]);
+        $sig = $stSig->fetch(PDO::FETCH_ASSOC) ?: [];
+        $reg = (int)($sig['registros'] ?? 0);
+        $sum = number_format((float)($sig['soma_aprovado'] ?? 0), 2, '.', '');
+        $maxAprov = trim((string)($sig['max_data_aprovacao'] ?? ''));
+        $maxOrc = trim((string)($sig['max_data_orcamento'] ?? ''));
+        $dbVersion = md5($dataDe . '|' . $dataAte . '|' . $reg . '|' . $sum . '|' . $maxAprov . '|' . $maxOrc);
+    } catch (Throwable $e) {
+        $dbVersion = '';
+    }
+
     $payloadTvMysql = [
         'success'         => true,
         'fonte'           => 'banco_local',
@@ -1040,6 +1598,7 @@ function handleTvCorridaVendedores(PDO $pdo): void
         'max_receita'     => round($maxReceita, 2),
         'ranking'         => $lista,
         'funil_estagios'  => [],
+        'db_version'      => $dbVersion,
         'updated_at'      => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
     ];
     if (!empty($rdFalhouAntesMysql)) {
@@ -1049,6 +1608,332 @@ function handleTvCorridaVendedores(PDO $pdo): void
         $payloadTvMysql['aviso_rd'] = 'Fonte definida para banco interno (importação), sem consulta ao RD Station.';
     }
     echo json_encode($payloadTvMysql, JSON_UNESCAPED_UNICODE);
+}
+
+function gcEnsureVendedorPerdasAcoesTable(PDO $pdo): void
+{
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS vendedor_perdas_acoes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ano_referencia INT NOT NULL,
+            numero_pedido VARCHAR(40) NOT NULL,
+            serie_pedido VARCHAR(20) NOT NULL DEFAULT '',
+            vendedor_nome VARCHAR(190) NOT NULL,
+            data_perda DATE NULL,
+            motivo_perda VARCHAR(255) NULL,
+            classificacao_erro VARCHAR(20) NULL,
+            pontos_descontados DECIMAL(10,2) NOT NULL DEFAULT 0,
+            observacoes TEXT NULL,
+            updated_by INT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_pedido_vendedor (ano_referencia, numero_pedido, serie_pedido, vendedor_nome)
+        ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    ");
+}
+
+function gcResolveVendedorTargetFromSession(array $session, array $query): string
+{
+    $tipo = strtolower(trim((string)($session['user_tipo'] ?? '')));
+    $nomeSessao = trim((string)($session['user_nome'] ?? ''));
+    $vendedorParam = trim((string)($query['vendedor'] ?? ''));
+    if ($tipo === 'admin' && $vendedorParam !== '') {
+        return $vendedorParam;
+    }
+    return $nomeSessao;
+}
+
+function handleVendedorPerdasLista(PDO $pdo): void
+{
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito ao setor vendedor ou administrador.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    gcEnsureVendedorPerdasAcoesTable($pdo);
+
+    [$dataDe, $dataAte] = gcDateRangeFromQuery();
+    $vendedor = gcResolveVendedorTargetFromSession($_SESSION, $_GET);
+    if ($vendedor === '') {
+        echo json_encode(['success' => true, 'rows' => [], 'pagination' => ['page' => 1, 'per_page' => 10, 'total' => 0, 'pages' => 0]], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $page = max(1, (int)($_GET['page'] ?? 1));
+    $perPage = max(5, min(50, (int)($_GET['per_page'] ?? 10)));
+    $offset = ($page - 1) * $perPage;
+
+    $sortByRaw = strtolower(trim((string)($_GET['sort_by'] ?? 'data_perda')));
+    $sortDir = strtolower(trim((string)($_GET['sort_dir'] ?? 'desc'))) === 'asc' ? 'ASC' : 'DESC';
+    $q = trim((string)($_GET['q'] ?? ''));
+    $qLike = $q !== '' ? ('%' . str_replace(' ', '%', $q) . '%') : '';
+    $sortMap = [
+        'data' => 'g.data_perda',
+        'data_perda' => 'g.data_perda',
+        'valor' => 'g.valor_rejeitado',
+        'valor_rejeitado' => 'g.valor_rejeitado',
+        'cliente' => 'g.cliente',
+        'prescritor' => 'g.prescritor',
+        'status' => 'g.status_principal',
+        'pedido' => 'g.pedido_ref',
+    ];
+    $orderExpr = $sortMap[$sortByRaw] ?? 'g.data_perda';
+    $outerFilterSql = $qLike !== ''
+        ? " WHERE (g.pedido_ref LIKE :q OR g.cliente LIKE :q OR g.prescritor LIKE :q OR g.status_principal LIKE :q) "
+        : '';
+
+    $baseAggSql = "
+        FROM itens_orcamentos_pedidos i
+        LEFT JOIN gestao_pedidos gpLink
+          ON gpLink.numero_pedido = i.numero
+         AND gpLink.serie_pedido = i.serie
+         AND gpLink.ano_referencia = i.ano_referencia
+        WHERE DATE(i.data) BETWEEN :de AND :ate
+          AND LOWER(TRIM(COALESCE(i.status, ''))) IN ('recusado', 'no carrinho')
+          AND COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)') = :vend
+    ";
+
+    $total = 0;
+    $totalValorRejeitado = 0.0;
+    try {
+        $stCount = $pdo->prepare("
+            SELECT COUNT(*) AS total, COALESCE(SUM(g.valor_rejeitado), 0) AS total_valor_rejeitado
+            FROM (
+                SELECT
+                    i.ano_referencia,
+                    i.numero,
+                    COALESCE(i.serie, ''),
+                    CONCAT(CAST(i.numero AS CHAR), '/', i.ano_referencia, CASE WHEN COALESCE(i.serie, '') <> '' THEN CONCAT(' (série ', i.serie, ')') ELSE '' END) AS pedido_ref,
+                    COALESCE(NULLIF(TRIM(MAX(gpLink.cliente)), ''), '(Sem cliente)') AS cliente,
+                    COALESCE(NULLIF(TRIM(MAX(gpLink.cliente)), ''), '(Sem prescritor)') AS prescritor,
+                    CASE
+                        WHEN SUM(CASE WHEN LOWER(TRIM(COALESCE(i.status, ''))) = 'recusado' THEN 1 ELSE 0 END) > 0 THEN 'Recusado'
+                        WHEN SUM(CASE WHEN LOWER(TRIM(COALESCE(i.status, ''))) = 'no carrinho' THEN 1 ELSE 0 END) > 0 THEN 'No carrinho'
+                        ELSE 'Outros'
+                    END AS status_principal,
+                    ROUND(COALESCE(SUM(i.valor_liquido), 0), 2) AS valor_rejeitado
+                {$baseAggSql}
+                GROUP BY i.ano_referencia, i.numero, COALESCE(i.serie, '')
+            ) g
+            {$outerFilterSql}
+        ");
+        $countBind = ['de' => $dataDe, 'ate' => $dataAte, 'vend' => $vendedor];
+        if ($qLike !== '') $countBind['q'] = $qLike;
+        $stCount->execute($countBind);
+        $rowCount = $stCount->fetch(PDO::FETCH_ASSOC) ?: [];
+        $total = (int)($rowCount['total'] ?? 0);
+        $totalValorRejeitado = round((float)($rowCount['total_valor_rejeitado'] ?? 0), 2);
+    } catch (Throwable $e) {
+        $total = 0;
+        $totalValorRejeitado = 0.0;
+    }
+
+    $rows = [];
+    if ($total > 0) {
+        $sqlRows = "
+            SELECT
+                g.ano_referencia,
+                g.numero_pedido,
+                g.serie_pedido,
+                g.pedido_ref,
+                g.cliente,
+                g.prescritor,
+                g.contato,
+                g.status_principal,
+                g.qtd_itens,
+                g.valor_rejeitado,
+                g.data_perda,
+                COALESCE(a.motivo_perda, '') AS motivo_perda,
+                COALESCE(a.classificacao_erro, 'nenhum') AS classificacao_erro,
+                COALESCE(a.pontos_descontados, 0) AS pontos_descontados,
+                COALESCE(a.observacoes, '') AS observacoes,
+                COALESCE(a.updated_at, '') AS acao_atualizada_em
+            FROM (
+                SELECT
+                    i.ano_referencia,
+                    CAST(i.numero AS CHAR) AS numero_pedido,
+                    CAST(COALESCE(i.serie, '') AS CHAR) AS serie_pedido,
+                    CONCAT(CAST(i.numero AS CHAR), '/', i.ano_referencia, CASE WHEN COALESCE(i.serie, '') <> '' THEN CONCAT(' (série ', i.serie, ')') ELSE '' END) AS pedido_ref,
+                    COALESCE(NULLIF(TRIM(MAX(gpLink.cliente)), ''), '(Sem cliente)') AS cliente,
+                    COALESCE(NULLIF(TRIM(MAX(gpLink.cliente)), ''), '(Sem prescritor)') AS prescritor,
+                    '' AS contato,
+                    CASE
+                        WHEN SUM(CASE WHEN LOWER(TRIM(COALESCE(i.status, ''))) = 'recusado' THEN 1 ELSE 0 END) > 0 THEN 'Recusado'
+                        WHEN SUM(CASE WHEN LOWER(TRIM(COALESCE(i.status, ''))) = 'no carrinho' THEN 1 ELSE 0 END) > 0 THEN 'No carrinho'
+                        ELSE 'Outros'
+                    END AS status_principal,
+                    COUNT(*) AS qtd_itens,
+                    ROUND(COALESCE(SUM(i.valor_liquido), 0), 2) AS valor_rejeitado,
+                    DATE(MAX(i.data)) AS data_perda
+                    {$baseAggSql}
+                GROUP BY i.ano_referencia, i.numero, COALESCE(i.serie, '')
+            ) g
+            LEFT JOIN vendedor_perdas_acoes a
+              ON a.ano_referencia = g.ano_referencia
+             AND a.numero_pedido = g.numero_pedido
+             AND a.serie_pedido = g.serie_pedido
+             AND a.vendedor_nome = :vend_join
+            {$outerFilterSql}
+            ORDER BY {$orderExpr} {$sortDir}, g.numero_pedido DESC
+            LIMIT :lim OFFSET :off
+        ";
+        $stRows = $pdo->prepare($sqlRows);
+        $stRows->bindValue(':de', $dataDe);
+        $stRows->bindValue(':ate', $dataAte);
+        $stRows->bindValue(':vend', $vendedor);
+        $stRows->bindValue(':vend_join', $vendedor);
+        if ($qLike !== '') $stRows->bindValue(':q', $qLike);
+        $stRows->bindValue(':lim', $perPage, PDO::PARAM_INT);
+        $stRows->bindValue(':off', $offset, PDO::PARAM_INT);
+        $stRows->execute();
+        $rows = $stRows->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    $pages = $perPage > 0 ? (int)ceil($total / $perPage) : 0;
+    echo json_encode([
+        'success' => true,
+        'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte],
+        'vendedor' => $vendedor,
+        'sort' => ['by' => $sortByRaw, 'dir' => strtolower($sortDir)],
+        'resumo' => [
+            'total_pedidos' => $total,
+            'total_valor_rejeitado' => $totalValorRejeitado,
+        ],
+        'pagination' => ['page' => $page, 'per_page' => $perPage, 'total' => $total, 'pages' => $pages],
+        'rows' => $rows,
+    ], JSON_UNESCAPED_UNICODE);
+}
+
+function handleVendedorPerdasSalvarAcao(PDO $pdo): void
+{
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito ao setor vendedor ou administrador.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) $payload = [];
+
+    $anoRef = (int)($payload['ano_referencia'] ?? 0);
+    $numeroPedido = trim((string)($payload['numero_pedido'] ?? ''));
+    $seriePedido = trim((string)($payload['serie_pedido'] ?? ''));
+    $dataPerda = trim((string)($payload['data_perda'] ?? ''));
+    $motivoPerda = trim((string)($payload['motivo_perda'] ?? ''));
+    $classificacao = strtolower(trim((string)($payload['classificacao_erro'] ?? 'nenhum')));
+    $observacoes = trim((string)($payload['observacoes'] ?? ''));
+    $pontosRaw = $payload['pontos_descontados'] ?? null;
+
+    if ($anoRef <= 0 || $numeroPedido === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Pedido inválido para salvar ação.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    if (!in_array($classificacao, ['nenhum', 'leve', 'grave'], true)) {
+        $classificacao = 'nenhum';
+    }
+
+    $pontos = is_numeric($pontosRaw) ? (float)$pontosRaw : null;
+    if ($pontos === null) {
+        if ($classificacao === 'leve') $pontos = 1.0;
+        elseif ($classificacao === 'grave') $pontos = 2.0;
+        else $pontos = 0.0;
+    }
+    $pontos = max(0.0, min(20.0, round($pontos, 2)));
+
+    $isDate = static function ($v) {
+        return (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$v);
+    };
+    if (!$isDate($dataPerda)) {
+        $dataPerda = null;
+    }
+
+    if (mb_strlen($motivoPerda) > 255) $motivoPerda = mb_substr($motivoPerda, 0, 255);
+    if (mb_strlen($observacoes) > 3000) $observacoes = mb_substr($observacoes, 0, 3000);
+
+    $vendedorNome = gcResolveVendedorTargetFromSession($_SESSION, $payload);
+    if ($vendedorNome === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Vendedor não identificado para salvar ação.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    gcEnsureVendedorPerdasAcoesTable($pdo);
+
+    $sql = "
+        INSERT INTO vendedor_perdas_acoes (
+            ano_referencia, numero_pedido, serie_pedido, vendedor_nome, data_perda,
+            motivo_perda, classificacao_erro, pontos_descontados, observacoes, updated_by
+        ) VALUES (
+            :ano, :num, :serie, :vend, :data_perda,
+            :motivo, :classif, :pontos, :obs, :user_id
+        )
+        ON DUPLICATE KEY UPDATE
+            data_perda = VALUES(data_perda),
+            motivo_perda = VALUES(motivo_perda),
+            classificacao_erro = VALUES(classificacao_erro),
+            pontos_descontados = VALUES(pontos_descontados),
+            observacoes = VALUES(observacoes),
+            updated_by = VALUES(updated_by)
+    ";
+    $st = $pdo->prepare($sql);
+    $st->execute([
+        'ano' => $anoRef,
+        'num' => $numeroPedido,
+        'serie' => $seriePedido,
+        'vend' => $vendedorNome,
+        'data_perda' => $dataPerda,
+        'motivo' => $motivoPerda !== '' ? $motivoPerda : null,
+        'classif' => $classificacao,
+        'pontos' => $pontos,
+        'obs' => $observacoes !== '' ? $observacoes : null,
+        'user_id' => (int)($_SESSION['user_id'] ?? 0),
+    ]);
+
+    echo json_encode([
+        'success' => true,
+        'saved' => [
+            'ano_referencia' => $anoRef,
+            'numero_pedido' => $numeroPedido,
+            'serie_pedido' => $seriePedido,
+            'vendedor_nome' => $vendedorNome,
+            'data_perda' => $dataPerda,
+            'motivo_perda' => $motivoPerda,
+            'classificacao_erro' => $classificacao,
+            'pontos_descontados' => $pontos,
+            'observacoes' => $observacoes,
+        ],
+    ], JSON_UNESCAPED_UNICODE);
 }
 
 // check_session: não exige login, só retorna estado da sessão
@@ -1248,6 +2133,64 @@ if ($action === 'vendedor_dashboard_rd') {
             'fonte'   => null,
             'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
                 ? 'Erro ao buscar dados do vendedor no RD Station.'
+                : $e->getMessage(),
+        ], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_perdas_lista') {
+    try {
+        $pdo = getConnection();
+        handleVendedorPerdasLista($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_perdas_lista: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
+                ? 'Erro ao carregar pedidos perdidos.'
+                : $e->getMessage(),
+        ], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_perdas_salvar_acao') {
+    try {
+        $pdo = getConnection();
+        handleVendedorPerdasSalvarAcao($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_perdas_salvar_acao: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
+                ? 'Erro ao salvar ação da perda.'
+                : $e->getMessage(),
+        ], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_dashboard_gestao') {
+    try {
+        $pdo = getConnection();
+        handleVendedorDashboardGestao($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_dashboard_gestao: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'fonte'   => null,
+            'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
+                ? 'Erro ao carregar dados da gestão de pedidos.'
                 : $e->getMessage(),
         ], JSON_UNESCAPED_UNICODE);
     }

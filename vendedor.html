@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/visitador-inline.css">
     <link rel="stylesheet" href="css/visitador.css">
-    <link rel="stylesheet" href="css/vendedor.css">
+    <link rel="stylesheet" href="css/vendedor.css?v=20260326cards9">
     <style>
         body{visibility:hidden;}
         #vdLoadingOverlay {
@@ -50,17 +50,11 @@
                 </div>
             </div>
             <nav class="visitador-nav" aria-label="Menu principal">
-                <a href="#metas" class="visitador-nav-link active">
-                    <i class="fas fa-bullseye"></i><span class="d-none-mobile">Metas</span>
+                <a href="vendedor.html" class="visitador-nav-link active">
+                    <i class="fas fa-chart-line"></i><span class="d-none-mobile">Gestão Geral</span>
                 </a>
-                <a href="#produtividade" class="visitador-nav-link">
-                    <i class="fas fa-chart-line"></i><span class="d-none-mobile">Produtividade</span>
-                </a>
-                <a href="#retencao" class="visitador-nav-link">
-                    <i class="fas fa-user-shield"></i><span class="d-none-mobile">Retenção</span>
-                </a>
-                <a href="#avaliacao" class="visitador-nav-link">
-                    <i class="fas fa-star"></i><span class="d-none-mobile">Qualidade</span>
+                <a href="vendedor-perdas.html" class="visitador-nav-link">
+                    <i class="fas fa-heart-crack"></i><span class="d-none-mobile">Gestão de Perdas</span>
                 </a>
             </nav>
             <div class="user-menu">
@@ -122,7 +116,7 @@
                     <div>
                         <h1 id="vdGreeting" style="margin:0; font-size:1.8rem;">Cockpit de Vendas</h1>
                         <p style="margin:4px 0 0 0; color:var(--text-secondary);">Acompanhe resultados, performance de atendimento e qualidade.</p>
-                        <p id="vdRdIntegracao" style="margin:6px 0 0 0; font-size:0.8rem; display:flex; align-items:center; gap:6px;"><i class="fas fa-circle-notch fa-spin"></i> Carregando integração RD Station...</p>
+                        <p id="vdRdIntegracao" style="margin:6px 0 0 0; font-size:0.8rem; display:flex; align-items:center; gap:6px;"><i class="fas fa-circle-notch fa-spin"></i> Carregando dados da gestão de pedidos...</p>
                     </div>
                     <div class="date-badge" id="vdPeriodoInfo">
                         --/--/---- a --/--/----
@@ -172,7 +166,7 @@
                         <div class="card premium-card highlight-card">
                             <div class="card-icon"><i class="fas fa-coins text-gold"></i></div>
                             <div class="card-center-content">
-                                <span class="card-label">Comissão Projetada</span>
+                                <span class="card-label">Previsão Projetada</span>
                                 <div class="card-big-value text-green" id="vdComissaoEstimValor">R$ 0,00</div>
                                 <div class="card-sub-value" id="vdComissaoIndividualDetalhe">Faixa atual: 0%</div>
                             </div>
@@ -190,7 +184,7 @@
                                 <i class="fas fa-users kpi-bg-icon"></i>
                                 <div class="kpi-label">Volume de Clientes (Mês)</div>
                                 <div class="kpi-value" id="vdVolumeClientes">0</div>
-                                <div class="kpi-desc">Total de atendimentos abertos</div>
+                                <div class="kpi-desc">Clientes distintos no período (gestao_pedidos)</div>
                             </div>
                         </div>
                         
@@ -222,130 +216,74 @@
                                 <div class="kpi-desc">Do início ao fechamento</div>
                             </div>
                         </div>
+
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-star kpi-bg-icon" style="color:var(--warning-alpha)"></i>
+                                <div class="kpi-label">Perda de Pontos</div>
+                                <div class="kpi-value" id="vdScorePerformance">0 pts</div>
+                                <div class="kpi-desc" id="vdScorePerformanceDesc">Impacto de perdas e inconsistências no período</div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-receipt kpi-bg-icon" style="color:var(--success-alpha)"></i>
+                                <div class="kpi-label">Ticket Médio</div>
+                                <div class="kpi-value" id="vdTicketMedio">R$ 0,00</div>
+                                <div class="kpi-desc" id="vdTicketMedioDesc">Por pedido aprovado no período</div>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
-                <div class="dashboard-grid-2col">
-                    <!-- SEÇÃO 3: Retenção e Perdas -->
-                    <section id="retencao" class="dashboard-section">
-                        <div class="card h-100">
-                            <div class="card-header">
-                                <div class="card-title"><i class="fas fa-heart-crack text-danger"></i> Gestão de Perdas</div>
+                <section id="avaliacao" class="dashboard-section">
+                    <div class="card premium-quality-card">
+                        <div class="card-header border-0">
+                            <div class="card-title text-gold"><i class="fas fa-star-half-alt"></i> Avaliação de Qualidade (Critérios)</div>
+                            <div class="card-subtitle" style="color:rgba(255,255,255,0.7);">Auditoria Mensal e Bônus de Performance</div>
+                        </div>
+                        <div class="card-body" style="padding-top:0;">
+                            <div class="quality-score-wrap">
+                                <div class="quality-big-score" id="vdQualidadeScore">0/100</div>
+                                <div class="quality-premio" id="vdPremioPerformance">Bônus Adicional: R$ 0,00</div>
                             </div>
-                            <div class="card-body">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                                    <span style="font-size:0.9rem; color:var(--text-secondary);">Taxa de Rejeição Geral:</span>
-                                    <span style="font-size:1.4rem; font-weight:800; color:var(--danger);" id="vdTaxaPerda">0%</span>
-                                </div>
-                                <h4 style="font-size:0.85rem; text-transform:uppercase; margin-bottom:8px; color:var(--text-muted);">Top motivos de perda (RD Station)</h4>
-                                <ul class="loss-list" id="vdMotivosPerdaList">
-                                    <li>Sem dados</li>
-                                </ul>
-                                <p style="font-size:0.75rem; color:var(--text-muted); margin-top:8px;" id="vdPerdasResumo">—</p>
+                            
+                            <div class="vd-table-wrap mb-0">
+                                <table class="vd-table small-table">
+                                    <thead><tr><th>Critério Analisado</th><th>Status / Nota</th></tr></thead>
+                                    <tbody id="vdTabelaQualidade">
+                                        <tr><td>Qualidade de Envio</td><td>-</td></tr>
+                                        <tr><td>Ausência de Erros</td><td>-</td></tr>
+                                        <tr><td>Retornos</td><td>-</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
-                                <hr style="border-color:var(--border-color); margin:20px 0;">
-                                
-                                <button class="btn-action-primary w-100" id="btnRepescagem">
-                                    <i class="fas fa-sync-alt"></i> Repescagem (Recuperar Rejeitados)
-                                </button>
-                            </div>
+                <section class="dashboard-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title"><i class="fas fa-heart-crack text-danger"></i> Gestão de Perdas agora em página exclusiva</div>
+                            <a href="vendedor-perdas.html" class="btn-action-primary" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+                                <i class="fas fa-arrow-right"></i> Abrir Gestão de Perdas
+                            </a>
                         </div>
-                    </section>
-                    
-                    <!-- SEÇÃO 4: Avaliação Renata -->
-                    <section id="avaliacao" class="dashboard-section">
-                        <div class="card premium-quality-card h-100">
-                            <div class="card-header border-0">
-                                <div class="card-title text-gold"><i class="fas fa-star-half-alt"></i> Avaliação de Qualidade (Critérios)</div>
-                                <div class="card-subtitle" style="color:rgba(255,255,255,0.7);">Auditoria Mensal e Bônus de Performance</div>
-                            </div>
-                            <div class="card-body" style="padding-top:0;">
-                                <div class="quality-score-wrap">
-                                    <div class="quality-big-score" id="vdQualidadeScore">0/100</div>
-                                    <div class="quality-premio" id="vdPremioPerformance">Bônus Adicional: R$ 0,00</div>
-                                </div>
-                                
-                                <div class="vd-table-wrap mb-0">
-                                    <table class="vd-table small-table">
-                                        <thead><tr><th>Critério Analisado</th><th>Status / Nota</th></tr></thead>
-                                        <tbody id="vdTabelaQualidade">
-                                            <tr><td>Qualidade de Envio</td><td>-</td></tr>
-                                            <tr><td>Ausência de Erros</td><td>-</td></tr>
-                                            <tr><td>Retornos</td><td>-</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+                        <div class="card-body">
+                            <p style="font-size:0.88rem; color:var(--text-secondary); margin:0;">
+                                Acompanhamento de rejeições, funil por estágio, origem dos negócios e fluxo de repescagem para recuperar orçamento foram movidos para a nova tela dedicada.
+                            </p>
                         </div>
-                    </section>
-                </div>
-
-                <!-- Funil por estágio e Origem dos negócios -->
-                <div class="dashboard-grid-2col" style="margin-top:24px;">
-                    <section id="funil" class="dashboard-section">
-                        <div class="card h-100">
-                            <div class="card-header">
-                                <div class="card-title"><i class="fas fa-filter" style="color:var(--primary);"></i> Funil por estágio</div>
-                                <div class="card-subtitle" style="color:var(--text-muted); font-size:0.8rem;">Negociações em aberto no período (RD Station)</div>
-                            </div>
-                            <div class="card-body">
-                                <ul class="loss-list" id="vdFunilEstagiosList">
-                                    <li>Carregando...</li>
-                                </ul>
-                                <p style="font-size:0.75rem; color:var(--text-muted);" id="vdFunilResumo">—</p>
-                            </div>
-                        </div>
-                    </section>
-                    <section id="origem" class="dashboard-section">
-                        <div class="card h-100">
-                            <div class="card-header">
-                                <div class="card-title"><i class="fas fa-tags" style="color:#10b981;"></i> Origem dos negócios</div>
-                                <div class="card-subtitle" style="color:var(--text-muted); font-size:0.8rem;">De onde vêm seus deals ganhos (RD Station)</div>
-                            </div>
-                            <div class="card-body">
-                                <ul class="loss-list" id="vdOrigemDealsList">
-                                    <li>Carregando...</li>
-                                </ul>
-                                <p style="font-size:0.75rem; color:var(--text-muted);" id="vdOrigemResumo">—</p>
-                            </div>
-                        </div>
-                    </section>
-                </div>
+                    </div>
+                </section>
 
                 <div class="vd-error" id="vdError" style="display:none;"></div>
             </div>
             
-            <!-- Modal Repescagem -->
-            <div id="modalRepescagem" class="modal-overlay" aria-hidden="true" style="display:none;">
-                <div class="modal-content large-modal">
-                    <div class="modal-header">
-                        <h2><i class="fas fa-sync-alt text-primary"></i> Hub de Repescagem</h2>
-                        <button class="btn-close" type="button" onclick="fecharModalRepescagem()"><i class="fas fa-times"></i></button>
-                    </div>
-                    <div class="modal-body">
-                        <p style="margin-bottom:16px; color:var(--text-secondary); font-size:0.9rem;">Lista de orçamentos rejeitados recentemente que você pode tentar reativar com uma nova abordagem ou desconto.</p>
-                        <div class="vd-table-wrap">
-                            <table class="vd-table">
-                                <thead>
-                                    <tr>
-                                        <th>Cliente</th>
-                                        <th>Telefone/WhatsApp</th>
-                                        <th>Motivo da Perda</th>
-                                        <th>Valor Estimado</th>
-                                        <th>Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tabelaRepescagemBody">
-                                    <tr><td colspan="5" style="text-align:center;">Nenhum cliente disponível para repescagem.</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </main>
     </div>
-    <script src="js/vendedor-main.js?v=20260324comissao1"></script>
+    <script src="js/vendedor-main.js?v=20260326nav10"></script>
 </body>
 </html>
