@@ -3495,7 +3495,7 @@ function getThemeStorageKeyVisitador() {
                 '<div style="display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid #e5e7eb; padding-bottom:10px; margin-bottom:16px;">' +
                     '<div style="display:flex; align-items:center; gap:12px;">' +
                         '<div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:8px; padding:6px 10px; line-height:0;">' +
-                            '<img src="imagens/logoMypharm.png" alt="MyPharm" style="height:34px; width:auto; display:block;" onerror="this.style.display=\'none\'">' +
+                            '<img src="imagens/logoMypharm1.png" alt="MyPharm" style="height:34px; width:auto; display:block;" onerror="this.style.display=\'none\'">' +
                         '</div>' +
                         '<div>' +
                             '<div style="font-size:18px; font-weight:800; line-height:1.15;">Relatório de Pedidos Filtrados</div>' +
