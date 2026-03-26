@@ -181,8 +181,12 @@ function rdtvFetchDealsPair(string $token, int $page, int $limit, string $startD
 
     $dataWon  = is_string($bodyWon) ? json_decode($bodyWon, true) : null;
     $dataLost = is_string($bodyLost) ? json_decode($bodyLost, true) : null;
-    if (!is_array($dataWon)) $dataWon = ['deals' => []];
-    if (!is_array($dataLost)) $dataLost = ['deals' => []];
+    if (!is_array($dataWon) || !array_key_exists('deals', $dataWon) || !is_array($dataWon['deals'])) {
+        throw new RuntimeException('RD Station retornou payload inválido em ganhos.');
+    }
+    if (!is_array($dataLost) || !array_key_exists('deals', $dataLost) || !is_array($dataLost['deals'])) {
+        throw new RuntimeException('RD Station retornou payload inválido em perdidos.');
+    }
 
     return ['won' => $dataWon, 'lost' => $dataLost];
 }
@@ -262,11 +266,11 @@ function rdtvFetchDealsPairBatch(string $token, array $pages, int $limit, string
             }
             $dataWon = is_string($bodyWon) ? json_decode($bodyWon, true) : null;
             $dataLost = is_string($bodyLost) ? json_decode($bodyLost, true) : null;
-            if (!is_array($dataWon)) {
-                $dataWon = ['deals' => []];
+            if (!is_array($dataWon) || !array_key_exists('deals', $dataWon) || !is_array($dataWon['deals'])) {
+                throw new RuntimeException("RD Station payload inválido (ganhos, página {$page}).");
             }
-            if (!is_array($dataLost)) {
-                $dataLost = ['deals' => []];
+            if (!is_array($dataLost) || !array_key_exists('deals', $dataLost) || !is_array($dataLost['deals'])) {
+                throw new RuntimeException("RD Station payload inválido (perdidos, página {$page}).");
             }
             $out[$page] = ['won' => $dataWon, 'lost' => $dataLost];
         }
@@ -519,7 +523,7 @@ function rdtvFetchWonAndLostParallel(
         $batch = rdtvFetchDealsPairBatch($token, $pages, $limit, $startDate, $endDate);
         foreach ($pages as $pg) {
             if (!isset($batch[$pg])) {
-                continue;
+                throw new RuntimeException("RD Station não retornou o lote da página {$pg}.");
             }
             rdtvAccumulateWonLostPage($batch[$pg], $startDate, $endDate, $somenteMapeadas, $porVendedor, $perdas, $etapasFechadas);
         }

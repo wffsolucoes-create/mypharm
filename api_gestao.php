@@ -813,6 +813,8 @@ function handleTvCorridaVendedores(PDO $pdo): void
 
     $refreshRd = isset($_GET['refresh_rd']) ? strtolower(trim((string)$_GET['refresh_rd'])) : '';
     $forceRefresh = in_array($refreshRd, ['1', 'true', 'yes', 'on'], true);
+    // Decisão operacional: TV usa somente base interna (importação), sem consultar RD.
+    $forceDbSource = true;
 
     $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
     $tokenFp = $rdToken !== '' ? substr(hash('sha256', $rdToken), 0, 24) : 'sem_token';
@@ -825,31 +827,33 @@ function handleTvCorridaVendedores(PDO $pdo): void
         $cacheTtlSec = 30;
     }
     $cachedTv = null;
-    try {
-        if (is_file($cacheFile)) {
-            $raw = @file_get_contents($cacheFile);
-            $arr = is_string($raw) ? json_decode($raw, true) : null;
-            if (is_array($arr) && isset($arr['ranking']) && is_array($arr['ranking'])) {
-                $cachedTv = $arr;
+    if (!$forceDbSource) {
+        try {
+            if (is_file($cacheFile)) {
+                $raw = @file_get_contents($cacheFile);
+                $arr = is_string($raw) ? json_decode($raw, true) : null;
+                if (is_array($arr) && isset($arr['ranking']) && is_array($arr['ranking'])) {
+                    $cachedTv = $arr;
+                }
             }
+        } catch (Throwable $e) {
+            $cachedTv = null;
         }
-    } catch (Throwable $e) {
-        $cachedTv = null;
-    }
 
-    // Se houver cache recente e não for refresh forçado, responde rápido para a TV.
-    try {
-        if (!$forceRefresh && is_file($cacheFile) && (time() - @filemtime($cacheFile) <= $cacheTtlSec) && is_array($cachedTv)) {
-            $cachedTv['cache'] = ['hit' => true, 'stale' => false];
-            echo json_encode($cachedTv, JSON_UNESCAPED_UNICODE);
-            return;
+        // Se houver cache recente e não for refresh forçado, responde rápido para a TV.
+        try {
+            if (!$forceRefresh && is_file($cacheFile) && (time() - @filemtime($cacheFile) <= $cacheTtlSec) && is_array($cachedTv)) {
+                $cachedTv['cache'] = ['hit' => true, 'stale' => false];
+                echo json_encode($cachedTv, JSON_UNESCAPED_UNICODE);
+                return;
+            }
+        } catch (Throwable $e) {
+            // segue fluxo normal
         }
-    } catch (Throwable $e) {
-        // segue fluxo normal
     }
 
     // ===== Tenta usar RD Station CRM =====
-    if ($rdToken !== '') {
+    if (!$forceDbSource && $rdToken !== '') {
         try {
             // Busca metas do banco para cruzar com os dados do CRM
             $metas = [];
@@ -1040,6 +1044,9 @@ function handleTvCorridaVendedores(PDO $pdo): void
     ];
     if (!empty($rdFalhouAntesMysql)) {
         $payloadTvMysql['aviso_rd'] = 'RD Station falhou; ranking pelo banco interno (importação) — pode divergir do CRM.';
+    }
+    if (!empty($forceDbSource)) {
+        $payloadTvMysql['aviso_rd'] = 'Fonte definida para banco interno (importação), sem consulta ao RD Station.';
     }
     echo json_encode($payloadTvMysql, JSON_UNESCAPED_UNICODE);
 }
