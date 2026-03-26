@@ -387,6 +387,8 @@
 .kpi-grid .card:nth-child(4) { --kpi-accent: #f59e0b; --kpi-accent-2: #f97316; --kpi-accent-soft: rgba(245, 158, 11, 0.14); --kpi-accent-line: rgba(245, 158, 11, 0.3); --kpi-accent-glow: rgba(245, 158, 11, 0.2); }
 .kpi-grid .card:nth-child(5) { --kpi-accent: #8b5cf6; --kpi-accent-2: #a78bfa; --kpi-accent-soft: rgba(139, 92, 246, 0.14); --kpi-accent-line: rgba(139, 92, 246, 0.3); --kpi-accent-glow: rgba(139, 92, 246, 0.2); }
 .kpi-grid .card:nth-child(6) { --kpi-accent: #14b8a6; --kpi-accent-2: #2dd4bf; --kpi-accent-soft: rgba(20, 184, 166, 0.14); --kpi-accent-line: rgba(20, 184, 166, 0.3); --kpi-accent-glow: rgba(20, 184, 166, 0.2); }
+.kpi-grid .card:nth-child(7) { --kpi-accent: #3b82f6; --kpi-accent-2: #60a5fa; --kpi-accent-soft: rgba(59, 130, 246, 0.14); --kpi-accent-line: rgba(59, 130, 246, 0.3); --kpi-accent-glow: rgba(59, 130, 246, 0.2); }
+.kpi-grid .card:nth-child(8) { --kpi-accent: #f43f5e; --kpi-accent-2: #fb7185; --kpi-accent-soft: rgba(244, 63, 94, 0.14); --kpi-accent-line: rgba(244, 63, 94, 0.3); --kpi-accent-glow: rgba(244, 63, 94, 0.2); }
 
 .kpi-box {
     display: flex;
@@ -489,6 +491,87 @@
     padding: 2px 8px;
     border-radius: 12px;
     font-size: 0.8rem;
+}
+
+.value-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.value-card-item {
+    background: var(--bg-body);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    min-height: 72px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+}
+
+.value-card-title {
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.35px;
+}
+
+.value-card-value {
+    font-size: 1.18rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.1;
+}
+
+.value-card-sub {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    line-height: 1.25;
+}
+
+.value-card-empty {
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    text-align: center;
+}
+
+/* Painel de perdas: versão clean sem "quadrado dentro do quadrado" */
+#vdMotivosPerdaList,
+#vdFunilEstagiosList,
+#vdOrigemDealsList {
+    gap: 8px;
+}
+
+#vdMotivosPerdaList .value-card-item,
+#vdFunilEstagiosList .value-card-item,
+#vdOrigemDealsList .value-card-item {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 6px 2px;
+    min-height: 0;
+    border-bottom: 1px dashed var(--border);
+}
+
+#vdMotivosPerdaList .value-card-item:last-child,
+#vdFunilEstagiosList .value-card-item:last-child,
+#vdOrigemDealsList .value-card-item:last-child {
+    border-bottom: 0;
+}
+
+#vdMotivosPerdaList .value-card-title,
+#vdFunilEstagiosList .value-card-title,
+#vdOrigemDealsList .value-card-title {
+    font-size: 0.72rem;
+}
+
+#vdMotivosPerdaList .value-card-value,
+#vdFunilEstagiosList .value-card-value,
+#vdOrigemDealsList .value-card-value {
+    font-size: 1.05rem;
 }
 
 .btn-action-primary {

@@ -167,6 +167,21 @@
         return div.innerHTML;
     }
 
+    function renderValueCards(container, items, emptyText) {
+        if (!container) return;
+        if (!Array.isArray(items) || !items.length) {
+            container.innerHTML = '<div class="value-card-item value-card-empty">' + escapeHtml(emptyText || 'Sem dados') + '</div>';
+            return;
+        }
+        container.innerHTML = items.map(function (it) {
+            return '<div class="value-card-item">' +
+                '<div class="value-card-title">' + escapeHtml(it.title || '-') + '</div>' +
+                '<div class="value-card-value">' + escapeHtml(it.value || '-') + '</div>' +
+                '<div class="value-card-sub">' + escapeHtml(it.sub || '—') + '</div>' +
+                '</div>';
+        }).join('');
+    }
+
     const perdasState = {
         page: 1,
         perPage: 10,
@@ -493,13 +508,19 @@
         var taxaConvLinhas = me && me.taxa_conversao_linhas_pct != null ? Number(me.taxa_conversao_linhas_pct) : null;
         var scoreTotal = me && me.score_performance ? Number(me.score_performance.total || 0) : 0;
         var perdaPontos = Math.max(0, 100 - scoreTotal);
-        var qtdBaseTicket = me ? Number(me.total_deals_ganhos || me.linhas_aprovadas || 0) : 0;
-        var ticketMedio = qtdBaseTicket > 0 ? (faturamento_mes / qtdBaseTicket) : 0;
+        var qtdAprovados = me ? Number(me.total_deals_ganhos || me.linhas_aprovadas || 0) : 0;
+        var qtdReprovados = me ? Number(me.total_deals_perdidos || me.linhas_perdidas || 0) : 0;
+        var valorAprovado = faturamento_mes;
+        var valorReprovado = me ? Number(me.valor_rejeitado || 0) : 0;
+        var ticketMedioAprovado = qtdAprovados > 0 ? (valorAprovado / qtdAprovados) : 0;
+        var ticketMedioReprovado = qtdReprovados > 0 ? (valorReprovado / qtdReprovados) : 0;
         setText('vdTaxaConversao', taxaConvLinhas != null && !isNaN(taxaConvLinhas) && me && ((me.linhas_aprovadas || 0) > 0 || (me.linhas_orcamento || 0) > 0 || (me.linhas_perdidas || 0) > 0)
             ? formatPercent(taxaConvLinhas)
             : formatPercent(pctMeta));
         if (me && (me.linhas_aprovadas > 0 || me.linhas_orcamento > 0 || me.linhas_perdidas > 0)) {
-            setText('vdConversaoDetalhe', formatInt(me.linhas_aprovadas || 0) + ' aprov. · ' + formatInt(me.linhas_orcamento || 0) + ' orç. · ' + formatInt(me.linhas_perdidas || 0) + ' recus./carrinho');
+            const aprovDist = Number(me.total_deals_ganhos || me.linhas_aprovadas || 0);
+            const perdDist = Number(me.total_deals_perdidos || me.linhas_perdidas || 0);
+            setText('vdConversaoDetalhe', formatInt(aprovDist) + ' aprov. · ' + formatInt(perdDist) + ' recus./carrinho');
         } else {
             setText('vdConversaoDetalhe', me ? formatMoney(faturamento_mes) + ' faturado / meta ' + formatMoney(meta_mensal) : 'Sem dados');
         }
@@ -507,8 +528,14 @@
         setText('vdTMAAtendimento', formatTempoMedio(me ? me.duracao_media_min : null));
         setText('vdScorePerformance', me && me.score_performance ? (formatInt(perdaPontos) + ' pts') : '-');
         setText('vdScorePerformanceDesc', me && me.score_performance ? ('Base de score: ' + formatInt(scoreTotal) + '/100') : 'Sem score detalhado disponível');
-        setText('vdTicketMedio', qtdBaseTicket > 0 ? formatMoney(ticketMedio) : 'R$ 0,00');
-        setText('vdTicketMedioDesc', qtdBaseTicket > 0 ? (formatInt(qtdBaseTicket) + ' pedido(s) na base do cálculo') : 'Sem pedidos aprovados no período');
+        setText('vdValorAprovado', formatMoney(valorAprovado));
+        setText('vdValorAprovadoDesc', qtdAprovados > 0 ? (formatInt(qtdAprovados) + ' pedido(s) aprovados') : 'Sem pedidos aprovados no período');
+        setText('vdValorReprovado', formatMoney(valorReprovado));
+        setText('vdValorReprovadoDesc', qtdReprovados > 0 ? (formatInt(qtdReprovados) + ' pedido(s) recusados/no carrinho') : 'Sem pedidos reprovados no período');
+        setText('vdTicketMedioAprovado', qtdAprovados > 0 ? formatMoney(ticketMedioAprovado) : 'R$ 0,00');
+        setText('vdTicketMedioAprovadoDesc', qtdAprovados > 0 ? (formatInt(qtdAprovados) + ' pedido(s) na base do cálculo') : 'Sem pedidos aprovados no período');
+        setText('vdTicketMedioReprovado', qtdReprovados > 0 ? formatMoney(ticketMedioReprovado) : 'R$ 0,00');
+        setText('vdTicketMedioReprovadoDesc', qtdReprovados > 0 ? (formatInt(qtdReprovados) + ' pedido(s) na base do cálculo') : 'Sem pedidos reprovados no período');
 
         const fonteRD = data.fonte === 'rdstation_crm';
         const fonteGestao = data.fonte === 'gestao_pedidos';
@@ -531,17 +558,22 @@
         const topMotivos = (me && Array.isArray(me.top_motivos_perda) && me.top_motivos_perda.length) ? me.top_motivos_perda : [];
         const motivosUL = document.getElementById('vdMotivosPerdaList');
         if (motivosUL) {
-            if (topMotivos.length) {
-                motivosUL.innerHTML = topMotivos.map(function (m) {
-                    return '<li><strong>' + escapeHtml(m.nome || '—') + '</strong> · ' + (m.quantidade || 0) + ' ocorrência(s)</li>';
-                }).join('');
-            } else {
-                motivosUL.innerHTML = fonteRD
-                    ? '<li>Nenhuma perda no período ou dados ainda não disponíveis.</li>'
+            const cardsMotivos = topMotivos.map(function (m) {
+                return {
+                    title: m.nome || '—',
+                    value: formatInt(m.quantidade || 0),
+                    sub: 'ocorrência(s)'
+                };
+            });
+            renderValueCards(
+                motivosUL,
+                cardsMotivos,
+                fonteRD
+                    ? 'Nenhuma perda no período ou dados ainda não disponíveis.'
                     : (fonteGestao
-                        ? '<li>Nenhum registro com status de orçamento/recusa no período para o seu atendente.</li>'
-                        : '<li>Sem motivos de perda para esta fonte.</li>');
-            }
+                        ? 'Nenhum registro com status de orçamento/recusa no período para o seu atendente.'
+                        : 'Sem motivos de perda para esta fonte.')
+            );
         }
         const ganhos = (me && me.total_deals_ganhos != null) ? Number(me.total_deals_ganhos) : null;
         const perdidos = (me && me.total_deals_perdidos != null) ? Number(me.total_deals_perdidos) : null;
@@ -560,13 +592,19 @@
         var elFunil = document.getElementById('vdFunilEstagiosList');
         if (elFunil) {
             if (funilList.length) {
-                elFunil.innerHTML = funilList.map(function (e) {
-                    return '<li><strong>' + escapeHtml(e.stage_name || e.pipeline_name || '—') + '</strong>' + (e.pipeline_name && e.pipeline_name !== (e.stage_name || '') ? ' <span style="color:var(--text-muted);">(' + escapeHtml(e.pipeline_name) + ')</span>' : '') + ' · ' + (e.quantidade || 0) + '</li>';
-                }).join('');
+                renderValueCards(elFunil, funilList.map(function (e) {
+                    const stage = e.stage_name || e.pipeline_name || '—';
+                    const sub = e.pipeline_name && e.pipeline_name !== (e.stage_name || '') ? e.pipeline_name : 'status financeiro';
+                    return {
+                        title: stage,
+                        value: formatInt(e.quantidade || 0),
+                        sub: sub
+                    };
+                }), 'Sem dados de funil.');
             } else {
-                elFunil.innerHTML = fonteRD
-                    ? '<li>Nenhum deal em aberto no período ou funil não disponível.</li>'
-                    : (fonteGestao ? '<li>Nenhuma linha no período em gestao_pedidos.</li>' : '<li>Sem dados de funil.</li>');
+                renderValueCards(elFunil, [], fonteRD
+                    ? 'Nenhum deal em aberto no período ou funil não disponível.'
+                    : (fonteGestao ? 'Nenhuma linha no período em gestao_pedidos.' : 'Sem dados de funil.'));
             }
         }
         var elFunilResumo = document.getElementById('vdFunilResumo');
@@ -585,13 +623,17 @@
         var elOrigem = document.getElementById('vdOrigemDealsList');
         if (elOrigem) {
             if (origemList.length) {
-                elOrigem.innerHTML = origemList.map(function (o) {
-                    return '<li><strong>' + escapeHtml(o.nome || '—') + '</strong> · ' + formatMoney(o.receita || 0) + ' (' + (o.quantidade || 0) + ' deal(s))</li>';
-                }).join('');
+                renderValueCards(elOrigem, origemList.map(function (o) {
+                    return {
+                        title: o.nome || '—',
+                        value: formatMoney(o.receita || 0),
+                        sub: formatInt(o.quantidade || 0) + ' deal(s)'
+                    };
+                }), 'Sem origem.');
             } else {
-                elOrigem.innerHTML = fonteRD
-                    ? '<li>Nenhuma origem registrada nos deals ganhos.</li>'
-                    : (fonteGestao ? '<li>Sem canal de atendimento no período para o seu usuário.</li>' : '<li>Sem origem.</li>');
+                renderValueCards(elOrigem, [], fonteRD
+                    ? 'Nenhuma origem registrada nos deals ganhos.'
+                    : (fonteGestao ? 'Sem canal de atendimento no período para o seu usuário.' : 'Sem origem.'));
             }
         }
         var elOrigemResumo = document.getElementById('vdOrigemResumo');

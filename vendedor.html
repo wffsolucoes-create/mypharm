@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/visitador-inline.css">
     <link rel="stylesheet" href="css/visitador.css">
-    <link rel="stylesheet" href="css/vendedor.css?v=20260326cards9">
+    <link rel="stylesheet" href="css/vendedor.css?v=20260326cards10">
     <style>
         body{visibility:hidden;}
         #vdLoadingOverlay {
@@ -116,7 +116,6 @@
                     <div>
                         <h1 id="vdGreeting" style="margin:0; font-size:1.8rem;">Cockpit de Vendas</h1>
                         <p style="margin:4px 0 0 0; color:var(--text-secondary);">Acompanhe resultados, performance de atendimento e qualidade.</p>
-                        <p id="vdRdIntegracao" style="margin:6px 0 0 0; font-size:0.8rem; display:flex; align-items:center; gap:6px;"><i class="fas fa-circle-notch fa-spin"></i> Carregando dados da gestão de pedidos...</p>
                     </div>
                     <div class="date-badge" id="vdPeriodoInfo">
                         --/--/---- a --/--/----
@@ -187,6 +186,24 @@
                                 <div class="kpi-desc">Clientes distintos no período (gestao_pedidos)</div>
                             </div>
                         </div>
+
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-hand-holding-dollar kpi-bg-icon" style="color:var(--success-alpha)"></i>
+                                <div class="kpi-label">Valor Aprovado</div>
+                                <div class="kpi-value text-green" id="vdValorAprovado">R$ 0,00</div>
+                                <div class="kpi-desc" id="vdValorAprovadoDesc">Receita fechada no período</div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-ban kpi-bg-icon" style="color:var(--danger-alpha)"></i>
+                                <div class="kpi-label">Valor Reprovado</div>
+                                <div class="kpi-value" id="vdValorReprovado">R$ 0,00</div>
+                                <div class="kpi-desc" id="vdValorReprovadoDesc">Pedidos recusados/no carrinho</div>
+                            </div>
+                        </div>
                         
                         <!-- Conversão Win Rate -->
                         <div class="card">
@@ -229,9 +246,18 @@
                         <div class="card">
                             <div class="kpi-box">
                                 <i class="fas fa-receipt kpi-bg-icon" style="color:var(--success-alpha)"></i>
-                                <div class="kpi-label">Ticket Médio</div>
-                                <div class="kpi-value" id="vdTicketMedio">R$ 0,00</div>
-                                <div class="kpi-desc" id="vdTicketMedioDesc">Por pedido aprovado no período</div>
+                                <div class="kpi-label">Ticket Médio Aprovado</div>
+                                <div class="kpi-value" id="vdTicketMedioAprovado">R$ 0,00</div>
+                                <div class="kpi-desc" id="vdTicketMedioAprovadoDesc">Por pedido aprovado no período</div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-receipt kpi-bg-icon" style="color:var(--danger-alpha)"></i>
+                                <div class="kpi-label">Ticket Médio Reprovado</div>
+                                <div class="kpi-value" id="vdTicketMedioReprovado">R$ 0,00</div>
+                                <div class="kpi-desc" id="vdTicketMedioReprovadoDesc">Por pedido recusado/no carrinho</div>
                             </div>
                         </div>
                     </div>
@@ -284,6 +310,6 @@
             
         </main>
     </div>
-    <script src="js/vendedor-main.js?v=20260326nav10"></script>
+    <script src="js/vendedor-main.js?v=20260326nav13"></script>
 </body>
 </html>

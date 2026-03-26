@@ -533,9 +533,9 @@ function handleVendedorDashboardGestao(PDO $pdo): void
             'total' => $total,
         ];
     };
-    $metaSistemaVendedor = (float)(getenv('VENDEDOR_META_SISTEMA') ?: 59000);
+    $metaSistemaVendedor = (float)(getenv('VENDEDOR_META_SISTEMA') ?: 60000);
     if ($metaSistemaVendedor <= 0) {
-        $metaSistemaVendedor = 59000.0;
+        $metaSistemaVendedor = 60000.0;
     }
 
     $rowsAgg = [];
@@ -547,6 +547,7 @@ function handleVendedorDashboardGestao(PDO $pdo): void
                 COUNT(CASE WHEN {$approvedCase} THEN 1 END) AS linhas_aprovadas,
                 COUNT(CASE WHEN gp.status_financeiro = 'Orçamento' THEN 1 END) AS linhas_orcamento,
                 COUNT(DISTINCT CASE WHEN {$approvedCase} THEN CONCAT(gp.ano_referencia, '-', gp.numero_pedido) END) AS pedidos_aprovados_distintos,
+                COUNT(DISTINCT CASE WHEN gp.status_financeiro = 'Orçamento' THEN CONCAT(gp.ano_referencia, '-', gp.numero_pedido) END) AS pedidos_orcamento_distintos,
                 COUNT(DISTINCT gp.cliente) AS clientes_distintos
             FROM gestao_pedidos gp
             WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
@@ -648,6 +649,7 @@ function handleVendedorDashboardGestao(PDO $pdo): void
         $receita = round((float)($row['receita'] ?? 0), 2);
         $la = (int)($row['linhas_aprovadas'] ?? 0);
         $lo = (int)($row['linhas_orcamento'] ?? 0);
+        $pedidoOrcDist = (int)($row['pedidos_orcamento_distintos'] ?? 0);
         $rej = $rejeitadosByVendedor[$key] ?? null;
         $lp = (int)($rej['linhas_rejeitadas'] ?? 0);
         $denConv = $la + $lo + $lp;
@@ -682,6 +684,7 @@ function handleVendedorDashboardGestao(PDO $pdo): void
             'linhas_aprovadas' => $la,
             'linhas_orcamento' => $lo,
             'linhas_perdidas' => $lp,
+            'pedidos_orcamento_distintos' => $pedidoOrcDist,
             'taxa_conversao_linhas_pct' => $taxaConvLinhas,
         ];
     }
@@ -719,6 +722,7 @@ function handleVendedorDashboardGestao(PDO $pdo): void
             'linhas_aprovadas' => 0,
             'linhas_orcamento' => 0,
             'linhas_perdidas' => $lp,
+            'pedidos_orcamento_distintos' => 0,
             'taxa_conversao_linhas_pct' => 0.0,
         ];
         $seen[$k] = true;
@@ -754,6 +758,7 @@ function handleVendedorDashboardGestao(PDO $pdo): void
             'linhas_aprovadas' => 0,
             'linhas_orcamento' => 0,
             'linhas_perdidas' => $lp,
+            'pedidos_orcamento_distintos' => 0,
             'taxa_conversao_linhas_pct' => 0.0,
         ];
         $seen[$k] = true;
@@ -1562,6 +1567,7 @@ function handleTvCorridaVendedores(PDO $pdo): void
         if (!array_key_exists('tempo_medio_espera_min', $it)) $it['tempo_medio_espera_min'] = null;
         if (!array_key_exists('total_deals_ganhos', $it)) $it['total_deals_ganhos'] = null;
         if (!array_key_exists('total_deals_perdidos', $it)) $it['total_deals_perdidos'] = null;
+        if (!array_key_exists('pedidos_orcamento_distintos', $it)) $it['pedidos_orcamento_distintos'] = null;
         if (!array_key_exists('taxa_perda_pct', $it)) $it['taxa_perda_pct'] = null;
         if (!array_key_exists('top_motivos_perda', $it)) $it['top_motivos_perda'] = [];
         if (!array_key_exists('origem_deals', $it)) $it['origem_deals'] = [];
@@ -1717,10 +1723,10 @@ function handleVendedorPerdasLista(PDO $pdo): void
                 SELECT
                     i.ano_referencia,
                     i.numero,
-                    COALESCE(i.serie, ''),
-                    CONCAT(CAST(i.numero AS CHAR), '/', i.ano_referencia, CASE WHEN COALESCE(i.serie, '') <> '' THEN CONCAT(' (série ', i.serie, ')') ELSE '' END) AS pedido_ref,
+                    '' AS serie_pedido,
+                    CONCAT(CAST(i.numero AS CHAR), '/', i.ano_referencia) AS pedido_ref,
                     COALESCE(NULLIF(TRIM(MAX(gpLink.cliente)), ''), '(Sem cliente)') AS cliente,
-                    COALESCE(NULLIF(TRIM(MAX(gpLink.cliente)), ''), '(Sem prescritor)') AS prescritor,
+                    COALESCE(NULLIF(TRIM(MAX(gpLink.prescritor)), ''), '(Sem prescritor)') AS prescritor,
                     CASE
                         WHEN SUM(CASE WHEN LOWER(TRIM(COALESCE(i.status, ''))) = 'recusado' THEN 1 ELSE 0 END) > 0 THEN 'Recusado'
                         WHEN SUM(CASE WHEN LOWER(TRIM(COALESCE(i.status, ''))) = 'no carrinho' THEN 1 ELSE 0 END) > 0 THEN 'No carrinho'
@@ -1728,7 +1734,7 @@ function handleVendedorPerdasLista(PDO $pdo): void
                     END AS status_principal,
                     ROUND(COALESCE(SUM(i.valor_liquido), 0), 2) AS valor_rejeitado
                 {$baseAggSql}
-                GROUP BY i.ano_referencia, i.numero, COALESCE(i.serie, '')
+                GROUP BY i.ano_referencia, i.numero
             ) g
             {$outerFilterSql}
         ");
@@ -1767,10 +1773,10 @@ function handleVendedorPerdasLista(PDO $pdo): void
                 SELECT
                     i.ano_referencia,
                     CAST(i.numero AS CHAR) AS numero_pedido,
-                    CAST(COALESCE(i.serie, '') AS CHAR) AS serie_pedido,
-                    CONCAT(CAST(i.numero AS CHAR), '/', i.ano_referencia, CASE WHEN COALESCE(i.serie, '') <> '' THEN CONCAT(' (série ', i.serie, ')') ELSE '' END) AS pedido_ref,
+                    '' AS serie_pedido,
+                    CONCAT(CAST(i.numero AS CHAR), '/', i.ano_referencia) AS pedido_ref,
                     COALESCE(NULLIF(TRIM(MAX(gpLink.cliente)), ''), '(Sem cliente)') AS cliente,
-                    COALESCE(NULLIF(TRIM(MAX(gpLink.cliente)), ''), '(Sem prescritor)') AS prescritor,
+                    COALESCE(NULLIF(TRIM(MAX(gpLink.prescritor)), ''), '(Sem prescritor)') AS prescritor,
                     '' AS contato,
                     CASE
                         WHEN SUM(CASE WHEN LOWER(TRIM(COALESCE(i.status, ''))) = 'recusado' THEN 1 ELSE 0 END) > 0 THEN 'Recusado'
@@ -1781,12 +1787,12 @@ function handleVendedorPerdasLista(PDO $pdo): void
                     ROUND(COALESCE(SUM(i.valor_liquido), 0), 2) AS valor_rejeitado,
                     DATE(MAX(i.data)) AS data_perda
                     {$baseAggSql}
-                GROUP BY i.ano_referencia, i.numero, COALESCE(i.serie, '')
+                GROUP BY i.ano_referencia, i.numero
             ) g
             LEFT JOIN vendedor_perdas_acoes a
               ON a.ano_referencia = g.ano_referencia
              AND a.numero_pedido = g.numero_pedido
-             AND a.serie_pedido = g.serie_pedido
+             AND COALESCE(a.serie_pedido, '') = ''
              AND a.vendedor_nome = :vend_join
             {$outerFilterSql}
             ORDER BY {$orderExpr} {$sortDir}, g.numero_pedido DESC
@@ -1846,7 +1852,8 @@ function handleVendedorPerdasSalvarAcao(PDO $pdo): void
 
     $anoRef = (int)($payload['ano_referencia'] ?? 0);
     $numeroPedido = trim((string)($payload['numero_pedido'] ?? ''));
-    $seriePedido = trim((string)($payload['serie_pedido'] ?? ''));
+    // Ação de perdas é sempre por pedido unificado (número/ano), independente de série.
+    $seriePedido = '';
     $dataPerda = trim((string)($payload['data_perda'] ?? ''));
     $motivoPerda = trim((string)($payload['motivo_perda'] ?? ''));
     $classificacao = strtolower(trim((string)($payload['classificacao_erro'] ?? 'nenhum')));

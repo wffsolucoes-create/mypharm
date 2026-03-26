@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/visitador-inline.css">
     <link rel="stylesheet" href="css/visitador.css">
-    <link rel="stylesheet" href="css/vendedor.css?v=20260326cards9">
+    <link rel="stylesheet" href="css/vendedor.css?v=20260326cards10">
     <style>
         body { visibility: hidden; }
         #vdLoadingOverlay {
@@ -116,7 +116,6 @@
                     <div>
                         <h1 id="vdGreeting" style="margin:0; font-size:1.8rem;">Gestão de Perdas e Repescagem</h1>
                         <p style="margin:4px 0 0 0; color:var(--text-secondary);">Monitore rejeições e recupere oportunidades de orçamento.</p>
-                        <p id="vdRdIntegracao" style="margin:6px 0 0 0; font-size:0.8rem; display:flex; align-items:center; gap:6px;"><i class="fas fa-circle-notch fa-spin"></i> Carregando dados da gestão de pedidos...</p>
                     </div>
                     <div class="date-badge" id="vdPeriodoInfo">
                         --/--/---- a --/--/----
@@ -132,9 +131,9 @@
                                 <span style="font-size:1.4rem; font-weight:800; color:var(--danger);" id="vdTaxaPerda">0%</span>
                             </div>
                             <h4 style="font-size:0.85rem; text-transform:uppercase; margin-bottom:8px; color:var(--text-muted);">Top status (orçamento / recusa)</h4>
-                            <ul class="loss-list" id="vdMotivosPerdaList">
-                                <li>Sem dados</li>
-                            </ul>
+                            <div class="value-card-grid" id="vdMotivosPerdaList">
+                                <div class="value-card-item value-card-empty">Sem dados</div>
+                            </div>
                             <p style="font-size:0.75rem; color:var(--text-muted); margin-top:8px;" id="vdPerdasResumo">—</p>
 
                             <hr style="border-color:var(--border-color); margin:20px 0;">
@@ -154,9 +153,9 @@
                                 <div class="card-subtitle" style="color:var(--text-muted); font-size:0.8rem;">Distribuição por status_financeiro (gestao_pedidos)</div>
                             </div>
                             <div class="card-body">
-                                <ul class="loss-list" id="vdFunilEstagiosList">
-                                    <li>Carregando...</li>
-                                </ul>
+                                <div class="value-card-grid" id="vdFunilEstagiosList">
+                                    <div class="value-card-item value-card-empty">Carregando...</div>
+                                </div>
                                 <p style="font-size:0.75rem; color:var(--text-muted);" id="vdFunilResumo">—</p>
                             </div>
                         </div>
@@ -168,9 +167,9 @@
                                 <div class="card-subtitle" style="color:var(--text-muted); font-size:0.8rem;">Canal de atendimento (gestao_pedidos)</div>
                             </div>
                             <div class="card-body">
-                                <ul class="loss-list" id="vdOrigemDealsList">
-                                    <li>Carregando...</li>
-                                </ul>
+                                <div class="value-card-grid" id="vdOrigemDealsList">
+                                    <div class="value-card-item value-card-empty">Carregando...</div>
+                                </div>
                                 <p style="font-size:0.75rem; color:var(--text-muted);" id="vdOrigemResumo">—</p>
                             </div>
                         </div>
@@ -378,6 +377,6 @@
             </div>
         </main>
     </div>
-    <script src="js/vendedor-main.js?v=20260326nav10"></script>
+    <script src="js/vendedor-main.js?v=20260326nav13"></script>
 </body>
 </html>
