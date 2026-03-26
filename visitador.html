@@ -972,11 +972,28 @@
                     onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#EF4444'"
                     onmouseout="this.style.background='none';this.style.color='var(--text-secondary)'">&times;</button>
             </div>
-            <div style="padding:16px 24px; border-bottom:1px solid var(--border); flex-shrink:0;">
-                <input type="text" id="searchPrescritor" placeholder="Buscar prescritor..."
-                    oninput="filterPrescritores()"
-                    style="width:100%; padding:10px 16px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; outline:none; transition:border 0.2s;"
-                    onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+            <div style="padding:16px 24px; border-bottom:1px solid var(--border); flex-shrink:0; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+                <div style="flex:1 1 320px; min-width:240px;">
+                    <input type="text" id="searchPrescritor" placeholder="Buscar prescritor..."
+                        oninput="filterPrescritores()"
+                        style="width:100%; padding:10px 16px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; outline:none; transition:border 0.2s;"
+                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-start; flex:2 1 540px;">
+                    <input type="date" id="modalPrescritorDataDe"
+                        style="padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.82rem;">
+                    <span style="font-size:0.78rem; color:var(--text-secondary);">até</span>
+                    <input type="date" id="modalPrescritorDataAte"
+                        style="padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.82rem;">
+                    <button type="button" onclick="applyModalPrescritoresDateFilter()"
+                        style="padding:8px 12px; border:none; border-radius:8px; background:var(--primary); color:#fff; font-size:0.78rem; font-weight:700; cursor:pointer;">
+                        Aplicar período
+                    </button>
+                    <button type="button" onclick="clearModalPrescritoresDateFilter()"
+                        style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.78rem; font-weight:700; cursor:pointer;">
+                        Limpar
+                    </button>
+                </div>
             </div>
             <div id="modalPrescritoresVisitaAtivaBanner" style="display:none; padding:12px 24px; border-bottom:1px solid var(--border); background:rgba(16,185,129,0.12); flex-shrink:0; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
                 <div style="font-size:0.88rem; color:var(--text-primary); flex:1; min-width:200px;">
@@ -1555,7 +1572,7 @@
     <script src="js/app.js"></script>
     <script src="js/shared/mypharm-utils.js"></script>
     <script src="js/visitador/prescritores-feature.js"></script>
-    <script src="js/visitador/visitador-main.js?v=20260316agenda-autocomplete"></script>
+    <script src="js/visitador/visitador-main.js?v=20260326-prescritor-periodo2"></script>
 </body>
 
 </html>

@@ -31,15 +31,35 @@ function getThemeStorageKeyVisitador() {
         let activeVisit = null;
 
         let allPrescritores = [];
+        let allPrescritoresBase = [];
         let filteredPrescritores = [];
         let prescritorContatos = {};
         let currentSort = { column: 'total_aprovado', direction: 'desc' };
+        let modalPrescritoresPeriodo = { data_de: '', data_ate: '' };
+
+        function getCurrentLocalMonthRange() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = now.getMonth();
+            const pad = function (n) { return String(n).padStart(2, '0'); };
+            const first = y + '-' + pad(m + 1) + '-01';
+            const lastDate = new Date(y, m + 1, 0).getDate();
+            const last = y + '-' + pad(m + 1) + '-' + pad(lastDate);
+            return { data_de: first, data_ate: last };
+        }
 
         async function openPrescritoresModal(filterPrescritor) {
             const modal = document.getElementById('modalPrescritores');
             modal.style.display = 'flex';
             const searchEl = document.getElementById('searchPrescritor');
             searchEl.value = (filterPrescritor && typeof filterPrescritor === 'string') ? filterPrescritor.trim() : '';
+            if (!modalPrescritoresPeriodo.data_de || !modalPrescritoresPeriodo.data_ate) {
+                modalPrescritoresPeriodo = getCurrentLocalMonthRange();
+            }
+            const dataDeEl = document.getElementById('modalPrescritorDataDe');
+            const dataAteEl = document.getElementById('modalPrescritorDataAte');
+            if (dataDeEl) dataDeEl.value = modalPrescritoresPeriodo.data_de || '';
+            if (dataAteEl) dataAteEl.value = modalPrescritoresPeriodo.data_ate || '';
 
             const modalTitle = document.getElementById('modalPrescritorTitle');
             const modalSubtitle = document.getElementById('modalPrescritorSubtitle');
@@ -81,7 +101,7 @@ function getThemeStorageKeyVisitador() {
                 console.error('Erro ao carregar prescritores', e);
             }
             // API retorna valor_aprovado, valor_recusado, total_pedidos; modal espera total_aprovado, total_recusado, qtd_aprovados.
-            allPrescritores = list.map(p => ({
+            allPrescritoresBase = list.map(p => ({
                 ...p,
                 total_aprovado: p.valor_aprovado ?? p.total_aprovado ?? 0,
                 total_recusado: p.valor_recusado ?? p.total_recusado ?? 0,
@@ -89,6 +109,14 @@ function getThemeStorageKeyVisitador() {
                 qtd_recusados: p.qtd_recusados ?? 0,
                 qtd_aprovados: p.total_pedidos ?? p.qtd_aprovados ?? 0
             }));
+            allPrescritores = allPrescritoresBase.map(p => ({ ...p }));
+            updateModalPrescritoresPeriodoInfo();
+
+            // Reaplica filtro de período já selecionado, sem alterar outras colunas.
+            if (modalPrescritoresPeriodo.data_de && modalPrescritoresPeriodo.data_ate) {
+                await applyModalPrescritoresDateFilter(true);
+            }
+
             filteredPrescritores = [...allPrescritores];
             modalCurrentPage = 1;
             sortData(filteredPrescritores, currentSort.column, currentSort.direction);
@@ -97,6 +125,85 @@ function getThemeStorageKeyVisitador() {
 
         function closePrescritoresModal() {
             document.getElementById('modalPrescritores').style.display = 'none';
+        }
+
+        function updateModalPrescritoresPeriodoInfo() {
+            const el = document.getElementById('modalPrescritorPeriodoInfo');
+            if (!el) return;
+            const de = (modalPrescritoresPeriodo.data_de || '').trim();
+            const ate = (modalPrescritoresPeriodo.data_ate || '').trim();
+            if (de && ate) {
+                const deFmt = de.length >= 10 ? (de.slice(8, 10) + '/' + de.slice(5, 7) + '/' + de.slice(0, 4)) : de;
+                const ateFmt = ate.length >= 10 ? (ate.slice(8, 10) + '/' + ate.slice(5, 7) + '/' + ate.slice(0, 4)) : ate;
+                el.textContent = 'Período de valores: ' + deFmt + ' até ' + ateFmt + '.';
+            } else {
+                el.textContent = 'Período de valores: padrão da carteira.';
+            }
+        }
+
+        async function applyModalPrescritoresDateFilter(silent) {
+            const dataDeEl = document.getElementById('modalPrescritorDataDe');
+            const dataAteEl = document.getElementById('modalPrescritorDataAte');
+            const dataDe = (dataDeEl && dataDeEl.value ? dataDeEl.value : '').trim();
+            const dataAte = (dataAteEl && dataAteEl.value ? dataAteEl.value : '').trim();
+            if (!dataDe || !dataAte) {
+                if (!silent) alert('Informe data inicial e data final para aplicar o período.');
+                return;
+            }
+            if (dataDe > dataAte) {
+                if (!silent) alert('A data inicial não pode ser maior que a data final.');
+                return;
+            }
+            const visitadorParam = currentVisitadorName || localStorage.getItem('userName') || '';
+            try {
+                const listPeriodo = await apiGet('all_prescritores', {
+                    visitador: visitadorParam,
+                    data_de: dataDe,
+                    data_ate: dataAte
+                }) || [];
+                const metricasByPrescritor = {};
+                (Array.isArray(listPeriodo) ? listPeriodo : []).forEach(function (p) {
+                    const key = normalizePrescritorKey(p && p.prescritor);
+                    if (!key) return;
+                    metricasByPrescritor[key] = {
+                        total_aprovado: Number(p.valor_aprovado ?? p.total_aprovado ?? 0) || 0,
+                        total_recusado: Number(p.valor_recusado ?? p.total_recusado ?? 0) || 0,
+                        valor_recusado: Number(p.valor_recusado ?? p.total_recusado ?? 0) || 0,
+                        qtd_aprovados: Number(p.total_pedidos ?? p.qtd_aprovados ?? 0) || 0,
+                        qtd_recusados: Number(p.qtd_recusados ?? 0) || 0
+                    };
+                });
+
+                allPrescritores = allPrescritoresBase.map(function (base) {
+                    const key = normalizePrescritorKey(base && base.prescritor);
+                    const m = metricasByPrescritor[key] || null;
+                    return {
+                        ...base,
+                        total_aprovado: m ? m.total_aprovado : 0,
+                        total_recusado: m ? m.total_recusado : 0,
+                        valor_recusado: m ? m.valor_recusado : 0,
+                        qtd_aprovados: m ? m.qtd_aprovados : 0,
+                        qtd_recusados: m ? m.qtd_recusados : 0
+                    };
+                });
+                modalPrescritoresPeriodo = { data_de: dataDe, data_ate: dataAte };
+                updateModalPrescritoresPeriodoInfo();
+                filterPrescritores();
+            } catch (e) {
+                if (!silent) alert('Não foi possível aplicar o filtro de período.');
+            }
+        }
+
+        function clearModalPrescritoresDateFilter() {
+            const dataDeEl = document.getElementById('modalPrescritorDataDe');
+            const dataAteEl = document.getElementById('modalPrescritorDataAte');
+            const localMonth = getCurrentLocalMonthRange();
+            if (dataDeEl) dataDeEl.value = localMonth.data_de;
+            if (dataAteEl) dataAteEl.value = localMonth.data_ate;
+            modalPrescritoresPeriodo = { data_de: localMonth.data_de, data_ate: localMonth.data_ate };
+            allPrescritores = allPrescritoresBase.map(function (p) { return { ...p }; });
+            updateModalPrescritoresPeriodoInfo();
+            applyModalPrescritoresDateFilter(true);
         }
 
         let modalPedidosAprovados = [];
