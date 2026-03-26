@@ -1,7 +1,10 @@
 (function () {
     const API_URL = 'api_gestao.php';
-    const REFRESH_MS = 5000;
+    /** Com dados estáveis (mesmo db_version), volta a pedir só após vários minutos. */
+    const POLL_FAST_MS = 8000;
+    const POLL_SLOW_MS = 120000;
     let tvRequestInFlight = false;
+    let tvPollTimer = null;
     
     // Lista ampliada de cores neon vibrantes (garantindo variedade)
     const CAR_THEMES = [
@@ -39,6 +42,9 @@
     let nextThemeIdx = 0;
     let lastRaceFingerprint = '';
     let lastRaceUpdatedAt = '';
+    let lastDbVersion = '';
+    /** Evita repetir som/confetti do “líder na linha” a cada re-render (só 1x por db_version). */
+    let leaderLineCelebrationDbVersion = null;
 
     // Sons nas ações (Web Audio API - sem arquivos externos)
     var tvAudioCtx = null;
@@ -381,7 +387,14 @@
         return out;
     }
 
-    function renderRace(ranking, maxReceita, updatedAt) {
+    function scheduleNextTvPoll(delayMs) {
+        if (tvPollTimer) clearTimeout(tvPollTimer);
+        tvPollTimer = setTimeout(function () {
+            loadRace().catch(function () {});
+        }, delayMs);
+    }
+
+    function renderRace(ranking, maxReceita, updatedAt, dbVersion) {
         const wrap = document.getElementById('tvRace');
         if (!wrap) return;
         if (!Array.isArray(ranking) || !ranking.length) {
@@ -421,14 +434,18 @@
         }
 
         // Trigger animations
+        var dvKey = String(dbVersion || '').trim() || '_sessao';
         setTimeout(function () {
             wrap.querySelectorAll('.cart').forEach(function (cart) {
                 const target = cart.getAttribute('data-target-left');
                 if (target) {
                     cart.style.left = target;
-                    // Se estiver cruzando a linha de chegada (limite visual ~90%), pequeno efeito de brilho
-                    if(parseFloat(target) > 90 && cart.classList.contains('leader')) {
-                        setTimeout(() => triggerConfetti(), 2500); // Trigger again loosely for leader finishing
+                    // Líder perto da meta: confetti/som só uma vez por versão da base (não a cada poll)
+                    if (parseFloat(target) > 90 && cart.classList.contains('leader')) {
+                        if (leaderLineCelebrationDbVersion !== dvKey) {
+                            leaderLineCelebrationDbVersion = dvKey;
+                            setTimeout(function () { triggerConfetti(); }, 2500);
+                        }
                     }
                 }
             });
@@ -489,17 +506,32 @@
     async function loadRace() {
         if (tvRequestInFlight) return;
         tvRequestInFlight = true;
+        var nextPollMs = POLL_SLOW_MS;
         // Tentaremos pegar os dados do período padrão. O sistema de vcs aceita os mesmos params.
         const range = currentMonthRange();
         try {
             const data = await apiGet('tv_corrida_vendedores', Object.assign({}, range, { refresh_rd: 1 }));
-            if (!data || data.success === false) return;
+            if (!data || data.success === false) {
+                return;
+            }
 
             const ranking = data.ranking || [];
             const max = Number(data.max_receita || 0);
-            
-            renderPodium(ranking);
-            renderRace(ranking, max, data.updated_at || '');
+            const sourceDb = String(data.fonte || '') === 'banco_local';
+            const dbVersion = String(data.db_version || '').trim();
+            const dbChanged = !sourceDb || dbVersion === '' || lastDbVersion === '' || dbVersion !== lastDbVersion;
+
+            // Sem alteração na base: próximo poll demora minutos; com mudança: intervalo curto
+            nextPollMs = (sourceDb && dbVersion !== '' && !dbChanged) ? POLL_SLOW_MS : POLL_FAST_MS;
+
+            // Só re-renderiza corrida/pódio quando a base mudou (ou quando a fonte não é DB).
+            if (dbChanged) {
+                renderPodium(ranking);
+                renderRace(ranking, max, data.updated_at || '', dbVersion);
+            }
+            if (sourceDb && dbVersion !== '') {
+                lastDbVersion = dbVersion;
+            }
 
             const p = data.periodo || {};
             const updated = data.updated_at || '--';
@@ -519,7 +551,7 @@
                     ? `Atualizado (cache${idade}): ${fmtDateTimeBr(updated)}`
                     : `Atualizado: ${fmtDateTimeBr(updated)}`;
                 if (String(data.fonte || '') === 'banco_local') {
-                    line += ' · BD interno';
+                    line += dbChanged ? ' · BD interno (atualizado)' : ' · BD interno (sem alterações)';
                 }
                 updEl.textContent = line;
                 const tip = String(data.aviso_rd || '').trim();
@@ -529,6 +561,7 @@
             }
         } finally {
             tvRequestInFlight = false;
+            scheduleNextTvPoll(nextPollMs);
         }
     }
 
@@ -581,7 +614,6 @@
             window.visualViewport.addEventListener('scroll', applyTvLayoutVars);
         }
         loadRace().catch(function () {});
-        setInterval(function () { loadRace().catch(function () {}); }, REFRESH_MS);
         // Forçar tela cheia ao abrir a página (tentativa imediata e após 300ms para quando o navegador exige primeiro frame)
         tryAutoFullscreen();
         setTimeout(tryAutoFullscreen, 300);
