@@ -67,10 +67,18 @@ function getConnection()
             header('Content-Type: application/json; charset=utf-8');
             http_response_code(500);
         }
+        $rawMsg = (string)$e->getMessage();
+        $isHourConnectionLimit = (strpos($rawMsg, '1226') !== false) || (stripos($rawMsg, 'max_connections_per_hour') !== false);
+        if ($isHourConnectionLimit) {
+            // Mensagem amigável para limite do provedor (evita expor SQLSTATE na tela de login).
+            die(json_encode([
+                'error' => 'Sistema temporariamente indisponível por limite de conexões do banco. Tente novamente em alguns minutos.'
+            ], JSON_UNESCAPED_UNICODE));
+        }
         // Em produção: mensagem genérica. Local: mostrar detalhes para debug
         $msg = IS_PRODUCTION
             ? 'Erro de conexão com o banco de dados.'
-            : 'Erro DB: ' . $e->getMessage();
+            : 'Erro DB: ' . $rawMsg;
         die(json_encode(['error' => $msg], JSON_UNESCAPED_UNICODE));
     }
 }

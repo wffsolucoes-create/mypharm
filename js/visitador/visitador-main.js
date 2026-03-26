@@ -3170,6 +3170,8 @@ function getThemeStorageKeyVisitador() {
         var __paginaPedidosPage = 1;
         var __paginaPedidosPageSize = 20;
         var __paginaPedidosSort = { column: 'data_aprovacao', direction: 'desc' };
+        var __paginaPedidosExpanded = {};
+        var __paginaPedidosLastGroupedFiltered = [];
 
         async function loadPaginaPedidos() {
             var tbody = document.getElementById('paginaPedidosTbody');
@@ -3269,7 +3271,69 @@ function getThemeStorageKeyVisitador() {
                 });
             }
             list = sortPaginaPedidosList(list, __paginaPedidosSort.column, __paginaPedidosSort.direction);
-            var totalValor = list.reduce(function (acc, p) { return acc + (parseFloat(p.valor) || 0); }, 0);
+
+            // Agrupa por número de pedido (independente da série).
+            var groupsMap = {};
+            var groupsOrder = [];
+            list.forEach(function (p) {
+                var numero = String(p.numero_pedido || '').trim();
+                if (!numero) return;
+                if (!groupsMap[numero]) {
+                    groupsMap[numero] = {
+                        numero_pedido: numero,
+                        rows: [],
+                        valor_total: 0
+                    };
+                    groupsOrder.push(numero);
+                }
+                groupsMap[numero].rows.push(p);
+                groupsMap[numero].valor_total += (parseFloat(p.valor) || 0);
+            });
+            var groupedList = groupsOrder.map(function (numero) {
+                var g = groupsMap[numero];
+                var rows = g.rows || [];
+                var first = rows[0] || {};
+                var tipos = {};
+                var prescritores = {};
+                var clientes = {};
+                var dataAprov = '';
+                var dataOrc = '';
+                var seriesCount = 0;
+                rows.forEach(function (r) {
+                    var tp = String(r.tipo || '').trim() || '—';
+                    tipos[tp] = true;
+                    var presc = String(r.prescritor || '').trim();
+                    if (presc) prescritores[presc] = true;
+                    var cli = String(r.cliente || '').trim();
+                    if (cli) clientes[cli] = true;
+                    var dA = String(r.data_aprovacao || '').trim();
+                    var dO = String(r.data_orcamento || '').trim();
+                    if (dA && (!dataAprov || dA > dataAprov)) dataAprov = dA;
+                    if (dO && (!dataOrc || dO > dataOrc)) dataOrc = dO;
+                    seriesCount += 1;
+                });
+                var tiposKeys = Object.keys(tipos);
+                var tipoResumo = tiposKeys.length > 1 ? 'Misto' : (tiposKeys[0] || (first.tipo || '—'));
+                var prescKeys = Object.keys(prescritores);
+                var cliKeys = Object.keys(clientes);
+                var prescritorResumo = prescKeys.length <= 1 ? (prescKeys[0] || (first.prescritor || '—')) : (prescKeys[0] + ' +' + (prescKeys.length - 1));
+                var clienteResumo = cliKeys.length <= 1 ? (cliKeys[0] || (first.cliente || '—')) : (cliKeys[0] + ' +' + (cliKeys.length - 1));
+                return {
+                    numero_pedido: numero,
+                    serie_pedido: seriesCount,
+                    data_aprovacao: dataAprov,
+                    data_orcamento: dataOrc,
+                    prescritor: prescritorResumo,
+                    cliente: clienteResumo,
+                    valor: g.valor_total,
+                    tipo: tipoResumo,
+                    rows: rows
+                };
+            });
+
+            __paginaPedidosLastGroupedFiltered = groupedList.slice();
+
+            var totalValor = groupedList.reduce(function (acc, p) { return acc + (parseFloat(p.valor) || 0); }, 0);
             var cardValor = document.getElementById('pedidosCardValor');
             var cardQty = document.getElementById('pedidosCardQuantidade');
             var fmtBr = function (v) {
@@ -3278,7 +3342,7 @@ function getThemeStorageKeyVisitador() {
                 return 'R$ ' + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + p[1];
             };
             if (cardValor) cardValor.textContent = fmtBr(totalValor);
-            if (cardQty) cardQty.textContent = list.length + ' pedido' + (list.length !== 1 ? 's' : '');
+            if (cardQty) cardQty.textContent = groupedList.length + ' pedido' + (groupedList.length !== 1 ? 's' : '');
             var esc = function (x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
             function fmtDate(d) {
                 if (!d) return '—';
@@ -3295,7 +3359,7 @@ function getThemeStorageKeyVisitador() {
                 return String(v);
             }
             var ano = String(new Date().getFullYear());
-            if (list.length === 0) {
+            if (groupedList.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-inbox" style="margin-right:8px; opacity:0.6;"></i>Nenhum pedido encontrado.</td></tr>';
                 if (pagEl) pagEl.innerHTML = '';
                 updatePaginaPedidosSortIcons();
@@ -3305,29 +3369,50 @@ function getThemeStorageKeyVisitador() {
                 }
                 return;
             }
-            var totalPages = Math.max(1, Math.ceil(list.length / __paginaPedidosPageSize));
+            var totalPages = Math.max(1, Math.ceil(groupedList.length / __paginaPedidosPageSize));
             __paginaPedidosPage = Math.min(Math.max(1, __paginaPedidosPage), totalPages);
             var start = (__paginaPedidosPage - 1) * __paginaPedidosPageSize;
-            var pageList = list.slice(start, start + __paginaPedidosPageSize);
+            var pageList = groupedList.slice(start, start + __paginaPedidosPageSize);
             var html = '';
-            pageList.forEach(function (p) {
-                var isAprovado = p.tipo === 'Aprovado';
-                var n = p.numero_pedido, s = p.serie_pedido;
-                html += '<tr role="button" tabindex="0" onclick="openModalDetalhePedido(' + n + ',' + (s === null || s === undefined || s === '' ? 0 : s) + ',\'' + String(ano || '').replace(/'/g, "\\'") + '\')" style="cursor:pointer;" title="Ver detalhes e componentes">';
-                html += '<td>' + esc(p.numero_pedido) + '</td>';
-                html += '<td>' + esc(serieStr(p)) + '</td>';
-                html += '<td>' + esc((p.tipo === 'Recusado') ? '—' : fmtDate(p.data_aprovacao)) + '</td>';
-                html += '<td>' + esc(fmtDate(p.data_orcamento || (p.tipo === 'Aprovado' ? p.data_aprovacao : ''))) + '</td>';
-                html += '<td>' + esc(p.prescritor) + '</td>';
-                html += '<td>' + esc(p.cliente) + '</td>';
-                html += '<td style="text-align:right; font-weight:600; color:' + (isAprovado ? 'var(--success)' : 'var(--danger)') + ';">' + esc(fmtMoney(p.valor)) + '</td>';
-                html += '<td>' + esc(p.tipo) + '</td></tr>';
+            pageList.forEach(function (group) {
+                var isAprovado = group.tipo === 'Aprovado';
+                var isRecusado = group.tipo === 'Recusado';
+                var corValor = isAprovado ? 'var(--success)' : (isRecusado ? 'var(--danger)' : 'var(--text-primary)');
+                var key = String(group.numero_pedido || '');
+                var isOpen = !!__paginaPedidosExpanded[key];
+                var rows = Array.isArray(group.rows) ? group.rows : [];
+                html += '<tr style="background:rgba(148,163,184,0.06);">';
+                html += '<td><button type="button" onclick="togglePaginaPedidoSeries(\'' + key.replace(/'/g, "\\'") + '\')" style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border:1px solid var(--border); border-radius:6px; background:var(--bg-body); color:var(--text-primary); cursor:pointer; margin-right:8px; font-weight:700; line-height:1;">' + (isOpen ? '−' : '+') + '</button>' + esc(group.numero_pedido) + '</td>';
+                html += '<td>' + esc(rows.length + ' série' + (rows.length !== 1 ? 's' : '')) + '</td>';
+                html += '<td>' + esc((group.tipo === 'Recusado') ? '—' : fmtDate(group.data_aprovacao)) + '</td>';
+                html += '<td>' + esc(fmtDate(group.data_orcamento || (group.tipo === 'Aprovado' ? group.data_aprovacao : ''))) + '</td>';
+                html += '<td>' + esc(group.prescritor) + '</td>';
+                html += '<td>' + esc(group.cliente) + '</td>';
+                html += '<td style="text-align:right; font-weight:700; color:' + corValor + ';">' + esc(fmtMoney(group.valor)) + '</td>';
+                html += '<td>' + esc(group.tipo) + '</td></tr>';
+
+                if (isOpen) {
+                    rows.forEach(function (p) {
+                        var rowAprov = p.tipo === 'Aprovado';
+                        var n = p.numero_pedido;
+                        var s = p.serie_pedido;
+                        html += '<tr role="button" tabindex="0" onclick="openModalDetalhePedido(' + n + ',' + (s === null || s === undefined || s === '' ? 0 : s) + ',\'' + String(ano || '').replace(/'/g, "\\'") + '\')" style="cursor:pointer; background:rgba(148,163,184,0.02);" title="Ver detalhes da série e componentes">';
+                        html += '<td style="padding-left:36px; color:var(--text-secondary);">↳ ' + esc(p.numero_pedido) + '</td>';
+                        html += '<td>' + esc(serieStr(p)) + '</td>';
+                        html += '<td>' + esc((p.tipo === 'Recusado') ? '—' : fmtDate(p.data_aprovacao)) + '</td>';
+                        html += '<td>' + esc(fmtDate(p.data_orcamento || (p.tipo === 'Aprovado' ? p.data_aprovacao : ''))) + '</td>';
+                        html += '<td>' + esc(p.prescritor) + '</td>';
+                        html += '<td>' + esc(p.cliente) + '</td>';
+                        html += '<td style="text-align:right; font-weight:600; color:' + (rowAprov ? 'var(--success)' : 'var(--danger)') + ';">' + esc(fmtMoney(p.valor)) + '</td>';
+                        html += '<td>' + esc(p.tipo) + '</td></tr>';
+                    });
+                }
             });
             tbody.innerHTML = html;
             if (pagEl) {
                 var from = start + 1;
-                var to = Math.min(start + __paginaPedidosPageSize, list.length);
-                var pagHtml = '<span style="font-weight:500;">Mostrando ' + from + ' – ' + to + ' de ' + list.length + ' pedidos</span>';
+                var to = Math.min(start + __paginaPedidosPageSize, groupedList.length);
+                var pagHtml = '<span style="font-weight:500;">Mostrando ' + from + ' – ' + to + ' de ' + groupedList.length + ' pedidos</span>';
                 pagHtml += '<span class="prescritores-pag-btns">';
                 pagHtml += '<button type="button" onclick="paginaPedidosGoTo(1)" ' + (__paginaPedidosPage <= 1 ? 'disabled' : '') + ' title="Primeira página"><i class="fas fa-angle-double-left"></i></button>';
                 pagHtml += '<button type="button" onclick="paginaPedidosGoTo(__paginaPedidosPage - 1)" ' + (__paginaPedidosPage <= 1 ? 'disabled' : '') + ' title="Anterior"><i class="fas fa-angle-left"></i></button>';
@@ -3343,6 +3428,108 @@ function getThemeStorageKeyVisitador() {
                 try { searchInput.setSelectionRange(savedSelStart, savedSelEnd); } catch (e) { }
             }
             updatePaginaPedidosSortIcons();
+        }
+
+        function togglePaginaPedidoSeries(numeroPedido) {
+            var key = String(numeroPedido || '');
+            if (!key) return;
+            __paginaPedidosExpanded[key] = !__paginaPedidosExpanded[key];
+            renderPaginaPedidos();
+        }
+
+        function printPaginaPedidosFiltrados() {
+            var groupedList = Array.isArray(__paginaPedidosLastGroupedFiltered) ? __paginaPedidosLastGroupedFiltered : [];
+            if (!groupedList.length) {
+                alert('Não há pedidos filtrados para imprimir.');
+                return;
+            }
+            var dataDe = (document.getElementById('paginaPedidosDataDe') || {}).value || '';
+            var dataAte = (document.getElementById('paginaPedidosDataAte') || {}).value || '';
+            var status = (document.getElementById('paginaPedidosFiltroStatus') || {}).value || 'Todos';
+            var busca = ((document.getElementById('searchPedidosPage') || {}).value || '').trim();
+            var fmtDate = function (d) {
+                if (!d) return '—';
+                var s = String(d).trim();
+                if (s.length >= 10) return s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4);
+                return s;
+            };
+            var fmtMoney = function (v) {
+                var n = parseFloat(v) || 0;
+                return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            };
+            var esc = function (x) {
+                return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+            };
+            var totalValor = groupedList.reduce(function (acc, g) { return acc + (parseFloat(g.valor) || 0); }, 0);
+            var totalSeries = groupedList.reduce(function (acc, g) { return acc + ((g.rows && g.rows.length) || 0); }, 0);
+            var linhas = '';
+            groupedList.forEach(function (g) {
+                var cor = g.tipo === 'Aprovado' ? '#059669' : (g.tipo === 'Recusado' ? '#dc2626' : '#111827');
+                linhas += '<tr style="background:#f8fafc;">' +
+                    '<td style="padding:8px; border:1px solid #e5e7eb; font-weight:700;">' + esc(g.numero_pedido) + '</td>' +
+                    '<td style="padding:8px; border:1px solid #e5e7eb;">' + esc((g.rows || []).length + ' série(s)') + '</td>' +
+                    '<td style="padding:8px; border:1px solid #e5e7eb;">' + esc(fmtDate(g.data_aprovacao)) + '</td>' +
+                    '<td style="padding:8px; border:1px solid #e5e7eb;">' + esc(fmtDate(g.data_orcamento)) + '</td>' +
+                    '<td style="padding:8px; border:1px solid #e5e7eb;">' + esc(g.prescritor || '—') + '</td>' +
+                    '<td style="padding:8px; border:1px solid #e5e7eb;">' + esc(g.cliente || '—') + '</td>' +
+                    '<td style="padding:8px; border:1px solid #e5e7eb; text-align:right; color:' + cor + '; font-weight:700;">' + esc(fmtMoney(g.valor)) + '</td>' +
+                    '<td style="padding:8px; border:1px solid #e5e7eb;">' + esc(g.tipo || '—') + '</td>' +
+                '</tr>';
+                (g.rows || []).forEach(function (r) {
+                    var corSerie = r.tipo === 'Aprovado' ? '#059669' : '#dc2626';
+                    linhas += '<tr>' +
+                        '<td style="padding:8px 8px 8px 24px; border:1px solid #e5e7eb; color:#6b7280;">↳ ' + esc(r.numero_pedido) + '</td>' +
+                        '<td style="padding:8px; border:1px solid #e5e7eb;">Série ' + esc((r.serie_pedido === null || r.serie_pedido === undefined || r.serie_pedido === '' ? '0' : r.serie_pedido)) + '</td>' +
+                        '<td style="padding:8px; border:1px solid #e5e7eb;">' + esc((r.tipo === 'Recusado') ? '—' : fmtDate(r.data_aprovacao)) + '</td>' +
+                        '<td style="padding:8px; border:1px solid #e5e7eb;">' + esc(fmtDate(r.data_orcamento)) + '</td>' +
+                        '<td style="padding:8px; border:1px solid #e5e7eb;">' + esc(r.prescritor || '—') + '</td>' +
+                        '<td style="padding:8px; border:1px solid #e5e7eb;">' + esc(r.cliente || '—') + '</td>' +
+                        '<td style="padding:8px; border:1px solid #e5e7eb; text-align:right; color:' + corSerie + '; font-weight:600;">' + esc(fmtMoney(r.valor)) + '</td>' +
+                        '<td style="padding:8px; border:1px solid #e5e7eb;">' + esc(r.tipo || '—') + '</td>' +
+                    '</tr>';
+                });
+            });
+            var agora = new Date();
+            var dataHoraImp = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            var html = '<!doctype html><html><head><meta charset="utf-8"><title>Pedidos filtrados</title></head><body style="font-family:Segoe UI, Arial, sans-serif; margin:22px; color:#111827;">' +
+                '<div style="display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid #e5e7eb; padding-bottom:10px; margin-bottom:16px;">' +
+                    '<div style="display:flex; align-items:center; gap:12px;">' +
+                        '<div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:8px; padding:6px 10px; line-height:0;">' +
+                            '<img src="imagens/logoMypharm.png" alt="MyPharm" style="height:34px; width:auto; display:block;" onerror="this.style.display=\'none\'">' +
+                        '</div>' +
+                        '<div>' +
+                            '<div style="font-size:18px; font-weight:800; line-height:1.15;">Relatório de Pedidos Filtrados</div>' +
+                            '<div style="font-size:11px; color:#4b5563;">MyPharm • Gestão Comercial</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div style="font-size:11px; color:#4b5563; text-align:right;">Impresso em<br><strong style="color:#111827;">' + esc(dataHoraImp) + '</strong></div>' +
+                '</div>' +
+                '<div style="font-size:12px; color:#374151; margin-bottom:12px;">Período: ' + esc(fmtDate(dataDe)) + ' até ' + esc(fmtDate(dataAte)) + ' · Status: ' + esc(status) + (busca ? (' · Busca: ' + esc(busca)) : '') + '</div>' +
+                '<div style="font-size:13px; margin-bottom:12px;"><strong>Total de pedidos:</strong> ' + esc(groupedList.length) + ' · <strong>Total de séries:</strong> ' + esc(totalSeries) + ' · <strong>Valor total:</strong> ' + esc(fmtMoney(totalValor)) + '</div>' +
+                '<table style="width:100%; border-collapse:collapse; font-size:12px;">' +
+                    '<thead><tr style="background:#111827; color:#fff;">' +
+                        '<th style="padding:8px; text-align:left; border:1px solid #111827;">Nº Pedido</th>' +
+                        '<th style="padding:8px; text-align:left; border:1px solid #111827;">Séries</th>' +
+                        '<th style="padding:8px; text-align:left; border:1px solid #111827;">Data aprovação</th>' +
+                        '<th style="padding:8px; text-align:left; border:1px solid #111827;">Data orçamento</th>' +
+                        '<th style="padding:8px; text-align:left; border:1px solid #111827;">Prescritor</th>' +
+                        '<th style="padding:8px; text-align:left; border:1px solid #111827;">Cliente</th>' +
+                        '<th style="padding:8px; text-align:right; border:1px solid #111827;">Valor</th>' +
+                        '<th style="padding:8px; text-align:left; border:1px solid #111827;">Status</th>' +
+                    '</tr></thead>' +
+                    '<tbody>' + linhas + '</tbody>' +
+                '</table>' +
+            '</body></html>';
+            var w = window.open('', '_blank', 'width=1200,height=800');
+            if (!w) {
+                alert('Não foi possível abrir a janela de impressão. Verifique se o navegador bloqueou pop-up.');
+                return;
+            }
+            w.document.open();
+            w.document.write(html);
+            w.document.close();
+            w.focus();
+            setTimeout(function () { w.print(); }, 250);
         }
 
         function updatePaginaPedidosSortIcons() {

@@ -696,6 +696,11 @@
                     <i class="fas fa-search pedidos-search-icon"></i>
                     <input type="text" id="searchPedidosPage" placeholder="Buscar por prescritor, cliente ou número..." autocomplete="off">
                 </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button type="button" onclick="printPaginaPedidosFiltrados()" style="padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.85rem; font-weight:700; cursor:pointer; white-space:nowrap;">
+                        <i class="fas fa-print" style="margin-right:6px;"></i>Imprimir filtrados
+                    </button>
+                </div>
             </div>
             <div id="paginaPedidosCards" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:20px;">
                 <div class="card" style="padding:16px 20px;">
@@ -1572,7 +1577,7 @@
     <script src="js/app.js"></script>
     <script src="js/shared/mypharm-utils.js"></script>
     <script src="js/visitador/prescritores-feature.js"></script>
-    <script src="js/visitador/visitador-main.js?v=20260326-prescritor-periodo2"></script>
+    <script src="js/visitador/visitador-main.js?v=20260326-pedidos-impressao1"></script>
 </body>
 
 </html>
