@@ -366,6 +366,14 @@ body {
         font-size: clamp(0.7rem, 1.65vw, 1.05rem);
         bottom: clamp(3px, 0.7vmin, 8px);
     }
+    .podium-item .place,
+    .podium-item .name {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    .podium-item::before {
+        opacity: 0;
+    }
 }
 
 
