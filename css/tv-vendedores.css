@@ -158,21 +158,21 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-    gap: clamp(8px, 1.2vmin, 16px);
-    margin-bottom: clamp(8px, 1.4vmin, 20px);
+    flex-wrap: nowrap;
+    gap: clamp(6px, 0.9vmin, 12px);
+    margin-bottom: clamp(4px, 0.8vmin, 10px);
     width: 100%;
     background: rgba(11, 15, 30, 0.6);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(255,255,255,0.05);
-    padding: clamp(10px, 1.5vmin, 20px) clamp(12px, 2vmin, 28px);
+    padding: clamp(4px, 0.85vmin, 10px) clamp(8px, 1.15vmin, 14px);
     border-radius: clamp(12px, 1.5vmin, 22px);
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
 .tv-header-left h1 {
     margin: 0;
-    font-size: clamp(1.35rem, 4.2vw, 2.85rem);
+    font-size: clamp(0.95rem, 2.7vw, 1.85rem);
     font-weight: 900;
     letter-spacing: -0.02em;
     text-transform: uppercase;
@@ -182,26 +182,26 @@ body {
     -webkit-text-fill-color: transparent;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
 }
 .icon-neon {
     color: var(--neon-blue);
     text-shadow: 0 0 10px var(--neon-blue);
 }
 .tv-periodo {
-    margin: 6px 0 0;
+    margin: 0;
     color: var(--text-muted);
-    font-size: clamp(0.85rem, 2.2vw, 1.35rem);
+    font-size: clamp(0.64rem, 1.3vw, 0.88rem);
     font-weight: 600;
 }
 
 /* Títulos do Top 3 flutuando no Header */
 .tv-positions-sky {
     display: flex;
-    gap: 32px;
+    gap: clamp(10px, 1.5vmin, 20px);
 }
 .tv-pos-num {
-    font-size: clamp(1.5rem, 5vw, 3.5rem);
+    font-size: clamp(0.9rem, 2.4vw, 1.7rem);
     font-weight: 900;
     opacity: 0.15;
     font-style: italic;
@@ -211,13 +211,13 @@ body {
 .neon-silver { text-shadow: 0 0 20px var(--neon-silver); color: var(--neon-silver); }
 .neon-bronze { text-shadow: 0 0 20px var(--neon-bronze); color: var(--neon-bronze); }
 
-.tv-actions { display: flex; align-items: center; gap: 16px; }
+.tv-actions { display: flex; align-items: center; gap: clamp(8px, 1vmin, 12px); }
 .tv-updated {
     font-family: monospace;
     color: #93c5fd;
-    font-size: clamp(0.75rem, 1.8vw, 1.1rem);
+    font-size: clamp(0.6rem, 1.15vw, 0.8rem);
     background: rgba(0,0,0,0.3);
-    padding: 6px 12px;
+    padding: 3px 6px;
     border-radius: 6px;
     border: 1px solid rgba(147, 197, 253, 0.2);
 }
@@ -225,8 +225,8 @@ body {
     background: rgba(59, 130, 246, 0.1);
     border: 1px solid rgba(59, 130, 246, 0.4);
     color: #fff;
-    padding: clamp(8px, 1.2vmin, 14px) clamp(14px, 2vmin, 22px);
-    font-size: clamp(0.8rem, 1.9vw, 1.05rem);
+    padding: clamp(4px, 0.7vmin, 8px) clamp(8px, 1vmin, 12px);
+    font-size: clamp(0.64rem, 1.05vw, 0.8rem);
     font-weight: 600;
     border-radius: 12px;
     cursor: pointer;
@@ -243,15 +243,15 @@ body {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: clamp(8px, 1.4vmin, 18px);
-    margin-bottom: clamp(8px, 1.5vmin, 20px);
+    margin-bottom: clamp(4px, 0.9vmin, 10px);
     width: 100%;
     align-items: stretch;
 }
 .podium-item {
     position: relative;
-    padding: clamp(8px, 1.2vmin, 18px) clamp(10px, 1.5vmin, 16px) clamp(10px, 1.4vmin, 20px);
+    padding: clamp(6px, 0.9vmin, 12px) clamp(8px, 1.1vmin, 12px) clamp(6px, 1vmin, 12px);
     min-height: 0;
-    max-height: clamp(100px, 18vh, 168px);
+    max-height: clamp(84px, 14vh, 128px);
     text-align: center;
     overflow: hidden;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -268,8 +268,8 @@ body {
 .podium-item[data-place="1º"] {
     border-top: 3px solid var(--neon-gold);
     box-shadow: 0 8px 22px rgba(251, 191, 36, 0.12), inset 0 12px 28px rgba(251, 191, 36, 0.04);
-    max-height: clamp(96px, 17vh, 158px);
-    padding: clamp(6px, 1vmin, 14px) clamp(8px, 1.2vmin, 14px) clamp(8px, 1.2vmin, 16px);
+    max-height: clamp(80px, 13.5vh, 116px);
+    padding: clamp(5px, 0.8vmin, 10px) clamp(7px, 1vmin, 10px) clamp(6px, 0.9vmin, 10px);
 }
 .podium-item[data-place="2º"] {
     border-top: 3px solid var(--neon-silver);
@@ -313,7 +313,7 @@ body {
 .podium-item[data-place="3º"] .place { color: var(--neon-bronze); text-shadow: 0 0 10px rgba(217,119,6,0.5); }
 
 .podium-item .name {
-    font-size: clamp(0.95rem, 2.4vw, 1.55rem);
+    font-size: clamp(0.82rem, 2vw, 1.2rem);
     font-weight: 800;
     color: #fff;
     margin-bottom: 0;
@@ -327,14 +327,14 @@ body {
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
 .podium-item[data-place="1º"] .name {
-    font-size: clamp(0.9rem, 2.2vw, 1.45rem);
+    font-size: clamp(0.8rem, 1.9vw, 1.1rem);
 }
 .podium-item .value {
     position: absolute;
     left: 50%;
     bottom: clamp(4px, 0.9vmin, 10px);
     transform: translateX(-50%) translateY(4px);
-    font-size: clamp(0.8rem, 2vw, 1.25rem);
+    font-size: clamp(0.68rem, 1.55vw, 0.95rem);
     font-weight: 900;
     color: #4ade80;
     text-shadow: 0 0 12px rgba(74, 222, 128, 0.35);
@@ -393,7 +393,7 @@ body {
 .lane {
     position: relative;
     flex: 1 1 0%;
-    min-height: clamp(3rem, min(8.5vh, 12vmin), 9rem);
+    min-height: clamp(2.35rem, min(6.7vh, 9.5vmin), 6.4rem);
     display: flex;
     align-items: center;
     border-bottom: 1px solid rgba(255,255,255,0.08);
@@ -422,15 +422,11 @@ body {
     z-index: 10;
     width: var(--lane-label-w);
     font-weight: 800;
-    font-size: clamp(0.88rem, 1.85vw, 1.35rem);
+    font-size: clamp(0.92rem, 1.55vw, 1.2rem);
     color: #fff;
-    white-space: normal;
-    word-break: break-word;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
     line-height: 1.2;
     text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
 }
@@ -698,7 +694,93 @@ body {
 /* TVs / monitores grandes: um pouco mais de respiro no cabeçalho */
 @media (min-width: 1400px) and (min-height: 700px) {
     .tv-header {
-        padding: clamp(14px, 1.6vmin, 22px) clamp(18px, 2vmin, 32px);
+        padding: clamp(8px, 1vmin, 14px) clamp(12px, 1.6vmin, 20px);
+    }
+}
+
+/* TVs com pouca altura: prioriza exibir todas as 8 pistas */
+@media (max-height: 820px) {
+    .tv-wrap {
+        padding-top: clamp(4px, 0.7vmin, 8px);
+        padding-bottom: clamp(6px, 1vmin, 12px);
+    }
+
+    .tv-header {
+        border-radius: 10px;
+        margin-bottom: 4px;
+        padding: 4px 8px;
+        gap: 6px;
+    }
+
+    .tv-header-left h1 {
+        font-size: clamp(0.86rem, 1.9vw, 1.3rem);
+        gap: 6px;
+    }
+
+    .tv-periodo {
+        font-size: clamp(0.56rem, 1vw, 0.72rem);
+    }
+
+    .tv-positions-sky {
+        gap: 8px;
+    }
+
+    .tv-pos-num {
+        font-size: clamp(0.76rem, 1.55vw, 1.2rem);
+        opacity: 0.12;
+    }
+
+    .tv-actions {
+        gap: 6px;
+    }
+
+    .tv-updated {
+        font-size: clamp(0.54rem, 0.9vw, 0.66rem);
+        padding: 2px 6px;
+    }
+
+    #tvFullscreenBtn {
+        display: none;
+    }
+
+    .podium {
+        gap: 6px;
+        margin-bottom: 4px;
+    }
+
+    .podium-item,
+    .podium-item[data-place="1º"] {
+        max-height: clamp(64px, 9.3vh, 86px);
+        padding: 4px 6px;
+    }
+
+    .podium-item .place {
+        font-size: clamp(0.56rem, 0.95vw, 0.7rem);
+        margin-bottom: 2px;
+    }
+
+    .podium-item .name,
+    .podium-item[data-place="1º"] .name {
+        font-size: clamp(0.68rem, 1.15vw, 0.88rem);
+        -webkit-line-clamp: 1;
+        line-clamp: 1;
+    }
+
+    .podium-item .value {
+        font-size: clamp(0.6rem, 1vw, 0.76rem);
+        bottom: 3px;
+    }
+
+    .lane {
+        min-height: clamp(1.85rem, 4.9vh, 3.2rem);
+    }
+
+    .lane-label {
+        font-size: clamp(0.72rem, 1.05vw, 0.94rem);
+    }
+
+    .cart::after {
+        display: none;
     }
 }
 
