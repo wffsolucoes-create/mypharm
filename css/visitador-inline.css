@@ -170,6 +170,16 @@
         #modalComponentesPrescritor .pedidos-filters > div { display: flex; align-items: center; gap: 8px; min-width: 0; }
         #modalComponentesPrescritor .pedidos-filters label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; flex-shrink: 0; }
         #modalComponentesPrescritor .pedidos-filters input[type="date"] { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-body); color: var(--text-primary); font-size: 0.9rem; min-width: 0; }
+        /* Date picker legível no tema escuro (Pedidos/Prescritores/Modais) */
+        .pedidos-filters input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1) brightness(1.2);
+            opacity: 0.9;
+            cursor: pointer;
+        }
+        [data-theme="light"] .pedidos-filters input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: none;
+            opacity: 0.75;
+        }
         #modalComponentesPrescritor .pedidos-filters .btn-aplicar { padding: 10px 16px; border: none; border-radius: 8px; background: var(--primary); color: #fff; font-size: 0.9rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
         #modalComponentesPrescritor .pedidos-filters .pedidos-search-wrap { position: relative; flex: 1; min-width: 220px; max-width: 400px; }
         #modalComponentesPrescritor .pedidos-filters .pedidos-search-wrap input { width: 100%; padding: 10px 16px 10px 40px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-body); color: var(--text-primary); font-size: 0.9rem; box-sizing: border-box; }

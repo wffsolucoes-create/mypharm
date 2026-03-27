@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#E63946">
+    <title>Pedidos | MyPharm</title>
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/visitador-inline.css">
+    <link rel="stylesheet" href="css/visitador.css">
+    <link rel="stylesheet" href="css/vendedor.css?v=20260326cards11">
+    <style>
+        body { visibility: hidden; }
+        #vdLoadingOverlay {
+            position: fixed; inset: 0; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: var(--bg-primary, #1a1d24);
+            gap: 1rem;
+        }
+        #vdLoadingOverlay .vd-spinner {
+            width: 48px; height: 48px;
+            border: 4px solid var(--border-color, rgba(255,255,255,0.15));
+            border-top-color: var(--primary, #E63946);
+            border-radius: 50%;
+            animation: vdSpin 0.9s linear infinite;
+        }
+        #vdLoadingOverlay .vd-loading-text {
+            color: var(--text-secondary, rgba(255,255,255,0.7));
+            font-size: 0.9rem;
+        }
+        @keyframes vdSpin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <script>!(function(){if(!localStorage.getItem('loggedIn')){window.location.replace('index.html');return;}document.body.style.visibility='visible';})();</script>
+    <div id="vdLoadingOverlay" role="status" aria-live="polite" aria-label="Carregando">
+        <div class="vd-spinner"></div>
+        <span class="vd-loading-text">Carregando...</span>
+    </div>
+    <div id="vdApp" style="display:none;">
+        <header>
+            <div class="brand">
+                <div class="logo-container">
+                    <img src="imagens/logoMypharm.png" alt="MyPharm">
+                </div>
+                <div class="brand-text-col">
+                    <span class="brand-title">Portal Alta Performance</span>
+                    <span class="brand-subtitle">Vendas & Conversão</span>
+                </div>
+            </div>
+            <nav class="visitador-nav" aria-label="Menu principal">
+                <a href="vendedor.html" class="visitador-nav-link">
+                    <i class="fas fa-chart-line"></i><span class="d-none-mobile">Gestão Geral</span>
+                </a>
+                <a href="vendedor-pedidos.html" class="visitador-nav-link active">
+                    <i class="fas fa-list-alt"></i><span class="d-none-mobile">Pedidos</span>
+                </a>
+            </nav>
+            <div class="user-menu">
+                <div class="theme-toggle" id="vdThemeBtn" title="Alternar tema">
+                    <div class="theme-toggle-knob">
+                        <i class="fas fa-sun icon-sun"></i>
+                        <i class="fas fa-moon icon-moon"></i>
+                    </div>
+                </div>
+                <div class="notifications-wrap">
+                    <button type="button" class="btn-notifications" id="btnNotifications" onclick="toggleNotificationsPanel(event)" title="Mensagens e notificações" aria-label="Notificações">
+                        <span class="btn-notifications-icon" aria-hidden="true"><i class="fas fa-bell"></i></span>
+                        <span class="notifications-badge" id="notificationsBadge" style="display:none;">0</span>
+                    </button>
+                    <div class="notifications-backdrop" id="notificationsBackdrop" onclick="closeNotificationsPanel()" aria-hidden="true"></div>
+                    <div class="notifications-panel" id="notificationsPanel">
+                        <div class="notifications-panel-header">
+                            <span><i class="fas fa-bell"></i> Mensagens e alertas</span>
+                            <button type="button" class="notifications-panel-close" onclick="closeNotificationsPanel()" aria-label="Fechar">&times;</button>
+                        </div>
+                        <div class="notifications-body">
+                            <div class="notifications-list" id="notificationsListAll">
+                                <div class="notifications-empty" id="notificationsEmptyAll">
+                                    <i class="fas fa-inbox"></i>
+                                    <p>Nenhuma mensagem no momento.</p>
+                                </div>
+                            </div>
+                            <div class="notifications-send-wrap">
+                                <label class="notifications-send-label">Enviar mensagem para usuário</label>
+                                <select id="notifParaUsuarioSelect" class="notifications-send-select"></select>
+                                <textarea id="notifMensagemUsuarioInput" class="notifications-send-textarea" placeholder="Sua mensagem..." rows="3"></textarea>
+                                <button type="button" id="btnEnviarMsgUsuario" class="notifications-send-btn" onclick="enviarMensagemUsuarioUI()"><i class="fas fa-paper-plane"></i> Enviar para usuário</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="user-profile">
+                    <div class="avatar-wrap" id="avatarWrap" title="Clique para alterar foto de perfil">
+                        <div class="avatar" id="vdAvatar">V</div>
+                        <img class="avatar-img" id="userAvatarImg" src="" alt="" style="display:none;">
+                        <input type="file" id="inputFotoPerfil" accept="image/*" style="display:none;">
+                    </div>
+                    <div class="d-none-mobile" style="cursor:pointer;" onclick="openMeuPerfilModal()">
+                        <div id="vdUserName" style="font-weight:600; font-size:0.95rem;">Vendedor</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Meu Painel</div>
+                    </div>
+                </div>
+                <button class="btn-logout" id="vdLogoutBtn">
+                    <i class="fas fa-sign-out-alt"></i> <span class="d-none-mobile">Sair</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="dashboard-container">
+            <div class="welcome-section" style="display:block;">
+                <div style="margin-bottom:24px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;">
+                    <div>
+                        <h1 id="vdGreeting" style="margin:0; font-size:1.8rem;">Pedidos do Vendedor</h1>
+                        <p style="margin:4px 0 0 0; color:var(--text-secondary);">Acompanhe os pedidos aprovados e recusados da sua carteira.</p>
+                    </div>
+                    <div class="date-badge" id="vdPeriodoInfo">
+                        --/--/---- a --/--/----
+                    </div>
+                </div>
+
+                <section id="paginaPedidos" class="dashboard-section">
+                    <div class="pedidos-page-header">
+                        <h2>
+                            <span class="pedidos-icon"><i class="fas fa-list-alt"></i></span>
+                            Pedidos
+                        </h2>
+                    </div>
+                    <div class="pedidos-filters">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label for="vdPedidosDataDe">De</label>
+                            <input type="date" id="vdPedidosDataDe" style="padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label for="vdPedidosDataAte">Até</label>
+                            <input type="date" id="vdPedidosDataAte" style="padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label for="vdPedidosFiltroStatus">Status</label>
+                            <select id="vdPedidosFiltroStatus" class="pedidos-select-status" style="padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
+                                <option value="">Todos</option>
+                                <option value="Aprovado">Aprovados</option>
+                                <option value="Recusado">Recusados (No carrinho + Recusado)</option>
+                            </select>
+                        </div>
+                        <div class="pedidos-search-wrap">
+                            <i class="fas fa-search pedidos-search-icon"></i>
+                            <input type="text" id="vdSearchPedidos" placeholder="Buscar por prescritor, cliente ou número..." autocomplete="off">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <button type="button" onclick="printVendedorPedidosFiltrados()" style="padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.85rem; font-weight:700; cursor:pointer; white-space:nowrap;">
+                                <i class="fas fa-print" style="margin-right:6px;"></i>Imprimir filtrados
+                            </button>
+                        </div>
+                    </div>
+                    <div id="vdPedidosCards" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:20px;">
+                        <div class="card" style="padding:16px 20px;">
+                            <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-coins" style="margin-right:6px; color:var(--success);"></i>Valor total</div>
+                            <div id="vdPedidosCardValor" style="font-size:1.35rem; font-weight:800; color:var(--text-primary);">R$ 0,00</div>
+                        </div>
+                        <div class="card" style="padding:16px 20px;">
+                            <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-list-ol" style="margin-right:6px; color:var(--primary);"></i>Quantidade</div>
+                            <div id="vdPedidosCardQuantidade" style="font-size:1.35rem; font-weight:800; color:var(--text-primary);">0 pedidos</div>
+                        </div>
+                    </div>
+                    <div class="pedidos-table-card">
+                        <div id="vdPedidosBody" style="min-height:200px; overflow-x:auto;">
+                            <table class="pedidos-table">
+                                <thead>
+                                    <tr>
+                                        <th id="vdPedidosThNumero" onclick="sortVendedorPedidosBy('numero_pedido')" style="cursor:pointer; user-select:none;" title="Ordenar">Nº Pedido <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                        <th id="vdPedidosThSerie" onclick="sortVendedorPedidosBy('serie_pedido')" style="cursor:pointer; user-select:none;" title="Ordenar">Séries <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                        <th id="vdPedidosThDataAprovacao" onclick="sortVendedorPedidosBy('data_aprovacao')" style="cursor:pointer; user-select:none;" title="Ordenar">Data aprovação <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                        <th id="vdPedidosThDataOrcamento" onclick="sortVendedorPedidosBy('data_orcamento')" style="cursor:pointer; user-select:none;" title="Ordenar">Data orçamento <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                        <th id="vdPedidosThPrescritor" onclick="sortVendedorPedidosBy('prescritor')" style="cursor:pointer; user-select:none;" title="Ordenar">Prescritor <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                        <th id="vdPedidosThCliente" onclick="sortVendedorPedidosBy('cliente')" style="cursor:pointer; user-select:none;" title="Ordenar">Cliente <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                        <th id="vdPedidosThValor" onclick="sortVendedorPedidosBy('valor')" style="cursor:pointer; user-select:none;" title="Ordenar">Valor <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                        <th id="vdPedidosThStatus" onclick="sortVendedorPedidosBy('tipo')" style="cursor:pointer; user-select:none;" title="Ordenar">Status <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vdPedidosTbody">
+                                    <tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="vdPedidosPagination" class="pedidos-pagination"></div>
+                    </div>
+                </section>
+
+                <div class="vd-error" id="vdError" style="display:none;"></div>
+            </div>
+        </main>
+    </div>
+    <!-- Modal Detalhe do Pedido (dados + componentes) -->
+    <div id="modalDetalhePedido" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3200; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:960px; max-height:92vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
+            <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-file-invoice" style="margin-right:8px; color:var(--primary);"></i>Detalhe do Pedido</h3>
+                <button type="button" onclick="closeModalDetalhePedido()" style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px;">&times;</button>
+            </div>
+            <div id="modalDetalhePedidoBody" style="overflow-y:auto; flex:1; padding:24px;">
+                <div id="modalDetalhePedidoLoading" style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem; margin-bottom:12px;"></i><p>Carregando...</p></div>
+                <div id="modalDetalhePedidoError" style="display:none; text-align:center; padding:24px; color:var(--danger);"></div>
+                <div id="modalDetalhePedidoContent" style="display:none;">
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Dados do pedido</div>
+                        <div id="modalDetalhePedidoFields" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px;"></div>
+                    </div>
+                    <div id="modalDetalhePedidoItensGestaoWrap" style="margin-bottom:20px; display:none;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Itens (Gestão de Pedidos)</div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Produto</th><th style="padding:10px 12px; text-align:left;">Forma</th><th style="padding:10px 12px; text-align:right;">Qtd</th><th style="padding:10px 12px; text-align:right;">Preço liq.</th></tr></thead>
+                                <tbody id="modalDetalhePedidoItensGestao"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="modalDetalhePedidoItensOrcamentoWrap" style="margin-bottom:20px; display:none;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Itens (Orçamento)</div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Descrição</th><th style="padding:10px 12px; text-align:left;">Canal</th><th style="padding:10px 12px; text-align:right;">Qtd</th><th style="padding:10px 12px; text-align:right;">Valor liq.</th><th style="padding:10px 12px; text-align:left;">Inclusão</th><th style="padding:10px 12px; text-align:left;">Aprovador</th></tr></thead>
+                                <tbody id="modalDetalhePedidoItensOrcamento"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Componentes</div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Descrição</th><th style="padding:10px 12px; text-align:right;">Qtd calc.</th></tr></thead>
+                                <tbody id="modalDetalhePedidoComponentes"></tbody>
+                            </table>
+                        </div>
+                        <p id="modalDetalhePedidoComponentesEmpty" style="display:none; padding:16px; text-align:center; color:var(--text-secondary); font-size:0.9rem;">Nenhum componente disponível.</p>
+                    </div>
+                </div>
+            </div>
+            <div style="padding:14px 24px; border-top:1px solid var(--border); flex-shrink:0;">
+                <button type="button" onclick="closeModalDetalhePedido()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+    <script src="js/vendedor-main.js?v=20260326nav18"></script>
+</body>
+</html>

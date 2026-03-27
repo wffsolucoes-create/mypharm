@@ -55,8 +55,11 @@ $allowedActions = [
     'gestao_rejeitados_rd',
     'vendedor_dashboard_rd',
     'vendedor_dashboard_gestao',
+    'vendedor_pedidos_lista',
     'vendedor_perdas_lista',
     'vendedor_perdas_salvar_acao',
+    'vendedor_perdas_interacoes_lista',
+    'vendedor_perdas_interacoes_salvar',
     'tv_corrida_vendedores',
 ];
 if (!in_array($action, $allowedActions)) {
@@ -1638,6 +1641,127 @@ function gcEnsureVendedorPerdasAcoesTable(PDO $pdo): void
     ");
 }
 
+function gcEnsureVendedorPerdasInteracoesTable(PDO $pdo): void
+{
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS vendedor_perdas_interacoes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ano_referencia INT NOT NULL,
+            numero_pedido VARCHAR(40) NOT NULL,
+            serie_pedido VARCHAR(20) NOT NULL DEFAULT '',
+            vendedor_nome VARCHAR(190) NOT NULL,
+            tipo_contato VARCHAR(30) NOT NULL DEFAULT 'whatsapp',
+            status_tentativa VARCHAR(30) NOT NULL DEFAULT 'retorno_pendente',
+            mensagem TEXT NULL,
+            proximo_passo VARCHAR(255) NULL,
+            data_contato DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_by INT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            KEY idx_perda_interacao_ref (ano_referencia, numero_pedido, serie_pedido, vendedor_nome),
+            KEY idx_perda_interacao_data (data_contato)
+        ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    ");
+}
+
+function handleVendedorPedidosLista(PDO $pdo): void
+{
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito ao setor vendedor ou administrador.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    [$dataDe, $dataAte] = gcDateRangeFromQuery();
+    $vendedor = gcResolveVendedorTargetFromSession($_SESSION, $_GET);
+    if ($vendedor === '') {
+        echo json_encode(['success' => true, 'aprovados' => [], 'recusados_carrinho' => []], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $approvedCase = function_exists('gcApprovedCase') ? gcApprovedCase('gp') : "(
+        gp.status_financeiro IS NULL OR
+        (
+            gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+            AND gp.status_financeiro NOT LIKE '%carrinho%'
+        )
+    )";
+
+    $sqlAprovados = "
+        SELECT
+            i.ano_referencia AS ano_referencia,
+            CAST(gp.numero_pedido AS CHAR) AS numero_pedido,
+            CAST(COALESCE(gp.serie_pedido, 0) AS CHAR) AS serie_pedido,
+            DATE(gp.data_aprovacao) AS data_aprovacao,
+            DATE(gp.data_orcamento) AS data_orcamento,
+            COALESCE(NULLIF(TRIM(gp.prescritor), ''), '(Sem prescritor)') AS prescritor,
+            COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)') AS cliente,
+            '' AS contato,
+            ROUND(COALESCE(gp.preco_liquido, 0), 2) AS valor,
+            LOWER(TRIM(COALESCE(gp.status_financeiro, ''))) AS status_origem
+        FROM gestao_pedidos gp
+        LEFT JOIN itens_orcamentos_pedidos i
+          ON i.numero = gp.numero_pedido
+         AND i.serie = gp.serie_pedido
+         AND i.ano_referencia = gp.ano_referencia
+        WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
+          AND COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') = :vend
+          AND {$approvedCase}
+        ORDER BY gp.data_aprovacao DESC, gp.numero_pedido DESC, gp.serie_pedido DESC
+        LIMIT 5000
+    ";
+    $stAprov = $pdo->prepare($sqlAprovados);
+    $stAprov->execute(['de' => $dataDe, 'ate' => $dataAte, 'vend' => $vendedor]);
+    $aprovados = $stAprov->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    $sqlRecusados = "
+        SELECT
+            i.ano_referencia AS ano_referencia,
+            CAST(i.numero AS CHAR) AS numero_pedido,
+            CAST(COALESCE(i.serie, 0) AS CHAR) AS serie_pedido,
+            NULL AS data_aprovacao,
+            DATE(COALESCE(gpLink.data_orcamento, i.data)) AS data_orcamento,
+            COALESCE(NULLIF(TRIM(i.prescritor), ''), NULLIF(TRIM(gpLink.prescritor), ''), '(Sem prescritor)') AS prescritor,
+            COALESCE(NULLIF(TRIM(i.paciente), ''), NULLIF(TRIM(gpLink.cliente), ''), '(Sem cliente)') AS cliente,
+            '' AS contato,
+            ROUND(COALESCE(i.valor_liquido, 0), 2) AS valor,
+            LOWER(TRIM(COALESCE(i.status, ''))) AS status_origem
+        FROM itens_orcamentos_pedidos i
+        LEFT JOIN gestao_pedidos gpLink
+          ON gpLink.numero_pedido = i.numero
+         AND gpLink.serie_pedido = i.serie
+         AND gpLink.ano_referencia = i.ano_referencia
+        WHERE DATE(i.data) BETWEEN :de AND :ate
+          AND LOWER(TRIM(COALESCE(i.status, ''))) IN ('recusado', 'no carrinho')
+          AND COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)') = :vend
+        ORDER BY i.data DESC, i.numero DESC, i.serie DESC
+        LIMIT 5000
+    ";
+    $stRec = $pdo->prepare($sqlRecusados);
+    $stRec->execute(['de' => $dataDe, 'ate' => $dataAte, 'vend' => $vendedor]);
+    $recusados = $stRec->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    echo json_encode([
+        'success' => true,
+        'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte],
+        'vendedor' => $vendedor,
+        'aprovados' => $aprovados,
+        'recusados_carrinho' => $recusados
+    ], JSON_UNESCAPED_UNICODE);
+}
+
 function gcResolveVendedorTargetFromSession(array $session, array $query): string
 {
     $tipo = strtolower(trim((string)($session['user_tipo'] ?? '')));
@@ -1716,6 +1840,11 @@ function handleVendedorPerdasLista(PDO $pdo): void
 
     $total = 0;
     $totalValorRejeitado = 0.0;
+    $qtdRecusado = 0;
+    $qtdNoCarrinho = 0;
+    $qtdComAcao = 0;
+    $qtdSemAcao = 0;
+    $ticketMedioRejeitado = 0.0;
     try {
         $stCount = $pdo->prepare("
             SELECT COUNT(*) AS total, COALESCE(SUM(g.valor_rejeitado), 0) AS total_valor_rejeitado
@@ -1747,6 +1876,72 @@ function handleVendedorPerdasLista(PDO $pdo): void
     } catch (Throwable $e) {
         $total = 0;
         $totalValorRejeitado = 0.0;
+    }
+
+    if ($total > 0) {
+        try {
+            $stStats = $pdo->prepare("
+                SELECT
+                    COALESCE(SUM(CASE WHEN g.status_principal = 'Recusado' THEN 1 ELSE 0 END), 0) AS qtd_recusado,
+                    COALESCE(SUM(CASE WHEN g.status_principal = 'No carrinho' THEN 1 ELSE 0 END), 0) AS qtd_no_carrinho,
+                    COALESCE(SUM(
+                        CASE
+                            WHEN COALESCE(NULLIF(TRIM(a.motivo_perda), ''), NULLIF(TRIM(a.observacoes), '')) IS NULL THEN 1
+                            ELSE 0
+                        END
+                    ), 0) AS qtd_sem_acao,
+                    COALESCE(SUM(
+                        CASE
+                            WHEN COALESCE(NULLIF(TRIM(a.motivo_perda), ''), NULLIF(TRIM(a.observacoes), '')) IS NOT NULL THEN 1
+                            ELSE 0
+                        END
+                    ), 0) AS qtd_com_acao,
+                    COALESCE(AVG(g.valor_rejeitado), 0) AS ticket_medio_rejeitado
+                FROM (
+                    SELECT
+                        i.ano_referencia,
+                        CAST(i.numero AS CHAR) AS numero_pedido,
+                        '' AS serie_pedido,
+                        CONCAT(CAST(i.numero AS CHAR), '/', i.ano_referencia) AS pedido_ref,
+                        COALESCE(NULLIF(TRIM(MAX(gpLink.cliente)), ''), '(Sem cliente)') AS cliente,
+                        COALESCE(NULLIF(TRIM(MAX(gpLink.prescritor)), ''), '(Sem prescritor)') AS prescritor,
+                        CASE
+                            WHEN SUM(CASE WHEN LOWER(TRIM(COALESCE(i.status, ''))) = 'recusado' THEN 1 ELSE 0 END) > 0 THEN 'Recusado'
+                            WHEN SUM(CASE WHEN LOWER(TRIM(COALESCE(i.status, ''))) = 'no carrinho' THEN 1 ELSE 0 END) > 0 THEN 'No carrinho'
+                            ELSE 'Outros'
+                        END AS status_principal,
+                        ROUND(COALESCE(SUM(i.valor_liquido), 0), 2) AS valor_rejeitado
+                    {$baseAggSql}
+                    GROUP BY i.ano_referencia, i.numero
+                ) g
+                LEFT JOIN vendedor_perdas_acoes a
+                  ON a.ano_referencia = g.ano_referencia
+                 AND a.numero_pedido = g.numero_pedido
+                 AND COALESCE(a.serie_pedido, '') = ''
+                 AND a.vendedor_nome = :vend_join_stats
+                {$outerFilterSql}
+            ");
+            $statsBind = [
+                'de' => $dataDe,
+                'ate' => $dataAte,
+                'vend' => $vendedor,
+                'vend_join_stats' => $vendedor,
+            ];
+            if ($qLike !== '') $statsBind['q'] = $qLike;
+            $stStats->execute($statsBind);
+            $statsRow = $stStats->fetch(PDO::FETCH_ASSOC) ?: [];
+            $qtdRecusado = (int)($statsRow['qtd_recusado'] ?? 0);
+            $qtdNoCarrinho = (int)($statsRow['qtd_no_carrinho'] ?? 0);
+            $qtdSemAcao = (int)($statsRow['qtd_sem_acao'] ?? 0);
+            $qtdComAcao = (int)($statsRow['qtd_com_acao'] ?? 0);
+            $ticketMedioRejeitado = round((float)($statsRow['ticket_medio_rejeitado'] ?? 0), 2);
+        } catch (Throwable $e) {
+            $qtdRecusado = 0;
+            $qtdNoCarrinho = 0;
+            $qtdSemAcao = 0;
+            $qtdComAcao = 0;
+            $ticketMedioRejeitado = 0.0;
+        }
     }
 
     $rows = [];
@@ -1819,6 +2014,11 @@ function handleVendedorPerdasLista(PDO $pdo): void
         'resumo' => [
             'total_pedidos' => $total,
             'total_valor_rejeitado' => $totalValorRejeitado,
+            'qtd_recusado' => $qtdRecusado,
+            'qtd_no_carrinho' => $qtdNoCarrinho,
+            'qtd_com_acao' => $qtdComAcao,
+            'qtd_sem_acao' => $qtdSemAcao,
+            'ticket_medio_rejeitado' => $ticketMedioRejeitado,
         ],
         'pagination' => ['page' => $page, 'per_page' => $perPage, 'total' => $total, 'pages' => $pages],
         'rows' => $rows,
@@ -1939,6 +2139,166 @@ function handleVendedorPerdasSalvarAcao(PDO $pdo): void
             'classificacao_erro' => $classificacao,
             'pontos_descontados' => $pontos,
             'observacoes' => $observacoes,
+        ],
+    ], JSON_UNESCAPED_UNICODE);
+}
+
+function handleVendedorPerdasInteracoesLista(PDO $pdo): void
+{
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito ao setor vendedor ou administrador.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $anoRef = (int)($_GET['ano_referencia'] ?? 0);
+    $numeroPedido = trim((string)($_GET['numero_pedido'] ?? ''));
+    $seriePedido = '';
+    if ($anoRef <= 0 || $numeroPedido === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Pedido inválido para listar tentativas.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $vendedorNome = gcResolveVendedorTargetFromSession($_SESSION, $_GET);
+    if ($vendedorNome === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Vendedor não identificado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    gcEnsureVendedorPerdasInteracoesTable($pdo);
+    $st = $pdo->prepare("
+        SELECT
+            id, ano_referencia, numero_pedido, serie_pedido, vendedor_nome,
+            tipo_contato, status_tentativa, mensagem, proximo_passo,
+            DATE_FORMAT(data_contato, '%Y-%m-%d %H:%i:%s') AS data_contato,
+            DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at
+        FROM vendedor_perdas_interacoes
+        WHERE ano_referencia = :ano
+          AND numero_pedido = :num
+          AND COALESCE(serie_pedido, '') = :serie
+          AND vendedor_nome = :vend
+        ORDER BY data_contato DESC, id DESC
+        LIMIT 200
+    ");
+    $st->execute([
+        'ano' => $anoRef,
+        'num' => $numeroPedido,
+        'serie' => $seriePedido,
+        'vend' => $vendedorNome,
+    ]);
+    $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    echo json_encode([
+        'success' => true,
+        'rows' => $rows,
+        'total' => count($rows),
+    ], JSON_UNESCAPED_UNICODE);
+}
+
+function handleVendedorPerdasInteracoesSalvar(PDO $pdo): void
+{
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito ao setor vendedor ou administrador.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) $payload = [];
+    $anoRef = (int)($payload['ano_referencia'] ?? 0);
+    $numeroPedido = trim((string)($payload['numero_pedido'] ?? ''));
+    $seriePedido = '';
+    $tipoContato = strtolower(trim((string)($payload['tipo_contato'] ?? 'whatsapp')));
+    $statusTentativa = strtolower(trim((string)($payload['status_tentativa'] ?? 'retorno_pendente')));
+    $mensagem = trim((string)($payload['mensagem'] ?? ''));
+    $proximoPasso = trim((string)($payload['proximo_passo'] ?? ''));
+    $dataContato = trim((string)($payload['data_contato'] ?? ''));
+
+    if ($anoRef <= 0 || $numeroPedido === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Pedido inválido para salvar tentativa.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $tiposValidos = ['whatsapp', 'telefone', 'email', 'outro'];
+    if (!in_array($tipoContato, $tiposValidos, true)) $tipoContato = 'whatsapp';
+    $statusValidos = ['sem_resposta', 'retorno_pendente', 'negociando', 'recuperado', 'perdido'];
+    if (!in_array($statusTentativa, $statusValidos, true)) $statusTentativa = 'retorno_pendente';
+    if (mb_strlen($mensagem) > 3000) $mensagem = mb_substr($mensagem, 0, 3000);
+    if (mb_strlen($proximoPasso) > 255) $proximoPasso = mb_substr($proximoPasso, 0, 255);
+    $isDateTime = static function ($v) {
+        return (bool)preg_match('/^\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}(?::\d{2})?)?$/', (string)$v);
+    };
+    if (!$isDateTime($dataContato)) $dataContato = date('Y-m-d H:i:s');
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataContato)) $dataContato .= ' 00:00:00';
+
+    $vendedorNome = gcResolveVendedorTargetFromSession($_SESSION, $payload);
+    if ($vendedorNome === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Vendedor não identificado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    gcEnsureVendedorPerdasInteracoesTable($pdo);
+    $st = $pdo->prepare("
+        INSERT INTO vendedor_perdas_interacoes (
+            ano_referencia, numero_pedido, serie_pedido, vendedor_nome,
+            tipo_contato, status_tentativa, mensagem, proximo_passo, data_contato, created_by
+        ) VALUES (
+            :ano, :num, :serie, :vend,
+            :tipo, :status, :msg, :passo, :data_contato, :user_id
+        )
+    ");
+    $st->execute([
+        'ano' => $anoRef,
+        'num' => $numeroPedido,
+        'serie' => $seriePedido,
+        'vend' => $vendedorNome,
+        'tipo' => $tipoContato,
+        'status' => $statusTentativa,
+        'msg' => $mensagem !== '' ? $mensagem : null,
+        'passo' => $proximoPasso !== '' ? $proximoPasso : null,
+        'data_contato' => $dataContato,
+        'user_id' => (int)($_SESSION['user_id'] ?? 0),
+    ]);
+
+    echo json_encode([
+        'success' => true,
+        'saved' => [
+            'id' => (int)$pdo->lastInsertId(),
+            'ano_referencia' => $anoRef,
+            'numero_pedido' => $numeroPedido,
+            'serie_pedido' => $seriePedido,
+            'tipo_contato' => $tipoContato,
+            'status_tentativa' => $statusTentativa,
+            'mensagem' => $mensagem,
+            'proximo_passo' => $proximoPasso,
+            'data_contato' => $dataContato,
         ],
     ], JSON_UNESCAPED_UNICODE);
 }
@@ -2165,6 +2525,25 @@ if ($action === 'vendedor_perdas_lista') {
     exit;
 }
 
+if ($action === 'vendedor_pedidos_lista') {
+    try {
+        $pdo = getConnection();
+        handleVendedorPedidosLista($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_pedidos_lista: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
+                ? 'Erro ao carregar pedidos do vendedor.'
+                : $e->getMessage(),
+        ], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
 if ($action === 'vendedor_perdas_salvar_acao') {
     try {
         $pdo = getConnection();
@@ -2178,6 +2557,44 @@ if ($action === 'vendedor_perdas_salvar_acao') {
             'success' => false,
             'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
                 ? 'Erro ao salvar ação da perda.'
+                : $e->getMessage(),
+        ], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_perdas_interacoes_lista') {
+    try {
+        $pdo = getConnection();
+        handleVendedorPerdasInteracoesLista($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_perdas_interacoes_lista: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
+                ? 'Erro ao carregar tentativas de recuperação.'
+                : $e->getMessage(),
+        ], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_perdas_interacoes_salvar') {
+    try {
+        $pdo = getConnection();
+        handleVendedorPerdasInteracoesSalvar($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_perdas_interacoes_salvar: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
+                ? 'Erro ao salvar tentativa de recuperação.'
                 : $e->getMessage(),
         ], JSON_UNESCAPED_UNICODE);
     }

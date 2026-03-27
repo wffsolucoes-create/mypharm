@@ -713,6 +713,20 @@
     font-size: 0.84rem;
 }
 
+/* Ajuste visual do ícone de calendário no tema escuro */
+.select-wrapper input[type="date"]::-webkit-calendar-picker-indicator,
+.pedidos-filters input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(1.2);
+    opacity: 0.9;
+    cursor: pointer;
+}
+
+[data-theme="light"] .select-wrapper input[type="date"]::-webkit-calendar-picker-indicator,
+[data-theme="light"] .pedidos-filters input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: none;
+    opacity: 0.75;
+}
+
 .vd-mini-muted {
     color: var(--text-secondary);
     font-size: 0.72rem;
@@ -720,9 +734,29 @@
 
 .perdas-kpi-row {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 12px;
     margin-bottom: 12px;
+}
+
+/* KPIs Gestão de Perdas: 4 por linha no desktop */
+#vdPerdasCards.vd-perdas-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 1100px) {
+    #vdPerdasCards.vd-perdas-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 520px) {
+    #vdPerdasCards.vd-perdas-kpi-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .perdas-kpi-card {
@@ -760,6 +794,36 @@
     font-weight: 800;
     color: var(--text-primary);
 }
+
+#paginaPedidos .perdas-actions {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+#paginaPedidos .perdas-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+#paginaPedidos .perdas-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.14); }
+#paginaPedidos .perdas-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+#paginaPedidos .perdas-btn-detalhe { background: rgba(59,130,246,0.16); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+#paginaPedidos .perdas-btn-whats { background: rgba(16,185,129,0.14); color: #10b981; border: 1px solid rgba(16,185,129,0.28); }
+#paginaPedidos .perdas-btn-ligar { background: rgba(14,165,233,0.14); color: #0ea5e9; border: 1px solid rgba(14,165,233,0.28); }
+#paginaPedidos .perdas-btn-rec { background: rgba(245,158,11,0.14); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+#paginaPedidos .perdas-btn-copiar { background: rgba(148,163,184,0.18); color: #cbd5e1; border: 1px solid rgba(148,163,184,0.35); }
+#paginaPedidos .perdas-btn-acao { background: rgba(139,92,246,0.14); color: #8b5cf6; border: 1px solid rgba(139,92,246,0.28); }
 
 .grid-2 {
     display: grid;
