@@ -209,6 +209,293 @@ function gcApprovedCase(string $alias = 'gp'): string
     )";
 }
 
+/** Meses (Y-m) do 1º ao último mês cobertos pelo intervalo [start, end]. */
+function gcMonthKeysBetween(DateTimeImmutable $start, DateTimeImmutable $end): array
+{
+    $first = $start->modify('first day of this month');
+    $lastMonth = $end->modify('first day of this month');
+    $out = [];
+    $cur = $first;
+    if ($cur > $lastMonth) {
+        return [$start->format('Y-m')];
+    }
+    while ($cur <= $lastMonth) {
+        $out[] = $cur->format('Y-m');
+        $cur = $cur->modify('+1 month');
+    }
+    return $out;
+}
+
+/**
+ * Receita aprovada em gestao_pedidos por mês e por vendedora (lista permitida).
+ *
+ * @param array<int, array<string, mixed>> $rowsComAtendente Linhas com chave atendente (ex.: equipe).
+ * @return array{meses: string[], series: array<int, array{atendente: string, valores: float[]}>}
+ */
+function gcBuildEvolucaoMensalVendedores(PDO $pdo, DateTimeImmutable $startObj, DateTimeImmutable $endObj, string $approvedGp, array $rowsComAtendente): array
+{
+    $meses = gcMonthKeysBetween($startObj, $endObj);
+    if ($meses === []) {
+        return ['meses' => [], 'series' => []];
+    }
+    $ini = $startObj->format('Y-m-d');
+    $fim = $endObj->format('Y-m-d');
+    $sql = "
+        SELECT
+            DATE_FORMAT(gp.data_aprovacao, '%Y-%m') AS ym,
+            COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS atendente,
+            COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS receita
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        GROUP BY ym, COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
+    ";
+    $raw = gcTryFetchAll($pdo, $sql, ['ini' => $ini, 'fim' => $fim]);
+    $matrix = [];
+    $nomeByNorm = [];
+    foreach ($raw as $row) {
+        $nome = trim((string)($row['atendente'] ?? ''));
+        if (!gcIsAllowedVendedora($nome)) {
+            continue;
+        }
+        $nk = gcNormName($nome);
+        if ($nk === '') {
+            continue;
+        }
+        if (!isset($nomeByNorm[$nk])) {
+            $nomeByNorm[$nk] = $nome;
+        }
+        $ym = (string)($row['ym'] ?? '');
+        $matrix[$nk][$ym] = round((float)($row['receita'] ?? 0), 2);
+    }
+    $normsOrdered = [];
+    foreach ($rowsComAtendente as $row) {
+        $nome = trim((string)($row['atendente'] ?? ''));
+        if ($nome === '' || !gcIsAllowedVendedora($nome)) {
+            continue;
+        }
+        $nk = gcNormName($nome);
+        if ($nk === '') {
+            continue;
+        }
+        $normsOrdered[$nk] = $nome;
+    }
+    foreach ($matrix as $nk => $_) {
+        if (!isset($normsOrdered[$nk]) && isset($nomeByNorm[$nk])) {
+            $normsOrdered[$nk] = $nomeByNorm[$nk];
+        }
+    }
+    uasort($normsOrdered, static function (string $a, string $b): int {
+        return strcmp($a, $b);
+    });
+    $series = [];
+    foreach ($normsOrdered as $nk => $nome) {
+        $vals = [];
+        foreach ($meses as $ym) {
+            $vals[] = round((float)($matrix[$nk][$ym] ?? 0), 2);
+        }
+        $series[] = [
+            'atendente' => $nome,
+            'valores' => $vals,
+        ];
+    }
+    return [
+        'meses' => $meses,
+        'series' => $series,
+    ];
+}
+
+/**
+ * Contagem de linhas (gestao_pedidos) por mês e vendedora: aprovadas ou rejeitadas (mesmo critério do painel).
+ *
+ * @param 'aprovados'|'rejeitados' $tipo
+ * @return array{meses: string[], series: array<int, array{atendente: string, valores: float[]}>}
+ */
+function gcBuildEvolucaoMensalVendedoresContagem(
+    PDO $pdo,
+    DateTimeImmutable $startObj,
+    DateTimeImmutable $endObj,
+    string $approvedGp,
+    array $rowsComAtendente,
+    string $tipo
+): array {
+    $meses = gcMonthKeysBetween($startObj, $endObj);
+    if ($meses === []) {
+        return ['meses' => [], 'series' => []];
+    }
+    $ini = $startObj->format('Y-m-d');
+    $fim = $endObj->format('Y-m-d');
+    $filtroLinha = $tipo === 'aprovados'
+        ? "AND {$approvedGp}"
+        : "AND NOT {$approvedGp}";
+    $sql = "
+        SELECT
+            DATE_FORMAT(gp.data_aprovacao, '%Y-%m') AS ym,
+            COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS atendente,
+            COUNT(*) AS qtd
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        {$filtroLinha}
+        GROUP BY ym, COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
+    ";
+    $raw = gcTryFetchAll($pdo, $sql, ['ini' => $ini, 'fim' => $fim]);
+    $matrix = [];
+    $nomeByNorm = [];
+    foreach ($raw as $row) {
+        $nome = trim((string)($row['atendente'] ?? ''));
+        if (!gcIsAllowedVendedora($nome)) {
+            continue;
+        }
+        $nk = gcNormName($nome);
+        if ($nk === '') {
+            continue;
+        }
+        if (!isset($nomeByNorm[$nk])) {
+            $nomeByNorm[$nk] = $nome;
+        }
+        $ym = (string)($row['ym'] ?? '');
+        $matrix[$nk][$ym] = (int)($row['qtd'] ?? 0);
+    }
+
+    // Rejeitados: mesma lógica do painel da equipe — somar linhas em itens_orcamentos_pedidos (Recusado / No carrinho),
+    // pois gestao_pedidos muitas vezes não reflete esses desfechos sozinho.
+    if ($tipo === 'rejeitados') {
+        $rawItens = gcTryFetchAll($pdo, "
+            SELECT
+                DATE_FORMAT(i.data, '%Y-%m') AS ym,
+                COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)') AS atendente,
+                COUNT(*) AS qtd
+            FROM itens_orcamentos_pedidos i
+            LEFT JOIN gestao_pedidos gpLink
+              ON gpLink.numero_pedido = i.numero
+             AND gpLink.serie_pedido = i.serie
+             AND gpLink.ano_referencia = i.ano_referencia
+            WHERE DATE(i.data) BETWEEN :ini AND :fim
+              AND LOWER(TRIM(COALESCE(i.status, ''))) IN ('recusado', 'no carrinho')
+            GROUP BY ym, COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)')
+        ", ['ini' => $ini, 'fim' => $fim]);
+        foreach ($rawItens as $row) {
+            $nome = trim((string)($row['atendente'] ?? ''));
+            if ($nome === '' || $nome === '(Sem atendente)' || !gcIsAllowedVendedora($nome)) {
+                continue;
+            }
+            $nk = gcNormName($nome);
+            if ($nk === '') {
+                continue;
+            }
+            if (!isset($nomeByNorm[$nk])) {
+                $nomeByNorm[$nk] = $nome;
+            }
+            $ym = (string)($row['ym'] ?? '');
+            $q = (int)($row['qtd'] ?? 0);
+            $matrix[$nk][$ym] = ($matrix[$nk][$ym] ?? 0) + $q;
+        }
+    }
+    $normsOrdered = [];
+    foreach ($rowsComAtendente as $row) {
+        $nome = trim((string)($row['atendente'] ?? ''));
+        if ($nome === '' || !gcIsAllowedVendedora($nome)) {
+            continue;
+        }
+        $nk = gcNormName($nome);
+        if ($nk === '') {
+            continue;
+        }
+        $normsOrdered[$nk] = $nome;
+    }
+    foreach ($matrix as $nk => $_) {
+        if (!isset($normsOrdered[$nk]) && isset($nomeByNorm[$nk])) {
+            $normsOrdered[$nk] = $nomeByNorm[$nk];
+        }
+    }
+    uasort($normsOrdered, static function (string $a, string $b): int {
+        return strcmp($a, $b);
+    });
+    $series = [];
+    foreach ($normsOrdered as $nk => $nome) {
+        $vals = [];
+        foreach ($meses as $ym) {
+            $vals[] = (float)($matrix[$nk][$ym] ?? 0);
+        }
+        $series[] = [
+            'atendente' => $nome,
+            'valores' => $vals,
+        ];
+    }
+    return [
+        'meses' => $meses,
+        'series' => $series,
+    ];
+}
+
+/**
+ * Aprovados + rejeitados mensais (ano fixo 2026), mesma lista de consultoras da receita.
+ *
+ * @return array{aprovados: array, rejeitados: array}
+ */
+function gcEvolucaoMensalAprovRejPayload(PDO $pdo, string $approvedGp, array $rowsComAtendente): array
+{
+    $ano = 2026;
+    $ini = new DateTimeImmutable(sprintf('%04d-01-01', $ano));
+    $fim = new DateTimeImmutable(sprintf('%04d-12-31', $ano));
+    $ap = gcBuildEvolucaoMensalVendedoresContagem($pdo, $ini, $fim, $approvedGp, $rowsComAtendente, 'aprovados');
+    $rj = gcBuildEvolucaoMensalVendedoresContagem($pdo, $ini, $fim, $approvedGp, $rowsComAtendente, 'rejeitados');
+    $meta = [
+        'ano_fixo' => $ano,
+        'usa_filtro_painel' => false,
+    ];
+    return [
+        'aprovados' => array_merge($ap, $meta),
+        'rejeitados' => array_merge($rj, $meta),
+    ];
+}
+
+/**
+ * Evolução mensal por vendedor: sempre calendário completo do ano fixo (ignora data_de/data_ate/ano/mês do painel).
+ */
+function gcEvolucaoMensalVendedoresPayload(PDO $pdo, string $approvedGp, array $rowsComAtendente): array
+{
+    $ano = 2026;
+    $ini = new DateTimeImmutable(sprintf('%04d-01-01', $ano));
+    $fim = new DateTimeImmutable(sprintf('%04d-12-31', $ano));
+    $out = gcBuildEvolucaoMensalVendedores($pdo, $ini, $fim, $approvedGp, $rowsComAtendente);
+    $out['ano_fixo'] = $ano;
+    $out['usa_filtro_painel'] = false;
+    return $out;
+}
+
+/** Alinhado a api_gestao handleVendedorDashboardGestao — comissão individual por % da meta. */
+function gcCalcComissaoIndividualPct(float $percentualMeta): float
+{
+    if ($percentualMeta >= 110.0) {
+        return 2.0;
+    }
+    if ($percentualMeta >= 100.0) {
+        return 1.8;
+    }
+    if ($percentualMeta >= 90.0) {
+        return 1.3;
+    }
+    if ($percentualMeta >= 70.0) {
+        return 1.0;
+    }
+    return 0.5;
+}
+
+/** Faixa de comissão extra por faturamento do grupo (receita aprovada no período, soma da equipe). */
+function gcCalcComissaoGrupoPct(float $receitaGrupo): float
+{
+    if ($receitaGrupo >= 370000.0) {
+        return 2.5;
+    }
+    if ($receitaGrupo >= 350000.0) {
+        return 2.0;
+    }
+    if ($receitaGrupo >= 320000.0) {
+        return 1.5;
+    }
+    return 0.0;
+}
+
 /**
  * Painel Gestão Comercial com métricas exclusivamente da API RD Station CRM (crm.rdstation.com).
  * Mantém o mesmo formato JSON do dashboard MySQL para o frontend não duplicar renderização.
@@ -516,6 +803,10 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
     });
     $ticketEspecialidade = array_slice($ticketEspecialidade, 0, 15);
 
+    $approvedGpRd = gcApprovedCase('gp');
+    $evolucaoMensalVendedores = gcEvolucaoMensalVendedoresPayload($pdo, $approvedGpRd, $equipe);
+    $evolucaoMensalAprovRej = gcEvolucaoMensalAprovRejPayload($pdo, $approvedGpRd, $equipe);
+
     $crescimento = [
         'receita_mes'                     => round($receitaMes, 2),
         'crescimento_vs_mes_anterior'     => null,
@@ -616,6 +907,9 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
             'equipe'                         => $equipe,
             'motivos_perda'                  => $motivosPerda,
             'clientes_rejeitados_com_contato' => $clientesRejeitadosComContato,
+            'evolucao_mensal_vendedores'     => $evolucaoMensalVendedores,
+            'evolucao_mensal_aprovados'      => $evolucaoMensalAprovRej['aprovados'],
+            'evolucao_mensal_rejeitados'     => $evolucaoMensalAprovRej['rejeitados'],
         ],
         'performance_canal'      => $canais,
         'inteligencia_comercial' => [
@@ -686,12 +980,6 @@ function gestaoComercialDashboard(PDO $pdo): void
     [$startObj, $endObj, $periodType] = gcDateRangeFromInput();
     $start = $startObj->format('Y-m-d');
     $end = $endObj->format('Y-m-d');
-    // Evita travar o painel na API externa do RD (carregamento pesado); o front pode buscar depois.
-    $skipRd = false;
-    if (isset($_GET['skip_rd'])) {
-        $sr = strtolower(trim((string)$_GET['skip_rd']));
-        $skipRd = in_array($sr, ['1', 'true', 'yes', 'on'], true);
-    }
     $prevStart = $startObj->modify('-1 month')->format('Y-m-d');
     $prevEnd = $endObj->modify('-1 month')->format('Y-m-d');
     $lyStart = $startObj->modify('-1 year')->format('Y-m-d');
@@ -852,10 +1140,18 @@ function gestaoComercialDashboard(PDO $pdo): void
         SELECT
             COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS atendente,
             COUNT(DISTINCT CONCAT(COALESCE(gp.numero_pedido,''), '-', COALESCE(gp.serie_pedido,''))) AS total_pedidos,
+            COALESCE(SUM(gp.quantidade), 0) AS quantidade_somada,
             SUM(CASE WHEN {$approvedGp} THEN 1 ELSE 0 END) AS vendas_aprovadas,
             SUM(CASE WHEN NOT ({$approvedGp}) THEN 1 ELSE 0 END) AS vendas_rejeitadas,
             COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS receita,
-            COALESCE(AVG(CASE WHEN {$approvedGp} THEN gp.preco_liquido END), 0) AS ticket_medio,
+            ROUND(
+                COALESCE(
+                    SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END)
+                    / NULLIF(COUNT(DISTINCT CASE WHEN {$approvedGp} THEN gp.numero_pedido END), 0),
+                    0
+                ),
+                2
+            ) AS ticket_medio,
             COALESCE(AVG(TIMESTAMPDIFF(MINUTE, gp.data_orcamento, gp.data_aprovacao)), 0) AS tempo_medio_espera_min,
             COUNT(DISTINCT CASE WHEN {$approvedGp} THEN gp.cliente END) AS clientes_atendidos
         FROM gestao_pedidos gp
@@ -867,15 +1163,43 @@ function gestaoComercialDashboard(PDO $pdo): void
     $vendedores = array_values(array_filter($vendedores, static function (array $row): bool {
         return gcIsAllowedVendedora((string)($row['atendente'] ?? ''));
     }));
+
+    // Rejeitados (Recusado / No carrinho) vivem em itens_orcamentos_pedidos; gestao_pedidos muitas vezes não traz essas linhas.
+    $rejeitadosPorItensRaw = gcTryFetchAll($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)') AS atendente,
+            COUNT(*) AS linhas_rejeitadas
+        FROM itens_orcamentos_pedidos i
+        LEFT JOIN gestao_pedidos gpLink
+          ON gpLink.numero_pedido = i.numero
+         AND gpLink.serie_pedido = i.serie
+         AND gpLink.ano_referencia = i.ano_referencia
+        WHERE DATE(i.data) BETWEEN :ini AND :fim
+          AND LOWER(TRIM(COALESCE(i.status, ''))) IN ('recusado', 'no carrinho')
+        GROUP BY COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)')
+    ", ['ini' => $start, 'fim' => $end]);
+    $rejeitadosLinesByNorm = [];
+    $rejeitadosNomeByNorm = [];
+    foreach ($rejeitadosPorItensRaw as $rrow) {
+        $nomeRej = trim((string)($rrow['atendente'] ?? ''));
+        if ($nomeRej === '' || $nomeRej === '(Sem atendente)') {
+            continue;
+        }
+        if (!gcIsAllowedVendedora($nomeRej)) {
+            continue;
+        }
+        $nkRej = gcNormName($nomeRej);
+        if ($nkRej === '') {
+            continue;
+        }
+        $rejeitadosLinesByNorm[$nkRej] = (float)($rrow['linhas_rejeitadas'] ?? 0);
+        $rejeitadosNomeByNorm[$nkRej] = $nomeRej;
+    }
+
     foreach ($vendedores as &$vnd) {
-        $totalPedidos = (float)($vnd['total_pedidos'] ?? 0);
-        $vendasAprovadas = (float)($vnd['vendas_aprovadas'] ?? 0);
-        $vendasRejeitadas = (float)($vnd['vendas_rejeitadas'] ?? 0);
-        $vnd['conversao_individual'] = gcPercent($vendasAprovadas, $totalPedidos);
         $vnd['follow_ups_realizados'] = null;
         $vnd['motivos_perda'] = null; // detalhado em vendedor_gestao.motivos_perda
         $vnd['tempo_medio_espera_resposta'] = round((float)($vnd['tempo_medio_espera_min'] ?? 0), 1);
-        $vnd['taxa_perda'] = gcPercent($vendasRejeitadas, $totalPedidos);
     }
     unset($vnd);
 
@@ -915,6 +1239,7 @@ function gestaoComercialDashboard(PDO $pdo): void
             $vendedores[] = [
                 'atendente' => $nomeCad,
                 'total_pedidos' => 0,
+                'quantidade_somada' => 0,
                 'vendas_aprovadas' => 0,
                 'vendas_rejeitadas' => 0,
                 'receita' => 0,
@@ -930,6 +1255,107 @@ function gestaoComercialDashboard(PDO $pdo): void
             $vendedoresMap[$k] = true;
         }
     }
+
+    $presentNormsVend = [];
+    foreach ($vendedores as $v) {
+        $pk = gcNormName((string)($v['atendente'] ?? ''));
+        if ($pk !== '') {
+            $presentNormsVend[$pk] = true;
+        }
+    }
+    foreach ($rejeitadosLinesByNorm as $nkOnly => $rejLinhas) {
+        if ($rejLinhas <= 0 || isset($presentNormsVend[$nkOnly])) {
+            continue;
+        }
+        $nomeOnly = trim((string)($rejeitadosNomeByNorm[$nkOnly] ?? ''));
+        if ($nomeOnly === '' || !gcIsAllowedVendedora($nomeOnly)) {
+            continue;
+        }
+        $vendedores[] = [
+            'atendente' => $nomeOnly,
+            'total_pedidos' => 0,
+            'quantidade_somada' => 0,
+            'vendas_aprovadas' => 0,
+            'vendas_rejeitadas' => 0,
+            'receita' => 0,
+            'ticket_medio' => 0,
+            'tempo_medio_espera_min' => 0,
+            'clientes_atendidos' => 0,
+            'conversao_individual' => null,
+            'follow_ups_realizados' => null,
+            'motivos_perda' => null,
+            'tempo_medio_espera_resposta' => 0,
+            'taxa_perda' => null,
+        ];
+        $presentNormsVend[$nkOnly] = true;
+    }
+
+    foreach ($vendedores as &$vnd) {
+        $totalPedidos = (float)($vnd['total_pedidos'] ?? 0);
+        $vendasAprovadas = (float)($vnd['vendas_aprovadas'] ?? 0);
+        $fromGestaoRej = (float)($vnd['vendas_rejeitadas'] ?? 0);
+        $normV = gcNormName((string)($vnd['atendente'] ?? ''));
+        $fromItensRej = (float)($rejeitadosLinesByNorm[$normV] ?? 0);
+        $vendasRejeitadas = $fromGestaoRej + $fromItensRej;
+        $vnd['vendas_rejeitadas'] = $vendasRejeitadas;
+
+        $denLinhas = $vendasAprovadas + $vendasRejeitadas;
+        $vnd['conversao_individual'] = $denLinhas > 0
+            ? gcPercent($vendasAprovadas, $denLinhas)
+            : gcPercent($vendasAprovadas, $totalPedidos);
+        $vnd['taxa_perda'] = $denLinhas > 0
+            ? gcPercent($vendasRejeitadas, $denLinhas)
+            : gcPercent($vendasRejeitadas, $totalPedidos);
+    }
+    unset($vnd);
+
+    $metaSistemaVendedor = (float)(getenv('VENDEDOR_META_SISTEMA') ?: 60000);
+    if ($metaSistemaVendedor <= 0) {
+        $metaSistemaVendedor = 60000.0;
+    }
+    $metaPorNorm = [];
+    try {
+        $stMetaV = $pdo->query("
+            SELECT TRIM(nome) AS nome, COALESCE(meta_mensal, 0) AS meta_mensal
+            FROM usuarios
+            WHERE LOWER(TRIM(COALESCE(setor, ''))) LIKE '%vendedor%'
+              AND COALESCE(ativo, 1) = 1
+        ");
+        foreach ($stMetaV->fetchAll(PDO::FETCH_ASSOC) ?: [] as $mr) {
+            $nm = trim((string)($mr['nome'] ?? ''));
+            if ($nm === '') {
+                continue;
+            }
+            $metaPorNorm[gcNormName($nm)] = (float)($mr['meta_mensal'] ?? 0);
+        }
+    } catch (Throwable $e) {
+        $metaPorNorm = [];
+    }
+
+    $receitaGrupoVend = 0.0;
+    foreach ($vendedores as $vv) {
+        $receitaGrupoVend += (float)($vv['receita'] ?? 0);
+    }
+    $comissaoGrupoPctVend = gcCalcComissaoGrupoPct($receitaGrupoVend);
+
+    foreach ($vendedores as &$vnd) {
+        $norm = gcNormName((string)($vnd['atendente'] ?? ''));
+        $meta = (float)($metaPorNorm[$norm] ?? 0);
+        if ($meta <= 0) {
+            $meta = $metaSistemaVendedor;
+        }
+        $receita = (float)($vnd['receita'] ?? 0);
+        $pctMeta = $meta > 0 ? round(($receita / $meta) * 100, 2) : 0.0;
+        $ci = gcCalcComissaoIndividualPct($pctMeta);
+        $ct = round($ci + $comissaoGrupoPctVend, 2);
+        $vnd['meta_mensal'] = round($meta, 2);
+        $vnd['percentual_meta'] = $pctMeta;
+        $vnd['comissao_pct_individual'] = $ci;
+        $vnd['comissao_pct_grupo'] = $comissaoGrupoPctVend;
+        $vnd['comissao_pct_total'] = $ct;
+        $vnd['previsao_ganho'] = round($receita * $ct / 100, 2);
+    }
+    unset($vnd);
 
     usort($vendedores, static function (array $a, array $b): int {
         return strcmp((string)($a['atendente'] ?? ''), (string)($b['atendente'] ?? ''));
@@ -987,6 +1413,8 @@ function gestaoComercialDashboard(PDO $pdo): void
     $tempoMedioEquipe = 0.0;
     $clientesAtendidosEquipe = 0;
     $taxaPerdaMedia = 0.0;
+    $metaMensalEquipeSoma = 0.0;
+    $previsaoGanhoEquipeSoma = 0.0;
     if (!empty($vendedores)) {
         $consultorasAtivas = count($vendedores);
         foreach ($vendedores as $v) {
@@ -995,11 +1423,16 @@ function gestaoComercialDashboard(PDO $pdo): void
             $tempoMedioEquipe += (float)($v['tempo_medio_espera_resposta'] ?? 0);
             $clientesAtendidosEquipe += (int)($v['clientes_atendidos'] ?? 0);
             $taxaPerdaMedia += (float)($v['taxa_perda'] ?? 0);
+            $metaMensalEquipeSoma += (float)($v['meta_mensal'] ?? 0);
+            $previsaoGanhoEquipeSoma += (float)($v['previsao_ganho'] ?? 0);
         }
         $conversaoMedia = round($conversaoMedia / $consultorasAtivas, 2);
         $tempoMedioEquipe = round($tempoMedioEquipe / $consultorasAtivas, 1);
         $taxaPerdaMedia = round($taxaPerdaMedia / $consultorasAtivas, 2);
     }
+    $percentualMetaEquipe = $metaMensalEquipeSoma > 0
+        ? round(($receitaEquipe / $metaMensalEquipeSoma) * 100, 2)
+        : null;
 
     $canais = gcFetchAll($pdo, "
         SELECT
@@ -1195,9 +1628,19 @@ function gestaoComercialDashboard(PDO $pdo): void
         ],
     ];
 
+    $listaVendedoresNomes = array_values(array_filter(array_map(static function ($row) {
+        return isset($row['nome']) ? trim((string)$row['nome']) : '';
+    }, $vendedoresCadastrados), static function ($n) {
+        return $n !== '';
+    }));
+
+    $evolucaoMensalVendedores = gcEvolucaoMensalVendedoresPayload($pdo, $approvedGp, $vendedores);
+    $evolucaoMensalAprovRej = gcEvolucaoMensalAprovRejPayload($pdo, $approvedGp, $vendedores);
+
     $payload = [
         'success' => true,
         'generated_at' => date('c'),
+        'lista_vendedores_nomes' => $listaVendedoresNomes,
         'periodo' => [
             'tipo' => $periodType,
             'data_de' => $start,
@@ -1229,11 +1672,18 @@ function gestaoComercialDashboard(PDO $pdo): void
                 'tempo_medio_espera_min' => $tempoMedioEquipe,
                 'clientes_atendidos' => $clientesAtendidosEquipe,
                 'taxa_perda_media' => $taxaPerdaMedia,
+                'meta_mensal_equipe' => round($metaMensalEquipeSoma, 2),
+                'percentual_meta_equipe' => $percentualMetaEquipe,
+                'previsao_ganho_equipe' => round($previsaoGanhoEquipeSoma, 2),
+                'comissao_pct_grupo_equipe' => round($comissaoGrupoPctVend, 2),
             ],
             'vendedores_cadastrados' => $vendedoresCadastrados,
             'equipe' => $vendedores,
             'motivos_perda' => $motivosPerda,
-            'clientes_rejeitados_com_contato' => $clientesRejeitadosComContato
+            'clientes_rejeitados_com_contato' => $clientesRejeitadosComContato,
+            'evolucao_mensal_vendedores' => $evolucaoMensalVendedores,
+            'evolucao_mensal_aprovados' => $evolucaoMensalAprovRej['aprovados'],
+            'evolucao_mensal_rejeitados' => $evolucaoMensalAprovRej['rejeitados'],
         ],
         'performance_canal' => $canais,
         'inteligencia_comercial' => [
@@ -1272,24 +1722,6 @@ function gestaoComercialDashboard(PDO $pdo): void
             ]
         ],
     ];
-
-    // Métricas do RD Station CRM (quando token configurado): enriquece o payload com todas as métricas possíveis da API
-    $rdToken = trim((string)(function_exists('getenv') ? getenv('RDSTATION_CRM_TOKEN') : '') ?: '');
-    if (!$skipRd && $rdToken !== '' && function_exists('rdFetchTodasMetricas')) {
-        try {
-            $payload['rd_metricas'] = rdFetchTodasMetricas($rdToken, $start, $end);
-        } catch (Throwable $e) {
-            $payload['rd_metricas'] = null;
-            $payload['rd_metricas_error'] = (defined('IS_PRODUCTION') && IS_PRODUCTION)
-                ? 'Erro ao carregar métricas do RD Station.'
-                : $e->getMessage();
-        }
-    } else {
-        $payload['rd_metricas'] = null;
-        if ($skipRd && $rdToken !== '') {
-            $payload['rd_metricas_deferred'] = true;
-        }
-    }
 
     $jsonFlags = JSON_UNESCAPED_UNICODE;
     if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {

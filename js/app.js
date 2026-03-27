@@ -529,10 +529,14 @@ function navigateTo(page) {
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const toggle = document.getElementById('sidebarToggle');
+    if (!sidebar || !toggle) return;
     if (window.innerWidth <= 768) return; // No mobile, usar toggleMobileSidebar
     sidebar.classList.toggle('collapsed');
     const icon = toggle.querySelector('i');
-    icon.className = sidebar.classList.contains('collapsed') ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+    if (icon) {
+        icon.className = sidebar.classList.contains('collapsed') ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+    }
+    toggle.setAttribute('aria-label', sidebar.classList.contains('collapsed') ? 'Expandir menu' : 'Recolher menu');
 }
 
 function toggleMobileSidebar() {

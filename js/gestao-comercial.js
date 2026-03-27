@@ -10,6 +10,9 @@
     let gcBgChartsTimer = null;
     let gcDeferredChartsPending = false;
     let gcDeferredChartsData = null;
+    let gcVendEquipeSortState = { key: 'receita', dir: 'desc' };
+    let gcVendEquipeLastRows = null;
+    let gcVendEquipeSortBound = false;
 
     function gcDestroyAllCharts() {
         Object.keys(gcChartInstances).forEach(function (key) {
@@ -37,6 +40,100 @@
             purple: '#8b5cf6',
             cyan: '#06b6d4',
             palette: ['#2563EB', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6']
+        };
+    }
+
+    /** Converte "YYYY-MM" em rótulo curto (ex.: jan/25). */
+    function gcFormatYmChartLabel(ym) {
+        const parts = String(ym || '').split('-');
+        if (parts.length < 2) return ym;
+        const y = parts[0];
+        const mi = parseInt(parts[1], 10);
+        const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+        const m = months[mi - 1] || parts[1];
+        return m + '/' + String(y).slice(-2);
+    }
+
+    function gcBuildVendEvoLineDatasets(evoBlock, col, emptyLineLabel) {
+        var evo = evoBlock || { meses: [], series: [] };
+        var evoMeses = Array.isArray(evo.meses) ? evo.meses : [];
+        var evoSeries = Array.isArray(evo.series) ? evo.series : [];
+        var evoLabels = evoMeses.length ? evoMeses.map(gcFormatYmChartLabel) : ['Sem dados'];
+        var palLine = col.palette;
+        var evoDatasets = [];
+        var emptyLbl = emptyLineLabel || 'Sem dados';
+        if (evoSeries.length && evoMeses.length) {
+            evoSeries.forEach(function (s, idx) {
+                var vals = Array.isArray(s.valores) ? s.valores.slice() : [];
+                while (vals.length < evoMeses.length) vals.push(0);
+                if (vals.length > evoMeses.length) vals = vals.slice(0, evoMeses.length);
+                var c = palLine[idx % palLine.length];
+                evoDatasets.push({
+                    label: String(gcDisplayConsultoraName(s.atendente || '')).slice(0, 28),
+                    data: vals,
+                    borderColor: c,
+                    backgroundColor: 'transparent',
+                    tension: 0.25,
+                    borderWidth: 2,
+                    pointRadius: evoMeses.length <= 18 ? 3 : 0,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: c,
+                    pointBorderColor: c,
+                    spanGaps: true
+                });
+            });
+        } else {
+            evoDatasets.push({
+                label: evoMeses.length ? emptyLbl : 'Sem dados',
+                data: evoMeses.length ? evoMeses.map(function () { return 0; }) : [0],
+                borderColor: col.muted,
+                backgroundColor: 'transparent',
+                tension: 0.2,
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: col.muted,
+                pointBorderColor: col.muted
+            });
+        }
+        return { labels: evoLabels, datasets: evoDatasets };
+    }
+
+    function gcVendEvolucaoLineChartOptions(col, commonAxis, tooltipLabelFn) {
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: col.muted,
+                        boxWidth: 10,
+                        padding: 10,
+                        font: { size: 10 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: tooltipLabelFn
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: col.muted, maxRotation: 45, minRotation: 0, font: { size: 10 } },
+                    grid: { color: col.grid }
+                },
+                y: Object.assign({}, commonAxis, {
+                    beginAtZero: true,
+                    ticks: {
+                        color: col.muted,
+                        callback: function (v) {
+                            return Number(v).toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });
+                        }
+                    }
+                })
+            }
         };
     }
 
@@ -136,6 +233,182 @@
         return `${n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`;
     }
 
+    /** Minutos (número bruto da API) → texto legível (h, d). */
+    function formatDurationMin(min) {
+        const n = Number(min);
+        if (!isFinite(n) || n < 0) return '—';
+        if (n === 0) return '0 min';
+        if (n < 1) return '< 1 min';
+        if (n < 60) return Math.round(n).toLocaleString('pt-BR') + ' min';
+        if (n < 1440) {
+            const h = Math.floor(n / 60);
+            const m = Math.round(n % 60);
+            return m > 0 ? (h + ' h ' + m + ' min') : (h + ' h');
+        }
+        const d = Math.floor(n / 1440);
+        const remMin = n - d * 1440;
+        const remH = Math.floor(remMin / 60);
+        const m = Math.round(remMin % 60);
+        if (remH > 0 && m > 0) return d + ' d ' + remH + ' h ' + m + ' min';
+        if (remH > 0) return d + ' d ' + remH + ' h';
+        return d + ' d';
+    }
+
+    function gcTierConversao(pct) {
+        const n = Number(pct);
+        if (!isFinite(n)) return '';
+        if (n >= 62) return 'gc-cell-good';
+        if (n >= 48) return 'gc-cell-warn';
+        return 'gc-cell-bad';
+    }
+
+    function gcTierPerda(pct) {
+        const n = Number(pct);
+        if (!isFinite(n)) return '';
+        if (n <= 28) return 'gc-cell-good';
+        if (n <= 45) return 'gc-cell-warn';
+        return 'gc-cell-bad';
+    }
+
+    /** Menor tempo (orç. → aprovação) = melhor. Minutos na API. */
+    function gcTierTempoMin(min) {
+        const n = Number(min);
+        if (!isFinite(n) || n <= 0) return '';
+        if (n <= 8 * 60) return 'gc-cell-good';
+        if (n <= 48 * 60) return 'gc-cell-warn';
+        return 'gc-cell-bad';
+    }
+
+    function gcEquipeSortValue(row, key) {
+        switch (key) {
+            case 'atendente':
+                return String(row.atendente || '');
+            case 'receita':
+                return Number(row.receita || 0);
+            case 'ticket':
+                return Number(row.ticket_medio != null ? row.ticket_medio : 0);
+            case 'meta_mensal':
+                return Number(row.meta_mensal != null ? row.meta_mensal : 0);
+            case 'previsao':
+                return Number(row.previsao_ganho != null ? row.previsao_ganho : 0);
+            case 'pedidos':
+                return Number(row.quantidade_somada != null ? row.quantidade_somada : (row.total_pedidos || 0));
+            case 'aprovados':
+                return Number(row.vendas_aprovadas || 0);
+            case 'rejeitados':
+                return Number(row.vendas_rejeitadas || 0);
+            case 'conversao':
+                return Number(row.conversao_individual != null ? row.conversao_individual : 0);
+            case 'tempo':
+                return Number(row.tempo_medio_espera_resposta || 0);
+            case 'clientes':
+                return Number(row.clientes_atendidos || 0);
+            case 'perda':
+                return Number(row.taxa_perda != null ? row.taxa_perda : 0);
+            default:
+                return 0;
+        }
+    }
+
+    function gcSortEquipeRows(rows, key, dir) {
+        const arr = rows.slice();
+        const asc = dir === 'asc';
+        arr.sort(function (a, b) {
+            let cmp = 0;
+            if (key === 'atendente') {
+                cmp = String(a.atendente || '').localeCompare(String(b.atendente || ''), 'pt-BR', { sensitivity: 'base' });
+            } else {
+                const va = gcEquipeSortValue(a, key);
+                const vb = gcEquipeSortValue(b, key);
+                if (va < vb) cmp = -1;
+                else if (va > vb) cmp = 1;
+            }
+            if (cmp !== 0) return asc ? cmp : -cmp;
+            return String(a.atendente || '').localeCompare(String(b.atendente || ''), 'pt-BR', { sensitivity: 'base' });
+        });
+        return arr;
+    }
+
+    function gcUpdateVendEquipeSortHeaders() {
+        const table = document.getElementById('gcVendEquipeTable');
+        if (!table) return;
+        table.querySelectorAll('thead th[data-sort]').forEach(function (th) {
+            if (th.getAttribute('data-sort') === gcVendEquipeSortState.key) {
+                th.setAttribute('aria-sort', gcVendEquipeSortState.dir === 'asc' ? 'ascending' : 'descending');
+            } else {
+                th.removeAttribute('aria-sort');
+            }
+        });
+    }
+
+    function gcRenderVendEquipeTbody(rows) {
+        const equipeBody = document.getElementById('gcVendEquipeTbody');
+        if (!equipeBody) return;
+        gcVendEquipeLastRows = rows;
+        if (!rows.length) {
+            equipeBody.innerHTML = '<tr><td colspan="11">Sem dados no período selecionado.</td></tr>';
+            gcUpdateVendEquipeSortHeaders();
+            return;
+        }
+        const sorted = gcSortEquipeRows(rows, gcVendEquipeSortState.key, gcVendEquipeSortState.dir);
+        equipeBody.innerHTML = sorted.map(function (r) {
+            const convCls = gcTierConversao(r.conversao_individual);
+            const perdaCls = gcTierPerda(r.taxa_perda);
+            const tempoCls = gcTierTempoMin(r.tempo_medio_espera_resposta);
+            const tempoMin = Number(r.tempo_medio_espera_resposta || 0);
+            const nomeRaw = String(r.atendente || '-');
+            const nomeFmt = gcDisplayConsultoraName(nomeRaw);
+            const recVal = Number(r.receita || 0);
+            const metaVal = Number(r.meta_mensal != null ? r.meta_mensal : 0);
+            const pctMetaRow = Number(r.percentual_meta);
+            const metaHit = Number.isFinite(pctMetaRow) ? pctMetaRow >= 100 : (metaVal > 0 && recVal >= metaVal);
+            const rowMetaClass = metaHit ? 'gc-row-meta-hit' : '';
+            const badgeMeta = metaHit
+                ? ' <span class="gc-meta-badge" title="Meta atingida"><i class="fas fa-check" aria-hidden="true"></i> Meta</span>'
+                : '';
+            return `<tr class="${rowMetaClass}">
+                    <td class="${metaHit ? 'gc-cell-meta-name' : ''}">${escapeHtml(nomeFmt)}${badgeMeta}</td>
+                    <td class="gc-num">${formatMoney(r.receita || 0)}</td>
+                    <td class="gc-num">${formatMoney(r.ticket_medio != null ? r.ticket_medio : 0)}</td>
+                    <td class="gc-num ${metaHit ? 'gc-cell-meta-hit' : ''}">${formatMoney(r.meta_mensal != null ? r.meta_mensal : 0)}</td>
+                    <td class="gc-num">${formatMoney(r.previsao_ganho != null ? r.previsao_ganho : 0)}</td>
+                    <td class="gc-num">${Number(r.vendas_aprovadas || 0).toLocaleString('pt-BR')}</td>
+                    <td class="gc-num">${Number(r.vendas_rejeitadas || 0).toLocaleString('pt-BR')}</td>
+                    <td class="gc-num ${convCls}">${formatPercent(r.conversao_individual || 0)}</td>
+                    <td class="gc-num ${tempoCls}" title="${escapeHtml(String(Math.round(tempoMin * 10) / 10) + ' min')}">${formatDurationMin(r.tempo_medio_espera_resposta || 0)}</td>
+                    <td class="gc-num">${Number(r.clientes_atendidos || 0).toLocaleString('pt-BR')}</td>
+                    <td class="gc-num ${perdaCls}">${formatPercent(r.taxa_perda || 0)}</td>
+                </tr>`;
+        }).join('');
+        gcUpdateVendEquipeSortHeaders();
+    }
+
+    function gcEnsureVendEquipeSortBind() {
+        if (gcVendEquipeSortBound) return;
+        const table = document.getElementById('gcVendEquipeTable');
+        if (!table) return;
+        const thead = table.querySelector('thead');
+        if (!thead) return;
+        thead.addEventListener('click', function (ev) {
+            const btn = ev.target.closest('.gc-th-sort');
+            if (!btn) return;
+            const th = btn.closest('th[data-sort]');
+            if (!th || !table.contains(th)) return;
+            const key = th.getAttribute('data-sort');
+            if (!key) return;
+            if (gcVendEquipeSortState.key === key) {
+                gcVendEquipeSortState.dir = gcVendEquipeSortState.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                gcVendEquipeSortState.key = key;
+                gcVendEquipeSortState.dir = key === 'atendente' ? 'asc' : 'desc';
+            }
+            if (gcVendEquipeLastRows && gcVendEquipeLastRows.length) {
+                gcRenderVendEquipeTbody(gcVendEquipeLastRows);
+            }
+        });
+        gcVendEquipeSortBound = true;
+    }
+
     function escapeHtml(str) {
         if (str === null || str === undefined) return '';
         return String(str)
@@ -148,6 +421,56 @@
 
     function normalizeName(v) {
         return String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    /** Chave de comparação estável: minúsculas, sem acento e com espaço normalizado. */
+    function gcNameKey(v) {
+        var s = normalizeName(v);
+        if (!s) return '';
+        try {
+            s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        } catch (_) {
+            // fallback silencioso para ambientes sem normalize.
+        }
+        return s;
+    }
+
+    /** Nome de exibição padronizado para consultoras no painel. */
+    function gcDisplayConsultoraName(nome) {
+        var raw = String(nome || '').trim();
+        if (!raw) return raw;
+        var map = {
+            'ananda reis': 'Ananda Reis',
+            'carla': 'Carla',
+            'clara leticia': 'Clara Letícia',
+            'giovanna': 'Giovanna',
+            'jessica vitoria': 'Jéssica Vitória',
+            'mariana': 'Mariana',
+            'nailena': 'Nailena',
+            'nereida': 'Nereida'
+        };
+        return map[gcNameKey(raw)] || raw;
+    }
+
+    /** Nome normalizado → bateu meta no período (receita ≥ meta ou % ≥ 100). */
+    function gcBuildMetaHitMap(equipe) {
+        const map = Object.create(null);
+        (equipe || []).forEach(function (r) {
+            const nome = String(r?.atendente || '').trim();
+            if (!nome || nome === '(Sem atendente)') return;
+            const key = gcNameKey(nome);
+            let hit = false;
+            const pct = Number(r.percentual_meta);
+            if (Number.isFinite(pct)) {
+                hit = pct >= 100;
+            } else {
+                const meta = Number(r.meta_mensal || 0);
+                const rec = Number(r.receita || 0);
+                hit = meta > 0 && rec >= meta;
+            }
+            map[key] = hit;
+        });
+        return map;
     }
 
     function setDefaultFilters() {
@@ -186,10 +509,19 @@
             gcSelectedVendedor = '__ALL__';
         }
 
+        const equipeTabs = data?.vendedor_gestao?.equipe || [];
+        const metaHitMap = gcBuildMetaHitMap(equipeTabs);
+
         wrap.innerHTML = options.map(function (nome) {
-            const label = nome === '__ALL__' ? 'Todas as consultoras' : nome;
+            const label = nome === '__ALL__' ? 'Todas as consultoras' : gcDisplayConsultoraName(nome);
             const sel = nome === gcSelectedVendedor;
-            return `<button type="button" role="tab" class="gc-vendedor-tab${sel ? ' active' : ''}" aria-selected="${sel}" data-vendedor="${escapeHtml(nome)}">${escapeHtml(label)}</button>`;
+            const metaHit = nome !== '__ALL__' && !!metaHitMap[gcNameKey(nome)];
+            const metaClass = metaHit ? ' gc-vendedor-tab--meta' : '';
+            const metaHtml = metaHit
+                ? '<span class="gc-vendedor-tab__meta" title="Meta atingida no período"><i class="fas fa-star" aria-hidden="true"></i></span>'
+                : '';
+            const ariaExtra = metaHit ? ' — meta atingida no período' : '';
+            return `<button type="button" role="tab" class="gc-vendedor-tab${sel ? ' active' : ''}${metaClass}" aria-selected="${sel}" data-vendedor="${escapeHtml(nome)}" data-meta-hit="${metaHit ? '1' : '0'}" aria-label="${escapeHtml(label)}${ariaExtra}"><span class="gc-vendedor-tab__label">${escapeHtml(label)}</span>${metaHtml}</button>`;
         }).join('');
 
         wrap.querySelectorAll('.gc-vendedor-tab').forEach(function (btn) {
@@ -206,20 +538,9 @@
         const bloco = data?.vendedor_gestao || {};
         const resumo = bloco.resumo || {};
         const equipeRaw = bloco.equipe || [];
-        const motivosRaw = bloco.motivos_perda || [];
-        const rejeitadosRaw = bloco.clientes_rejeitados_com_contato || [];
-
         const equipe = gcSelectedVendedor === '__ALL__'
             ? equipeRaw
-            : equipeRaw.filter(function (r) { return normalizeName(r.atendente) === normalizeName(gcSelectedVendedor); });
-
-        const motivos = gcSelectedVendedor === '__ALL__'
-            ? motivosRaw
-            : motivosRaw.filter(function (m) { return normalizeName(m.atendente) === normalizeName(gcSelectedVendedor); });
-
-        const rejeitados = gcSelectedVendedor === '__ALL__'
-            ? rejeitadosRaw
-            : rejeitadosRaw.filter(function (c) { return normalizeName(c.atendente) === normalizeName(gcSelectedVendedor); });
+            : equipeRaw.filter(function (r) { return gcNameKey(r.atendente) === gcNameKey(gcSelectedVendedor); });
 
         let resumoView = resumo;
         if (gcSelectedVendedor !== '__ALL__') {
@@ -228,6 +549,8 @@
             let tempo = 0;
             let clientes = 0;
             let perda = 0;
+            let metaSum = 0;
+            let prevSum = 0;
             const total = equipe.length;
             equipe.forEach(function (r) {
                 receita += Number(r.receita || 0);
@@ -235,6 +558,8 @@
                 tempo += Number(r.tempo_medio_espera_resposta || 0);
                 clientes += Number(r.clientes_atendidos || 0);
                 perda += Number(r.taxa_perda || 0);
+                metaSum += Number(r.meta_mensal || 0);
+                prevSum += Number(r.previsao_ganho || 0);
             });
             resumoView = {
                 consultoras_ativas: total,
@@ -242,72 +567,51 @@
                 conversao_media: total ? (conv / total) : 0,
                 tempo_medio_espera_min: total ? (tempo / total) : 0,
                 clientes_atendidos: clientes,
-                taxa_perda_media: total ? (perda / total) : 0
+                taxa_perda_media: total ? (perda / total) : 0,
+                meta_mensal_equipe: metaSum,
+                percentual_meta_equipe: metaSum > 0 ? (receita / metaSum) * 100 : null,
+                previsao_ganho_equipe: prevSum,
+                comissao_pct_grupo_equipe: resumo.comissao_pct_grupo_equipe
             };
         }
 
+        const tempoMinRaw = Number(resumoView.tempo_medio_espera_min ?? 0);
+        const pctMetaVal = resumoView.percentual_meta_equipe;
         const map = {
             gcVendConsultorasAtivas: (resumoView.consultoras_ativas ?? 0).toLocaleString('pt-BR'),
             gcVendReceitaEquipe: formatMoney(resumoView.receita_equipe ?? 0),
             gcVendConversaoMedia: formatPercent(resumoView.conversao_media ?? 0),
-            gcVendTempoMedio: `${Number(resumoView.tempo_medio_espera_min ?? 0).toLocaleString('pt-BR')} min`,
+            gcVendTempoMedio: formatDurationMin(tempoMinRaw),
             gcVendClientesAtendidos: (resumoView.clientes_atendidos ?? 0).toLocaleString('pt-BR'),
             gcVendTaxaPerda: formatPercent(resumoView.taxa_perda_media ?? 0),
+            gcVendMetaEquipe: formatMoney(resumoView.meta_mensal_equipe ?? 0),
+            gcVendPctMeta: pctMetaVal != null && isFinite(Number(pctMetaVal)) ? formatPercent(pctMetaVal) : '—',
+            gcVendPrevisaoGanho: formatMoney(resumoView.previsao_ganho_equipe ?? 0)
         };
         Object.keys(map).forEach(function (id) {
             const el = document.getElementById(id);
             if (el) el.textContent = map[id];
         });
-
-        const equipeBody = document.getElementById('gcVendEquipeTbody');
-        if (equipeBody) {
-            equipeBody.innerHTML = equipe.map(function (r) {
-                return `<tr>
-                    <td>${escapeHtml(r.atendente || '-')}</td>
-                    <td>${formatMoney(r.receita || 0)}</td>
-                    <td>${Number(r.total_pedidos || 0).toLocaleString('pt-BR')}</td>
-                    <td>${Number(r.vendas_aprovadas || 0).toLocaleString('pt-BR')}</td>
-                    <td>${Number(r.vendas_rejeitadas || 0).toLocaleString('pt-BR')}</td>
-                    <td>${formatPercent(r.conversao_individual || 0)}</td>
-                    <td>${Number(r.tempo_medio_espera_resposta || 0).toLocaleString('pt-BR')} min</td>
-                    <td>${Number(r.clientes_atendidos || 0).toLocaleString('pt-BR')}</td>
-                    <td>${formatPercent(r.taxa_perda || 0)}</td>
-                </tr>`;
-            }).join('');
-            if (!equipe.length) {
-                equipeBody.innerHTML = `<tr><td colspan="9">Sem dados no período selecionado.</td></tr>`;
-            }
+        const tempoEl = document.getElementById('gcVendTempoMedio');
+        if (tempoEl) {
+            tempoEl.setAttribute('title', isFinite(tempoMinRaw) ? (Math.round(tempoMinRaw * 10) / 10) + ' min (valor bruto)' : '');
         }
 
-        const motivosBody = document.getElementById('gcVendMotivosTbody');
-        if (motivosBody) {
-            motivosBody.innerHTML = motivos.map(function (m) {
-                return `<tr>
-                    <td>${escapeHtml(m.motivo || '-')}</td>
-                    <td>${Number(m.quantidade || 0).toLocaleString('pt-BR')}</td>
-                    <td>${formatMoney(m.valor_total || 0)}</td>
-                </tr>`;
-            }).join('');
-            if (!motivos.length) {
-                motivosBody.innerHTML = `<tr><td colspan="3">Sem perdas registradas no período.</td></tr>`;
-            }
+        const metaSub = document.getElementById('gcVendMetaSub');
+        if (metaSub) {
+            metaSub.textContent = gcSelectedVendedor === '__ALL__' ? 'Soma das metas cadastradas' : 'Meta cadastrada (usuário)';
+        }
+        const prevSub = document.getElementById('gcVendPrevisaoSub');
+        if (prevSub) {
+            const cg = resumoView.comissao_pct_grupo_equipe;
+            const cgTxt = cg != null && isFinite(Number(cg)) ? Number(cg).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + '% grupo' : '';
+            prevSub.textContent = gcSelectedVendedor === '__ALL__'
+                ? ('Comissão ind. + grupo (estimada)' + (cgTxt ? ' · ' + cgTxt : ''))
+                : ('Comissão ind. + grupo sobre a receita' + (cgTxt ? ' · ' + cgTxt : ''));
         }
 
-        const rejeitadosBody = document.getElementById('gcVendRejeitadosTbody');
-        if (rejeitadosBody) {
-            rejeitadosBody.innerHTML = rejeitados.map(function (c) {
-                return `<tr>
-                    <td>${escapeHtml(c.cliente || '-')}</td>
-                    <td>${escapeHtml(c.prescritor || '-')}</td>
-                    <td>${escapeHtml(c.contato || 'Sem contato')}</td>
-                    <td>${Number(c.qtd_rejeicoes || 0).toLocaleString('pt-BR')}</td>
-                    <td>${formatMoney(c.valor_rejeitado || 0)}</td>
-                </tr>`;
-            }).join('');
-            if (!rejeitados.length) {
-                rejeitadosBody.innerHTML = `<tr><td colspan="5">Sem clientes rejeitados no período.</td></tr>`;
-            }
-        }
+        gcEnsureVendEquipeSortBind();
+        gcRenderVendEquipeTbody(equipe);
 
         setTimeout(function () {
             renderVendedorTabCharts(data);
@@ -371,9 +675,7 @@
         });
 
         const tbodies = [
-            { id: 'gcVendEquipeTbody', cols: 9, emptyText: 'Sem dados no período selecionado.' },
-            { id: 'gcVendMotivosTbody', cols: 3, emptyText: 'Sem perdas registradas no período.' },
-            { id: 'gcVendRejeitadosTbody', cols: 5, emptyText: 'Sem clientes rejeitados no período.' }
+            { id: 'gcVendEquipeTbody', cols: 11, emptyText: 'Sem dados no período selecionado.' }
         ];
         tbodies.forEach(function (cfg) {
             const body = document.getElementById(cfg.id);
@@ -388,36 +690,6 @@
         });
     }
 
-    function loadRdMetricasDeferred(dataDe, dataAte) {
-        (async function () {
-            try {
-                const q = {};
-                if (dataDe) q.data_de = dataDe;
-                if (dataAte) q.data_ate = dataAte;
-                const res = await apiGet('gestao_rd_metricas', q);
-                if (!gcDashboardData) return;
-                if (res && res.success) {
-                    const rd = Object.assign({}, res);
-                    delete rd.success;
-                    gcDashboardData.rd_metricas = rd;
-                    gcDashboardData.rd_metricas_error = null;
-                    renderRdMetricas(rd, null);
-                } else {
-                    const err = (res && res.error) ? res.error : 'Métricas RD indisponíveis.';
-                    gcDashboardData.rd_metricas = null;
-                    gcDashboardData.rd_metricas_error = err;
-                    renderRdMetricas(null, err);
-                }
-            } catch (e) {
-                if (!gcDashboardData) return;
-                const err = 'Falha ao carregar métricas RD.';
-                gcDashboardData.rd_metricas = null;
-                gcDashboardData.rd_metricas_error = err;
-                renderRdMetricas(null, err);
-            }
-        })();
-    }
-
     async function loadDashboardData(forceRefresh = false) {
         setGcLoading(true);
         try {
@@ -428,14 +700,14 @@
             if (ateEl?.value) params.data_ate = ateEl.value;
             if (forceRefresh) params.refresh_rd = '1';
 
-            const data = await apiGet('gestao_comercial_dashboard_rd', params);
+            const data = await apiGet('gestao_comercial_dashboard', params);
 
             var dashboardOk = data && data.success === true && data.crescimento && typeof data.crescimento === 'object';
             if (!dashboardOk) {
                 var msg = (data && data.error) ? data.error : '';
                 if (!msg) {
                     if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
-                        msg = 'Resposta vazia da API. Abra o DevTools (F12) → aba Network → gestao_comercial_dashboard_rd e veja o corpo da resposta.';
+                        msg = 'Resposta vazia da API. Abra o DevTools (F12) → aba Network → gestao_comercial_dashboard e veja o corpo da resposta.';
                     } else {
                         msg = 'O painel não retornou dados válidos (success ou bloco crescimento ausente). Confirme login como administrador e tente Aplicar de novo.';
                     }
@@ -450,7 +722,6 @@
             renderExecutivo(data);
             renderFinanceiroKpis(data);
             renderGcCharts(data);
-            renderRdMetricas(data.rd_metricas, data.rd_metricas_error);
             renderVendedoresTabs(data, gcNomesVendedores);
             renderVendedores(data);
         } finally {
@@ -1166,14 +1437,25 @@
         var bloco = data?.vendedor_gestao || {};
         var equipeRaw = bloco.equipe || [];
         var equipe = gcSelectedVendedor === '__ALL__'
-            ? equipeRaw
-            : equipeRaw.filter(function (r) { return normalizeName(r.atendente) === normalizeName(gcSelectedVendedor); });
+            ? equipeRaw.slice()
+            : equipeRaw.filter(function (r) { return gcNameKey(r.atendente) === gcNameKey(gcSelectedVendedor); });
+        // Chart.js (barras horiz., indexAxis 'y'): o 1º rótulo do array aparece no TOPO do eixo Y.
+        // Receita decrescente => maior no topo (leitura de cima para baixo: maior → menor).
+        equipe.sort(function (a, b) {
+            var recA = Number(a.receita || 0);
+            var recB = Number(b.receita || 0);
+            if (recB !== recA) return recB - recA;
+            var volA = Number(a.vendas_aprovadas || 0) + Number(a.vendas_rejeitadas || 0);
+            var volB = Number(b.vendas_aprovadas || 0) + Number(b.vendas_rejeitadas || 0);
+            if (volB !== volA) return volB - volA;
+            return String(gcDisplayConsultoraName(a.atendente || '')).localeCompare(String(gcDisplayConsultoraName(b.atendente || '')), 'pt-BR');
+        });
 
         gcEnsureChart('vendReceita', 'gcChartVendReceita', function () {
             return {
                 type: 'bar',
                 data: {
-                    labels: equipe.length ? equipe.map(function (x) { return String(x.atendente || '').slice(0, 18); }) : ['Sem dados'],
+                    labels: equipe.length ? equipe.map(function (x) { return String(gcDisplayConsultoraName(x.atendente || '')).slice(0, 18); }) : ['Sem dados'],
                     datasets: [{
                         label: 'Receita',
                         data: equipe.length ? equipe.map(function (x) { return Number(x.receita || 0); }) : [0],
@@ -1200,7 +1482,10 @@
                                 callback: function (v) { return Number(v).toLocaleString('pt-BR', { notation: 'compact' }); }
                             }
                         }),
-                        y: { ticks: { color: col.muted, font: { size: 10 } }, grid: { display: false } }
+                        y: {
+                            ticks: { color: col.muted, font: { size: 10 } },
+                            grid: { display: false }
+                        }
                     }
                 }
             };
@@ -1210,7 +1495,7 @@
             return {
                 type: 'bar',
                 data: {
-                    labels: equipe.length ? equipe.map(function (x) { return String(x.atendente || '').slice(0, 16); }) : ['Sem dados'],
+                    labels: equipe.length ? equipe.map(function (x) { return String(gcDisplayConsultoraName(x.atendente || '')).slice(0, 16); }) : ['Sem dados'],
                     datasets: [
                         {
                             label: 'Aprovados',
@@ -1239,180 +1524,74 @@
                             beginAtZero: true,
                             ticks: { color: col.muted, precision: 0 }
                         }),
-                        y: { stacked: true, ticks: { color: col.muted, font: { size: 9 } }, grid: { display: false } }
-                    }
-                }
-            };
-        });
-
-        var motivosRaw = bloco.motivos_perda || [];
-        var motivos = gcSelectedVendedor === '__ALL__'
-            ? motivosRaw
-            : motivosRaw.filter(function (m) { return normalizeName(m.atendente) === normalizeName(gcSelectedVendedor); });
-        var motTop = motivos.slice(0, 12);
-        gcEnsureChart('vendMotivos', 'gcChartVendMotivos', function () {
-            return {
-                type: 'bar',
-                data: {
-                    labels: motTop.length ? motTop.map(function (x) { return String(x.motivo || '').slice(0, 28); }) : ['Sem dados'],
-                    datasets: [{
-                        label: 'Qtd',
-                        data: motTop.length ? motTop.map(function (x) { return Number(x.quantidade || 0); }) : [0],
-                        backgroundColor: col.danger,
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: Object.assign({}, commonAxis, { beginAtZero: true, ticks: { color: col.muted, precision: 0 } }),
-                        y: { ticks: { color: col.muted, font: { size: 9 } }, grid: { display: false } }
-                    }
-                }
-            };
-        });
-    }
-
-    function renderRdCharts(rd, errorMsg) {
-        gcDestroyChartKeys(['rdDeals', 'rdFunil', 'rdMotivos']);
-        var motWrap = document.getElementById('gcRdMotivosWrap');
-        if (typeof Chart === 'undefined') {
-            if (motWrap) motWrap.style.display = 'none';
-            return;
-        }
-        var col = gcChartColors();
-        if (errorMsg || !rd) {
-            if (motWrap) motWrap.style.display = 'none';
-            return;
-        }
-
-        var g = Number(rd.total_ganhos || 0);
-        var p = Number(rd.total_perdidos || 0);
-        gcEnsureChart('rdDeals', 'gcChartRdDeals', function () {
-            if (g === 0 && p === 0) {
-                return {
-                    type: 'doughnut',
-                    data: { labels: ['Sem dados'], datasets: [{ data: [1], backgroundColor: [col.grid] }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                };
-            }
-            return {
-                type: 'doughnut',
-                data: {
-                    labels: ['Ganhos', 'Perdidos'],
-                    datasets: [{
-                        data: [g, p],
-                        backgroundColor: [col.success, col.danger],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { color: col.muted, boxWidth: 12 } }
-                    }
-                }
-            };
-        });
-
-        var estagios = (rd.kanban_snapshot && Array.isArray(rd.kanban_snapshot.etapas) && rd.kanban_snapshot.etapas.length)
-            ? rd.kanban_snapshot.etapas
-            : (Array.isArray(rd.funil_estagios) ? rd.funil_estagios : []);
-        if (estagios.length > 0) {
-            gcEnsureChart('rdFunil', 'gcChartRdFunil', function () {
-                return {
-                    type: 'bar',
-                    data: {
-                        labels: estagios.map(function (e) { return String(e.stage_name || '').slice(0, 20); }),
-                        datasets: [{
-                            label: 'Qtd',
-                            data: estagios.map(function (e) { return Number(e.quantidade || 0); }),
-                            backgroundColor: col.palette.map(function (_, i) { return col.palette[i % col.palette.length]; }),
-                            borderRadius: 6
-                        }]
-                    },
-                    options: {
-                        indexAxis: 'y',
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            x: { beginAtZero: true, ticks: { color: col.muted, precision: 0 }, grid: { color: col.grid } },
-                            y: { ticks: { color: col.muted, font: { size: 9 } }, grid: { display: false } }
+                        y: {
+                            stacked: true,
+                            ticks: { color: col.muted, font: { size: 9 } },
+                            grid: { display: false }
                         }
                     }
-                };
-            });
-        }
+                }
+            };
+        });
 
-        var motGeral = Array.isArray(rd.motivos_perda_geral) ? rd.motivos_perda_geral : [];
-        var top3 = motGeral.filter(function (x) { return Number(x.quantidade || 0) > 0; }).slice(0, 3);
-        if (motWrap) motWrap.style.display = top3.length ? 'block' : 'none';
-        if (top3.length) {
-            var bgMot = ['#64748b', '#cbd5e1', col.danger];
-            var totalMot = top3.reduce(function (s, x) { return s + Number(x.quantidade || 0); }, 0);
-            gcEnsureChart('rdMotivos', 'gcChartRdMotivos', function () {
-                return {
-                    type: 'doughnut',
-                    data: {
-                        labels: top3.map(function (x) { return String(x.motivo || '—').trim() || '—'; }),
-                        datasets: [{
-                            data: top3.map(function (x) { return Number(x.quantidade || 0); }),
-                            backgroundColor: top3.map(function (_, i) { return bgMot[i % bgMot.length]; }),
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        rotation: 270,
-                        circumference: 180,
-                        cutout: '58%',
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: {
-                                    color: col.muted,
-                                    boxWidth: 12,
-                                    padding: 10,
-                                    font: { size: 11 },
-                                    generateLabels: function (chart) {
-                                        var data = chart.data;
-                                        var ds = data.datasets[0];
-                                        if (!data.labels || !ds) return [];
-                                        return data.labels.map(function (label, i) {
-                                            var val = Number(ds.data[i] || 0);
-                                            var pct = totalMot > 0 ? ((val / totalMot) * 100).toFixed(1) : '0';
-                                            var t = String(label);
-                                            if (t.length > 38) t = t.slice(0, 36) + '…';
-                                            return {
-                                                text: t + ' — ' + val.toLocaleString('pt-BR') + ' (' + pct + '%)',
-                                                fillStyle: Array.isArray(ds.backgroundColor) ? ds.backgroundColor[i] : ds.backgroundColor,
-                                                hidden: false,
-                                                index: i
-                                            };
-                                        });
-                                    }
-                                }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function (ctx) {
-                                        var v = Number(ctx.raw || 0);
-                                        var pct = totalMot > 0 ? ((v / totalMot) * 100).toFixed(1) : '0';
-                                        return v.toLocaleString('pt-BR') + ' (' + pct + '%)';
-                                    }
-                                }
-                            }
-                        }
-                    }
-                };
-            });
+        var evo = bloco.evolucao_mensal_vendedores || { meses: [], series: [] };
+        var evoSub = document.getElementById('gcVendEvolucaoSub');
+        if (evoSub) {
+            var yFix = typeof evo.ano_fixo === 'number' ? evo.ano_fixo : parseInt(evo.ano_fixo, 10);
+            if (!yFix || isNaN(yFix)) yFix = 2026;
+            evoSub.innerHTML = 'Receita aprovada por mês e por consultora (todas), <strong>sempre o ano ' + yFix + '</strong> — não acompanha o filtro de datas do painel.';
         }
+        var builtEvo = gcBuildVendEvoLineDatasets(evo, col, 'Sem receita no período');
+        gcEnsureChart('vendEvolucao', 'gcChartVendEvolucao', function () {
+            return {
+                type: 'line',
+                data: { labels: builtEvo.labels, datasets: builtEvo.datasets },
+                options: gcVendEvolucaoLineChartOptions(col, commonAxis, function (ctx) {
+                    var lab = ctx.dataset.label ? ctx.dataset.label + ': ' : '';
+                    return lab + formatMoney(ctx.parsed.y);
+                })
+            };
+        });
+
+        var evoA = bloco.evolucao_mensal_aprovados || { meses: [], series: [] };
+        var evoASub = document.getElementById('gcVendEvolucaoAprovSub');
+        if (evoASub) {
+            var yA = typeof evoA.ano_fixo === 'number' ? evoA.ano_fixo : parseInt(evoA.ano_fixo, 10);
+            if (!yA || isNaN(yA)) yA = 2026;
+            evoASub.innerHTML = 'Linhas aprovadas em gestão por mês e por consultora, <strong>ano ' + yA + '</strong> (fixo) — não usa o filtro do painel.';
+        }
+        var builtA = gcBuildVendEvoLineDatasets(evoA, col, 'Sem aprovados no período');
+        gcEnsureChart('vendEvolucaoAprov', 'gcChartVendEvolucaoAprov', function () {
+            return {
+                type: 'line',
+                data: { labels: builtA.labels, datasets: builtA.datasets },
+                options: gcVendEvolucaoLineChartOptions(col, commonAxis, function (ctx) {
+                    var lab = ctx.dataset.label ? ctx.dataset.label + ': ' : '';
+                    var n = ctx.parsed.y;
+                    return lab + (Number.isFinite(n) ? Number(n).toLocaleString('pt-BR') : '—') + ' linhas';
+                })
+            };
+        });
+
+        var evoR = bloco.evolucao_mensal_rejeitados || { meses: [], series: [] };
+        var evoRSub = document.getElementById('gcVendEvolucaoRejSub');
+        if (evoRSub) {
+            var yR = typeof evoR.ano_fixo === 'number' ? evoR.ano_fixo : parseInt(evoR.ano_fixo, 10);
+            if (!yR || isNaN(yR)) yR = 2026;
+            evoRSub.innerHTML = 'Linhas rejeitadas em gestão por mês e por consultora, <strong>ano ' + yR + '</strong> (fixo) — não usa o filtro do painel.';
+        }
+        var builtR = gcBuildVendEvoLineDatasets(evoR, col, 'Sem rejeitados no período');
+        gcEnsureChart('vendEvolucaoRej', 'gcChartVendEvolucaoRej', function () {
+            return {
+                type: 'line',
+                data: { labels: builtR.labels, datasets: builtR.datasets },
+                options: gcVendEvolucaoLineChartOptions(col, commonAxis, function (ctx) {
+                    var lab = ctx.dataset.label ? ctx.dataset.label + ': ' : '';
+                    var n = ctx.parsed.y;
+                    return lab + (Number.isFinite(n) ? Number(n).toLocaleString('pt-BR') : '—') + ' linhas';
+                })
+            };
+        });
     }
 
     function gcDestroyChartKeys(keys) {
@@ -1423,78 +1602,6 @@
             }
             gcChartInstances[k] = null;
         });
-    }
-
-    function renderRdMetricas(rd, errorMsg) {
-        const block = document.getElementById('gcBlockRd');
-        if (!block) return;
-        gcDestroyChartKeys(['rdDeals', 'rdFunil', 'rdMotivos']);
-        if (!rd && !errorMsg) {
-            block.style.display = 'none';
-            var mw0 = document.getElementById('gcRdMotivosWrap');
-            if (mw0) mw0.style.display = 'none';
-            return;
-        }
-        block.style.display = 'block';
-        const funilWrap = document.getElementById('gcRdFunilWrap');
-        if (errorMsg) {
-            setRdEl('gcRdReceitaTotal', '—');
-            setRdEl('gcRdTotalGanhos', '—');
-            setRdEl('gcRdTotalPerdidos', '—');
-            setRdEl('gcRdConversao', '—');
-            setRdEl('gcRdOportunidades', '—');
-            setRdEl('gcRdUpdatedAt', errorMsg);
-            var metaErr = document.getElementById('gcRdMetodologia');
-            if (metaErr) {
-                metaErr.textContent = '';
-                metaErr.hidden = true;
-            }
-            if (funilWrap) funilWrap.style.display = 'none';
-            var mwErr = document.getElementById('gcRdMotivosWrap');
-            if (mwErr) mwErr.style.display = 'none';
-            return;
-        }
-        var kanban = rd && rd.kanban_snapshot ? rd.kanban_snapshot : null;
-        setRdEl('gcRdReceitaTotal', formatMoney(kanban && kanban.valor_ganho != null ? kanban.valor_ganho : rd.receita_total));
-        setRdEl('gcRdTotalGanhos', ((kanban && kanban.ganhos != null ? kanban.ganhos : rd.total_ganhos) ?? 0).toLocaleString('pt-BR'));
-        setRdEl('gcRdTotalPerdidos', ((kanban && kanban.perdidos != null ? kanban.perdidos : rd.total_perdidos) ?? 0).toLocaleString('pt-BR'));
-        setRdEl('gcRdConversao', rd.conversao_geral_pct != null ? formatPercent(rd.conversao_geral_pct) : '—');
-        setRdEl('gcRdOportunidades', ((kanban && kanban.abertos != null ? kanban.abertos : rd.oportunidades_abertas) ?? 0).toLocaleString('pt-BR'));
-        setRdEl('gcRdUpdatedAt', rd.updated_at || '—');
-        const metaEl = document.getElementById('gcRdMetodologia');
-        if (metaEl) {
-            var n = rd.notas || {};
-            var linhas = [];
-            if (n.totais) linhas.push(n.totais);
-            if (n.divergencia_funil) linhas.push(n.divergencia_funil);
-            if (linhas.length) {
-                metaEl.textContent = linhas.join(' ');
-                metaEl.hidden = false;
-            } else {
-                metaEl.textContent = '';
-                metaEl.hidden = true;
-            }
-        }
-        const funilList = document.getElementById('gcRdFunilList');
-        var kanbanEtapas = kanban && Array.isArray(kanban.etapas) ? kanban.etapas : [];
-        var funilEtapas = Array.isArray(rd.funil_estagios) ? rd.funil_estagios : [];
-        var etapasLista = kanbanEtapas.length ? kanbanEtapas : funilEtapas;
-        if (funilWrap && funilList && etapasLista.length > 0) {
-            funilWrap.style.display = 'block';
-            funilList.innerHTML = etapasLista.map(function (e) {
-                var valorTxt = e.valor_total != null && Number(e.valor_total || 0) > 0
-                    ? ' · ' + formatMoney(e.valor_total || 0)
-                    : '';
-                return '<div class="gc-rd-funil-item"><span class="gc-rd-funil-stage">' + escapeHtml(e.stage_name || '') + '</span> <span class="gc-rd-funil-pipe">' + escapeHtml(e.pipeline_name || '') + '</span> <strong>' + Number(e.quantidade || 0).toLocaleString('pt-BR') + valorTxt + '</strong></div>';
-            }).join('');
-        } else if (funilWrap) {
-            funilWrap.style.display = 'none';
-        }
-        renderRdCharts(rd, null);
-        function setRdEl(id, text) {
-            const el = document.getElementById(id);
-            if (el) el.textContent = text;
-        }
     }
 
     function forceLogoutRedirect() {
@@ -1558,8 +1665,25 @@
                         ensureGcBackgroundCharts();
                     });
                 }
+                if (target === 'vendedores') {
+                    requestAnimationFrame(function () {
+                        if (gcDashboardData) renderVendedorTabCharts(gcDashboardData);
+                    });
+                }
             });
         });
+    }
+
+    function applyInitialTabFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        let tab = (params.get('tab') || '').toLowerCase().trim();
+        if (!tab && window.location.hash) {
+            tab = String(window.location.hash.replace(/^#/, '')).toLowerCase().trim();
+        }
+        const valid = ['executivo', 'vendas', 'vendedores', 'financeiro', 'reuniao'];
+        if (valid.indexOf(tab) === -1 || tab === 'vendedores') return;
+        const btn = document.querySelector('.gc-menu-item[data-section="' + tab + '"]');
+        if (btn) btn.click();
     }
 
     function bindUi(session) {
@@ -1584,7 +1708,6 @@
                 if (gcDashboardData && typeof Chart !== 'undefined') {
                     setTimeout(function () {
                         renderGcCharts(gcDashboardData);
-                        renderRdMetricas(gcDashboardData.rd_metricas, gcDashboardData.rd_metricas_error);
                         renderVendedorTabCharts(gcDashboardData);
                     }, 50);
                 }
@@ -1609,6 +1732,20 @@
             });
         });
 
+        const gcSbToggle = document.getElementById('gcSidebarToggle');
+        const gcSidebar = document.getElementById('gcSidebar');
+        if (gcSbToggle && gcSidebar) {
+            gcSbToggle.addEventListener('click', function () {
+                if (window.innerWidth <= 768) return;
+                gcSidebar.classList.toggle('collapsed');
+                var icon = gcSbToggle.querySelector('i');
+                if (icon) {
+                    icon.className = gcSidebar.classList.contains('collapsed') ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+                }
+                gcSbToggle.setAttribute('aria-label', gcSidebar.classList.contains('collapsed') ? 'Expandir menu' : 'Recolher menu');
+            });
+        }
+
         bindTabs();
         syncThemeToggleAria();
     }
@@ -1621,6 +1758,8 @@
         const app = document.getElementById('gcApp');
         if (app) app.style.display = 'flex';
         bindUi(session);
-        loadDashboardData(false).catch(function () {});
+        loadDashboardData(false).catch(function () {}).then(function () {
+            applyInitialTabFromUrl();
+        });
     });
 })();
