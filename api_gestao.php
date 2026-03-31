@@ -1,11 +1,11 @@
 <?php
 /**
- * API exclusiva da Gestão Comercial.
- * Tudo que corresponda à gestão comercial usa esta API (sessão, logout, dashboard, lista vendedores).
+ * API exclusiva da GestÃ£o Comercial.
+ * Tudo que corresponda Ã  gestÃ£o comercial usa esta API (sessÃ£o, logout, dashboard, lista vendedores).
  *
  * TV Corrida de Vendas:
- *   Se RDSTATION_CRM_TOKEN estiver configurado no .env, os dados vêm diretamente
- *   da API do RD Station CRM (deals won). Caso contrário, usa o banco local (legado).
+ *   Se RDSTATION_CRM_TOKEN estiver configurado no .env, os dados vÃªm diretamente
+ *   da API do RD Station CRM (deals won). Caso contrÃ¡rio, usa o banco local (legado).
  */
 ini_set('display_errors', '0');
 if (function_exists('ini_set')) {
@@ -54,8 +54,6 @@ $allowedActions = [
     'gestao_comercial_erros_lista',
     'gestao_comercial_erros_salvar',
     'gestao_comercial_erros_excluir',
-    'gestao_comercial_erros_importar_csv',
-    'gestao_comercial_resumo_erros',
     'gestao_rd_metricas',
     'gestao_rejeitados_rd',
     'vendedor_dashboard_rd',
@@ -69,13 +67,13 @@ $allowedActions = [
 ];
 if (!in_array($action, $allowedActions)) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Ação não reconhecida.'], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['success' => false, 'error' => 'AÃ§Ã£o nÃ£o reconhecida.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 /**
- * Compatibilidade: se a sessão PHP existe mas a tabela user_sessions perdeu o registro
- * (limpeza/manual/restore), recria o vínculo e evita 401 falso no painel.
+ * Compatibilidade: se a sessÃ£o PHP existe mas a tabela user_sessions perdeu o registro
+ * (limpeza/manual/restore), recria o vÃ­nculo e evita 401 falso no painel.
  */
 function gcEnsureSessionIsValidOrRepair(PDO $pdo): array
 {
@@ -131,7 +129,7 @@ function gcIsLocalDebugRequest(): bool
     if ($host !== '' && (strpos($host, 'localhost') !== false || strpos($host, '127.0.0.1') !== false)) {
         return true;
     }
-    // Opcional: acessar pelo IP da máquina na rede (ex.: http://192.168.x.x/mypharm/)
+    // Opcional: acessar pelo IP da mÃ¡quina na rede (ex.: http://192.168.x.x/mypharm/)
     if (getenv('RD_DEBUG_ALLOW_LAN') === '1' && $remote !== '') {
         if (preg_match('/^(127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})$/', $remote)) {
             return true;
@@ -144,17 +142,17 @@ function gcNormalizeNome(string $v): string
 {
     $v = trim($v);
     $v = strtr($v, [
-        'Á'=>'A','À'=>'A','Â'=>'A','Ã'=>'A','Ä'=>'A',
-        'á'=>'a','à'=>'a','â'=>'a','ã'=>'a','ä'=>'a',
-        'É'=>'E','È'=>'E','Ê'=>'E','Ë'=>'E',
-        'é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
-        'Í'=>'I','Ì'=>'I','Î'=>'I','Ï'=>'I',
-        'í'=>'i','ì'=>'i','î'=>'i','ï'=>'i',
-        'Ó'=>'O','Ò'=>'O','Ô'=>'O','Õ'=>'O','Ö'=>'O',
-        'ó'=>'o','ò'=>'o','ô'=>'o','õ'=>'o','ö'=>'o',
-        'Ú'=>'U','Ù'=>'U','Û'=>'U','Ü'=>'U',
-        'ú'=>'u','ù'=>'u','û'=>'u','ü'=>'u',
-        'Ç'=>'C','ç'=>'c',
+        'Ã'=>'A','Ã€'=>'A','Ã‚'=>'A','Ãƒ'=>'A','Ã„'=>'A',
+        'Ã¡'=>'a','Ã '=>'a','Ã¢'=>'a','Ã£'=>'a','Ã¤'=>'a',
+        'Ã‰'=>'E','Ãˆ'=>'E','ÃŠ'=>'E','Ã‹'=>'E',
+        'Ã©'=>'e','Ã¨'=>'e','Ãª'=>'e','Ã«'=>'e',
+        'Ã'=>'I','ÃŒ'=>'I','ÃŽ'=>'I','Ã'=>'I',
+        'Ã­'=>'i','Ã¬'=>'i','Ã®'=>'i','Ã¯'=>'i',
+        'Ã“'=>'O','Ã’'=>'O','Ã”'=>'O','Ã•'=>'O','Ã–'=>'O',
+        'Ã³'=>'o','Ã²'=>'o','Ã´'=>'o','Ãµ'=>'o','Ã¶'=>'o',
+        'Ãš'=>'U','Ã™'=>'U','Ã›'=>'U','Ãœ'=>'U',
+        'Ãº'=>'u','Ã¹'=>'u','Ã»'=>'u','Ã¼'=>'u',
+        'Ã‡'=>'C','Ã§'=>'c',
     ]);
     return function_exists('mb_strtolower') ? mb_strtolower($v, 'UTF-8') : strtolower($v);
 }
@@ -200,14 +198,14 @@ function handleVendedorDashboardRd(PDO $pdo): void
 
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'NÃ£o autenticado.'], JSON_UNESCAPED_UNICODE);
         return;
     }
 
     $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
     if (!($sessionCheck['valid'] ?? true)) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'SessÃ£o encerrada. FaÃ§a login novamente.'], JSON_UNESCAPED_UNICODE);
         return;
     }
 
@@ -226,7 +224,7 @@ function handleVendedorDashboardRd(PDO $pdo): void
         echo json_encode([
             'success' => false,
             'fonte'   => null,
-            'error'   => 'RDSTATION_CRM_TOKEN não configurado no .env. Configure para usar dados externos do RD Station CRM.',
+            'error'   => 'RDSTATION_CRM_TOKEN nÃ£o configurado no .env. Configure para usar dados externos do RD Station CRM.',
         ], JSON_UNESCAPED_UNICODE);
         return;
     }
@@ -251,8 +249,8 @@ function handleVendedorDashboardRd(PDO $pdo): void
         // cache opcional
     }
     try {
-        // Para a página do vendedor, limita páginas para reduzir 429/timeout.
-        // O objetivo aqui é estabilidade do painel individual.
+        // Para a pÃ¡gina do vendedor, limita pÃ¡ginas para reduzir 429/timeout.
+        // O objetivo aqui Ã© estabilidade do painel individual.
         $metricasFresh = rdFetchTodasMetricas($rdToken, $dataDe, $dataAte, $maxPagesVend, false);
         if (is_array($metricasFresh) && isset($metricasFresh['por_vendedor'])) {
             $metricas = $metricasFresh;
@@ -285,7 +283,7 @@ function handleVendedorDashboardRd(PDO $pdo): void
                 'warning' => (string)$e->getMessage(),
             ];
         }
-        // fallback: usa cache stale se disponível; caso contrário usa payload vazio acima
+        // fallback: usa cache stale se disponÃ­vel; caso contrÃ¡rio usa payload vazio acima
     }
 
     $metasByKey = [];
@@ -327,7 +325,7 @@ function handleVendedorDashboardRd(PDO $pdo): void
             $nomesByKey[$k] = $nome;
         }
     } catch (Throwable $e) {
-        // Metas locais são opcionais; mantém fallback.
+        // Metas locais sÃ£o opcionais; mantÃ©m fallback.
     }
 
     $ranking = [];
@@ -461,8 +459,8 @@ function handleVendedorDashboardRd(PDO $pdo): void
 }
 
 /**
- * Painel do vendedor (vendedor.html) com métricas da tabela gestao_pedidos (importação),
- * alinhado ao critério de aprovação da TV / gestão comercial.
+ * Painel do vendedor (vendedor.html) com mÃ©tricas da tabela gestao_pedidos (importaÃ§Ã£o),
+ * alinhado ao critÃ©rio de aprovaÃ§Ã£o da TV / gestÃ£o comercial.
  */
 function handleVendedorDashboardGestao(PDO $pdo): void
 {
@@ -475,14 +473,14 @@ function handleVendedorDashboardGestao(PDO $pdo): void
 
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'NÃ£o autenticado.'], JSON_UNESCAPED_UNICODE);
         return;
     }
 
     $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
     if (!($sessionCheck['valid'] ?? true)) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'SessÃ£o encerrada. FaÃ§a login novamente.'], JSON_UNESCAPED_UNICODE);
         return;
     }
 
@@ -500,7 +498,7 @@ function handleVendedorDashboardGestao(PDO $pdo): void
     $approvedCase = function_exists('gcApprovedCase') ? gcApprovedCase('gp') : "(
         gp.status_financeiro IS NULL OR
         (
-            gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+            gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'OrÃ§amento')
             AND gp.status_financeiro NOT LIKE '%carrinho%'
         )
     )";
@@ -528,7 +526,7 @@ function handleVendedorDashboardGestao(PDO $pdo): void
         $pErrosBase = max(0.0, min(20.0, round(20.0 - ($perda * 0.2), 2))); // 0% perda = 20 pts
         $penalidade = max(0.0, round($penalidadeErros, 2));
         $pErros = max(0.0, round($pErrosBase - $penalidade, 2));
-        $pOrgCrm = $atividade ? 10.0 : 0.0;                                // sem métrica dedicada no BD
+        $pOrgCrm = $atividade ? 10.0 : 0.0;                                // sem mÃ©trica dedicada no BD
 
         $total = round($pFaturamento + $pConversao + $pErros + $pOrgCrm, 2);
         return [
@@ -553,9 +551,9 @@ function handleVendedorDashboardGestao(PDO $pdo): void
                 COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS vendedor,
                 COALESCE(SUM(CASE WHEN {$approvedCase} THEN gp.preco_liquido ELSE 0 END), 0) AS receita,
                 COUNT(CASE WHEN {$approvedCase} THEN 1 END) AS linhas_aprovadas,
-                COUNT(CASE WHEN gp.status_financeiro = 'Orçamento' THEN 1 END) AS linhas_orcamento,
+                COUNT(CASE WHEN gp.status_financeiro = 'OrÃ§amento' THEN 1 END) AS linhas_orcamento,
                 COUNT(DISTINCT CASE WHEN {$approvedCase} THEN CONCAT(gp.ano_referencia, '-', gp.numero_pedido) END) AS pedidos_aprovados_distintos,
-                COUNT(DISTINCT CASE WHEN gp.status_financeiro = 'Orçamento' THEN CONCAT(gp.ano_referencia, '-', gp.numero_pedido) END) AS pedidos_orcamento_distintos,
+                COUNT(DISTINCT CASE WHEN gp.status_financeiro = 'OrÃ§amento' THEN CONCAT(gp.ano_referencia, '-', gp.numero_pedido) END) AS pedidos_orcamento_distintos,
                 COUNT(DISTINCT gp.cliente) AS clientes_distintos
             FROM gestao_pedidos gp
             WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
@@ -568,7 +566,7 @@ function handleVendedorDashboardGestao(PDO $pdo): void
         $rowsAgg = [];
     }
 
-    // Rejeitados vêm de itens_orcamentos_pedidos; vínculo por numero/serie/ano para recuperar atendente.
+    // Rejeitados vÃªm de itens_orcamentos_pedidos; vÃ­nculo por numero/serie/ano para recuperar atendente.
     $rejeitadosByVendedor = [];
     try {
         $sqlRej = "
@@ -887,7 +885,7 @@ function handleVendedorDashboardGestao(PDO $pdo): void
                 }
                 $me['top_motivos_perda'] = $motivos;
             } catch (Throwable $e) {
-                // mantém vazio
+                // mantÃ©m vazio
             }
 
             try {
@@ -914,7 +912,7 @@ function handleVendedorDashboardGestao(PDO $pdo): void
                 }
                 $me['origem_deals'] = $origens;
             } catch (Throwable $e) {
-                // mantém vazio
+                // mantÃ©m vazio
             }
         }
     }
@@ -1001,14 +999,14 @@ function handleGestaoRejeitadosRd(PDO $pdo): void
 {
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'NÃ£o autenticado.'], JSON_UNESCAPED_UNICODE);
         return;
     }
 
     $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
     if (!($sessionCheck['valid'] ?? true)) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'SessÃ£o encerrada. FaÃ§a login novamente.'], JSON_UNESCAPED_UNICODE);
         return;
     }
 
@@ -1024,7 +1022,7 @@ function handleGestaoRejeitadosRd(PDO $pdo): void
         echo json_encode([
             'success' => false,
             'fonte'   => null,
-            'error'   => 'RDSTATION_CRM_TOKEN não configurado no .env.',
+            'error'   => 'RDSTATION_CRM_TOKEN nÃ£o configurado no .env.',
         ], JSON_UNESCAPED_UNICODE);
         return;
     }
@@ -1043,10 +1041,10 @@ function handleGestaoRejeitadosRd(PDO $pdo): void
     foreach ($registros as $row) {
         if (!is_array($row)) continue;
         $cliente = trim((string)($row['cliente'] ?? '(Sem cliente)'));
-        $prescritor = trim((string)($row['prescritor'] ?? 'Não informado'));
+        $prescritor = trim((string)($row['prescritor'] ?? 'NÃ£o informado'));
         $contato = trim((string)($row['contato'] ?? ''));
-        $atendente = trim((string)($row['atendente'] ?? 'Não informado'));
-        $motivo = trim((string)($row['motivo'] ?? 'Não informado'));
+        $atendente = trim((string)($row['atendente'] ?? 'NÃ£o informado'));
+        $motivo = trim((string)($row['motivo'] ?? 'NÃ£o informado'));
         $valor = (float)($row['valor_rejeitado'] ?? 0);
         $dataPerda = trim((string)($row['data_perda'] ?? ''));
 
@@ -1115,7 +1113,7 @@ function handleGestaoRejeitadosRd(PDO $pdo): void
             'contato' => $it['contato'],
             'qtd_rejeicoes' => (int)$it['qtd_rejeicoes'],
             'valor_rejeitado' => round((float)$it['valor_rejeitado'], 2),
-            'motivo_principal' => $motivoPrincipal !== '' ? $motivoPrincipal : 'Não informado',
+            'motivo_principal' => $motivoPrincipal !== '' ? $motivoPrincipal : 'NÃ£o informado',
             'ultima_perda' => $it['ultima_perda'],
             'atendente' => implode(', ', $atendentes),
         ];
@@ -1139,7 +1137,7 @@ function handleGestaoRejeitadosRd(PDO $pdo): void
             'qtd_rejeicoes' => (int)$it['qtd_rejeicoes'],
             'valor_rejeitado' => round((float)$it['valor_rejeitado'], 2),
             'clientes_unicos' => count($it['clientes']),
-            'motivo_principal' => $motivoPrincipal !== '' ? $motivoPrincipal : 'Não informado',
+            'motivo_principal' => $motivoPrincipal !== '' ? $motivoPrincipal : 'NÃ£o informado',
             'ultima_perda' => $it['ultima_perda'],
             'atendentes' => implode(', ', $atendentes),
         ];
@@ -1176,12 +1174,12 @@ function handleDebugRdMetricasPublic(PDO $pdo): void
 {
     if (!gcIsLocalDebugRequest()) {
         http_response_code(403);
-        echo json_encode(['success' => false, 'error' => 'Endpoint temporário disponível apenas em localhost.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Endpoint temporÃ¡rio disponÃ­vel apenas em localhost.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
     if ($rdToken === '') {
-        echo json_encode(['success' => false, 'fonte' => null, 'error' => 'RDSTATION_CRM_TOKEN não configurado no .env.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'fonte' => null, 'error' => 'RDSTATION_CRM_TOKEN nÃ£o configurado no .env.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     [$dataDe, $dataAte] = gcDateRangeFromQuery();
@@ -1238,12 +1236,12 @@ function handleDebugRdTvPublic(PDO $pdo): void
 {
     if (!gcIsLocalDebugRequest()) {
         http_response_code(403);
-        echo json_encode(['success' => false, 'error' => 'Endpoint temporário disponível apenas em localhost.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Endpoint temporÃ¡rio disponÃ­vel apenas em localhost.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
     if ($rdToken === '') {
-        echo json_encode(['success' => false, 'fonte' => null, 'error' => 'RDSTATION_CRM_TOKEN não configurado no .env.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'fonte' => null, 'error' => 'RDSTATION_CRM_TOKEN nÃ£o configurado no .env.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     [$dataDe, $dataAte] = gcDateRangeFromQuery();
@@ -1279,12 +1277,12 @@ function handleDebugRdRejeitadosPublic(PDO $pdo): void
 {
     if (!gcIsLocalDebugRequest()) {
         http_response_code(403);
-        echo json_encode(['success' => false, 'error' => 'Endpoint temporário disponível apenas em localhost.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Endpoint temporÃ¡rio disponÃ­vel apenas em localhost.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
     if ($rdToken === '') {
-        echo json_encode(['success' => false, 'fonte' => null, 'error' => 'RDSTATION_CRM_TOKEN não configurado no .env.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'fonte' => null, 'error' => 'RDSTATION_CRM_TOKEN nÃ£o configurado no .env.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     [$dataDe, $dataAte] = gcDateRangeFromQuery();
@@ -1300,7 +1298,7 @@ function handleDebugRdRejeitadosPublic(PDO $pdo): void
 }
 
 /**
- * Diretório gravável para cache JSON da TV (evita /tmp partilhado na Hostinger).
+ * DiretÃ³rio gravÃ¡vel para cache JSON da TV (evita /tmp partilhado na Hostinger).
  * Opcional: RD_TV_CACHE_DIR=/caminho/absoluto no .env
  */
 function gcTvCacheDir(): string
@@ -1321,8 +1319,8 @@ function gcTvCacheDir(): string
 }
 
 /**
- * Idade máxima (segundos) do ficheiro de cache RD ao servir como stale após falha da API.
- * Acima disto passa a usar o ranking do MySQL (importação), para não “congelar” números velhos.
+ * Idade mÃ¡xima (segundos) do ficheiro de cache RD ao servir como stale apÃ³s falha da API.
+ * Acima disto passa a usar o ranking do MySQL (importaÃ§Ã£o), para nÃ£o â€œcongelarâ€ nÃºmeros velhos.
  */
 function gcTvStaleMaxSec(): int
 {
@@ -1361,7 +1359,7 @@ function handleTvCorridaVendedores(PDO $pdo): void
 
     $refreshRd = isset($_GET['refresh_rd']) ? strtolower(trim((string)$_GET['refresh_rd'])) : '';
     $forceRefresh = in_array($refreshRd, ['1', 'true', 'yes', 'on'], true);
-    // Decisão operacional: TV usa somente base interna (importação), sem consultar RD.
+    // DecisÃ£o operacional: TV usa somente base interna (importaÃ§Ã£o), sem consultar RD.
     $forceDbSource = true;
 
     $rdToken = trim((string)(getenv('RDSTATION_CRM_TOKEN') ?: ''));
@@ -1388,7 +1386,7 @@ function handleTvCorridaVendedores(PDO $pdo): void
             $cachedTv = null;
         }
 
-        // Se houver cache recente e não for refresh forçado, responde rápido para a TV.
+        // Se houver cache recente e nÃ£o for refresh forÃ§ado, responde rÃ¡pido para a TV.
         try {
             if (!$forceRefresh && is_file($cacheFile) && (time() - @filemtime($cacheFile) <= $cacheTtlSec) && is_array($cachedTv)) {
                 $cachedTv['cache'] = ['hit' => true, 'stale' => false];
@@ -1431,7 +1429,7 @@ function handleTvCorridaVendedores(PDO $pdo): void
             if (function_exists('error_log')) {
                 error_log('RD Station TV proxy error: ' . $e->getMessage());
             }
-            // Snapshot RD recente; cache muito velho não serve (Hostinger mostrava números irreais vs localhost)
+            // Snapshot RD recente; cache muito velho nÃ£o serve (Hostinger mostrava nÃºmeros irreais vs localhost)
             if (is_array($cachedTv) && is_file($cacheFile)) {
                 $fm = @filemtime($cacheFile);
                 $age = is_int($fm) && $fm > 0 ? (time() - $fm) : PHP_INT_MAX;
@@ -1439,7 +1437,7 @@ function handleTvCorridaVendedores(PDO $pdo): void
                 if ($age >= 0 && $age <= $maxStale) {
                     $cachedTv['cache'] = ['hit' => true, 'stale' => true, 'idade_segundos' => $age];
                     $cachedTv['fonte'] = 'rdstation_crm_cache_stale';
-                    $cachedTv['aviso_rd'] = 'RD indisponível; último snapshot do CRM (' . $age . 's).';
+                    $cachedTv['aviso_rd'] = 'RD indisponÃ­vel; Ãºltimo snapshot do CRM (' . $age . 's).';
                     echo json_encode($cachedTv, JSON_UNESCAPED_UNICODE);
                     return;
                 }
@@ -1449,11 +1447,11 @@ function handleTvCorridaVendedores(PDO $pdo): void
         }
     }
 
-    // ===== Fallback: banco local (legado — CSV importado) =====
+    // ===== Fallback: banco local (legado â€” CSV importado) =====
     $approvedCase = "(
         gp.status_financeiro IS NULL OR
         (
-            gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+            gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'OrÃ§amento')
             AND gp.status_financeiro NOT LIKE '%carrinho%'
         )
     )";
@@ -1582,7 +1580,7 @@ function handleTvCorridaVendedores(PDO $pdo): void
     }
     unset($it);
 
-    // Assinatura da base no período para detectar mudanças reais após importação/script.
+    // Assinatura da base no perÃ­odo para detectar mudanÃ§as reais apÃ³s importaÃ§Ã£o/script.
     $dbVersion = '';
     try {
         $stSig = $pdo->prepare("
@@ -1616,10 +1614,10 @@ function handleTvCorridaVendedores(PDO $pdo): void
         'updated_at'      => (new DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
     ];
     if (!empty($rdFalhouAntesMysql)) {
-        $payloadTvMysql['aviso_rd'] = 'RD Station falhou; ranking pelo banco interno (importação) — pode divergir do CRM.';
+        $payloadTvMysql['aviso_rd'] = 'RD Station falhou; ranking pelo banco interno (importaÃ§Ã£o) â€” pode divergir do CRM.';
     }
     if (!empty($forceDbSource)) {
-        $payloadTvMysql['aviso_rd'] = 'Fonte definida para banco interno (importação), sem consulta ao RD Station.';
+        $payloadTvMysql['aviso_rd'] = 'Fonte definida para banco interno (importaÃ§Ã£o), sem consulta ao RD Station.';
     }
     echo json_encode($payloadTvMysql, JSON_UNESCAPED_UNICODE);
 }
@@ -1672,13 +1670,13 @@ function handleVendedorPedidosLista(PDO $pdo): void
 {
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'NÃ£o autenticado.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
     if (!($sessionCheck['valid'] ?? true)) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'SessÃ£o encerrada. FaÃ§a login novamente.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
@@ -1699,7 +1697,7 @@ function handleVendedorPedidosLista(PDO $pdo): void
     $approvedCase = function_exists('gcApprovedCase') ? gcApprovedCase('gp') : "(
         gp.status_financeiro IS NULL OR
         (
-            gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+            gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'OrÃ§amento')
             AND gp.status_financeiro NOT LIKE '%carrinho%'
         )
     )";
@@ -1782,13 +1780,13 @@ function handleVendedorPerdasLista(PDO $pdo): void
 {
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'NÃ£o autenticado.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
     if (!($sessionCheck['valid'] ?? true)) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'SessÃ£o encerrada. FaÃ§a login novamente.'], JSON_UNESCAPED_UNICODE);
         return;
     }
 
@@ -2034,13 +2032,13 @@ function handleVendedorPerdasSalvarAcao(PDO $pdo): void
 {
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'NÃ£o autenticado.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
     if (!($sessionCheck['valid'] ?? true)) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'SessÃ£o encerrada. FaÃ§a login novamente.'], JSON_UNESCAPED_UNICODE);
         return;
     }
 
@@ -2057,7 +2055,7 @@ function handleVendedorPerdasSalvarAcao(PDO $pdo): void
 
     $anoRef = (int)($payload['ano_referencia'] ?? 0);
     $numeroPedido = trim((string)($payload['numero_pedido'] ?? ''));
-    // Ação de perdas é sempre por pedido unificado (número/ano), independente de série.
+    // AÃ§Ã£o de perdas Ã© sempre por pedido unificado (nÃºmero/ano), independente de sÃ©rie.
     $seriePedido = '';
     $dataPerda = trim((string)($payload['data_perda'] ?? ''));
     $motivoPerda = trim((string)($payload['motivo_perda'] ?? ''));
@@ -2067,7 +2065,7 @@ function handleVendedorPerdasSalvarAcao(PDO $pdo): void
 
     if ($anoRef <= 0 || $numeroPedido === '') {
         http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Pedido inválido para salvar ação.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Pedido invÃ¡lido para salvar aÃ§Ã£o.'], JSON_UNESCAPED_UNICODE);
         return;
     }
 
@@ -2096,7 +2094,7 @@ function handleVendedorPerdasSalvarAcao(PDO $pdo): void
     $vendedorNome = gcResolveVendedorTargetFromSession($_SESSION, $payload);
     if ($vendedorNome === '') {
         http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Vendedor não identificado para salvar ação.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Vendedor nÃ£o identificado para salvar aÃ§Ã£o.'], JSON_UNESCAPED_UNICODE);
         return;
     }
 
@@ -2152,13 +2150,13 @@ function handleVendedorPerdasInteracoesLista(PDO $pdo): void
 {
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'NÃ£o autenticado.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
     if (!($sessionCheck['valid'] ?? true)) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'SessÃ£o encerrada. FaÃ§a login novamente.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
@@ -2174,13 +2172,13 @@ function handleVendedorPerdasInteracoesLista(PDO $pdo): void
     $seriePedido = '';
     if ($anoRef <= 0 || $numeroPedido === '') {
         http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Pedido inválido para listar tentativas.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Pedido invÃ¡lido para listar tentativas.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $vendedorNome = gcResolveVendedorTargetFromSession($_SESSION, $_GET);
     if ($vendedorNome === '') {
         http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Vendedor não identificado.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Vendedor nÃ£o identificado.'], JSON_UNESCAPED_UNICODE);
         return;
     }
 
@@ -2217,13 +2215,13 @@ function handleVendedorPerdasInteracoesSalvar(PDO $pdo): void
 {
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'NÃ£o autenticado.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
     if (!($sessionCheck['valid'] ?? true)) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'SessÃ£o encerrada. FaÃ§a login novamente.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
@@ -2247,7 +2245,7 @@ function handleVendedorPerdasInteracoesSalvar(PDO $pdo): void
 
     if ($anoRef <= 0 || $numeroPedido === '') {
         http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Pedido inválido para salvar tentativa.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Pedido invÃ¡lido para salvar tentativa.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $tiposValidos = ['whatsapp', 'telefone', 'email', 'outro'];
@@ -2265,7 +2263,7 @@ function handleVendedorPerdasInteracoesSalvar(PDO $pdo): void
     $vendedorNome = gcResolveVendedorTargetFromSession($_SESSION, $payload);
     if ($vendedorNome === '') {
         http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Vendedor não identificado.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Vendedor nÃ£o identificado.'], JSON_UNESCAPED_UNICODE);
         return;
     }
 
@@ -2308,7 +2306,7 @@ function handleVendedorPerdasInteracoesSalvar(PDO $pdo): void
     ], JSON_UNESCAPED_UNICODE);
 }
 
-// check_session: não exige login, só retorna estado da sessão
+// check_session: nÃ£o exige login, sÃ³ retorna estado da sessÃ£o
 if ($action === 'check_session') {
     try {
         $pdo = getConnection();
@@ -2334,7 +2332,7 @@ if ($action === 'check_session') {
         ], JSON_UNESCAPED_UNICODE);
     } catch (Throwable $e) {
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Erro ao verificar sessão.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Erro ao verificar sessÃ£o.'], JSON_UNESCAPED_UNICODE);
     }
     exit;
 }
@@ -2372,7 +2370,7 @@ if ($action === 'debug_rd_rejeitados_public') {
     exit;
 }
 
-// logout: exige sessão, encerra e retorna
+// logout: exige sessÃ£o, encerra e retorna
 if ($action === 'logout') {
     if (!isset($_SESSION['user_id'])) {
         echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
@@ -2411,11 +2409,11 @@ if ($action === 'logout') {
     exit;
 }
 
-// Métricas completas do RD Station CRM (exige admin)
+// MÃ©tricas completas do RD Station CRM (exige admin)
 if ($action === 'gestao_rd_metricas') {
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'NÃ£o autenticado.'], JSON_UNESCAPED_UNICODE);
         exit;
     }
     try {
@@ -2423,7 +2421,7 @@ if ($action === 'gestao_rd_metricas') {
         $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
         if (!($sessionCheck['valid'] ?? true)) {
             http_response_code(401);
-            echo json_encode(['success' => false, 'error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['success' => false, 'error' => 'SessÃ£o encerrada. FaÃ§a login novamente.'], JSON_UNESCAPED_UNICODE);
             exit;
         }
         $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
@@ -2437,7 +2435,7 @@ if ($action === 'gestao_rd_metricas') {
             echo json_encode([
                 'success' => false,
                 'fonte'   => null,
-                'error'   => 'RDSTATION_CRM_TOKEN não configurado no .env. Configure para usar métricas do RD Station CRM.',
+                'error'   => 'RDSTATION_CRM_TOKEN nÃ£o configurado no .env. Configure para usar mÃ©tricas do RD Station CRM.',
             ], JSON_UNESCAPED_UNICODE);
             exit;
         }
@@ -2464,7 +2462,7 @@ if ($action === 'gestao_rd_metricas') {
             'success' => false,
             'fonte'   => null,
             'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
-                ? 'Erro ao buscar métricas do RD Station.'
+                ? 'Erro ao buscar mÃ©tricas do RD Station.'
                 : $e->getMessage(),
         ], JSON_UNESCAPED_UNICODE);
     }
@@ -2561,7 +2559,7 @@ if ($action === 'vendedor_perdas_salvar_acao') {
         echo json_encode([
             'success' => false,
             'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
-                ? 'Erro ao salvar ação da perda.'
+                ? 'Erro ao salvar aÃ§Ã£o da perda.'
                 : $e->getMessage(),
         ], JSON_UNESCAPED_UNICODE);
     }
@@ -2580,7 +2578,7 @@ if ($action === 'vendedor_perdas_interacoes_lista') {
         echo json_encode([
             'success' => false,
             'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
-                ? 'Erro ao carregar tentativas de recuperação.'
+                ? 'Erro ao carregar tentativas de recuperaÃ§Ã£o.'
                 : $e->getMessage(),
         ], JSON_UNESCAPED_UNICODE);
     }
@@ -2599,7 +2597,7 @@ if ($action === 'vendedor_perdas_interacoes_salvar') {
         echo json_encode([
             'success' => false,
             'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
-                ? 'Erro ao salvar tentativa de recuperação.'
+                ? 'Erro ao salvar tentativa de recuperaÃ§Ã£o.'
                 : $e->getMessage(),
         ], JSON_UNESCAPED_UNICODE);
     }
@@ -2619,14 +2617,14 @@ if ($action === 'vendedor_dashboard_gestao') {
             'success' => false,
             'fonte'   => null,
             'error'   => (defined('IS_PRODUCTION') && IS_PRODUCTION)
-                ? 'Erro ao carregar dados da gestão de pedidos.'
+                ? 'Erro ao carregar dados da gestÃ£o de pedidos.'
                 : $e->getMessage(),
         ], JSON_UNESCAPED_UNICODE);
     }
     exit;
 }
 
-// TV corrida: leitura pública para monitor/tela (não expira sessão/senha)
+// TV corrida: leitura pÃºblica para monitor/tela (nÃ£o expira sessÃ£o/senha)
 if ($action === 'tv_corrida_vendedores') {
     try {
         $pdo = getConnection();
@@ -2638,10 +2636,10 @@ if ($action === 'tv_corrida_vendedores') {
     exit;
 }
 
-// Ações de gestão: exigem sessão e admin (validado dentro do módulo)
+// AÃ§Ãµes de gestÃ£o: exigem sessÃ£o e admin (validado dentro do mÃ³dulo)
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
-    echo json_encode(['error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['error' => 'NÃ£o autenticado.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -2650,7 +2648,7 @@ try {
     $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
     if (!($sessionCheck['valid'] ?? true)) {
         http_response_code(401);
-        echo json_encode(['error' => 'Sessão encerrada. Faça login novamente.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['error' => 'SessÃ£o encerrada. FaÃ§a login novamente.'], JSON_UNESCAPED_UNICODE);
         exit;
     }
     handleGestaoComercialModuleAction($action, $pdo);
@@ -2661,7 +2659,8 @@ try {
     http_response_code(500);
     header('Content-Type: application/json; charset=utf-8');
     $msg = (defined('IS_PRODUCTION') && IS_PRODUCTION)
-        ? 'Erro interno na gestão comercial.'
+        ? 'Erro interno na gestÃ£o comercial.'
         : $e->getMessage() . ' em ' . basename($e->getFile()) . ':' . $e->getLine();
     echo json_encode(['success' => false, 'error' => $msg], JSON_UNESCAPED_UNICODE);
 }
+

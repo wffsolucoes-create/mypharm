@@ -286,7 +286,6 @@
             data_erro: (document.getElementById('ceDataErro') || {}).value || '',
             pedido_ref: (document.getElementById('cePedidoRef') || {}).value || '',
             classificacao_erro: (document.getElementById('ceClassificacao') || {}).value || 'leve',
-            pontos_descontados: (document.getElementById('cePontos') || {}).value || '',
             tipo_erro: (document.getElementById('ceTipoErro') || {}).value || '',
             descricao: (document.getElementById('ceDescricao') || {}).value || ''
         };
@@ -343,15 +342,6 @@
         if (de && !de.value) de.value = r.de;
         if (ate && !ate.value) ate.value = r.ate;
         if (dataErro && !dataErro.value) dataErro.value = r.ate;
-
-        const classif = document.getElementById('ceClassificacao');
-        const pontos = document.getElementById('cePontos');
-        if (classif && pontos) {
-            classif.addEventListener('change', function () {
-                if ((pontos.value || '').trim() !== '') return;
-                pontos.value = classif.value === 'grave' ? '10' : (classif.value === 'medio' ? '5' : '2');
-            });
-        }
 
         const salvar = document.getElementById('ceSalvarBtn');
         if (salvar) salvar.addEventListener('click', function () { saveErro().catch(function () {}); });

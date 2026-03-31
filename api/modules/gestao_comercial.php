@@ -1,6 +1,6 @@
 <?php
 /**
- * Módulo Gestão Comercial
+ * MÃ³dulo GestÃ£o Comercial
  * Endpoint principal: action=gestao_comercial_dashboard
  */
 
@@ -26,22 +26,16 @@ function handleGestaoComercialModuleAction(string $action, PDO $pdo): void
             case 'gestao_comercial_erros_excluir':
                 gestaoComercialErrosExcluir($pdo);
                 return;
-            case 'gestao_comercial_erros_importar_csv':
-                gestaoComercialErrosImportarCsv($pdo);
-                return;
-            case 'gestao_comercial_resumo_erros':
-                gestaoComercialResumoErros($pdo);
-                return;
             default:
                 http_response_code(400);
-                echo json_encode(['success' => false, 'error' => 'Ação de gestão comercial desconhecida'], JSON_UNESCAPED_UNICODE);
+                echo json_encode(['success' => false, 'error' => 'AÃ§Ã£o de gestÃ£o comercial desconhecida'], JSON_UNESCAPED_UNICODE);
                 return;
         }
     } catch (Throwable $e) {
         http_response_code(500);
         header('Content-Type: application/json; charset=utf-8');
         $msg = (defined('IS_PRODUCTION') && IS_PRODUCTION)
-            ? 'Erro interno na gestão comercial.'
+            ? 'Erro interno na gestÃ£o comercial.'
             : 'Erro: ' . $e->getMessage() . ' em ' . basename($e->getFile()) . ':' . $e->getLine();
         echo json_encode(['success' => false, 'error' => $msg], JSON_UNESCAPED_UNICODE);
         exit;
@@ -49,7 +43,7 @@ function handleGestaoComercialModuleAction(string $action, PDO $pdo): void
 }
 
 /**
- * Retorna apenas a lista de nomes de usuários com setor = vendedor (para abas).
+ * Retorna apenas a lista de nomes de usuÃ¡rios com setor = vendedor (para abas).
  * Acesso: admin.
  */
 function gestaoComercialListaVendedores(PDO $pdo): void
@@ -274,22 +268,19 @@ function gestaoComercialErrosSalvar(PDO $pdo): void
     $dataErro = trim((string)($payload['data_erro'] ?? ''));
     $tipoErro = trim((string)($payload['tipo_erro'] ?? ''));
     $classificacao = gcNormalizeClassificacaoErro((string)($payload['classificacao_erro'] ?? 'leve'));
-    $pontosRaw = $payload['pontos_descontados'] ?? null;
     $pedidoRef = trim((string)($payload['pedido_ref'] ?? ''));
     $descricao = trim((string)($payload['descricao'] ?? ''));
 
     if ($vendedor === '' || $tipoErro === '') {
         http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Vendedora e tipo do erro são obrigatórios.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Vendedora e tipo do erro sÃ£o obrigatÃ³rios.'], JSON_UNESCAPED_UNICODE);
         exit;
     }
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataErro)) {
         $dataErro = date('Y-m-d');
     }
-    $pontos = is_numeric($pontosRaw) ? (float)$pontosRaw : null;
-    if ($pontos === null) {
-        $pontos = gcPontosPadraoPorClassificacao($classificacao);
-    }
+    // Regra fixa: pontuação é sempre definida pela gravidade (leve=1, medio=2, grave=3).
+    $pontos = gcPontosPadraoPorClassificacao($classificacao);
     $pontos = max(0.0, min(20.0, round($pontos, 2)));
     if (mb_strlen($tipoErro) > 120) $tipoErro = mb_substr($tipoErro, 0, 120);
     if (mb_strlen($pedidoRef) > 80) $pedidoRef = mb_substr($pedidoRef, 0, 80);
@@ -342,7 +333,7 @@ function gestaoComercialErrosExcluir(PDO $pdo): void
     $id = (int)($payload['id'] ?? 0);
     if ($id <= 0) {
         http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Registro inválido para exclusão.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Registro invÃ¡lido para exclusÃ£o.'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
@@ -370,7 +361,7 @@ function gcParseDataBrParaSql(string $s): ?string
 
 /**
  * Importa linhas de planilha (CSV) para vendedor_erros_manuais.
- * Colunas esperadas (cabeçalho): Data, Requisição, Consultor, Tipo de Erro, Observação, Gravidade — ou ordem fixa se não houver cabeçalho reconhecido.
+ * Colunas esperadas (cabeÃ§alho): Data, RequisiÃ§Ã£o, Consultor, Tipo de Erro, ObservaÃ§Ã£o, Gravidade â€” ou ordem fixa se nÃ£o houver cabeÃ§alho reconhecido.
  * Delimitador: ; ou ,
  */
 function gestaoComercialErrosImportarCsv(PDO $pdo): void
@@ -429,8 +420,8 @@ function gestaoComercialErrosImportarCsv(PDO $pdo): void
         foreach ($headerRow as $i => $h) {
             $k = mb_strtolower(trim((string)$h), 'UTF-8');
             $k = strtr($k, [
-                'á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a',
-                'é' => 'e', 'ê' => 'e', 'í' => 'i', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ú' => 'u', 'ç' => 'c',
+                'Ã¡' => 'a', 'Ã ' => 'a', 'Ã¢' => 'a', 'Ã£' => 'a',
+                'Ã©' => 'e', 'Ãª' => 'e', 'Ã­' => 'i', 'Ã³' => 'o', 'Ã´' => 'o', 'Ãµ' => 'o', 'Ãº' => 'u', 'Ã§' => 'c',
             ]);
             $k = preg_replace('/[^a-z0-9]+/u', '_', $k);
             $k = trim($k, '_');
@@ -512,7 +503,7 @@ function gestaoComercialErrosImportarCsv(PDO $pdo): void
             continue;
         }
         if (!gcIsAllowedVendedora($vendedor)) {
-            $errors[] = 'Linha ' . ($li + 1) . ': consultor não reconhecido na equipe comercial (' . $consultor . ').';
+            $errors[] = 'Linha ' . ($li + 1) . ': consultor nÃ£o reconhecido na equipe comercial (' . $consultor . ').';
             $skipped++;
             continue;
         }
@@ -571,17 +562,17 @@ function gcNormName(string $v): string
 {
     $v = trim($v);
     $v = strtr($v, [
-        'Á'=>'A','À'=>'A','Â'=>'A','Ã'=>'A','Ä'=>'A',
-        'á'=>'a','à'=>'a','â'=>'a','ã'=>'a','ä'=>'a',
-        'É'=>'E','È'=>'E','Ê'=>'E','Ë'=>'E',
-        'é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
-        'Í'=>'I','Ì'=>'I','Î'=>'I','Ï'=>'I',
-        'í'=>'i','ì'=>'i','î'=>'i','ï'=>'i',
-        'Ó'=>'O','Ò'=>'O','Ô'=>'O','Õ'=>'O','Ö'=>'O',
-        'ó'=>'o','ò'=>'o','ô'=>'o','õ'=>'o','ö'=>'o',
-        'Ú'=>'U','Ù'=>'U','Û'=>'U','Ü'=>'U',
-        'ú'=>'u','ù'=>'u','û'=>'u','ü'=>'u',
-        'Ç'=>'C','ç'=>'c',
+        'Ã'=>'A','Ã€'=>'A','Ã‚'=>'A','Ãƒ'=>'A','Ã„'=>'A',
+        'Ã¡'=>'a','Ã '=>'a','Ã¢'=>'a','Ã£'=>'a','Ã¤'=>'a',
+        'Ã‰'=>'E','Ãˆ'=>'E','ÃŠ'=>'E','Ã‹'=>'E',
+        'Ã©'=>'e','Ã¨'=>'e','Ãª'=>'e','Ã«'=>'e',
+        'Ã'=>'I','ÃŒ'=>'I','ÃŽ'=>'I','Ã'=>'I',
+        'Ã­'=>'i','Ã¬'=>'i','Ã®'=>'i','Ã¯'=>'i',
+        'Ã“'=>'O','Ã’'=>'O','Ã”'=>'O','Ã•'=>'O','Ã–'=>'O',
+        'Ã³'=>'o','Ã²'=>'o','Ã´'=>'o','Ãµ'=>'o','Ã¶'=>'o',
+        'Ãš'=>'U','Ã™'=>'U','Ã›'=>'U','Ãœ'=>'U',
+        'Ãº'=>'u','Ã¹'=>'u','Ã»'=>'u','Ã¼'=>'u',
+        'Ã‡'=>'C','Ã§'=>'c',
     ]);
     if (function_exists('mb_strtolower')) {
         $v = mb_strtolower($v, 'UTF-8');
@@ -605,6 +596,7 @@ function gcAllowedVendedorasMap(): array
         'Giovanna',
         'Clara Leticia',
         'Ananda Reis',
+        'Micaela',
     ];
     $map = [];
     foreach ($allow as $n) {
@@ -614,8 +606,8 @@ function gcAllowedVendedorasMap(): array
 }
 
 /**
- * Unifica grafias (ex.: "Clara", "Clara Leticia") para o nome canônico da equipe,
- * evitando que o mesmo consultor apareça várias vezes nos gráficos e KPIs.
+ * Unifica grafias (ex.: "Clara", "Clara Leticia") para o nome canÃ´nico da equipe,
+ * evitando que o mesmo consultor apareÃ§a vÃ¡rias vezes nos grÃ¡ficos e KPIs.
  */
 function gcCanonicalVendedoraNome(string $nome): string
 {
@@ -625,7 +617,7 @@ function gcCanonicalVendedoraNome(string $nome): string
     }
     $canonList = [
         'Clara Leticia', 'Ananda Reis', 'Nailena', 'Mariana', 'Jessica Vitoria',
-        'Carla', 'Nereida', 'Giovanna',
+        'Carla', 'Nereida', 'Giovanna', 'Micaela',
     ];
     $nk = gcNormName($nome);
     foreach ($canonList as $c) {
@@ -644,6 +636,8 @@ function gcCanonicalVendedoraNome(string $nome): string
         'carla' => 'Carla',
         'nereida' => 'Nereida',
         'giovanna' => 'Giovanna',
+        'micaela' => 'Micaela',
+        'vitoria' => 'Jessica Vitoria',
     ];
     if ($first !== '' && isset($firstToFull[$first])) {
         return $firstToFull[$first];
@@ -651,7 +645,7 @@ function gcCanonicalVendedoraNome(string $nome): string
     return $nome;
 }
 
-/** Normaliza gravidade para leve|medio|grave (aceita acentos e variações). */
+/** Normaliza gravidade para leve|medio|grave (aceita acentos e variaÃ§Ãµes). */
 function gcNormalizeClassificacaoErro(string $raw): string
 {
     $s = trim($raw);
@@ -661,8 +655,8 @@ function gcNormalizeClassificacaoErro(string $raw): string
         $s = strtolower($s);
     }
     $s = strtr($s, [
-        'á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a',
-        'é' => 'e', 'ê' => 'e', 'í' => 'i', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ú' => 'u', 'ç' => 'c',
+        'Ã¡' => 'a', 'Ã ' => 'a', 'Ã¢' => 'a', 'Ã£' => 'a', 'Ã¤' => 'a',
+        'Ã©' => 'e', 'Ãª' => 'e', 'Ã­' => 'i', 'Ã³' => 'o', 'Ã´' => 'o', 'Ãµ' => 'o', 'Ãº' => 'u', 'Ã§' => 'c',
     ]);
     if ($s === 'grave') {
         return 'grave';
@@ -673,19 +667,19 @@ function gcNormalizeClassificacaoErro(string $raw): string
     return 'leve';
 }
 
-/** Pontos padrão descontados do score por gravidade (ajustáveis em um só lugar). */
+/** Pontos padrÃ£o descontados do score por gravidade (ajustÃ¡veis em um sÃ³ lugar). */
 function gcPontosPadraoPorClassificacao(string $classificacao): float
 {
     return match ($classificacao) {
-        'grave' => 10.0,
-        'medio' => 5.0,
-        default => 2.0,
+        'grave' => 3.0,
+        'medio' => 2.0,
+        default => 1.0,
     };
 }
 
 /**
- * Faixa de até 20 pontos no bloco "erros" do score, conforme total de registros no período
- * (planilha: 0→20, 1→18, 2→15, 3→12, 4 ou mais→5).
+ * Faixa de atÃ© 20 pontos no bloco "erros" do score, conforme total de registros no perÃ­odo
+ * (planilha: 0â†’20, 1â†’18, 2â†’15, 3â†’12, 4 ou maisâ†’5).
  */
 function gcPontosErrosScorePorTotal(int $totalErros): float
 {
@@ -711,13 +705,13 @@ function gcApprovedCase(string $alias = 'gp'): string
     return "(
         {$alias}.status_financeiro IS NULL OR
         (
-            {$alias}.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+            {$alias}.status_financeiro NOT IN ('Recusado', 'Cancelado', 'OrÃ§amento')
             AND {$alias}.status_financeiro NOT LIKE '%carrinho%'
         )
     )";
 }
 
-/** Meses (Y-m) do 1º ao último mês cobertos pelo intervalo [start, end]. */
+/** Meses (Y-m) do 1Âº ao Ãºltimo mÃªs cobertos pelo intervalo [start, end]. */
 function gcMonthKeysBetween(DateTimeImmutable $start, DateTimeImmutable $end): array
 {
     $first = $start->modify('first day of this month');
@@ -735,7 +729,7 @@ function gcMonthKeysBetween(DateTimeImmutable $start, DateTimeImmutable $end): a
 }
 
 /**
- * Receita aprovada em gestao_pedidos por mês e por vendedora (lista permitida).
+ * Receita aprovada em gestao_pedidos por mÃªs e por vendedora (lista permitida).
  *
  * @param array<int, array<string, mixed>> $rowsComAtendente Linhas com chave atendente (ex.: equipe).
  * @return array{meses: string[], series: array<int, array{atendente: string, valores: float[]}>}
@@ -813,7 +807,7 @@ function gcBuildEvolucaoMensalVendedores(PDO $pdo, DateTimeImmutable $startObj, 
 }
 
 /**
- * Contagem de linhas (gestao_pedidos) por mês e vendedora: aprovadas ou rejeitadas (mesmo critério do painel).
+ * Contagem de linhas (gestao_pedidos) por mÃªs e vendedora: aprovadas ou rejeitadas (mesmo critÃ©rio do painel).
  *
  * @param 'aprovados'|'rejeitados' $tipo
  * @return array{meses: string[], series: array<int, array{atendente: string, valores: float[]}>}
@@ -864,8 +858,8 @@ function gcBuildEvolucaoMensalVendedoresContagem(
         $matrix[$nk][$ym] = (int)($row['qtd'] ?? 0);
     }
 
-    // Rejeitados: mesma lógica do painel da equipe — somar linhas em itens_orcamentos_pedidos (Recusado / No carrinho),
-    // pois gestao_pedidos muitas vezes não reflete esses desfechos sozinho.
+    // Rejeitados: mesma lÃ³gica do painel da equipe â€” somar linhas em itens_orcamentos_pedidos (Recusado / No carrinho),
+    // pois gestao_pedidos muitas vezes nÃ£o reflete esses desfechos sozinho.
     if ($tipo === 'rejeitados') {
         $rawItens = gcTryFetchAll($pdo, "
             SELECT
@@ -958,7 +952,7 @@ function gcEvolucaoMensalAprovRejPayload(PDO $pdo, string $approvedGp, array $ro
 }
 
 /**
- * Evolução mensal por vendedor: sempre calendário completo do ano fixo (ignora data_de/data_ate/ano/mês do painel).
+ * EvoluÃ§Ã£o mensal por vendedor: sempre calendÃ¡rio completo do ano fixo (ignora data_de/data_ate/ano/mÃªs do painel).
  */
 function gcEvolucaoMensalVendedoresPayload(PDO $pdo, string $approvedGp, array $rowsComAtendente): array
 {
@@ -971,7 +965,7 @@ function gcEvolucaoMensalVendedoresPayload(PDO $pdo, string $approvedGp, array $
     return $out;
 }
 
-/** Alinhado a api_gestao handleVendedorDashboardGestao — comissão individual por % da meta. */
+/** Alinhado a api_gestao handleVendedorDashboardGestao â€” comissÃ£o individual por % da meta. */
 function gcCalcComissaoIndividualPct(float $percentualMeta): float
 {
     if ($percentualMeta >= 110.0) {
@@ -989,7 +983,7 @@ function gcCalcComissaoIndividualPct(float $percentualMeta): float
     return 0.5;
 }
 
-/** Faixa de comissão extra por faturamento do grupo (receita aprovada no período, soma da equipe). */
+/** Faixa de comissÃ£o extra por faturamento do grupo (receita aprovada no perÃ­odo, soma da equipe). */
 function gcCalcComissaoGrupoPct(float $receitaGrupo): float
 {
     if ($receitaGrupo >= 370000.0) {
@@ -1004,11 +998,11 @@ function gcCalcComissaoGrupoPct(float $receitaGrupo): float
     return 0.0;
 }
 
-/** Regras estáticas de comissão individual (painel comercial). */
+/** Regras estÃ¡ticas de comissÃ£o individual (painel comercial). */
 function gcRelatorioFaixasComissaoIndividual(): array
 {
     return [
-        ['meta_pct_faixa' => 'Até 69%', 'intervalo' => 'Até R$ 40.709,00', 'comissao_percentual' => 0.5],
+        ['meta_pct_faixa' => 'AtÃ© 69%', 'intervalo' => 'AtÃ© R$ 40.709,00', 'comissao_percentual' => 0.5],
         ['meta_pct_faixa' => '70% a 89%', 'intervalo' => 'R$ 40.710,00 a R$ 52.510,00', 'comissao_percentual' => 1.0],
         ['meta_pct_faixa' => '90% a 99%', 'intervalo' => 'R$ 52.511,00 a R$ 58.409,00', 'comissao_percentual' => 1.3],
         ['meta_pct_faixa' => '100% a 109%', 'intervalo' => 'R$ 59.000,00 a R$ 64.309,00', 'comissao_percentual' => 1.8],
@@ -1016,7 +1010,7 @@ function gcRelatorioFaixasComissaoIndividual(): array
     ];
 }
 
-/** Regras estáticas de comissão grupo (painel comercial). */
+/** Regras estÃ¡ticas de comissÃ£o grupo (painel comercial). */
 function gcRelatorioFaixasComissaoGrupo(): array
 {
     return [
@@ -1027,8 +1021,8 @@ function gcRelatorioFaixasComissaoGrupo(): array
 }
 
 /**
- * Bloco "Relatórios" (Semanal, Mensal e Comissão) para aba dedicada.
- * Usa exclusivamente dados do banco no período filtrado.
+ * Bloco "RelatÃ³rios" (Semanal, Mensal e ComissÃ£o) para aba dedicada.
+ * Usa exclusivamente dados do banco no perÃ­odo filtrado.
  */
 function gcBuildRelatoriosComerciais(PDO $pdo, string $start, string $end, string $approvedGp, array $vendedores): array
 {
@@ -1102,7 +1096,7 @@ function gcBuildRelatoriosComerciais(PDO $pdo, string $start, string $end, strin
     $errosCountMap = [];
     gcEnsureControleErrosTable($pdo);
     gcEnsureVendedorPerdasAcoesTableGc($pdo);
-    // Score "Pts erros": tabela por quantidade total de registros (manuais + perdas), não soma de pontos_descontados.
+    // Score "Pts erros": tabela por quantidade total de registros (manuais + perdas), nÃ£o soma de pontos_descontados.
     $cntPerdas = gcTryFetchAll($pdo, "
         SELECT TRIM(vpa.vendedor_nome) AS atendente, COUNT(*) AS qtd
         FROM vendedor_perdas_acoes vpa
@@ -1145,23 +1139,29 @@ function gcBuildRelatoriosComerciais(PDO $pdo, string $start, string $end, strin
         $rej = (int)($v['vendas_rejeitadas'] ?? 0);
         $orc = (int)($orcMap[$nk] ?? max($aprov + $rej, 0));
         $rjIt = (int)($rejeitadosItensMap[$nk] ?? 0);
-        // Denominador: orçamentos + pedidos + (no carrinho + recusado, linhas de item); taxa = pedidos / total.
+        // Denominador: orÃ§amentos + pedidos + (no carrinho + recusado, linhas de item); taxa = pedidos / total.
         $denConv = $orc + $aprov + $rjIt;
-        $conv = $denConv > 0 ? round(($aprov / $denConv) * 100, 2) : 0.0;
+        $convRatio = $denConv > 0 ? ($aprov / $denConv) : 0.0;
+        $conv = round($convRatio * 100, 2);
         $sem = $semanalMap[$nk] ?? null;
         $s1 = (float)($sem['semana_1'] ?? 0);
         $s2 = (float)($sem['semana_2'] ?? 0);
         $s3 = (float)($sem['semana_3'] ?? 0);
         $s4 = (float)($sem['semana_4'] ?? 0);
         $totalSemanas = $s1 + $s2 + $s3 + $s4;
-        // Semanal: usa exatamente o total exibido na linha para evitar divergência no % da meta.
+        // Semanal: usa exatamente o total exibido na linha para evitar divergÃªncia no % da meta.
         $receitaBaseSemanal = abs($receita - $totalSemanas) > 0.01 ? $totalSemanas : $receita;
         $pctMetaSemanal = $meta > 0 ? round(($receitaBaseSemanal / $meta) * 100, 2) : 0.0;
         $pctMetaMensal = $meta > 0 ? round(($receita / $meta) * 100, 2) : 0.0;
+        $ratioMetaMensal = $meta > 0 ? ($receita / $meta) : 0.0;
         $falta = $meta > 0 ? max(0.0, $meta - $receitaBaseSemanal) : 0.0;
         $crm = 5.0;
-        $pFat = round(min(50.0, max(0.0, $pctMetaMensal * 0.5)), 2);
-        $pConv = round(min(20.0, max(0.0, $conv >= 50 ? 20.0 : ($conv / 50.0) * 20.0)), 2);
+        // Sheets: =SE(D2>=1;50;D2*50), onde D2 é a razão da meta (ex.: 0,47 = 47%).
+        $pFatRaw = $ratioMetaMensal >= 1.0 ? 50.0 : ($ratioMetaMensal * 50.0);
+        $pFat = round(min(50.0, max(0.0, $pFatRaw)), 0);
+        // Sheets: =SE(G2>=0,4;20;(G2/0,4)*20), onde G2 é a razão de conversão (0..1).
+        $pConvRaw = $convRatio >= 0.4 ? 20.0 : (($convRatio / 0.4) * 20.0);
+        $pConv = round(min(20.0, max(0.0, $pConvRaw)), 2);
         $totalErrosScore = (int)($errosCountMap[$nk] ?? 0);
         $pErros = gcPontosErrosScorePorTotal($totalErrosScore);
         $score = round($pFat + $pConv + $pErros + $crm, 2);
@@ -1269,16 +1269,17 @@ function gcEnsureVendedorPerdasAcoesTableGc(PDO $pdo): void
 function gcDisplayConsultoraNamePhp(string $nome): string
 {
     $map = [
-        'clara leticia' => 'Clara Letícia',
-        'jessica vitoria' => 'Jéssica Vitória',
+        'clara leticia' => 'Clara LetÃ­cia',
+        'jessica vitoria' => 'JÃ©ssica VitÃ³ria',
         'ananda reis' => 'Ananda Reis',
+        'Micaela',
     ];
     $k = gcNormName($nome);
     return $map[$k] ?? $nome;
 }
 
 /**
- * KPIs globais, tabela de erros (manuais + perdas) e bullets de conclusão para a página Resumo de erros.
+ * KPIs globais, tabela de erros (manuais + perdas) e bullets de conclusÃ£o para a pÃ¡gina Resumo de erros.
  */
 function gcBuildResumoErrosPayload(PDO $pdo, string $ini, string $fim): array
 {
@@ -1380,7 +1381,7 @@ function gcBuildResumoErrosPayload(PDO $pdo, string $ini, string $fim): array
     $equipe = [];
     foreach ($norms as $nk) {
         $nomeCanon = '';
-        foreach (['Clara Leticia', 'Ananda Reis', 'Nailena', 'Mariana', 'Jessica Vitoria', 'Carla', 'Nereida', 'Giovanna'] as $cand) {
+        foreach (['Clara Leticia', 'Ananda Reis', 'Nailena', 'Mariana', 'Jessica Vitoria', 'Carla', 'Nereida', 'Giovanna', 'Micaela'] as $cand) {
             if (gcNormName($cand) === $nk) {
                 $nomeCanon = $cand;
                 break;
@@ -1429,7 +1430,7 @@ function gcBuildResumoErrosPayload(PDO $pdo, string $ini, string $fim): array
             TRIM(vendedor_nome) AS nome,
             COUNT(*) AS total,
             SUM(CASE WHEN LOWER(TRIM(classificacao_erro)) = 'leve' THEN 1 ELSE 0 END) AS leves,
-            SUM(CASE WHEN LOWER(TRIM(classificacao_erro)) IN ('medio','médio') THEN 1 ELSE 0 END) AS medios,
+            SUM(CASE WHEN LOWER(TRIM(classificacao_erro)) IN ('medio','mÃ©dio') THEN 1 ELSE 0 END) AS medios,
             SUM(CASE WHEN LOWER(TRIM(classificacao_erro)) = 'grave' THEN 1 ELSE 0 END) AS graves,
             COALESCE(SUM(pontos_descontados), 0) AS pts
         FROM vendedor_erros_manuais
@@ -1442,11 +1443,11 @@ function gcBuildResumoErrosPayload(PDO $pdo, string $ini, string $fim): array
             TRIM(vendedor_nome) AS nome,
             COUNT(*) AS total,
             SUM(CASE
-                WHEN LOWER(TRIM(COALESCE(classificacao_erro, ''))) IN ('medio', 'médio') THEN 0
+                WHEN LOWER(TRIM(COALESCE(classificacao_erro, ''))) IN ('medio', 'mÃ©dio') THEN 0
                 WHEN LOWER(TRIM(COALESCE(classificacao_erro, ''))) = 'grave' THEN 0
                 ELSE 1
             END) AS leves,
-            SUM(CASE WHEN LOWER(TRIM(COALESCE(classificacao_erro, ''))) IN ('medio', 'médio') THEN 1 ELSE 0 END) AS medios,
+            SUM(CASE WHEN LOWER(TRIM(COALESCE(classificacao_erro, ''))) IN ('medio', 'mÃ©dio') THEN 1 ELSE 0 END) AS medios,
             SUM(CASE WHEN LOWER(TRIM(COALESCE(classificacao_erro, ''))) = 'grave' THEN 1 ELSE 0 END) AS graves,
             COALESCE(SUM(pontos_descontados), 0) AS pts
         FROM vendedor_perdas_acoes
@@ -1573,43 +1574,43 @@ function gcBuildResumoErrosPayload(PDO $pdo, string $ini, string $fim): array
     if ($acimaMeta !== []) {
         $c1 .= 'Vendedoras acima de 100% da meta: ' . implode(', ', $acimaMeta) . '. ';
     } else {
-        $c1 .= 'Nenhuma vendedora acima de 100% da meta no período. ';
+        $c1 .= 'Nenhuma vendedora acima de 100% da meta no perÃ­odo. ';
     }
     if ($topReceita) {
         $c1 .= 'Maior faturamento: <strong>' . $topReceita['vendedora'] . '</strong> ('
             . 'R$ ' . number_format($topReceita['receita'], 2, ',', '.') . '). ';
     }
     if ($abaixo70 !== []) {
-        $c1 .= 'Atenção (abaixo de 70% da meta): ' . implode(', ', $abaixo70) . '.';
+        $c1 .= 'AtenÃ§Ã£o (abaixo de 70% da meta): ' . implode(', ', $abaixo70) . '.';
     } else {
         $c1 .= 'Nenhuma vendedora abaixo de 70% da meta.';
     }
 
-    $c2 = '<strong>Eficiência de conversão:</strong> ';
-    $c2 .= 'Média de conversão da equipe: <strong>' . number_format($convMed, 2, ',', '.') . '%</strong>. ';
+    $c2 = '<strong>EficiÃªncia de conversÃ£o:</strong> ';
+    $c2 .= 'MÃ©dia de conversÃ£o da equipe: <strong>' . number_format($convMed, 2, ',', '.') . '%</strong>. ';
     if ($maxConv) {
         $c2 .= 'Maior taxa: <strong>' . $maxConv['vendedora'] . '</strong> (' . number_format($maxConv['conversao'], 2, ',', '.') . '%). ';
     }
     if ($maxOrc && $maxOrcVal > 0) {
-        $c2 .= 'Maior volume de orçamentos: <strong>' . $maxOrc['vendedora'] . '</strong> (' . number_format($maxOrcVal, 0, ',', '.') . ').';
+        $c2 .= 'Maior volume de orÃ§amentos: <strong>' . $maxOrc['vendedora'] . '</strong> (' . number_format($maxOrcVal, 0, ',', '.') . ').';
     }
 
-    $c3 = '<strong>Dinâmica semanal:</strong> ';
+    $c3 = '<strong>DinÃ¢mica semanal:</strong> ';
     if ($bestS4 && $bestS4Share > 0.2) {
         $c3 .= 'A <strong>semana 4</strong> concentrou a maior fatia do faturamento individual em <strong>' . $bestS4['nome']
-            . '</strong> (~' . number_format($bestS4['share'], 1, ',', '.') . '% do total dela no período).';
+            . '</strong> (~' . number_format($bestS4['share'], 1, ',', '.') . '% do total dela no perÃ­odo).';
     } else {
-        $c3 .= 'Distribuição entre semanas variando por consultora; acompanhe o relatório semanal na Gestão comercial para detalhes.';
+        $c3 .= 'DistribuiÃ§Ã£o entre semanas variando por consultora; acompanhe o relatÃ³rio semanal na GestÃ£o comercial para detalhes.';
     }
 
-    $c4 = '<strong>Erros e pontos no score (até 20):</strong> ';
+    $c4 = '<strong>Erros e pontos no score (atÃ© 20):</strong> ';
     if (count($topErr) >= 2) {
         $c4 .= 'Maiores volumes de registros: <strong>' . $topErr[0]['vendedora'] . '</strong> (' . (int)$topErr[0]['total_erros'] . ') e <strong>'
             . $topErr[1]['vendedora'] . '</strong> (' . (int)$topErr[1]['total_erros'] . '). ';
     } elseif (count($topErr) === 1) {
         $c4 .= 'Maior volume: <strong>' . $topErr[0]['vendedora'] . '</strong> (' . (int)$topErr[0]['total_erros'] . '). ';
     }
-    $c4 .= 'A coluna “Pontos no score” reflete 20 menos a soma dos pontos descontados (perdas + erros manuais), limitado entre 0 e 20.';
+    $c4 .= 'A coluna â€œPontos no scoreâ€ reflete 20 menos a soma dos pontos descontados (perdas + erros manuais), limitado entre 0 e 20.';
 
     return [
         'periodo' => ['data_de' => $ini, 'data_ate' => $fim],
@@ -1636,8 +1637,8 @@ function gestaoComercialResumoErros(PDO $pdo): void
 }
 
 /**
- * Painel Gestão Comercial com métricas exclusivamente da API RD Station CRM (crm.rdstation.com).
- * Mantém o mesmo formato JSON do dashboard MySQL para o frontend não duplicar renderização.
+ * Painel GestÃ£o Comercial com mÃ©tricas exclusivamente da API RD Station CRM (crm.rdstation.com).
+ * MantÃ©m o mesmo formato JSON do dashboard MySQL para o frontend nÃ£o duplicar renderizaÃ§Ã£o.
  */
 function gestaoComercialDashboardRdOnly(PDO $pdo): void
 {
@@ -1658,13 +1659,13 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
     if ($rdToken === '') {
         echo json_encode([
             'success' => false,
-            'error'   => 'RDSTATION_CRM_TOKEN não configurado no .env. Sem token não é possível carregar o painel só com o CRM.',
+            'error'   => 'RDSTATION_CRM_TOKEN nÃ£o configurado no .env. Sem token nÃ£o Ã© possÃ­vel carregar o painel sÃ³ com o CRM.',
         ], JSON_UNESCAPED_UNICODE);
         return;
     }
     if (!function_exists('rdFetchTodasMetricas')) {
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Integração RD Station indisponível no servidor.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'IntegraÃ§Ã£o RD Station indisponÃ­vel no servidor.'], JSON_UNESCAPED_UNICODE);
         return;
     }
 
@@ -1691,17 +1692,17 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
             }
         }
     } catch (Throwable $e) {
-        // cache é opcional
+        // cache Ã© opcional
     }
     try {
         if (!is_array($rdNow)) {
-            // Traz o período completo para manter aderência aos números do Kanban RD.
-            // O cache de 30 min preserva performance nas próximas consultas.
+            // Traz o perÃ­odo completo para manter aderÃªncia aos nÃºmeros do Kanban RD.
+            // O cache de 30 min preserva performance nas prÃ³ximas consultas.
             $rdNow = rdFetchTodasMetricas($rdToken, $start, $end, null, false);
             @file_put_contents($cacheFile, json_encode($rdNow, JSON_UNESCAPED_UNICODE));
         }
     } catch (Throwable $e) {
-        // Se houver cache antigo, serve versão stale em caso de falha no RD.
+        // Se houver cache antigo, serve versÃ£o stale em caso de falha no RD.
         try {
             if (is_file($cacheFile)) {
                 $cached = @file_get_contents($cacheFile);
@@ -1755,7 +1756,7 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
     foreach ($funilEstagios as $e) {
         $pipe = trim((string)($e['pipeline_name'] ?? 'Geral'));
         $st = trim((string)($e['stage_name'] ?? ''));
-        $label = $pipe . ' — ' . ($st !== '' ? $st : 'Etapa');
+        $label = $pipe . ' â€” ' . ($st !== '' ? $st : 'Etapa');
         $funilMap[$label] = ($funilMap[$label] ?? 0) + (int)($e['quantidade'] ?? 0);
     }
     $gargalo = null;
@@ -1812,10 +1813,10 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
             foreach ($registrosRej as $rj) {
                 if (!is_array($rj)) continue;
                 $cliente = trim((string)($rj['cliente'] ?? ''));
-                $prescritor = trim((string)($rj['prescritor'] ?? 'Não informado'));
+                $prescritor = trim((string)($rj['prescritor'] ?? 'NÃ£o informado'));
                 $contato = trim((string)($rj['contato'] ?? ''));
                 if ($cliente === '' || $contato === '') continue;
-                $atendente = trim((string)($rj['atendente'] ?? 'Não informado'));
+                $atendente = trim((string)($rj['atendente'] ?? 'NÃ£o informado'));
                 $valor = (float)($rj['valor_rejeitado'] ?? 0);
                 $kRaw = trim((string)($cliente . '|' . $prescritor . '|' . $contato . '|' . $atendente));
                 $k = function_exists('mb_strtolower') ? mb_strtolower($kRaw, 'UTF-8') : strtolower($kRaw);
@@ -1888,12 +1889,12 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
         ];
     }
 
-    // No modo RD-only, não há produto/prescritor/especialidade nativos no mesmo formato legado.
-    // Então montamos estes blocos a partir dos detalhamentos disponíveis no CRM.
+    // No modo RD-only, nÃ£o hÃ¡ produto/prescritor/especialidade nativos no mesmo formato legado.
+    // EntÃ£o montamos estes blocos a partir dos detalhamentos disponÃ­veis no CRM.
     $topFormulas = [];
     foreach (($rdNow['origens_geral'] ?? []) as $o) {
         $topFormulas[] = [
-            'produto'    => (string)($o['origem'] ?? 'Não informada'),
+            'produto'    => (string)($o['origem'] ?? 'NÃ£o informada'),
             'quantidade' => (int)($o['quantidade'] ?? 0),
         ];
     }
@@ -1905,7 +1906,7 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
     $topPrescritores = [];
     foreach ($porLista as $row) {
         $topPrescritores[] = [
-            'prescritor' => (string)($row['vendedor'] ?? 'Não informado'),
+            'prescritor' => (string)($row['vendedor'] ?? 'NÃ£o informado'),
             'receita'    => round((float)($row['receita'] ?? 0), 2),
         ];
     }
@@ -1919,7 +1920,7 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
     foreach (($rdNow['origens_geral'] ?? []) as $o) {
         $receitaOrigem = (float)($o['receita'] ?? 0);
         $formulasMargem[] = [
-            'produto'           => (string)($o['origem'] ?? 'Não informada'),
+            'produto'           => (string)($o['origem'] ?? 'NÃ£o informada'),
             'margem_percentual' => $baseReceita > 0 ? round(($receitaOrigem / $baseReceita) * 100, 2) : 0.0,
         ];
     }
@@ -1933,7 +1934,7 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
         $ganhos = (int)($row['total_ganhos'] ?? 0);
         $receitaVendedor = (float)($row['receita'] ?? 0);
         $ticketEspecialidade[] = [
-            'especialidade' => (string)($row['vendedor'] ?? 'Não informado'),
+            'especialidade' => (string)($row['vendedor'] ?? 'NÃ£o informado'),
             'ticket_medio'  => $ganhos > 0 ? round($receitaVendedor / $ganhos, 2) : 0.0,
         ];
     }
@@ -1965,10 +1966,10 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
         'cac'                         => null,
         'ltv_cac'                     => null,
         'notas'                       => [
-            'cac'     => 'CAC não disponível na API do CRM.',
-            'ltv_cac' => '—',
-            'ltv'     => 'LTV não calculado a partir do CRM neste modo.',
-            'leads'   => '“Leads / volume” = negociações fechadas no período (ganhos + perdidos) + oportunidades abertas no funil (RD).',
+            'cac'     => 'CAC nÃ£o disponÃ­vel na API do CRM.',
+            'ltv_cac' => 'â€”',
+            'ltv'     => 'LTV nÃ£o calculado a partir do CRM neste modo.',
+            'leads'   => 'â€œLeads / volumeâ€ = negociaÃ§Ãµes fechadas no perÃ­odo (ganhos + perdidos) + oportunidades abertas no funil (RD).',
         ],
     ];
 
@@ -1985,8 +1986,8 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
             'produto'            => [],
         ],
         'notas' => [
-            'ponto_equilibrio' => 'Custos e margens de produto não vêm do RD Station CRM.',
-            'modo'             => 'Receita e “lucro” exibidos refletem o valor dos deals ganhos no CRM; não há CMV do ERP.',
+            'ponto_equilibrio' => 'Custos e margens de produto nÃ£o vÃªm do RD Station CRM.',
+            'modo'             => 'Receita e â€œlucroâ€ exibidos refletem o valor dos deals ganhos no CRM; nÃ£o hÃ¡ CMV do ERP.',
         ],
     ];
 
@@ -1997,7 +1998,7 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
         'nps'                      => null,
         'csat'                     => null,
         'notas'                    => [
-            'nps_csat' => 'Fidelização e NPS não estão neste modo (somente CRM).',
+            'nps_csat' => 'FidelizaÃ§Ã£o e NPS nÃ£o estÃ£o neste modo (somente CRM).',
         ],
     ];
 
@@ -2084,7 +2085,7 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
                 'fluxo_projetado_3_meses' => null,
             ],
             'notas' => [
-                'campos_nulos' => 'Painel alimentado só pelo RD Station CRM: sem CMV, inadimplência ou fluxo de caixa do ERP.',
+                'campos_nulos' => 'Painel alimentado sÃ³ pelo RD Station CRM: sem CMV, inadimplÃªncia ou fluxo de caixa do ERP.',
             ],
         ],
         'relatorios_comerciais'  => $relatoriosComerciais,
@@ -2103,7 +2104,7 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
     $json = json_encode($payload, $jsonFlags);
     if ($json === false) {
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Erro ao montar JSON do painel (dados inválidos para serialização).'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Erro ao montar JSON do painel (dados invÃ¡lidos para serializaÃ§Ã£o).'], JSON_UNESCAPED_UNICODE);
         exit;
     }
     echo $json;
@@ -2211,7 +2212,7 @@ function gestaoComercialDashboard(PDO $pdo): void
         WHERE x.qtd_aprov = 0 AND x.qtd_nao_aprov > 0
     ", ['ini' => $start, 'fim' => $end]);
 
-    // LTV no período filtrado (antes: full scan em gestao_pedidos — muito lento com base grande).
+    // LTV no perÃ­odo filtrado (antes: full scan em gestao_pedidos â€” muito lento com base grande).
     $ltvRow = gcFetchRow($pdo, "
         SELECT
             COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS receita_total,
@@ -2305,7 +2306,7 @@ function gestaoComercialDashboard(PDO $pdo): void
         return gcIsAllowedVendedora((string)($row['atendente'] ?? ''));
     }));
 
-    // Rejeitados (Recusado / No carrinho) vivem em itens_orcamentos_pedidos; gestao_pedidos muitas vezes não traz essas linhas.
+    // Rejeitados (Recusado / No carrinho) vivem em itens_orcamentos_pedidos; gestao_pedidos muitas vezes nÃ£o traz essas linhas.
     $rejeitadosPorItensRaw = gcTryFetchAll($pdo, "
         SELECT
             COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)') AS atendente,
@@ -2756,9 +2757,9 @@ function gestaoComercialDashboard(PDO $pdo): void
         'cac' => null,
         'ltv_cac' => null,
         'notas' => [
-            'cac' => 'Não há base de custo de marketing/campanhas no banco atual.',
-            'ltv_cac' => 'Depende do CAC para cálculo.',
-            'ltv' => 'LTV = receita aprovada no período filtrado ÷ clientes distintos com compra nesse período (agilidade do painel; não é LTV vitalício).',
+            'cac' => 'NÃ£o hÃ¡ base de custo de marketing/campanhas no banco atual.',
+            'ltv_cac' => 'Depende do CAC para cÃ¡lculo.',
+            'ltv' => 'LTV = receita aprovada no perÃ­odo filtrado Ã· clientes distintos com compra nesse perÃ­odo (agilidade do painel; nÃ£o Ã© LTV vitalÃ­cio).',
         ],
     ];
 
@@ -2785,7 +2786,7 @@ function gestaoComercialDashboard(PDO $pdo): void
         'nps' => null,
         'csat' => null,
         'notas' => [
-            'nps_csat' => 'Não há tabela de pesquisas de satisfação (NPS/CSAT) na base atual.',
+            'nps_csat' => 'NÃ£o hÃ¡ tabela de pesquisas de satisfaÃ§Ã£o (NPS/CSAT) na base atual.',
         ],
     ];
 
@@ -2880,7 +2881,7 @@ function gestaoComercialDashboard(PDO $pdo): void
                 'fluxo_projetado_3_meses' => null,
             ],
             'notas' => [
-                'campos_nulos' => 'Métricas dependentes de marketing/financeiro não existem hoje na base transacional.'
+                'campos_nulos' => 'MÃ©tricas dependentes de marketing/financeiro nÃ£o existem hoje na base transacional.'
             ]
         ],
         'relatorios_comerciais' => $relatoriosComerciais,
@@ -2893,10 +2894,12 @@ function gestaoComercialDashboard(PDO $pdo): void
     $json = json_encode($payload, $jsonFlags);
     if ($json === false) {
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Erro ao montar JSON do painel (dados inválidos para serialização).'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Erro ao montar JSON do painel (dados invÃ¡lidos para serializaÃ§Ã£o).'], JSON_UNESCAPED_UNICODE);
         exit;
     }
     echo $json;
     exit;
 }
+
+
 

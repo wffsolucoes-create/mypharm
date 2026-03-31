@@ -1957,18 +1957,6 @@
         if (erroData && !erroData.value) {
             erroData.value = new Date().toISOString().slice(0, 10);
         }
-        const erroClass = document.getElementById('gcErroClassificacao');
-        const erroPontos = document.getElementById('gcErroPontos');
-        if (erroClass && erroPontos) {
-            erroClass.addEventListener('change', function () {
-                if ((erroPontos.value || '').trim() !== '') return;
-                if (erroClass.value === 'grave') erroPontos.value = '10';
-                else if (erroClass.value === 'medio') erroPontos.value = '5';
-                else if (erroClass.value === 'leve') erroPontos.value = '2';
-                else erroPontos.value = '2';
-            });
-        }
-
         const erroSalvarBtn = document.getElementById('gcErroSalvarBtn');
         if (erroSalvarBtn) {
             erroSalvarBtn.addEventListener('click', async function () {
@@ -1976,7 +1964,6 @@
                 const dataErro = (document.getElementById('gcErroData') || {}).value || '';
                 const tipoErro = (document.getElementById('gcErroTipo') || {}).value || '';
                 const classif = (document.getElementById('gcErroClassificacao') || {}).value || 'leve';
-                const pontosTxt = (document.getElementById('gcErroPontos') || {}).value || '';
                 const pedidoRef = (document.getElementById('gcErroPedidoRef') || {}).value || '';
                 const descricao = (document.getElementById('gcErroDescricao') || {}).value || '';
                 if (!vendedor || !tipoErro.trim()) {
@@ -1988,7 +1975,6 @@
                     data_erro: dataErro,
                     tipo_erro: tipoErro,
                     classificacao_erro: classif,
-                    pontos_descontados: pontosTxt.trim() === '' ? null : Number(pontosTxt),
                     pedido_ref: pedidoRef,
                     descricao: descricao
                 };
