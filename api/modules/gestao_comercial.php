@@ -17,6 +17,21 @@ function handleGestaoComercialModuleAction(string $action, PDO $pdo): void
             case 'gestao_comercial_lista_vendedores':
                 gestaoComercialListaVendedores($pdo);
                 return;
+            case 'gestao_comercial_erros_lista':
+                gestaoComercialErrosLista($pdo);
+                return;
+            case 'gestao_comercial_erros_salvar':
+                gestaoComercialErrosSalvar($pdo);
+                return;
+            case 'gestao_comercial_erros_excluir':
+                gestaoComercialErrosExcluir($pdo);
+                return;
+            case 'gestao_comercial_erros_importar_csv':
+                gestaoComercialErrosImportarCsv($pdo);
+                return;
+            case 'gestao_comercial_resumo_erros':
+                gestaoComercialResumoErros($pdo);
+                return;
             default:
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'Ação de gestão comercial desconhecida'], JSON_UNESCAPED_UNICODE);
@@ -144,6 +159,414 @@ function gcTryFetchAll(PDO $pdo, string $sql, array $params = []): array
     }
 }
 
+function gcEnsureControleErrosTable(PDO $pdo): void
+{
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS vendedor_erros_manuais (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            vendedor_nome VARCHAR(120) NOT NULL,
+            data_erro DATE NOT NULL,
+            tipo_erro VARCHAR(120) NOT NULL,
+            classificacao_erro VARCHAR(20) NOT NULL DEFAULT 'leve',
+            pontos_descontados DECIMAL(10,2) NOT NULL DEFAULT 0,
+            pedido_ref VARCHAR(80) NULL,
+            descricao TEXT NULL,
+            created_by INT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_vendedor_data (vendedor_nome, data_erro),
+            KEY idx_data (data_erro)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+}
+
+function gcAssertAdminSession(): void
+{
+    $tipo = isset($_SESSION['user_tipo']) ? strtolower(trim((string)$_SESSION['user_tipo'])) : '';
+    if ($tipo !== 'admin') {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito ao administrador.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+}
+
+function gestaoComercialErrosLista(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    gcEnsureControleErrosTable($pdo);
+
+    [$startObj, $endObj] = gcDateRangeFromInput();
+    $dataDe = $startObj->format('Y-m-d');
+    $dataAte = $endObj->format('Y-m-d');
+    $vendedor = trim((string)($_GET['vendedor'] ?? ''));
+    $q = trim((string)($_GET['q'] ?? ''));
+    $limit = max(20, min(500, (int)($_GET['limit'] ?? 200)));
+
+    $where = ["data_erro BETWEEN :de AND :ate"];
+    $bind = ['de' => $dataDe, 'ate' => $dataAte];
+    if ($vendedor !== '') {
+        $where[] = "vendedor_nome = :vendedor";
+        $bind['vendedor'] = $vendedor;
+    }
+    if ($q !== '') {
+        $where[] = "(tipo_erro LIKE :q OR COALESCE(descricao, '') LIKE :q OR COALESCE(pedido_ref, '') LIKE :q)";
+        $bind['q'] = '%' . str_replace(' ', '%', $q) . '%';
+    }
+    $sqlWhere = 'WHERE ' . implode(' AND ', $where);
+
+    $rows = gcTryFetchAll($pdo, "
+        SELECT
+            id,
+            vendedor_nome,
+            DATE_FORMAT(data_erro, '%Y-%m-%d') AS data_erro,
+            tipo_erro,
+            classificacao_erro,
+            pontos_descontados,
+            COALESCE(pedido_ref, '') AS pedido_ref,
+            COALESCE(descricao, '') AS descricao,
+            DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at
+        FROM vendedor_erros_manuais
+        {$sqlWhere}
+        ORDER BY data_erro DESC, id DESC
+        LIMIT {$limit}
+    ", $bind);
+
+    foreach ($rows as &$row) {
+        $vn = trim((string)($row['vendedor_nome'] ?? ''));
+        $canon = gcCanonicalVendedoraNome($vn);
+        $row['vendedor_nome'] = gcDisplayConsultoraNamePhp($canon !== '' ? $canon : $vn);
+        $row['classificacao_erro'] = gcNormalizeClassificacaoErro((string)($row['classificacao_erro'] ?? 'leve'));
+    }
+    unset($row);
+
+    $resumo = gcFetchRow($pdo, "
+        SELECT
+            COUNT(*) AS total_erros,
+            COALESCE(SUM(pontos_descontados), 0) AS total_pontos
+        FROM vendedor_erros_manuais
+        {$sqlWhere}
+    ", $bind);
+
+    echo json_encode([
+        'success' => true,
+        'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte],
+        'resumo' => [
+            'total_erros' => (int)($resumo['total_erros'] ?? 0),
+            'total_pontos' => round((float)($resumo['total_pontos'] ?? 0), 2),
+        ],
+        'rows' => $rows,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function gestaoComercialErrosSalvar(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    gcEnsureControleErrosTable($pdo);
+
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) $payload = [];
+
+    $vendedor = gcCanonicalVendedoraNome(trim((string)($payload['vendedor_nome'] ?? '')));
+    $dataErro = trim((string)($payload['data_erro'] ?? ''));
+    $tipoErro = trim((string)($payload['tipo_erro'] ?? ''));
+    $classificacao = gcNormalizeClassificacaoErro((string)($payload['classificacao_erro'] ?? 'leve'));
+    $pontosRaw = $payload['pontos_descontados'] ?? null;
+    $pedidoRef = trim((string)($payload['pedido_ref'] ?? ''));
+    $descricao = trim((string)($payload['descricao'] ?? ''));
+
+    if ($vendedor === '' || $tipoErro === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Vendedora e tipo do erro são obrigatórios.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataErro)) {
+        $dataErro = date('Y-m-d');
+    }
+    $pontos = is_numeric($pontosRaw) ? (float)$pontosRaw : null;
+    if ($pontos === null) {
+        $pontos = gcPontosPadraoPorClassificacao($classificacao);
+    }
+    $pontos = max(0.0, min(20.0, round($pontos, 2)));
+    if (mb_strlen($tipoErro) > 120) $tipoErro = mb_substr($tipoErro, 0, 120);
+    if (mb_strlen($pedidoRef) > 80) $pedidoRef = mb_substr($pedidoRef, 0, 80);
+    if (mb_strlen($descricao) > 3000) $descricao = mb_substr($descricao, 0, 3000);
+
+    $st = $pdo->prepare("
+        INSERT INTO vendedor_erros_manuais (
+            vendedor_nome, data_erro, tipo_erro, classificacao_erro,
+            pontos_descontados, pedido_ref, descricao, created_by
+        ) VALUES (
+            :vendedor, :data_erro, :tipo_erro, :classificacao,
+            :pontos, :pedido_ref, :descricao, :created_by
+        )
+    ");
+    $st->execute([
+        'vendedor' => $vendedor,
+        'data_erro' => $dataErro,
+        'tipo_erro' => $tipoErro,
+        'classificacao' => $classificacao,
+        'pontos' => $pontos,
+        'pedido_ref' => $pedidoRef !== '' ? $pedidoRef : null,
+        'descricao' => $descricao !== '' ? $descricao : null,
+        'created_by' => (int)($_SESSION['user_id'] ?? 0),
+    ]);
+
+    echo json_encode([
+        'success' => true,
+        'id' => (int)$pdo->lastInsertId(),
+        'saved' => [
+            'vendedor_nome' => $vendedor,
+            'data_erro' => $dataErro,
+            'tipo_erro' => $tipoErro,
+            'classificacao_erro' => $classificacao,
+            'pontos_descontados' => $pontos,
+            'pedido_ref' => $pedidoRef,
+            'descricao' => $descricao,
+        ],
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function gestaoComercialErrosExcluir(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    gcEnsureControleErrosTable($pdo);
+
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) $payload = [];
+    $id = (int)($payload['id'] ?? 0);
+    if ($id <= 0) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Registro inválido para exclusão.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $st = $pdo->prepare("DELETE FROM vendedor_erros_manuais WHERE id = :id LIMIT 1");
+    $st->execute(['id' => $id]);
+    echo json_encode(['success' => true, 'deleted' => $id], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+/** Converte data DD/MM/AAAA ou AAAA-MM-DD para SQL; vazio = null. */
+function gcParseDataBrParaSql(string $s): ?string
+{
+    $s = trim($s);
+    if ($s === '') {
+        return null;
+    }
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) {
+        return $s;
+    }
+    if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/u', $s, $m)) {
+        return sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]);
+    }
+    return null;
+}
+
+/**
+ * Importa linhas de planilha (CSV) para vendedor_erros_manuais.
+ * Colunas esperadas (cabeçalho): Data, Requisição, Consultor, Tipo de Erro, Observação, Gravidade — ou ordem fixa se não houver cabeçalho reconhecido.
+ * Delimitador: ; ou ,
+ */
+function gestaoComercialErrosImportarCsv(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    gcEnsureControleErrosTable($pdo);
+
+    $csv = '';
+    if (!empty($_FILES['arquivo']['tmp_name']) && is_uploaded_file($_FILES['arquivo']['tmp_name'])) {
+        $csv = (string)file_get_contents($_FILES['arquivo']['tmp_name']);
+    } else {
+        $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+        if (is_array($payload)) {
+            $csv = (string)($payload['csv'] ?? '');
+        }
+    }
+    $csv = trim($csv);
+    if ($csv === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Envie um arquivo CSV (campo arquivo) ou o texto em JSON (chave csv).'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $delim = (substr_count($csv, ';') >= substr_count($csv, ',')) ? ';' : ',';
+    $lines = preg_split("/\r\n|\n|\r/", $csv);
+    if (isset($lines[0]) && strncmp($lines[0], "\xEF\xBB\xBF", 3) === 0) {
+        $lines[0] = substr($lines[0], 3);
+    }
+    $lines = array_values(array_filter($lines, static function ($l) {
+        return trim((string)$l) !== '';
+    }));
+    if (count($lines) < 1) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'CSV vazio.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $firstCells = str_getcsv($lines[0], $delim);
+    $looksLikeDataRow = (bool)preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', trim((string)($firstCells[0] ?? '')))
+        || (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string)($firstCells[0] ?? '')));
+
+    $headerRow = null;
+    $dataStart = 0;
+    if ($looksLikeDataRow) {
+        $headerRow = null;
+        $dataStart = 0;
+    } else {
+        $headerRow = $firstCells;
+        $dataStart = 1;
+    }
+
+    $col = ['data' => 0, 'req' => 1, 'consultor' => 2, 'tipo' => 3, 'obs' => 4, 'grav' => 5];
+    if (is_array($headerRow)) {
+        $map = [];
+        foreach ($headerRow as $i => $h) {
+            $k = mb_strtolower(trim((string)$h), 'UTF-8');
+            $k = strtr($k, [
+                'á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a',
+                'é' => 'e', 'ê' => 'e', 'í' => 'i', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ú' => 'u', 'ç' => 'c',
+            ]);
+            $k = preg_replace('/[^a-z0-9]+/u', '_', $k);
+            $k = trim($k, '_');
+            $map[$k] = $i;
+        }
+        $pick = static function (array $map, array $names) {
+            foreach ($names as $n) {
+                if (isset($map[$n])) {
+                    return $map[$n];
+                }
+            }
+            return null;
+        };
+        $d = $pick($map, ['data', 'data_do_erro']);
+        $r = $pick($map, ['requisicao', 'pedido', 'req']);
+        $c = $pick($map, ['consultor', 'consultora', 'vendedor', 'vendedora']);
+        $t = $pick($map, ['tipo_de_erro', 'tipo_erro', 'tipo']);
+        $o = $pick($map, ['observacao', 'obs', 'descricao']);
+        $g = $pick($map, ['gravidade_leve_medio_grave', 'gravidade', 'classificacao', 'severidade']);
+        if ($d !== null) {
+            $col['data'] = $d;
+        }
+        if ($r !== null) {
+            $col['req'] = $r;
+        }
+        if ($c !== null) {
+            $col['consultor'] = $c;
+        }
+        if ($t !== null) {
+            $col['tipo'] = $t;
+        }
+        if ($o !== null) {
+            $col['obs'] = $o;
+        }
+        if ($g !== null) {
+            $col['grav'] = $g;
+        }
+    }
+
+    $fallbackData = date('Y-m-01');
+    $stIns = $pdo->prepare("
+        INSERT INTO vendedor_erros_manuais (
+            vendedor_nome, data_erro, tipo_erro, classificacao_erro,
+            pontos_descontados, pedido_ref, descricao, created_by
+        ) VALUES (
+            :vendedor, :data_erro, :tipo_erro, :classificacao,
+            :pontos, :pedido_ref, :descricao, :created_by
+        )
+    ");
+    $stDup = $pdo->prepare("
+        SELECT id FROM vendedor_erros_manuais
+        WHERE vendedor_nome = :v
+          AND data_erro = :d
+          AND tipo_erro = :t
+          AND COALESCE(pedido_ref, '') = :p
+        LIMIT 1
+    ");
+
+    $inserted = 0;
+    $skipped = 0;
+    $errors = [];
+    $uid = (int)($_SESSION['user_id'] ?? 0);
+
+    for ($li = $dataStart; $li < count($lines); $li++) {
+        $cells = str_getcsv($lines[$li], $delim);
+        $get = static function ($idx) use ($cells) {
+            return isset($cells[$idx]) ? trim((string)$cells[$idx]) : '';
+        };
+        $dataRaw = $get($col['data']);
+        $req = $get($col['req']);
+        $consultor = $get($col['consultor']);
+        $tipo = $get($col['tipo']);
+        $obs = $get($col['obs']);
+        $gravRaw = $get($col['grav']);
+
+        $vendedor = gcCanonicalVendedoraNome($consultor);
+        if ($vendedor === '' || $tipo === '') {
+            $skipped++;
+            continue;
+        }
+        if (!gcIsAllowedVendedora($vendedor)) {
+            $errors[] = 'Linha ' . ($li + 1) . ': consultor não reconhecido na equipe comercial (' . $consultor . ').';
+            $skipped++;
+            continue;
+        }
+
+        $dataSql = gcParseDataBrParaSql($dataRaw);
+        if ($dataSql === null) {
+            $dataSql = $fallbackData;
+        }
+        $classificacao = gcNormalizeClassificacaoErro($gravRaw !== '' ? $gravRaw : 'leve');
+        $pontos = gcPontosPadraoPorClassificacao($classificacao);
+        $pontos = max(0.0, min(20.0, round($pontos, 2)));
+        if (mb_strlen($tipo) > 120) {
+            $tipo = mb_substr($tipo, 0, 120);
+        }
+        if (mb_strlen($req) > 80) {
+            $req = mb_substr($req, 0, 80);
+        }
+        if (mb_strlen($obs) > 3000) {
+            $obs = mb_substr($obs, 0, 3000);
+        }
+
+        $stDup->execute([
+            'v' => $vendedor,
+            'd' => $dataSql,
+            't' => $tipo,
+            'p' => $req,
+        ]);
+        if ($stDup->fetch(PDO::FETCH_ASSOC)) {
+            $skipped++;
+            continue;
+        }
+
+        $stIns->execute([
+            'vendedor' => $vendedor,
+            'data_erro' => $dataSql,
+            'tipo_erro' => $tipo,
+            'classificacao' => $classificacao,
+            'pontos' => $pontos,
+            'pedido_ref' => $req !== '' ? $req : null,
+            'descricao' => $obs !== '' ? $obs : null,
+            'created_by' => $uid,
+        ]);
+        $inserted++;
+    }
+
+    echo json_encode([
+        'success' => true,
+        'inserted' => $inserted,
+        'skipped' => $skipped,
+        'hints' => $errors,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 function gcNormName(string $v): string
 {
     $v = trim($v);
@@ -188,6 +611,91 @@ function gcAllowedVendedorasMap(): array
         $map[gcNormName($n)] = true;
     }
     return $map;
+}
+
+/**
+ * Unifica grafias (ex.: "Clara", "Clara Leticia") para o nome canônico da equipe,
+ * evitando que o mesmo consultor apareça várias vezes nos gráficos e KPIs.
+ */
+function gcCanonicalVendedoraNome(string $nome): string
+{
+    $nome = trim($nome);
+    if ($nome === '') {
+        return '';
+    }
+    $canonList = [
+        'Clara Leticia', 'Ananda Reis', 'Nailena', 'Mariana', 'Jessica Vitoria',
+        'Carla', 'Nereida', 'Giovanna',
+    ];
+    $nk = gcNormName($nome);
+    foreach ($canonList as $c) {
+        if (gcNormName($c) === $nk) {
+            return $c;
+        }
+    }
+    $parts = preg_split('/\s+/', $nk, 2);
+    $first = $parts[0] ?? '';
+    $firstToFull = [
+        'clara' => 'Clara Leticia',
+        'ananda' => 'Ananda Reis',
+        'jessica' => 'Jessica Vitoria',
+        'nailena' => 'Nailena',
+        'mariana' => 'Mariana',
+        'carla' => 'Carla',
+        'nereida' => 'Nereida',
+        'giovanna' => 'Giovanna',
+    ];
+    if ($first !== '' && isset($firstToFull[$first])) {
+        return $firstToFull[$first];
+    }
+    return $nome;
+}
+
+/** Normaliza gravidade para leve|medio|grave (aceita acentos e variações). */
+function gcNormalizeClassificacaoErro(string $raw): string
+{
+    $s = trim($raw);
+    if (function_exists('mb_strtolower')) {
+        $s = mb_strtolower($s, 'UTF-8');
+    } else {
+        $s = strtolower($s);
+    }
+    $s = strtr($s, [
+        'á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a',
+        'é' => 'e', 'ê' => 'e', 'í' => 'i', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ú' => 'u', 'ç' => 'c',
+    ]);
+    if ($s === 'grave') {
+        return 'grave';
+    }
+    if ($s === 'medio') {
+        return 'medio';
+    }
+    return 'leve';
+}
+
+/** Pontos padrão descontados do score por gravidade (ajustáveis em um só lugar). */
+function gcPontosPadraoPorClassificacao(string $classificacao): float
+{
+    return match ($classificacao) {
+        'grave' => 10.0,
+        'medio' => 5.0,
+        default => 2.0,
+    };
+}
+
+/**
+ * Faixa de até 20 pontos no bloco "erros" do score, conforme total de registros no período
+ * (planilha: 0→20, 1→18, 2→15, 3→12, 4 ou mais→5).
+ */
+function gcPontosErrosScorePorTotal(int $totalErros): float
+{
+    return match (true) {
+        $totalErros <= 0 => 20.0,
+        $totalErros === 1 => 18.0,
+        $totalErros === 2 => 15.0,
+        $totalErros === 3 => 12.0,
+        default => 5.0,
+    };
 }
 
 function gcIsAllowedVendedora(string $nome): bool
@@ -494,6 +1002,637 @@ function gcCalcComissaoGrupoPct(float $receitaGrupo): float
         return 1.5;
     }
     return 0.0;
+}
+
+/** Regras estáticas de comissão individual (painel comercial). */
+function gcRelatorioFaixasComissaoIndividual(): array
+{
+    return [
+        ['meta_pct_faixa' => 'Até 69%', 'intervalo' => 'Até R$ 40.709,00', 'comissao_percentual' => 0.5],
+        ['meta_pct_faixa' => '70% a 89%', 'intervalo' => 'R$ 40.710,00 a R$ 52.510,00', 'comissao_percentual' => 1.0],
+        ['meta_pct_faixa' => '90% a 99%', 'intervalo' => 'R$ 52.511,00 a R$ 58.409,00', 'comissao_percentual' => 1.3],
+        ['meta_pct_faixa' => '100% a 109%', 'intervalo' => 'R$ 59.000,00 a R$ 64.309,00', 'comissao_percentual' => 1.8],
+        ['meta_pct_faixa' => '110%+', 'intervalo' => 'Acima de R$ 70.000,00', 'comissao_percentual' => 2.0],
+    ];
+}
+
+/** Regras estáticas de comissão grupo (painel comercial). */
+function gcRelatorioFaixasComissaoGrupo(): array
+{
+    return [
+        ['faixa_receita' => 'R$ 320.000 a R$ 349.999', 'percentual' => 1.5],
+        ['faixa_receita' => 'R$ 350.000 a R$ 369.999', 'percentual' => 2.0],
+        ['faixa_receita' => 'Acima de R$ 370.000', 'percentual' => 2.5],
+    ];
+}
+
+/**
+ * Bloco "Relatórios" (Semanal, Mensal e Comissão) para aba dedicada.
+ * Usa exclusivamente dados do banco no período filtrado.
+ */
+function gcBuildRelatoriosComerciais(PDO $pdo, string $start, string $end, string $approvedGp, array $vendedores): array
+{
+    $vendByNorm = [];
+    foreach ($vendedores as $v) {
+        $nome = trim((string)($v['atendente'] ?? ''));
+        if ($nome === '' || !gcIsAllowedVendedora($nome)) continue;
+        $vendByNorm[gcNormName($nome)] = $v;
+    }
+
+    $semanalRaw = gcTryFetchAll($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS atendente,
+            COALESCE(SUM(CASE WHEN {$approvedGp} AND DAY(gp.data_aprovacao) BETWEEN 1 AND 7 THEN gp.preco_liquido ELSE 0 END), 0) AS semana_1,
+            COALESCE(SUM(CASE WHEN {$approvedGp} AND DAY(gp.data_aprovacao) BETWEEN 8 AND 14 THEN gp.preco_liquido ELSE 0 END), 0) AS semana_2,
+            COALESCE(SUM(CASE WHEN {$approvedGp} AND DAY(gp.data_aprovacao) BETWEEN 15 AND 21 THEN gp.preco_liquido ELSE 0 END), 0) AS semana_3,
+            COALESCE(SUM(CASE WHEN {$approvedGp} AND DAY(gp.data_aprovacao) >= 22 THEN gp.preco_liquido ELSE 0 END), 0) AS semana_4,
+            COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS total_vendido
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        GROUP BY COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
+    ", ['ini' => $start, 'fim' => $end]);
+    $semanalMap = [];
+    foreach ($semanalRaw as $r) {
+        $nome = trim((string)($r['atendente'] ?? ''));
+        if ($nome === '' || !gcIsAllowedVendedora($nome)) continue;
+        $semanalMap[gcNormName($nome)] = $r;
+    }
+
+    $orcRaw = gcTryFetchAll($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)') AS atendente,
+            COUNT(DISTINCT CONCAT(COALESCE(i.numero,''), '-', COALESCE(i.serie,''))) AS total_orcamentos
+        FROM itens_orcamentos_pedidos i
+        LEFT JOIN gestao_pedidos gpLink
+          ON gpLink.numero_pedido = i.numero
+         AND gpLink.serie_pedido = i.serie
+         AND gpLink.ano_referencia = i.ano_referencia
+        WHERE DATE(i.data) BETWEEN :ini AND :fim
+        GROUP BY COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)')
+    ", ['ini' => $start, 'fim' => $end]);
+    $orcMap = [];
+    foreach ($orcRaw as $r) {
+        $nome = trim((string)($r['atendente'] ?? ''));
+        if ($nome === '' || !gcIsAllowedVendedora($nome)) continue;
+        $orcMap[gcNormName($nome)] = (int)($r['total_orcamentos'] ?? 0);
+    }
+
+    $rejeitadosItensMap = [];
+    $statusItensRaw = gcTryFetchAll($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)') AS atendente,
+            SUM(CASE WHEN LOWER(TRIM(COALESCE(i.status, ''))) IN ('no carrinho', 'recusado') THEN 1 ELSE 0 END) AS linhas_rejeitados_funnel
+        FROM itens_orcamentos_pedidos i
+        LEFT JOIN gestao_pedidos gpLink
+          ON gpLink.numero_pedido = i.numero
+         AND gpLink.serie_pedido = i.serie
+         AND gpLink.ano_referencia = i.ano_referencia
+        WHERE DATE(i.data) BETWEEN :ini AND :fim
+        GROUP BY COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)')
+    ", ['ini' => $start, 'fim' => $end]);
+    foreach ($statusItensRaw as $r) {
+        $nome = trim((string)($r['atendente'] ?? ''));
+        if ($nome === '' || !gcIsAllowedVendedora($nome)) {
+            continue;
+        }
+        $k = gcNormName($nome);
+        $rejeitadosItensMap[$k] = (int)($r['linhas_rejeitados_funnel'] ?? 0);
+    }
+
+    $errosCountMap = [];
+    gcEnsureControleErrosTable($pdo);
+    gcEnsureVendedorPerdasAcoesTableGc($pdo);
+    // Score "Pts erros": tabela por quantidade total de registros (manuais + perdas), não soma de pontos_descontados.
+    $cntPerdas = gcTryFetchAll($pdo, "
+        SELECT TRIM(vpa.vendedor_nome) AS atendente, COUNT(*) AS qtd
+        FROM vendedor_perdas_acoes vpa
+        WHERE DATE(COALESCE(vpa.data_perda, vpa.created_at)) BETWEEN :ini AND :fim
+        GROUP BY TRIM(vpa.vendedor_nome)
+    ", ['ini' => $start, 'fim' => $end]);
+    foreach ($cntPerdas as $r) {
+        $nome = gcCanonicalVendedoraNome(trim((string)($r['atendente'] ?? '')));
+        if ($nome === '' || !gcIsAllowedVendedora($nome)) {
+            continue;
+        }
+        $nk = gcNormName($nome);
+        $errosCountMap[$nk] = (int)($errosCountMap[$nk] ?? 0) + (int)($r['qtd'] ?? 0);
+    }
+    $cntManuais = gcTryFetchAll($pdo, "
+        SELECT TRIM(vendedor_nome) AS atendente, COUNT(*) AS qtd
+        FROM vendedor_erros_manuais
+        WHERE data_erro BETWEEN :ini AND :fim
+        GROUP BY TRIM(vendedor_nome)
+    ", ['ini' => $start, 'fim' => $end]);
+    foreach ($cntManuais as $r) {
+        $nome = gcCanonicalVendedoraNome(trim((string)($r['atendente'] ?? '')));
+        if ($nome === '' || !gcIsAllowedVendedora($nome)) {
+            continue;
+        }
+        $nk = gcNormName($nome);
+        $errosCountMap[$nk] = (int)($errosCountMap[$nk] ?? 0) + (int)($r['qtd'] ?? 0);
+    }
+
+    $bonusMetaScore85 = 200.0;
+    $bonusUltrapassaScore95 = 400.0;
+    $rowsSemanal = [];
+    $rowsMensal = [];
+    $totSem1 = 0.0; $totSem2 = 0.0; $totSem3 = 0.0; $totSem4 = 0.0; $totReceita = 0.0;
+    foreach ($vendByNorm as $nk => $v) {
+        $nome = trim((string)($v['atendente'] ?? ''));
+        $meta = (float)($v['meta_mensal'] ?? 0);
+        $receita = (float)($v['receita'] ?? 0);
+        $aprov = (int)($v['vendas_aprovadas'] ?? 0);
+        $rej = (int)($v['vendas_rejeitadas'] ?? 0);
+        $orc = (int)($orcMap[$nk] ?? max($aprov + $rej, 0));
+        $rjIt = (int)($rejeitadosItensMap[$nk] ?? 0);
+        // Denominador: orçamentos + pedidos + (no carrinho + recusado, linhas de item); taxa = pedidos / total.
+        $denConv = $orc + $aprov + $rjIt;
+        $conv = $denConv > 0 ? round(($aprov / $denConv) * 100, 2) : 0.0;
+        $sem = $semanalMap[$nk] ?? null;
+        $s1 = (float)($sem['semana_1'] ?? 0);
+        $s2 = (float)($sem['semana_2'] ?? 0);
+        $s3 = (float)($sem['semana_3'] ?? 0);
+        $s4 = (float)($sem['semana_4'] ?? 0);
+        $totalSemanas = $s1 + $s2 + $s3 + $s4;
+        // Semanal: usa exatamente o total exibido na linha para evitar divergência no % da meta.
+        $receitaBaseSemanal = abs($receita - $totalSemanas) > 0.01 ? $totalSemanas : $receita;
+        $pctMetaSemanal = $meta > 0 ? round(($receitaBaseSemanal / $meta) * 100, 2) : 0.0;
+        $pctMetaMensal = $meta > 0 ? round(($receita / $meta) * 100, 2) : 0.0;
+        $falta = $meta > 0 ? max(0.0, $meta - $receitaBaseSemanal) : 0.0;
+        $crm = 5.0;
+        $pFat = round(min(50.0, max(0.0, $pctMetaMensal * 0.5)), 2);
+        $pConv = round(min(20.0, max(0.0, $conv >= 50 ? 20.0 : ($conv / 50.0) * 20.0)), 2);
+        $totalErrosScore = (int)($errosCountMap[$nk] ?? 0);
+        $pErros = gcPontosErrosScorePorTotal($totalErrosScore);
+        $score = round($pFat + $pConv + $pErros + $crm, 2);
+        $status = $score >= 80 ? 'Muito Bom' : ($score >= 65 ? 'Bom' : ($score >= 50 ? 'Plano de Ação' : 'Crítico'));
+        $ci = (float)gcCalcComissaoIndividualPct($pctMetaSemanal);
+        $cg = (float)($v['comissao_pct_grupo'] ?? 0);
+        $ct = round($ci + $cg, 2);
+        $comissao = round($receitaBaseSemanal * ($ct / 100), 2);
+        $bonus = 0.0;
+        if ($pctMetaSemanal > 100 && $score > 95) {
+            $bonus = $bonusUltrapassaScore95;
+        } elseif ($pctMetaSemanal >= 100 && $score > 85) {
+            $bonus = $bonusMetaScore85;
+        }
+        $comissaoComBonus = round($comissao + $bonus, 2);
+        $totSem1 += $s1; $totSem2 += $s2; $totSem3 += $s3; $totSem4 += $s4; $totReceita += $receita;
+
+        $rowsSemanal[] = [
+            'vendedora' => $nome,
+            'meta_individual' => round($meta, 2),
+            'venda_semana_1' => round($s1, 2),
+            'venda_semana_2' => round($s2, 2),
+            'venda_semana_3' => round($s3, 2),
+            'venda_semana_4' => round($s4, 2),
+            'total_vendido' => round($receitaBaseSemanal, 2),
+            'percentual_atingido' => $pctMetaSemanal,
+            'falta_meta' => round($falta, 2),
+            'comissao_valor' => $comissao,
+            'bonus_valor' => round($bonus, 2),
+            'comissao_total' => $comissaoComBonus,
+        ];
+
+        $rowsMensal[] = [
+            'vendedora' => $nome,
+            'meta_individual' => round($meta, 2),
+            'venda_total_mes' => round($receita, 2),
+            'percentual_meta' => $pctMetaMensal,
+            'orcamentos' => $orc,
+            'pedidos' => $aprov,
+            'conversao' => $conv,
+            'rejeitados_itens' => $rjIt,
+            'erros' => (int)($errosCountMap[$nk] ?? 0),
+            'crm' => $crm,
+            'pontos_faturamento' => $pFat,
+            'pontos_conversao' => $pConv,
+            'pontos_erros' => $pErros,
+            'score_final' => $score,
+            'status' => $status,
+        ];
+    }
+
+    usort($rowsSemanal, static function (array $a, array $b): int {
+        return strcmp((string)$a['vendedora'], (string)$b['vendedora']);
+    });
+    usort($rowsMensal, static function (array $a, array $b): int {
+        return strcmp((string)$a['vendedora'], (string)$b['vendedora']);
+    });
+
+    return [
+        'periodo' => ['data_de' => $start, 'data_ate' => $end],
+        'semanal' => [
+            'linhas' => $rowsSemanal,
+            'totais' => [
+                'semana_1' => round($totSem1, 2),
+                'semana_2' => round($totSem2, 2),
+                'semana_3' => round($totSem3, 2),
+                'semana_4' => round($totSem4, 2),
+                'receita_total' => round($totReceita, 2),
+            ],
+        ],
+        'mensal' => ['linhas' => $rowsMensal],
+        'comissao' => [
+            'faixas_individuais' => gcRelatorioFaixasComissaoIndividual(),
+            'faixas_grupo' => gcRelatorioFaixasComissaoGrupo(),
+            'premios_score' => [
+                ['regra' => 'Bate meta + score acima de 85', 'premio' => 200],
+                ['regra' => 'Ultrapassa meta + score acima de 95', 'premio' => 400],
+            ],
+        ],
+    ];
+}
+
+function gcEnsureVendedorPerdasAcoesTableGc(PDO $pdo): void
+{
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS vendedor_perdas_acoes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ano_referencia INT NOT NULL,
+            numero_pedido VARCHAR(40) NOT NULL,
+            serie_pedido VARCHAR(20) NOT NULL DEFAULT '',
+            vendedor_nome VARCHAR(190) NOT NULL,
+            data_perda DATE NULL,
+            motivo_perda VARCHAR(255) NULL,
+            classificacao_erro VARCHAR(20) NULL,
+            pontos_descontados DECIMAL(10,2) NOT NULL DEFAULT 0,
+            observacoes TEXT NULL,
+            updated_by INT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_pedido_vendedor (ano_referencia, numero_pedido, serie_pedido, vendedor_nome)
+        ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    ");
+}
+
+function gcDisplayConsultoraNamePhp(string $nome): string
+{
+    $map = [
+        'clara leticia' => 'Clara Letícia',
+        'jessica vitoria' => 'Jéssica Vitória',
+        'ananda reis' => 'Ananda Reis',
+    ];
+    $k = gcNormName($nome);
+    return $map[$k] ?? $nome;
+}
+
+/**
+ * KPIs globais, tabela de erros (manuais + perdas) e bullets de conclusão para a página Resumo de erros.
+ */
+function gcBuildResumoErrosPayload(PDO $pdo, string $ini, string $fim): array
+{
+    gcEnsureControleErrosTable($pdo);
+    gcEnsureVendedorPerdasAcoesTableGc($pdo);
+
+    $approvedGp = gcApprovedCase('gp');
+
+    $metaPorNome = [];
+    try {
+        $st = $pdo->query("
+            SELECT TRIM(nome) AS nome, COALESCE(meta_mensal, 0) AS meta_mensal
+            FROM usuarios
+            WHERE LOWER(TRIM(COALESCE(setor, ''))) LIKE '%vendedor%'
+              AND COALESCE(ativo, 1) = 1
+        ");
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $mr) {
+            $nm = trim((string)($mr['nome'] ?? ''));
+            if ($nm === '' || !gcIsAllowedVendedora($nm)) {
+                continue;
+            }
+            $metaPorNome[gcNormName($nm)] = (float)($mr['meta_mensal'] ?? 0);
+        }
+    } catch (Throwable $e) {
+        $metaPorNome = [];
+    }
+
+    $metaSistema = (float)(getenv('VENDEDOR_META_SISTEMA') ?: 60000);
+    if ($metaSistema <= 0) {
+        $metaSistema = 60000.0;
+    }
+
+    $vendRaw = gcTryFetchAll($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS atendente,
+            COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS receita,
+            SUM(CASE WHEN {$approvedGp} THEN 1 ELSE 0 END) AS vendas_aprovadas
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        GROUP BY COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
+    ", ['ini' => $ini, 'fim' => $fim]);
+
+    $orcRaw = gcTryFetchAll($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)') AS atendente,
+            COUNT(DISTINCT CONCAT(COALESCE(i.numero,''), '-', COALESCE(i.serie,''))) AS total_orcamentos
+        FROM itens_orcamentos_pedidos i
+        LEFT JOIN gestao_pedidos gpLink
+          ON gpLink.numero_pedido = i.numero
+         AND gpLink.serie_pedido = i.serie
+         AND gpLink.ano_referencia = i.ano_referencia
+        WHERE DATE(i.data) BETWEEN :ini AND :fim
+        GROUP BY COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)')
+    ", ['ini' => $ini, 'fim' => $fim]);
+
+    $semRaw = gcTryFetchAll($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS atendente,
+            COALESCE(SUM(CASE WHEN {$approvedGp} AND DAY(gp.data_aprovacao) BETWEEN 1 AND 7 THEN gp.preco_liquido ELSE 0 END), 0) AS semana_1,
+            COALESCE(SUM(CASE WHEN {$approvedGp} AND DAY(gp.data_aprovacao) BETWEEN 8 AND 14 THEN gp.preco_liquido ELSE 0 END), 0) AS semana_2,
+            COALESCE(SUM(CASE WHEN {$approvedGp} AND DAY(gp.data_aprovacao) BETWEEN 15 AND 21 THEN gp.preco_liquido ELSE 0 END), 0) AS semana_3,
+            COALESCE(SUM(CASE WHEN {$approvedGp} AND DAY(gp.data_aprovacao) >= 22 THEN gp.preco_liquido ELSE 0 END), 0) AS semana_4
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        GROUP BY COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
+    ", ['ini' => $ini, 'fim' => $fim]);
+
+    $receitaMap = [];
+    $aprovMap = [];
+    foreach ($vendRaw as $r) {
+        $nome = trim((string)($r['atendente'] ?? ''));
+        if ($nome === '' || !gcIsAllowedVendedora($nome)) {
+            continue;
+        }
+        $nk = gcNormName($nome);
+        $receitaMap[$nk] = (float)($r['receita'] ?? 0);
+        $aprovMap[$nk] = (int)($r['vendas_aprovadas'] ?? 0);
+    }
+
+    $orcMap = [];
+    foreach ($orcRaw as $r) {
+        $nome = trim((string)($r['atendente'] ?? ''));
+        if ($nome === '' || !gcIsAllowedVendedora($nome)) {
+            continue;
+        }
+        $orcMap[gcNormName($nome)] = (int)($r['total_orcamentos'] ?? 0);
+    }
+
+    $semMap = [];
+    foreach ($semRaw as $r) {
+        $nome = trim((string)($r['atendente'] ?? ''));
+        if ($nome === '' || !gcIsAllowedVendedora($nome)) {
+            continue;
+        }
+        $semMap[gcNormName($nome)] = $r;
+    }
+
+    $norms = array_keys(gcAllowedVendedorasMap());
+    $equipe = [];
+    foreach ($norms as $nk) {
+        $nomeCanon = '';
+        foreach (['Clara Leticia', 'Ananda Reis', 'Nailena', 'Mariana', 'Jessica Vitoria', 'Carla', 'Nereida', 'Giovanna'] as $cand) {
+            if (gcNormName($cand) === $nk) {
+                $nomeCanon = $cand;
+                break;
+            }
+        }
+        if ($nomeCanon === '') {
+            continue;
+        }
+        $meta = (float)($metaPorNome[$nk] ?? 0);
+        if ($meta <= 0) {
+            $meta = $metaSistema;
+        }
+        $receita = (float)($receitaMap[$nk] ?? 0);
+        $orc = (int)($orcMap[$nk] ?? 0);
+        $aprov = (int)($aprovMap[$nk] ?? 0);
+        if ($orc <= 0 && $aprov > 0) {
+            $orc = max($orc, $aprov);
+        }
+        $conv = $orc > 0 ? round(($aprov / $orc) * 100, 2) : 0.0;
+        $pctMeta = $meta > 0 ? round(($receita / $meta) * 100, 2) : 0.0;
+        $equipe[] = [
+            'norm' => $nk,
+            'vendedora' => gcDisplayConsultoraNamePhp($nomeCanon),
+            'meta' => round($meta, 2),
+            'receita' => round($receita, 2),
+            'percentual_meta' => $pctMeta,
+            'orcamentos' => $orc,
+            'conversao' => $conv,
+        ];
+    }
+
+    usort($equipe, static function ($a, $b) {
+        return strcmp((string)$a['vendedora'], (string)$b['vendedora']);
+    });
+
+    $metaGlobal = 0.0;
+    $fatGlobal = 0.0;
+    foreach ($equipe as $row) {
+        $metaGlobal += (float)$row['meta'];
+        $fatGlobal += (float)$row['receita'];
+    }
+    $pctGlobal = $metaGlobal > 0 ? round(($fatGlobal / $metaGlobal) * 100, 2) : 0.0;
+
+    $manualRows = gcTryFetchAll($pdo, "
+        SELECT
+            TRIM(vendedor_nome) AS nome,
+            COUNT(*) AS total,
+            SUM(CASE WHEN LOWER(TRIM(classificacao_erro)) = 'leve' THEN 1 ELSE 0 END) AS leves,
+            SUM(CASE WHEN LOWER(TRIM(classificacao_erro)) IN ('medio','médio') THEN 1 ELSE 0 END) AS medios,
+            SUM(CASE WHEN LOWER(TRIM(classificacao_erro)) = 'grave' THEN 1 ELSE 0 END) AS graves,
+            COALESCE(SUM(pontos_descontados), 0) AS pts
+        FROM vendedor_erros_manuais
+        WHERE data_erro BETWEEN :ini AND :fim
+        GROUP BY TRIM(vendedor_nome)
+    ", ['ini' => $ini, 'fim' => $fim]);
+
+    $perdasRows = gcTryFetchAll($pdo, "
+        SELECT
+            TRIM(vendedor_nome) AS nome,
+            COUNT(*) AS total,
+            SUM(CASE
+                WHEN LOWER(TRIM(COALESCE(classificacao_erro, ''))) IN ('medio', 'médio') THEN 0
+                WHEN LOWER(TRIM(COALESCE(classificacao_erro, ''))) = 'grave' THEN 0
+                ELSE 1
+            END) AS leves,
+            SUM(CASE WHEN LOWER(TRIM(COALESCE(classificacao_erro, ''))) IN ('medio', 'médio') THEN 1 ELSE 0 END) AS medios,
+            SUM(CASE WHEN LOWER(TRIM(COALESCE(classificacao_erro, ''))) = 'grave' THEN 1 ELSE 0 END) AS graves,
+            COALESCE(SUM(pontos_descontados), 0) AS pts
+        FROM vendedor_perdas_acoes
+        WHERE DATE(COALESCE(data_perda, created_at)) BETWEEN :ini AND :fim
+        GROUP BY TRIM(vendedor_nome)
+    ", ['ini' => $ini, 'fim' => $fim]);
+
+    $errAgg = [];
+    foreach ($manualRows as $r) {
+        $nome = gcCanonicalVendedoraNome(trim((string)($r['nome'] ?? '')));
+        if ($nome === '' || !gcIsAllowedVendedora($nome)) {
+            continue;
+        }
+        $nk = gcNormName($nome);
+        if (!isset($errAgg[$nk])) {
+            $errAgg[$nk] = ['nome' => $nome, 'total' => 0, 'leves' => 0, 'medios' => 0, 'graves' => 0, 'pts' => 0.0];
+        }
+        $errAgg[$nk]['total'] += (int)($r['total'] ?? 0);
+        $errAgg[$nk]['leves'] += (int)($r['leves'] ?? 0);
+        $errAgg[$nk]['medios'] += (int)($r['medios'] ?? 0);
+        $errAgg[$nk]['graves'] += (int)($r['graves'] ?? 0);
+        $errAgg[$nk]['pts'] += (float)($r['pts'] ?? 0);
+    }
+    foreach ($perdasRows as $r) {
+        $nome = gcCanonicalVendedoraNome(trim((string)($r['nome'] ?? '')));
+        if ($nome === '' || !gcIsAllowedVendedora($nome)) {
+            continue;
+        }
+        $nk = gcNormName($nome);
+        if (!isset($errAgg[$nk])) {
+            $errAgg[$nk] = ['nome' => $nome, 'total' => 0, 'leves' => 0, 'medios' => 0, 'graves' => 0, 'pts' => 0.0];
+        }
+        $errAgg[$nk]['total'] += (int)($r['total'] ?? 0);
+        $errAgg[$nk]['leves'] += (int)($r['leves'] ?? 0);
+        $errAgg[$nk]['medios'] += (int)($r['medios'] ?? 0);
+        $errAgg[$nk]['graves'] += (int)($r['graves'] ?? 0);
+        $errAgg[$nk]['pts'] += (float)($r['pts'] ?? 0);
+    }
+
+    $linhasErros = [];
+    foreach ($equipe as $ev) {
+        $nk = $ev['norm'];
+        $agg = $errAgg[$nk] ?? null;
+        $total = $agg ? (int)$agg['total'] : 0;
+        $leves = $agg ? (int)$agg['leves'] : 0;
+        $medios = $agg ? (int)$agg['medios'] : 0;
+        $graves = $agg ? (int)$agg['graves'] : 0;
+        $pScore = gcPontosErrosScorePorTotal($total);
+        $linhasErros[] = [
+            'vendedora' => $ev['vendedora'],
+            'total_erros' => $total,
+            'erros_leves' => $leves,
+            'erros_medios' => $medios,
+            'erros_graves' => $graves,
+            'pontos_no_score' => $pScore,
+        ];
+    }
+
+    $acimaMeta = [];
+    $abaixo70 = [];
+    $topReceita = null;
+    $maxRec = -1.0;
+    foreach ($equipe as $ev) {
+        if ($ev['percentual_meta'] > 100) {
+            $acimaMeta[] = $ev['vendedora'] . ' (' . number_format($ev['percentual_meta'], 2, ',', '.') . '%)';
+        }
+        if ($ev['percentual_meta'] < 70 && $ev['percentual_meta'] > 0) {
+            $abaixo70[] = $ev['vendedora'] . ' (' . number_format($ev['percentual_meta'], 2, ',', '.') . '%)';
+        }
+        if ($ev['receita'] > $maxRec) {
+            $maxRec = $ev['receita'];
+            $topReceita = $ev;
+        }
+    }
+
+    $maxConv = null;
+    $maxConvVal = -1.0;
+    $maxOrc = null;
+    $maxOrcVal = -1;
+    foreach ($equipe as $ev) {
+        if ($ev['conversao'] > $maxConvVal) {
+            $maxConvVal = $ev['conversao'];
+            $maxConv = $ev;
+        }
+        if ($ev['orcamentos'] > $maxOrcVal) {
+            $maxOrcVal = $ev['orcamentos'];
+            $maxOrc = $ev;
+        }
+    }
+
+    $bestS4 = null;
+    $bestS4Share = -1.0;
+    foreach ($equipe as $ev) {
+        $nk = $ev['norm'];
+        $sr = $semMap[$nk] ?? null;
+        if (!$sr) {
+            continue;
+        }
+        $s1 = (float)($sr['semana_1'] ?? 0);
+        $s2 = (float)($sr['semana_2'] ?? 0);
+        $s3 = (float)($sr['semana_3'] ?? 0);
+        $s4 = (float)($sr['semana_4'] ?? 0);
+        $t = $s1 + $s2 + $s3 + $s4;
+        if ($t <= 0) {
+            continue;
+        }
+        $share = $s4 / $t;
+        if ($share > $bestS4Share) {
+            $bestS4Share = $share;
+            $bestS4 = ['nome' => $ev['vendedora'], 'share' => round($share * 100, 1), 's4' => $s4, 'total' => $t];
+        }
+    }
+
+    usort($linhasErros, static function ($a, $b) {
+        return ($b['total_erros'] <=> $a['total_erros']) ?: strcmp((string)$a['vendedora'], (string)$b['vendedora']);
+    });
+    $topErr = array_slice($linhasErros, 0, 2);
+
+    $convMed = count($equipe) > 0
+        ? round(array_sum(array_column($equipe, 'conversao')) / count($equipe), 2)
+        : 0.0;
+
+    $c1 = '<strong>Desempenho individual e metas:</strong> ';
+    if ($acimaMeta !== []) {
+        $c1 .= 'Vendedoras acima de 100% da meta: ' . implode(', ', $acimaMeta) . '. ';
+    } else {
+        $c1 .= 'Nenhuma vendedora acima de 100% da meta no período. ';
+    }
+    if ($topReceita) {
+        $c1 .= 'Maior faturamento: <strong>' . $topReceita['vendedora'] . '</strong> ('
+            . 'R$ ' . number_format($topReceita['receita'], 2, ',', '.') . '). ';
+    }
+    if ($abaixo70 !== []) {
+        $c1 .= 'Atenção (abaixo de 70% da meta): ' . implode(', ', $abaixo70) . '.';
+    } else {
+        $c1 .= 'Nenhuma vendedora abaixo de 70% da meta.';
+    }
+
+    $c2 = '<strong>Eficiência de conversão:</strong> ';
+    $c2 .= 'Média de conversão da equipe: <strong>' . number_format($convMed, 2, ',', '.') . '%</strong>. ';
+    if ($maxConv) {
+        $c2 .= 'Maior taxa: <strong>' . $maxConv['vendedora'] . '</strong> (' . number_format($maxConv['conversao'], 2, ',', '.') . '%). ';
+    }
+    if ($maxOrc && $maxOrcVal > 0) {
+        $c2 .= 'Maior volume de orçamentos: <strong>' . $maxOrc['vendedora'] . '</strong> (' . number_format($maxOrcVal, 0, ',', '.') . ').';
+    }
+
+    $c3 = '<strong>Dinâmica semanal:</strong> ';
+    if ($bestS4 && $bestS4Share > 0.2) {
+        $c3 .= 'A <strong>semana 4</strong> concentrou a maior fatia do faturamento individual em <strong>' . $bestS4['nome']
+            . '</strong> (~' . number_format($bestS4['share'], 1, ',', '.') . '% do total dela no período).';
+    } else {
+        $c3 .= 'Distribuição entre semanas variando por consultora; acompanhe o relatório semanal na Gestão comercial para detalhes.';
+    }
+
+    $c4 = '<strong>Erros e pontos no score (até 20):</strong> ';
+    if (count($topErr) >= 2) {
+        $c4 .= 'Maiores volumes de registros: <strong>' . $topErr[0]['vendedora'] . '</strong> (' . (int)$topErr[0]['total_erros'] . ') e <strong>'
+            . $topErr[1]['vendedora'] . '</strong> (' . (int)$topErr[1]['total_erros'] . '). ';
+    } elseif (count($topErr) === 1) {
+        $c4 .= 'Maior volume: <strong>' . $topErr[0]['vendedora'] . '</strong> (' . (int)$topErr[0]['total_erros'] . '). ';
+    }
+    $c4 .= 'A coluna “Pontos no score” reflete 20 menos a soma dos pontos descontados (perdas + erros manuais), limitado entre 0 e 20.';
+
+    return [
+        'periodo' => ['data_de' => $ini, 'data_ate' => $fim],
+        'kpis' => [
+            'meta_global' => round($metaGlobal, 2),
+            'faturamento_total' => round($fatGlobal, 2),
+            'percentual_global' => $pctGlobal,
+        ],
+        'conclusoes' => [$c1, $c2, $c3, $c4],
+        'linhas' => $linhasErros,
+    ];
+}
+
+function gestaoComercialResumoErros(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    [$startObj, $endObj] = gcDateRangeFromInput();
+    $ini = $startObj->format('Y-m-d');
+    $fim = $endObj->format('Y-m-d');
+    $payload = gcBuildResumoErrosPayload($pdo, $ini, $fim);
+    echo json_encode(['success' => true] + $payload, JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 /**
@@ -806,6 +1945,7 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
     $approvedGpRd = gcApprovedCase('gp');
     $evolucaoMensalVendedores = gcEvolucaoMensalVendedoresPayload($pdo, $approvedGpRd, $equipe);
     $evolucaoMensalAprovRej = gcEvolucaoMensalAprovRejPayload($pdo, $approvedGpRd, $equipe);
+    $relatoriosComerciais = gcBuildRelatoriosComerciais($pdo, $start, $end, $approvedGpRd, $equipe);
 
     $crescimento = [
         'receita_mes'                     => round($receitaMes, 2),
@@ -947,6 +2087,7 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
                 'campos_nulos' => 'Painel alimentado só pelo RD Station CRM: sem CMV, inadimplência ou fluxo de caixa do ERP.',
             ],
         ],
+        'relatorios_comerciais'  => $relatoriosComerciais,
         'rd_metricas'            => $rdNow,
         'rd_metricas_deferred'   => false,
         'rd_metricas_error'      => null,
@@ -1455,28 +2596,30 @@ function gestaoComercialDashboard(PDO $pdo): void
     }
     unset($can);
 
-    $topFormulas = gcFetchAll($pdo, "
+    $approvedItens = gcApprovedCase('i');
+
+    $topFormulas = gcTryFetchAll($pdo, "
         SELECT
-            COALESCE(NULLIF(TRIM(gp.produto), ''), '(Sem produto)') AS produto,
-            COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.quantidade ELSE 0 END), 0) AS quantidade,
-            COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS receita
-        FROM gestao_pedidos gp
-        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
-        GROUP BY COALESCE(NULLIF(TRIM(gp.produto), ''), '(Sem produto)')
-        ORDER BY COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.quantidade ELSE 0 END), 0) DESC, COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) DESC
+            COALESCE(NULLIF(TRIM(i.descricao), ''), '(Sem componente)') AS produto,
+            COALESCE(SUM(CASE WHEN {$approvedItens} THEN i.quantidade ELSE 0 END), 0) AS quantidade,
+            COALESCE(SUM(CASE WHEN {$approvedItens} THEN i.valor_liquido ELSE 0 END), 0) AS receita
+        FROM itens_orcamentos_pedidos i
+        WHERE DATE(i.data) BETWEEN :ini AND :fim
+        GROUP BY COALESCE(NULLIF(TRIM(i.descricao), ''), '(Sem componente)')
+        ORDER BY COALESCE(SUM(CASE WHEN {$approvedItens} THEN i.quantidade ELSE 0 END), 0) DESC, COALESCE(SUM(CASE WHEN {$approvedItens} THEN i.valor_liquido ELSE 0 END), 0) DESC
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);
 
-    $formulasMargem = gcFetchAll($pdo, "
+    $formulasMargem = gcTryFetchAll($pdo, "
         SELECT
-            COALESCE(NULLIF(TRIM(gp.produto), ''), '(Sem produto)') AS produto,
-            COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS receita,
-            COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_custo ELSE 0 END), 0) AS custo
-        FROM gestao_pedidos gp
-        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
-        GROUP BY COALESCE(NULLIF(TRIM(gp.produto), ''), '(Sem produto)')
-        HAVING COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) > 0
-        ORDER BY ((COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_custo ELSE 0 END), 0)) / COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0)) DESC, COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) DESC
+            COALESCE(NULLIF(TRIM(i.descricao), ''), '(Sem componente)') AS produto,
+            COALESCE(SUM(CASE WHEN {$approvedItens} THEN i.valor_liquido ELSE 0 END), 0) AS receita,
+            COALESCE(SUM(CASE WHEN {$approvedItens} THEN i.preco_custo ELSE 0 END), 0) AS custo
+        FROM itens_orcamentos_pedidos i
+        WHERE DATE(i.data) BETWEEN :ini AND :fim
+        GROUP BY COALESCE(NULLIF(TRIM(i.descricao), ''), '(Sem componente)')
+        HAVING COALESCE(SUM(CASE WHEN {$approvedItens} THEN i.valor_liquido ELSE 0 END), 0) > 0
+        ORDER BY ((COALESCE(SUM(CASE WHEN {$approvedItens} THEN i.valor_liquido ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN {$approvedItens} THEN i.preco_custo ELSE 0 END), 0)) / COALESCE(SUM(CASE WHEN {$approvedItens} THEN i.valor_liquido ELSE 0 END), 0)) DESC, COALESCE(SUM(CASE WHEN {$approvedItens} THEN i.valor_liquido ELSE 0 END), 0) DESC
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);
     foreach ($formulasMargem as &$fm) {
@@ -1497,14 +2640,32 @@ function gestaoComercialDashboard(PDO $pdo): void
 
     $ticketEspecialidade = gcFetchAll($pdo, "
         SELECT
-            COALESCE(NULLIF(TRIM(pd.especialidade), ''), '(Sem especialidade)') AS especialidade,
+            COALESCE(
+                NULLIF(TRIM(pd.profissao), ''),
+                NULLIF(TRIM(pr.profissao), ''),
+                '(Sem profissao)'
+            ) AS especialidade,
             COALESCE(AVG(CASE WHEN {$approvedGp} THEN gp.preco_liquido END), 0) AS ticket_medio,
             COUNT(*) AS total
         FROM gestao_pedidos gp
         LEFT JOIN prescritor_dados pd
             ON LOWER(TRIM(pd.nome_prescritor)) = LOWER(TRIM(COALESCE(NULLIF(gp.prescritor,''), 'My Pharm')))
+        LEFT JOIN (
+            SELECT
+                LOWER(TRIM(nome)) AS nome_norm,
+                ano_referencia,
+                MAX(NULLIF(TRIM(profissao), '')) AS profissao
+            FROM prescritor_resumido
+            GROUP BY LOWER(TRIM(nome)), ano_referencia
+        ) pr
+            ON pr.nome_norm = LOWER(TRIM(COALESCE(NULLIF(gp.prescritor,''), 'My Pharm')))
+           AND pr.ano_referencia = gp.ano_referencia
         WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
-        GROUP BY COALESCE(NULLIF(TRIM(pd.especialidade), ''), '(Sem especialidade)')
+        GROUP BY COALESCE(
+            NULLIF(TRIM(pd.profissao), ''),
+            NULLIF(TRIM(pr.profissao), ''),
+            '(Sem profissao)'
+        )
         ORDER BY COALESCE(AVG(CASE WHEN {$approvedGp} THEN gp.preco_liquido END), 0) DESC
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);
@@ -1636,6 +2797,7 @@ function gestaoComercialDashboard(PDO $pdo): void
 
     $evolucaoMensalVendedores = gcEvolucaoMensalVendedoresPayload($pdo, $approvedGp, $vendedores);
     $evolucaoMensalAprovRej = gcEvolucaoMensalAprovRejPayload($pdo, $approvedGp, $vendedores);
+    $relatoriosComerciais = gcBuildRelatoriosComerciais($pdo, $start, $end, $approvedGp, $vendedores);
 
     $payload = [
         'success' => true,
@@ -1721,6 +2883,7 @@ function gestaoComercialDashboard(PDO $pdo): void
                 'campos_nulos' => 'Métricas dependentes de marketing/financeiro não existem hoje na base transacional.'
             ]
         ],
+        'relatorios_comerciais' => $relatoriosComerciais,
     ];
 
     $jsonFlags = JSON_UNESCAPED_UNICODE;

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resumo de erros e desempenho | MyPharm</title>
+    <link rel="icon" type="image/png" href="../imagens/IconeMyPharm.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .re-page { max-width: 920px; margin: 0 auto; padding: 24px 20px 48px; }
+        .re-head { margin-bottom: 20px; }
+        .re-head h1 { font-size: 1.35rem; margin: 0 0 8px; }
+        .re-head p { color: var(--text-secondary); font-size: 0.9rem; margin: 0; }
+        .re-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 20px; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; }
+        .re-filters label { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: var(--text-secondary); }
+        .re-filters input[type="date"] { background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-family: inherit; }
+        .re-filters button { border: none; border-radius: 8px; padding: 8px 16px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }
+        .re-filters button:disabled { opacity: 0.6; cursor: wait; }
+        .re-kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 20px 0; }
+        .re-kpi .kpi-card { text-align: center; }
+        .re-kpi .kpi-value { font-size: 1.25rem; }
+        .re-section { margin: 28px 0; }
+        .re-section h2 { font-size: 1.05rem; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+        .re-section ul { margin: 0; padding-left: 1.25rem; color: var(--text-primary); line-height: 1.55; }
+        .re-section li { margin-bottom: 10px; }
+        .re-table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 12px; margin-top: 12px; }
+        .re-table { width: 100%; border-collapse: collapse; min-width: 640px; }
+        .re-table th, .re-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.88rem; text-align: center; }
+        .re-table th { text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .re-table td:first-child { text-align: left; font-weight: 600; }
+        .re-nav { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 12px; }
+        .re-nav a { color: var(--primary); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+        .re-nav a:hover { text-decoration: underline; }
+        .re-msg { padding: 12px; border-radius: 8px; background: rgba(220, 38, 38, 0.1); color: var(--danger, #dc2626); font-size: 0.9rem; display: none; }
+        .re-msg.show { display: block; }
+        .re-periodo { font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <div class="re-page page-content">
+        <header class="re-head">
+            <h1><i class="fas fa-chart-pie" aria-hidden="true"></i> Resumo de desempenho e erros</h1>
+            <p>KPIs, conclusões automáticas e tabela de erros com base no <strong>banco</strong> (vendas, metas, <code>vendedor_erros_manuais</code> e <code>vendedor_perdas_acoes</code>). A planilha em <a href="Registro de Erros.html">Registro de Erros</a> é só export visual; não sincroniza sozinha — use <a href="../controle-erros.html">Controle de erros</a> ou importação CSV na página do registro.</p>
+            <p class="re-periodo" id="rePeriodoLabel"></p>
+        </header>
+
+        <div class="re-filters">
+            <label>Data inicial
+                <input type="date" id="reDataDe" autocomplete="off">
+            </label>
+            <label>Data final
+                <input type="date" id="reDataAte" autocomplete="off">
+            </label>
+            <button type="button" id="reBtnAtualizar"><i class="fas fa-rotate-right" aria-hidden="true"></i> Atualizar</button>
+        </div>
+        <div class="re-msg" id="reMsg" role="alert"></div>
+
+        <div class="re-kpi" role="list" id="reKpi">
+            <div class="kpi-card" role="listitem">
+                <div class="kpi-label">Atingimento global da meta</div>
+                <div class="kpi-value" id="reKpiPct">—</div>
+            </div>
+            <div class="kpi-card" role="listitem">
+                <div class="kpi-label">Faturamento total</div>
+                <div class="kpi-value" id="reKpiFat">—</div>
+            </div>
+            <div class="kpi-card" role="listitem">
+                <div class="kpi-label">Meta global</div>
+                <div class="kpi-value" id="reKpiMeta">—</div>
+            </div>
+        </div>
+
+        <section class="re-section" aria-labelledby="re-conclusoes">
+            <h2 id="re-conclusoes"><i class="fas fa-lightbulb" aria-hidden="true"></i> Principais conclusões</h2>
+            <ul id="reConclusoes"><li>Carregando…</li></ul>
+        </section>
+
+        <section class="re-section" aria-labelledby="re-tabela">
+            <h2 id="re-tabela"><i class="fas fa-table" aria-hidden="true"></i> Resumo de erros por consultora</h2>
+            <p style="margin:0 0 8px; color: var(--text-secondary); font-size: 0.88rem;">Contagens e classificações no período. <strong>Pontos no score (20)</strong> pela tabela do total de erros: 0→20, 1→18, 2→15, 3→12, 4 ou mais→5.</p>
+            <div class="re-table-wrap">
+                <table class="re-table data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Consultora</th>
+                            <th scope="col">Total erros</th>
+                            <th scope="col">Erros leves</th>
+                            <th scope="col">Erros médios</th>
+                            <th scope="col">Erros graves</th>
+                            <th scope="col">Pontos no score (20)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reTbody"><tr><td colspan="6">Carregando…</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="re-section">
+            <p style="margin:0; color: var(--text-secondary); font-size: 0.88rem; line-height: 1.5;">Para detalhes e lançamentos, use o Controle de erros e a aba Relatórios na Gestão comercial. Para alinhar a planilha ao banco, use <a href="Registro de Erros.html">Registro de Erros</a> (importar CSV).</p>
+        </section>
+
+        <nav class="re-nav" aria-label="Atalhos">
+            <a href="Registro de Erros.html"><i class="fas fa-file-csv" aria-hidden="true"></i> Registro de erros (planilha + import)</a>
+            <a href="../controle-erros.html"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i> Controle de erros</a>
+            <a href="../gestao-comercial.html"><i class="fas fa-chart-line" aria-hidden="true"></i> Gestão comercial</a>
+            <a href="../index.html"><i class="fas fa-arrow-left" aria-hidden="true"></i> Painel administrativo</a>
+        </nav>
+    </div>
+    <script>
+        (function () {
+            const API = '../api_gestao.php';
+
+            function pad2(n) { return String(n).padStart(2, '0'); }
+            function monthRange() {
+                const now = new Date();
+                const y = now.getFullYear();
+                const m = pad2(now.getMonth() + 1);
+                const d = pad2(now.getDate());
+                return { de: y + '-' + m + '-01', ate: y + '-' + m + '-' + d };
+            }
+
+            function fmtMoney(v) {
+                return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            }
+            function fmtPct(v) {
+                return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+            }
+
+            async function checkSession() {
+                const r = await fetch(API + '?action=check_session', { credentials: 'include' });
+                const t = await r.text();
+                let j = {};
+                try { j = t ? JSON.parse(t) : {}; } catch (_) {}
+                if (!j.logged_in || String(j.tipo || '').toLowerCase() !== 'admin') {
+                    window.location.href = '../index.html';
+                    return false;
+                }
+                return true;
+            }
+
+            async function load() {
+                const msg = document.getElementById('reMsg');
+                const btn = document.getElementById('reBtnAtualizar');
+                msg.classList.remove('show');
+                msg.textContent = '';
+                if (btn) btn.disabled = true;
+
+                const de = (document.getElementById('reDataDe') || {}).value || '';
+                const ate = (document.getElementById('reDataAte') || {}).value || '';
+                const q = new URLSearchParams({ action: 'gestao_comercial_resumo_erros', data_de: de, data_ate: ate });
+                let data;
+                try {
+                    const r = await fetch(API + '?' + q.toString(), { credentials: 'include' });
+                    const t = await r.text();
+                    data = t ? JSON.parse(t) : {};
+                } catch (e) {
+                    msg.textContent = 'Não foi possível carregar os dados.';
+                    msg.classList.add('show');
+                    if (btn) btn.disabled = false;
+                    return;
+                }
+
+                if (!data.success) {
+                    msg.textContent = data.error || 'Acesso negado ou erro ao carregar.';
+                    msg.classList.add('show');
+                    if (btn) btn.disabled = false;
+                    return;
+                }
+
+                const p = data.periodo || {};
+                const pl = document.getElementById('rePeriodoLabel');
+                if (pl) pl.textContent = 'Período: ' + (p.data_de || '') + ' a ' + (p.data_ate || '');
+
+                const k = data.kpis || {};
+                document.getElementById('reKpiPct').textContent = fmtPct(k.percentual_global);
+                document.getElementById('reKpiFat').textContent = fmtMoney(k.faturamento_total);
+                document.getElementById('reKpiMeta').textContent = fmtMoney(k.meta_global);
+
+                const conc = Array.isArray(data.conclusoes) ? data.conclusoes : [];
+                const ul = document.getElementById('reConclusoes');
+                ul.innerHTML = conc.length
+                    ? conc.map(function (html) { return '<li>' + html + '</li>'; }).join('')
+                    : '<li>Sem texto de conclusão.</li>';
+
+                const rows = Array.isArray(data.linhas) ? data.linhas : [];
+                const tb = document.getElementById('reTbody');
+                if (!rows.length) {
+                    tb.innerHTML = '<tr><td colspan="6">Sem linhas no período (ou sem dados agregados).</td></tr>';
+                } else {
+                    tb.innerHTML = rows.map(function (r) {
+                        return '<tr><td>' + esc(r.vendedora) + '</td><td>' + esc(r.total_erros) + '</td><td>' + esc(r.erros_leves) + '</td><td>' + esc(r.erros_medios) + '</td><td>' + esc(r.erros_graves) + '</td><td>' + esc(r.pontos_no_score) + '</td></tr>';
+                    }).join('');
+                }
+
+                if (btn) btn.disabled = false;
+            }
+
+            function esc(s) {
+                if (s == null) return '';
+                const d = document.createElement('div');
+                d.textContent = String(s);
+                return d.innerHTML;
+            }
+
+            document.addEventListener('DOMContentLoaded', async function () {
+                const ok = await checkSession();
+                if (!ok) return;
+                const r = monthRange();
+                const de = document.getElementById('reDataDe');
+                const ate = document.getElementById('reDataAte');
+                if (de) de.value = r.de;
+                if (ate) ate.value = r.ate;
+                document.getElementById('reBtnAtualizar').addEventListener('click', function () { load(); });
+                load();
+            });
+        })();
+    </script>
+</body>
+</html>

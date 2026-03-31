@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260327prodmeta">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260327relcards2">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body class="gc-compact-ui">
@@ -42,6 +42,14 @@
                     <button type="button" class="nav-item gc-menu-item active" role="tab" id="gc-tab-vendedores" data-section="vendedores" aria-selected="true" aria-controls="gc-section-vendedores">
                         <i class="fas fa-users" aria-hidden="true"></i>
                         <span>Vendedores</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-relatorios" data-section="relatorios" aria-selected="false" aria-controls="gc-section-relatorios">
+                        <i class="fas fa-table-list" aria-hidden="true"></i>
+                        <span>Relatórios</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-erros" data-section="erros" aria-selected="false" aria-controls="gc-section-erros">
+                        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                        <span>Controle de erros</span>
                     </button>
                     <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-financeiro" data-section="financeiro" aria-selected="false" aria-controls="gc-section-financeiro">
                         <i class="fas fa-coins" aria-hidden="true"></i>
@@ -284,12 +292,12 @@
 
                     <div class="gc-block">
                         <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-lightbulb"></i></span> Inteligência comercial</h3>
-                        <p class="gc-note gc-note--tight">Rankings para priorizar produtos, prescritores e oportunidades de margem.</p>
+                        <p class="gc-note gc-note--tight">Rankings para priorizar componentes, prescritores e oportunidades de margem.</p>
                         <div class="gc-chart-grid gc-chart-grid--2">
                             <div class="gc-chart-panel">
-                                <h4 class="gc-chart-title">Top produtos (quantidade)</h4>
-                                <p class="gc-chart-sub">Itens mais vendidos no período.</p>
-                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasTopProdQtd" aria-label="Top produtos qtd"></canvas></div>
+                                <h4 class="gc-chart-title">Top componentes (quantidade)</h4>
+                                <p class="gc-chart-sub">Componentes com maior volume no período.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasTopProdQtd" aria-label="Top componentes qtd"></canvas></div>
                             </div>
                             <div class="gc-chart-panel">
                                 <h4 class="gc-chart-title">Top prescritores (receita)</h4>
@@ -299,9 +307,9 @@
                         </div>
                         <div class="gc-chart-grid gc-chart-grid--2 gc-stack-20">
                             <div class="gc-chart-panel">
-                                <h4 class="gc-chart-title">Maior margem % (produto)</h4>
-                                <p class="gc-chart-sub">Produtos com melhor contribuição percentual estimada.</p>
-                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasMargemProd" aria-label="Margem produto"></canvas></div>
+                                <h4 class="gc-chart-title">Maior margem % (componente)</h4>
+                                <p class="gc-chart-sub">Componentes com melhor contribuição percentual estimada.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasMargemProd" aria-label="Margem componente"></canvas></div>
                             </div>
                             <div class="gc-chart-panel">
                                 <h4 class="gc-chart-title">Ticket médio por especialidade</h4>
@@ -447,6 +455,196 @@
                     </div>
                 </section>
 
+                <section class="gc-section" id="gc-section-relatorios" role="tabpanel" aria-labelledby="gc-tab-relatorios" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Relatórios comerciais</p>
+                        <p class="gc-tab-head__desc">Visão equivalente às planilhas Semanal, Mensal e Comissão, calculada automaticamente pelo banco no período selecionado.</p>
+                    </header>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-calendar-week"></i></span> Relatório semanal</h3>
+                        <p class="gc-note gc-note--tight">Meta individual, vendas por semana (1 a 4), total vendido, atingimento e comissão estimada.</p>
+                        <div class="gc-quick-kpis" role="list" aria-label="Totais semanais">
+                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Semana 1</span><strong id="gcRelSemTotS1">—</strong></div>
+                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Semana 2</span><strong id="gcRelSemTotS2">—</strong></div>
+                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Semana 3</span><strong id="gcRelSemTotS3">—</strong></div>
+                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Semana 4</span><strong id="gcRelSemTotS4">—</strong></div>
+                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Total</span><strong id="gcRelSemTotGeral">—</strong></div>
+                        </div>
+                        <div class="gc-table-wrap">
+                            <table class="gc-table gc-table--prod" id="gcErrosTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Vendedora</th>
+                                        <th scope="col">Meta</th>
+                                        <th scope="col">Semana 1</th>
+                                        <th scope="col">Semana 2</th>
+                                        <th scope="col">Semana 3</th>
+                                        <th scope="col">Semana 4</th>
+                                        <th scope="col">Total vendido</th>
+                                        <th scope="col">% Atingido</th>
+                                        <th scope="col">Falta p/ 100%</th>
+                                        <th scope="col">Bônus (R$)</th>
+                                        <th scope="col">Comissão (R$)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcRelSemanalTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-calendar-alt"></i></span> Relatório mensal</h3>
+                        <p class="gc-note gc-note--tight">Desempenho por consultora com score final e status calculados pelo sistema. <strong>Conversão</strong> = pedidos ÷ (orçamentos + pedidos + rejeitados), em % — a coluna <strong>Rejeitados</strong> soma linhas no carrinho e recusadas. A coluna <strong>Erros</strong> é a quantidade de registros no período (controle manual + perdas). <strong>Pts Erros</strong> segue a tabela por total de erros: 0→20, 1→18, 2→15, 3→12, 4 ou mais→5.</p>
+                        <div class="gc-table-wrap">
+                            <table class="gc-table gc-table--prod">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Vendedora</th>
+                                        <th scope="col">Meta</th>
+                                        <th scope="col">Venda mês</th>
+                                        <th scope="col">% Meta</th>
+                                        <th scope="col">Orçamentos</th>
+                                        <th scope="col">Pedidos</th>
+                                        <th scope="col">Conversão</th>
+                                        <th scope="col">Rejeitados</th>
+                                        <th scope="col">Erros</th>
+                                        <th scope="col">CRM</th>
+                                        <th scope="col">Pts Fat.</th>
+                                        <th scope="col">Pts Conv.</th>
+                                        <th scope="col">Pts Erros</th>
+                                        <th scope="col">Score</th>
+                                        <th scope="col">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcRelMensalTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-sack-dollar"></i></span> Regras de comissão</h3>
+                        <p class="gc-note gc-note--tight">Tabela de faixas de comissão individual, comissão de grupo e bônus por score.</p>
+                        <div class="gc-chart-grid gc-chart-grid--2">
+                            <div class="gc-table-wrap">
+                                <table class="gc-table gc-table--prod gc-rel-comissao-table" id="gcRelComissaoIndTable">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">% Meta</th>
+                                            <th scope="col">Faixa</th>
+                                            <th scope="col">Comissão %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="gcRelComissaoIndTbody"></tbody>
+                                </table>
+                            </div>
+                            <div class="gc-table-wrap">
+                                <table class="gc-table gc-table--prod gc-rel-comissao-table" id="gcRelComissaoGrupoTable">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Meta grupo</th>
+                                            <th scope="col">Percentual</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="gcRelComissaoGrupoTbody"></tbody>
+                                </table>
+                                <table class="gc-table gc-table--prod gc-rel-comissao-table gc-stack-16" id="gcRelComissaoPremioTable">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Regra de bônus</th>
+                                            <th scope="col">Prêmio</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="gcRelComissaoPremioTbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="gc-section" id="gc-section-erros" role="tabpanel" aria-labelledby="gc-tab-erros" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Controle de erros</p>
+                        <p class="gc-tab-head__desc">Lançamento manual de erros por consultora, com pontuação e histórico salvo em banco para auditoria e cálculo de score.</p>
+                    </header>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-pen-to-square"></i></span> Novo lançamento</h3>
+                        <div class="gc-filter-panel gc-erro-panel">
+                            <div class="gc-filters-row gc-erro-form-grid">
+                                <label>Consultora
+                                    <select id="gcErroVendedor"></select>
+                                </label>
+                                <label>Data do erro
+                                    <input type="date" id="gcErroData">
+                                </label>
+                                <label>Classificação
+                                    <select id="gcErroClassificacao">
+                                        <option value="leve">Leve</option>
+                                        <option value="medio">Médio</option>
+                                        <option value="grave">Grave</option>
+                                    </select>
+                                </label>
+                                <label>Pontos descontados
+                                    <input type="number" id="gcErroPontos" min="0" max="20" step="0.01" placeholder="0,00">
+                                </label>
+                                <label>Pedido (opcional)
+                                    <input type="text" id="gcErroPedidoRef" placeholder="Ex.: 12345/2026">
+                                </label>
+                                <label>Tipo do erro
+                                    <input type="text" id="gcErroTipo" placeholder="Ex.: Cadastro incompleto">
+                                </label>
+                            </div>
+                            <div class="gc-filters-row gc-erro-form-actions">
+                                <label class="gc-erro-desc-label">Descrição
+                                    <textarea id="gcErroDescricao" rows="3" placeholder="Descreva o erro e contexto"></textarea>
+                                </label>
+                                <button type="button" class="gc-filter-btn" id="gcErroSalvarBtn">
+                                    <i class="fas fa-save" aria-hidden="true"></i> Salvar erro
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-list-check"></i></span> Histórico de erros</h3>
+                        <div class="gc-quick-kpis gc-erro-resumo-kpis" role="list" aria-label="Resumo de erros no período">
+                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Total de erros</span><strong id="gcErroResumoTotal">—</strong></div>
+                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Pontos descontados</span><strong id="gcErroResumoPontos">—</strong></div>
+                        </div>
+                        <div class="gc-filters-row gc-stack-16 gc-erro-filtros">
+                            <label>Filtrar consultora
+                                <select id="gcErroFiltroVendedor">
+                                    <option value="">Todas</option>
+                                </select>
+                            </label>
+                            <label>Buscar
+                                <input type="text" id="gcErroFiltroBusca" placeholder="Tipo, descrição ou pedido">
+                            </label>
+                            <button type="button" id="gcErroAtualizarBtn" class="gc-filter-btn">
+                                <i class="fas fa-rotate-right" aria-hidden="true"></i> Atualizar lista
+                            </button>
+                        </div>
+                        <div class="gc-table-wrap">
+                            <table class="gc-table gc-table--prod" id="gcErrosTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Data</th>
+                                        <th scope="col">Consultora</th>
+                                        <th scope="col">Tipo</th>
+                                        <th scope="col">Classificação</th>
+                                        <th scope="col">Pontos</th>
+                                        <th scope="col">Pedido</th>
+                                        <th scope="col">Descrição</th>
+                                        <th scope="col">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcErrosTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="gc-section" id="gc-section-financeiro" role="tabpanel" aria-labelledby="gc-tab-financeiro" aria-hidden="true">
                     <header class="gc-tab-head">
                         <p class="gc-tab-head__kicker">Financeiro aplicado</p>
@@ -579,6 +777,6 @@
         </div>
     </div>
 
-    <script defer src="js/gestao-comercial.js?v=20260327semqtd"></script>
+    <script defer src="js/gestao-comercial.js?v=20260327bonus1"></script>
 </body>
 </html>

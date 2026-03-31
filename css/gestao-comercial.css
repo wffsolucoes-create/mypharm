@@ -1461,6 +1461,149 @@ body.gc-compact-ui .gc-rd-motivos-wrap {
     text-align: center;
 }
 
+/* ========== Relatórios: cards semanais no mesmo layout dos demais ========== */
+#gc-section-relatorios .gc-quick-kpis {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    margin: 2px 0 14px;
+}
+
+#gc-section-relatorios .gc-quick-kpi {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+    text-align: center;
+    align-items: center;
+}
+
+#gc-section-relatorios .gc-quick-kpi::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 12px 12px 0 0;
+    background: linear-gradient(90deg, var(--primary, #e63946), var(--info, #118ab2));
+    opacity: 0.92;
+}
+
+#gc-section-relatorios .gc-quick-kpi:nth-child(2)::before {
+    background: linear-gradient(90deg, var(--accent, #06d6a0), var(--accent-light, #38ef7d));
+}
+
+#gc-section-relatorios .gc-quick-kpi:nth-child(3)::before {
+    background: linear-gradient(90deg, var(--info, #118ab2), #48bfe3);
+}
+
+#gc-section-relatorios .gc-quick-kpi:nth-child(4)::before {
+    background: linear-gradient(90deg, var(--warning, #ffd166), #ffe066);
+}
+
+#gc-section-relatorios .gc-quick-kpi:nth-child(5)::before {
+    background: linear-gradient(90deg, #7c3aed, #a78bfa);
+}
+
+#gc-section-relatorios .gc-quick-kpi:hover {
+    border-color: var(--border-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+#gc-section-relatorios .gc-quick-kpi__label {
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+}
+
+#gc-section-relatorios .gc-quick-kpi strong {
+    font-size: 1.18rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+@media (max-width: 1200px) {
+    #gc-section-relatorios .gc-quick-kpis {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    #gc-section-relatorios .gc-quick-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 520px) {
+    #gc-section-relatorios .gc-quick-kpis {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Regras de comissão: colunas mais compactas */
+#gcRelComissaoIndTable,
+#gcRelComissaoGrupoTable,
+#gcRelComissaoPremioTable {
+    min-width: 520px;
+}
+
+#gcRelComissaoIndTable th,
+#gcRelComissaoIndTable td,
+#gcRelComissaoGrupoTable th,
+#gcRelComissaoGrupoTable td,
+#gcRelComissaoPremioTable th,
+#gcRelComissaoPremioTable td {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+}
+
+#gcRelComissaoIndTable th:first-child,
+#gcRelComissaoIndTable td:first-child {
+    width: 26%;
+}
+
+#gcRelComissaoIndTable th:nth-child(2),
+#gcRelComissaoIndTable td:nth-child(2) {
+    width: 52%;
+}
+
+#gcRelComissaoIndTable th:nth-child(3),
+#gcRelComissaoIndTable td:nth-child(3) {
+    width: 22%;
+}
+
+#gcRelComissaoGrupoTable th:first-child,
+#gcRelComissaoGrupoTable td:first-child,
+#gcRelComissaoPremioTable th:first-child,
+#gcRelComissaoPremioTable td:first-child {
+    width: 72%;
+}
+
+#gcRelComissaoGrupoTable th:nth-child(2),
+#gcRelComissaoGrupoTable td:nth-child(2),
+#gcRelComissaoPremioTable th:nth-child(2),
+#gcRelComissaoPremioTable td:nth-child(2) {
+    width: 28%;
+}
+
+/* Relatórios: alinhamento central por coluna */
+#gc-section-relatorios .gc-table th,
+#gc-section-relatorios .gc-table td,
+#gc-section-relatorios .gc-table td.gc-num {
+    text-align: center;
+}
+
+/* Produtividade por consultora: alinhamento central por coluna */
+#gcVendEquipeTable th,
+#gcVendEquipeTable td,
+#gcVendEquipeTable td.gc-num {
+    text-align: center;
+}
+
 body.gc-compact-ui .gc-table th,
 body.gc-compact-ui .gc-table td {
     padding: 9px 10px;
@@ -1485,5 +1628,165 @@ body.gc-compact-ui .gc-block-title__icon {
 @media (max-width: 900px) {
     .gc-quick-kpis {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ========== Padronização dos cards (igual páginas principais) ========== */
+body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-card {
+    padding: 24px;
+    min-height: 0;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+}
+
+body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-card:hover {
+    border-color: var(--border-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+}
+
+body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-label {
+    font-size: 0.78rem;
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+}
+
+body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-value {
+    font-size: 1.75rem;
+    line-height: 1.2;
+}
+
+body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
+    display: flex !important;
+    font-size: 0.78rem;
+    margin-top: 8px;
+}
+
+/* ========== Controle de erros (aba gestão comercial) ========== */
+#gc-section-erros .gc-erro-panel {
+    border-radius: 14px;
+    border-color: var(--border);
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+}
+
+#gc-section-erros .gc-erro-form-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    align-items: end;
+}
+
+#gc-section-erros .gc-erro-form-grid label {
+    margin: 0;
+}
+
+#gc-section-erros .gc-erro-form-actions {
+    align-items: flex-end;
+    gap: 14px;
+}
+
+#gc-section-erros .gc-erro-desc-label {
+    flex: 1 1 auto;
+    margin: 0;
+}
+
+#gc-section-erros .gc-erro-form-actions .gc-filter-btn {
+    min-height: 40px;
+    padding: 0 16px;
+    white-space: nowrap;
+}
+
+#gc-section-erros select,
+#gc-section-erros input[type="text"],
+#gc-section-erros input[type="number"],
+#gc-section-erros input[type="date"],
+#gc-section-erros textarea {
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    min-width: 11rem;
+}
+
+#gc-section-erros textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 88px;
+}
+
+#gc-section-erros select:focus-visible,
+#gc-section-erros input:focus-visible,
+#gc-section-erros textarea:focus-visible {
+    outline: 2px solid var(--primary, #2563eb);
+    outline-offset: 2px;
+}
+
+#gc-section-erros .gc-erro-resumo-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 2px;
+}
+
+#gc-section-erros .gc-erro-filtros {
+    margin-top: 10px;
+    border-radius: 10px;
+}
+
+#gc-section-erros .gc-erro-filtros label {
+    margin: 0;
+}
+
+#gc-section-erros .gc-erro-filtros .gc-filter-btn {
+    min-height: 40px;
+    padding: 0 14px;
+}
+
+#gcErrosTable td:nth-child(7),
+#gcErrosTable th:nth-child(7) {
+    white-space: normal;
+    max-width: 420px;
+}
+
+#gcErrosTable td:last-child .gc-filter-btn {
+    min-width: 34px;
+    padding: 6px 10px;
+}
+
+@media (max-width: 1280px) {
+    #gc-section-erros .gc-erro-form-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    #gc-section-erros .gc-erro-form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    #gc-section-erros .gc-erro-resumo-kpis {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    #gc-section-erros .gc-erro-form-grid {
+        grid-template-columns: 1fr;
+    }
+    #gc-section-erros .gc-erro-form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    #gc-section-erros .gc-erro-form-actions .gc-filter-btn {
+        width: 100%;
     }
 }

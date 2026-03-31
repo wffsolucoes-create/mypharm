@@ -13,6 +13,7 @@
     let gcVendEquipeSortState = { key: 'receita', dir: 'desc' };
     let gcVendEquipeLastRows = null;
     let gcVendEquipeSortBound = false;
+    let gcErroRowsMap = {};
 
     function gcDestroyAllCharts() {
         Object.keys(gcChartInstances).forEach(function (key) {
@@ -618,6 +619,215 @@
         }, 0);
     }
 
+    function gcRenderRelatorioSemanal(rows) {
+        const body = document.getElementById('gcRelSemanalTbody');
+        if (!body) return;
+        if (!Array.isArray(rows) || !rows.length) {
+            body.innerHTML = '<tr><td colspan="11">Sem dados no período selecionado.</td></tr>';
+            return;
+        }
+        body.innerHTML = rows.map(function (r) {
+            const pct = Number(r.percentual_atingido || 0);
+            const pctCls = pct >= 100 ? 'gc-cell-good' : (pct >= 80 ? 'gc-cell-warn' : 'gc-cell-bad');
+            return `<tr>
+                <td>${escapeHtml(gcDisplayConsultoraName(r.vendedora || ''))}</td>
+                <td class="gc-num">${formatMoney(r.meta_individual || 0)}</td>
+                <td class="gc-num">${formatMoney(r.venda_semana_1 || 0)}</td>
+                <td class="gc-num">${formatMoney(r.venda_semana_2 || 0)}</td>
+                <td class="gc-num">${formatMoney(r.venda_semana_3 || 0)}</td>
+                <td class="gc-num">${formatMoney(r.venda_semana_4 || 0)}</td>
+                <td class="gc-num">${formatMoney(r.total_vendido || 0)}</td>
+                <td class="gc-num ${pctCls}">${formatPercent(pct)}</td>
+                <td class="gc-num">${formatMoney(r.falta_meta || 0)}</td>
+                <td class="gc-num">${formatMoney(r.bonus_valor || 0)}</td>
+                <td class="gc-num">${formatMoney(r.comissao_total || r.comissao_valor || 0)}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function gcRenderRelatorioMensal(rows) {
+        const body = document.getElementById('gcRelMensalTbody');
+        if (!body) return;
+        if (!Array.isArray(rows) || !rows.length) {
+            body.innerHTML = '<tr><td colspan="15">Sem dados no período selecionado.</td></tr>';
+            return;
+        }
+        body.innerHTML = rows.map(function (r) {
+            const score = Number(r.score_final || 0);
+            const scoreCls = score >= 80 ? 'gc-cell-good' : (score >= 65 ? 'gc-cell-warn' : 'gc-cell-bad');
+            return `<tr>
+                <td>${escapeHtml(gcDisplayConsultoraName(r.vendedora || ''))}</td>
+                <td class="gc-num">${formatMoney(r.meta_individual || 0)}</td>
+                <td class="gc-num">${formatMoney(r.venda_total_mes || 0)}</td>
+                <td class="gc-num">${formatPercent(r.percentual_meta || 0)}</td>
+                <td class="gc-num">${Number(r.orcamentos || 0).toLocaleString('pt-BR')}</td>
+                <td class="gc-num">${Number(r.pedidos || 0).toLocaleString('pt-BR')}</td>
+                <td class="gc-num">${formatPercent(r.conversao || 0)}</td>
+                <td class="gc-num">${Number(r.rejeitados_itens || 0).toLocaleString('pt-BR')}</td>
+                <td class="gc-num">${Number(r.erros || 0).toLocaleString('pt-BR')}</td>
+                <td class="gc-num">${Number(r.crm || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
+                <td class="gc-num">${Number(r.pontos_faturamento || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                <td class="gc-num">${Number(r.pontos_conversao || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                <td class="gc-num">${Number(r.pontos_erros || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                <td class="gc-num ${scoreCls}">${Number(score).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                <td>${escapeHtml(String(r.status || '—'))}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function renderRelatorios(data) {
+        const bloco = data?.relatorios_comerciais || {};
+        const semanal = bloco?.semanal || {};
+        const mensal = bloco?.mensal || {};
+        const comissao = bloco?.comissao || {};
+        const totais = semanal?.totais || {};
+
+        const semMap = {
+            gcRelSemTotS1: formatMoney(totais.semana_1 || 0),
+            gcRelSemTotS2: formatMoney(totais.semana_2 || 0),
+            gcRelSemTotS3: formatMoney(totais.semana_3 || 0),
+            gcRelSemTotS4: formatMoney(totais.semana_4 || 0),
+            gcRelSemTotGeral: formatMoney(totais.receita_total || 0),
+        };
+        Object.keys(semMap).forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = semMap[id];
+        });
+
+        gcRenderRelatorioSemanal(semanal?.linhas || []);
+        gcRenderRelatorioMensal(mensal?.linhas || []);
+
+        const indBody = document.getElementById('gcRelComissaoIndTbody');
+        if (indBody) {
+            const indRows = Array.isArray(comissao?.faixas_individuais) ? comissao.faixas_individuais : [];
+            indBody.innerHTML = indRows.length
+                ? indRows.map(function (r) {
+                    return `<tr>
+                        <td>${escapeHtml(String(r.meta_pct_faixa || ''))}</td>
+                        <td>${escapeHtml(String(r.intervalo || ''))}</td>
+                        <td class="gc-num">${Number(r.comissao_percentual || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%</td>
+                    </tr>`;
+                }).join('')
+                : '<tr><td colspan="3">Sem regras cadastradas.</td></tr>';
+        }
+
+        const grpBody = document.getElementById('gcRelComissaoGrupoTbody');
+        if (grpBody) {
+            const grpRows = Array.isArray(comissao?.faixas_grupo) ? comissao.faixas_grupo : [];
+            grpBody.innerHTML = grpRows.length
+                ? grpRows.map(function (r) {
+                    return `<tr>
+                        <td>${escapeHtml(String(r.faixa_receita || ''))}</td>
+                        <td class="gc-num">${Number(r.percentual || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%</td>
+                    </tr>`;
+                }).join('')
+                : '<tr><td colspan="2">Sem regras cadastradas.</td></tr>';
+        }
+
+        const premBody = document.getElementById('gcRelComissaoPremioTbody');
+        if (premBody) {
+            const premRows = Array.isArray(comissao?.premios_score) ? comissao.premios_score : [];
+            premBody.innerHTML = premRows.length
+                ? premRows.map(function (r) {
+                    return `<tr>
+                        <td>${escapeHtml(String(r.regra || ''))}</td>
+                        <td class="gc-num">${formatMoney(r.premio || 0)}</td>
+                    </tr>`;
+                }).join('')
+                : '<tr><td colspan="2">Sem regras cadastradas.</td></tr>';
+        }
+    }
+
+    function gcGetCurrentDateRangeParams() {
+        const deEl = document.getElementById('gcDataDe');
+        const ateEl = document.getElementById('gcDataAte');
+        const out = {};
+        if (deEl && deEl.value) out.data_de = deEl.value;
+        if (ateEl && ateEl.value) out.data_ate = ateEl.value;
+        return out;
+    }
+
+    function gcRenderErrosRows(rows) {
+        const body = document.getElementById('gcErrosTbody');
+        if (!body) return;
+        gcErroRowsMap = {};
+        if (!Array.isArray(rows) || !rows.length) {
+            body.innerHTML = '<tr><td colspan="8">Sem erros registrados no período selecionado.</td></tr>';
+            return;
+        }
+        body.innerHTML = rows.map(function (r) {
+            const id = Number(r.id || 0);
+            gcErroRowsMap[id] = r;
+            const cls = String(r.classificacao_erro || 'leve');
+            const clsTxt = cls === 'grave' ? 'Grave' : (cls === 'medio' ? 'Médio' : 'Leve');
+            const pts = Number(r.pontos_descontados || 0);
+            const ptsCls = pts >= 2 ? 'gc-cell-bad' : (pts > 0 ? 'gc-cell-warn' : 'gc-cell-good');
+            return `<tr>
+                <td>${escapeHtml(String(r.data_erro || '—'))}</td>
+                <td>${escapeHtml(gcDisplayConsultoraName(r.vendedor_nome || ''))}</td>
+                <td>${escapeHtml(String(r.tipo_erro || '—'))}</td>
+                <td>${escapeHtml(clsTxt)}</td>
+                <td class="gc-num ${ptsCls}">${pts.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                <td>${escapeHtml(String(r.pedido_ref || '—'))}</td>
+                <td>${escapeHtml(String(r.descricao || '—'))}</td>
+                <td class="gc-num"><button type="button" class="gc-filter-btn" style="padding:6px 10px;" onclick="gcExcluirErroManual(${id})"><i class="fas fa-trash"></i></button></td>
+            </tr>`;
+        }).join('');
+    }
+
+    function gcPopulateErroVendedores(data) {
+        const nomes = Array.isArray(data?.lista_vendedores_nomes) ? data.lista_vendedores_nomes.slice() : [];
+        const selCad = document.getElementById('gcErroVendedor');
+        const selFiltro = document.getElementById('gcErroFiltroVendedor');
+        const opts = nomes.map(function (n) {
+            return `<option value="${escapeHtml(n)}">${escapeHtml(gcDisplayConsultoraName(n))}</option>`;
+        }).join('');
+        if (selCad) {
+            const current = selCad.value || '';
+            selCad.innerHTML = opts;
+            if (current && nomes.includes(current)) selCad.value = current;
+        }
+        if (selFiltro) {
+            const currentF = selFiltro.value || '';
+            selFiltro.innerHTML = '<option value="">Todas</option>' + opts;
+            if (currentF && nomes.includes(currentF)) selFiltro.value = currentF;
+        }
+    }
+
+    async function gcLoadControleErros() {
+        const filtroVendedor = (document.getElementById('gcErroFiltroVendedor') || {}).value || '';
+        const filtroBusca = (document.getElementById('gcErroFiltroBusca') || {}).value || '';
+        const params = Object.assign({}, gcGetCurrentDateRangeParams(), {
+            vendedor: filtroVendedor,
+            q: filtroBusca,
+            limit: '300'
+        });
+        const data = await apiGet('gestao_comercial_erros_lista', params);
+        if (!data || data.success === false) {
+            gcRenderErrosRows([]);
+            return;
+        }
+        const resumo = data.resumo || {};
+        const totalEl = document.getElementById('gcErroResumoTotal');
+        const pontosEl = document.getElementById('gcErroResumoPontos');
+        if (totalEl) totalEl.textContent = Number(resumo.total_erros || 0).toLocaleString('pt-BR');
+        if (pontosEl) pontosEl.textContent = Number(resumo.total_pontos || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+        gcRenderErrosRows(Array.isArray(data.rows) ? data.rows : []);
+    }
+
+    window.gcExcluirErroManual = async function (id) {
+        const n = Number(id || 0);
+        if (!n) return;
+        if (!window.confirm('Deseja excluir este erro?')) return;
+        const resp = await apiPost('gestao_comercial_erros_excluir', { id: n });
+        if (!resp || resp.success === false) {
+            alert((resp && resp.error) ? resp.error : 'Não foi possível excluir o erro.');
+            return;
+        }
+        await gcLoadControleErros();
+        await loadDashboardData(false).catch(function () {});
+    };
+
     function showGcDashboardError(msg) {
         if (!msg) return;
         console.error('Gestão Comercial (dashboard):', msg);
@@ -675,7 +885,13 @@
         });
 
         const tbodies = [
-            { id: 'gcVendEquipeTbody', cols: 11, emptyText: 'Sem dados no período selecionado.' }
+            { id: 'gcVendEquipeTbody', cols: 11, emptyText: 'Sem dados no período selecionado.' },
+            { id: 'gcRelSemanalTbody', cols: 10, emptyText: 'Sem dados no período selecionado.' },
+            { id: 'gcRelMensalTbody', cols: 15, emptyText: 'Sem dados no período selecionado.' },
+            { id: 'gcRelComissaoIndTbody', cols: 3, emptyText: 'Sem regras cadastradas.' },
+            { id: 'gcRelComissaoGrupoTbody', cols: 2, emptyText: 'Sem regras cadastradas.' },
+            { id: 'gcRelComissaoPremioTbody', cols: 2, emptyText: 'Sem regras cadastradas.' },
+            { id: 'gcErrosTbody', cols: 8, emptyText: 'Sem erros registrados no período selecionado.' }
         ];
         tbodies.forEach(function (cfg) {
             const body = document.getElementById(cfg.id);
@@ -724,6 +940,7 @@
             renderGcCharts(data);
             renderVendedoresTabs(data, gcNomesVendedores);
             renderVendedores(data);
+            renderRelatorios(data);
         } finally {
             setGcLoading(false);
         }
@@ -1641,6 +1858,10 @@
             tab.addEventListener('click', function (e) {
                 if (e) e.preventDefault();
                 const target = tab.getAttribute('data-section');
+                if (target === 'erros') {
+                    window.location.href = 'controle-erros.html';
+                    return;
+                }
                 tabs.forEach(function (t) {
                     t.classList.remove('active');
                     if (t.getAttribute('role') === 'tab') {
@@ -1680,7 +1901,7 @@
         if (!tab && window.location.hash) {
             tab = String(window.location.hash.replace(/^#/, '')).toLowerCase().trim();
         }
-        const valid = ['executivo', 'vendas', 'vendedores', 'financeiro', 'reuniao'];
+        const valid = ['executivo', 'vendas', 'vendedores', 'relatorios', 'erros', 'financeiro', 'reuniao'];
         if (valid.indexOf(tab) === -1 || tab === 'vendedores') return;
         const btn = document.querySelector('.gc-menu-item[data-section="' + tab + '"]');
         if (btn) btn.click();
@@ -1731,6 +1952,83 @@
                 }
             });
         });
+
+        const erroData = document.getElementById('gcErroData');
+        if (erroData && !erroData.value) {
+            erroData.value = new Date().toISOString().slice(0, 10);
+        }
+        const erroClass = document.getElementById('gcErroClassificacao');
+        const erroPontos = document.getElementById('gcErroPontos');
+        if (erroClass && erroPontos) {
+            erroClass.addEventListener('change', function () {
+                if ((erroPontos.value || '').trim() !== '') return;
+                if (erroClass.value === 'grave') erroPontos.value = '10';
+                else if (erroClass.value === 'medio') erroPontos.value = '5';
+                else if (erroClass.value === 'leve') erroPontos.value = '2';
+                else erroPontos.value = '2';
+            });
+        }
+
+        const erroSalvarBtn = document.getElementById('gcErroSalvarBtn');
+        if (erroSalvarBtn) {
+            erroSalvarBtn.addEventListener('click', async function () {
+                const vendedor = (document.getElementById('gcErroVendedor') || {}).value || '';
+                const dataErro = (document.getElementById('gcErroData') || {}).value || '';
+                const tipoErro = (document.getElementById('gcErroTipo') || {}).value || '';
+                const classif = (document.getElementById('gcErroClassificacao') || {}).value || 'leve';
+                const pontosTxt = (document.getElementById('gcErroPontos') || {}).value || '';
+                const pedidoRef = (document.getElementById('gcErroPedidoRef') || {}).value || '';
+                const descricao = (document.getElementById('gcErroDescricao') || {}).value || '';
+                if (!vendedor || !tipoErro.trim()) {
+                    alert('Preencha consultora e tipo do erro.');
+                    return;
+                }
+                const payload = {
+                    vendedor_nome: vendedor,
+                    data_erro: dataErro,
+                    tipo_erro: tipoErro,
+                    classificacao_erro: classif,
+                    pontos_descontados: pontosTxt.trim() === '' ? null : Number(pontosTxt),
+                    pedido_ref: pedidoRef,
+                    descricao: descricao
+                };
+                const resp = await apiPost('gestao_comercial_erros_salvar', payload);
+                if (!resp || resp.success === false) {
+                    alert((resp && resp.error) ? resp.error : 'Não foi possível salvar o erro.');
+                    return;
+                }
+                const tipoEl = document.getElementById('gcErroTipo');
+                const pedidoEl = document.getElementById('gcErroPedidoRef');
+                const descEl = document.getElementById('gcErroDescricao');
+                if (tipoEl) tipoEl.value = '';
+                if (pedidoEl) pedidoEl.value = '';
+                if (descEl) descEl.value = '';
+                await gcLoadControleErros();
+                await loadDashboardData(false).catch(function () {});
+            });
+        }
+
+        const erroAtualizarBtn = document.getElementById('gcErroAtualizarBtn');
+        if (erroAtualizarBtn) {
+            erroAtualizarBtn.addEventListener('click', function () {
+                gcLoadControleErros().catch(function () {});
+            });
+        }
+        const erroFiltroVendedor = document.getElementById('gcErroFiltroVendedor');
+        if (erroFiltroVendedor) {
+            erroFiltroVendedor.addEventListener('change', function () {
+                gcLoadControleErros().catch(function () {});
+            });
+        }
+        const erroFiltroBusca = document.getElementById('gcErroFiltroBusca');
+        if (erroFiltroBusca) {
+            erroFiltroBusca.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    gcLoadControleErros().catch(function () {});
+                }
+            });
+        }
 
         const gcSbToggle = document.getElementById('gcSidebarToggle');
         const gcSidebar = document.getElementById('gcSidebar');

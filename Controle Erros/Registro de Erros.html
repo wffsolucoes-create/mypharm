@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de erros | MyPharm</title>
+    <link rel="icon" type="image/png" href="../imagens/IconeMyPharm.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .re-wrap { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
+        .re-alert { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 20px; line-height: 1.55; }
+        .re-alert strong { color: var(--text-primary); }
+        .re-import { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 20px; }
+        .re-import h2 { font-size: 1.05rem; margin: 0 0 10px; }
+        .re-import p { margin: 0 0 12px; color: var(--text-secondary); font-size: 0.9rem; }
+        .re-import label { display: block; font-size: 0.85rem; margin-bottom: 8px; }
+        .re-import input[type="file"] { margin-bottom: 12px; }
+        .re-import button { border: none; border-radius: 8px; padding: 10px 18px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }
+        .re-import button:disabled { opacity: 0.6; cursor: wait; }
+        .re-msg { margin-top: 12px; font-size: 0.9rem; }
+        .re-msg.ok { color: #16a34a; }
+        .re-msg.err { color: #dc2626; }
+        .re-sheet { margin-top: 24px; }
+        .re-sheet h2 { font-size: 1.05rem; margin: 0 0 10px; }
+        .re-sheet p { color: var(--text-secondary); font-size: 0.88rem; margin: 0 0 10px; }
+        .re-iframe-wrap { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; min-height: 70vh; }
+        .re-iframe-wrap iframe { width: 100%; border: 0; min-height: 70vh; display: block; }
+        .re-nav { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 12px; }
+        .re-nav a { color: var(--primary); font-weight: 600; font-size: 0.9rem; text-decoration: none; }
+        .re-nav a:hover { text-decoration: underline; }
+        code { font-size: 0.85em; background: var(--bg-body); padding: 2px 6px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="re-wrap page-content">
+        <h1><i class="fas fa-table" aria-hidden="true"></i> Registro de erros</h1>
+
+        <div class="re-alert" role="status">
+            <p style="margin:0 0 10px;"><strong>Importante:</strong> a planilha visual abaixo é um <strong>export estático</strong> do Google Sheets (HTML salvo). Ela <strong>não grava</strong> automaticamente no MySQL.</p>
+            <p style="margin:0;">Os registros que aparecem no sistema (contagem de Carla, relatórios, etc.) vêm apenas da tabela <code>vendedor_erros_manuais</code>, alimentada pelo <a href="../controle-erros.html">Controle de erros</a>, pela Gestão comercial ou pela <strong>importação CSV</strong> nesta página. Se a planilha tem 11 linhas e o banco tem 4, faltam <strong>7 lançamentos</strong> no banco — importe o CSV ou cadastre manualmente.</p>
+        </div>
+
+        <section class="re-import" aria-labelledby="re-import-h">
+            <h2 id="re-import-h">Importar da planilha para o banco</h2>
+            <p>No Google Sheets: <strong>Arquivo → Fazer download → Valores separados por vírgula (.csv)</strong>. Depois envie o arquivo aqui. Cabeçalhos reconhecidos: Data, Requisição, Consultor, Tipo de Erro, Observação, Gravidade (ou ordem fixa nessa sequência).</p>
+            <form id="reFormCsv" enctype="multipart/form-data">
+                <label for="reArquivo">Arquivo CSV</label>
+                <input type="file" id="reArquivo" name="arquivo" accept=".csv,text/csv">
+                <button type="submit" id="reBtnImportar">Importar para o banco</button>
+            </form>
+            <div class="re-msg" id="reMsg" aria-live="polite"></div>
+        </section>
+
+        <section class="re-sheet" aria-labelledby="re-sheet-h">
+            <h2 id="re-sheet-h">Visualização da planilha (export)</h2>
+            <p>Referência visual; não substitui o banco de dados.</p>
+            <div class="re-iframe-wrap">
+                <iframe title="Export da planilha de erros" src="Registro-de-Erros-export-google-sheets.html"></iframe>
+            </div>
+        </section>
+
+        <nav class="re-nav" aria-label="Atalhos">
+            <a href="../controle-erros.html"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i> Controle de erros</a>
+            <a href="Resumo Erros.html"><i class="fas fa-chart-pie" aria-hidden="true"></i> Resumo de erros</a>
+            <a href="../gestao-comercial.html"><i class="fas fa-chart-line" aria-hidden="true"></i> Gestão comercial</a>
+        </nav>
+    </div>
+    <script>
+        (function () {
+            const API = '../api_gestao.php';
+            document.getElementById('reFormCsv').addEventListener('submit', async function (ev) {
+                ev.preventDefault();
+                const msg = document.getElementById('reMsg');
+                const btn = document.getElementById('reBtnImportar');
+                const file = document.getElementById('reArquivo').files[0];
+                msg.textContent = '';
+                msg.className = 're-msg';
+                if (!file) {
+                    msg.textContent = 'Selecione um arquivo CSV.';
+                    msg.classList.add('err');
+                    return;
+                }
+                const fd = new FormData();
+                fd.append('arquivo', file);
+                btn.disabled = true;
+                try {
+                    const r = await fetch(API + '?action=gestao_comercial_erros_importar_csv', {
+                        method: 'POST',
+                        body: fd,
+                        credentials: 'include'
+                    });
+                    const t = await r.text();
+                    let j = {};
+                    try { j = t ? JSON.parse(t) : {}; } catch (_) {}
+                    if (!j.success) {
+                        msg.textContent = (j && j.error) ? j.error : 'Falha na importação.';
+                        msg.classList.add('err');
+                    } else {
+                        msg.textContent = 'Inseridos: ' + (j.inserted || 0) + ' · Ignorados (duplicados ou inválidos): ' + (j.skipped || 0) + '.';
+                        if (j.hints && j.hints.length) msg.textContent += ' Avisos: ' + j.hints.join(' ');
+                        msg.classList.add('ok');
+                    }
+                } catch (e) {
+                    msg.textContent = 'Erro de rede.';
+                    msg.classList.add('err');
+                }
+                btn.disabled = false;
+            });
+        })();
+    </script>
+</body>
+</html>

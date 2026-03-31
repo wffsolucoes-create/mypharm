@@ -1,6 +1,6 @@
 # Relatório geral do banco – MyPharm
 
-**Data:** 26/02/2026 06:28:01
+**Data:** 30/03/2026 14:31:34
 **Banco:** u936212550_my_pharm @ srv1845.hstgr.io
 
 ---
@@ -9,24 +9,35 @@
 
 | Tabela | Registros |
 |--------|-----------|
-| gestao_pedidos | 82.880 |
-| historico_visitas | 696 |
-| itens_orcamentos_pedidos | 81.852 |
+| auth_audit_logs | 665 |
+| especialidades | 34 |
+| geocache | 255 |
+| gestao_pedidos | 86.671 |
+| historico_visitas | 905 |
+| itens_orcamentos_pedidos | 139.314 |
 | login_attempts | 0 |
+| mensagens_usuario | 0 |
+| mensagens_usuario_ocultas | 0 |
+| mensagens_visitador | 0 |
+| notificacoes | 0 |
 | orcamentos_pedidos | 29.999 |
-| pedidos_detalhado_componentes | 4.838 |
-| prescritor_contatos | 0 |
-| prescritor_dados | 124 |
-| prescritor_resumido | 2.854 |
-| prescritores_cadastro | 1.909 |
+| pedidos_detalhado_componentes | 197.358 |
+| prescritor_contatos | 4 |
+| prescritor_dados | 144 |
+| prescritor_resumido | 3.409 |
+| prescritores_cadastro | 2.000 |
 | prescritores_visitadores | 144 |
-| rotas_diarias | 0 |
-| rotas_pontos | 0 |
-| usuarios | 5 |
-| visitas_agendadas | 0 |
-| visitas_em_andamento | 0 |
-| visitas_geolocalizacao | 0 |
-| **Total** | **205.301** |
+| profissoes | 16 |
+| rotas_diarias | 32 |
+| rotas_pontos | 2.858 |
+| user_sessions | 9 |
+| usuarios | 16 |
+| vendedor_perdas_acoes | 0 |
+| vendedor_perdas_interacoes | 0 |
+| visitas_agendadas | 26 |
+| visitas_em_andamento | 134 |
+| visitas_geolocalizacao | 133 |
+| **Total** | **464.126** |
 
 ---
 
@@ -61,16 +72,17 @@
 
 ## 4. Diagnóstico – Componentes no modal “Detalhe do Pedido”
 
-- Tabela existe. Total de linhas: **4.838**
+- Tabela existe. Total de linhas: **197.358**
+- **Pedidos distintos (numero+série) com componentes:** 48.575 — só esses pedidos exibem a seção Componentes no modal.
 - Colunas esperadas pela API: `numero`, `serie`, `componente`, `quantidade_componente`, `unidade_componente`
 - Colunas encontradas: `id`, `numero`, `serie`, `ano_referencia`, `componente`, `quantidade_componente`, `unidade_componente`
 - Todas as colunas necessárias estão presentes.
 - **Pedido 58399 série 1:** 4 componente(s) encontrado(s).
 
-Amostra:
+Amostra (58399/1):
 ```
 {
-    "id": 2586,
+    "id": 2459678,
     "numero": 58399,
     "serie": 1,
     "ano_referencia": 2026,
@@ -79,7 +91,7 @@ Amostra:
     "unidade_componente": "G"
 }
 {
-    "id": 2587,
+    "id": 2459679,
     "numero": 58399,
     "serie": 1,
     "ano_referencia": 2026,
@@ -88,7 +100,7 @@ Amostra:
     "unidade_componente": "G"
 }
 {
-    "id": 2588,
+    "id": 2459680,
     "numero": 58399,
     "serie": 1,
     "ano_referencia": 2026,
@@ -97,7 +109,7 @@ Amostra:
     "unidade_componente": "G"
 }
 {
-    "id": 2589,
+    "id": 2459681,
     "numero": 58399,
     "serie": 1,
     "ano_referencia": 2026,
