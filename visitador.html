@@ -1307,8 +1307,9 @@
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
                     <div>
                         <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Status da visita</label>
-                        <select id="visitaStatus" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary);">
-                            <option value="Realizada" selected>Realizada</option>
+                        <select id="visitaStatus" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary);" required>
+                            <option value="" selected>Selecione</option>
+                            <option value="Realizada">Realizada</option>
                             <option value="Não encontrado">Não encontrado</option>
                             <option value="Remarcada">Remarcada</option>
                             <option value="Cancelada">Cancelada</option>
@@ -1316,7 +1317,7 @@
                     </div>
                     <div>
                         <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Local de atendimento</label>
-                        <select id="visitaLocal" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                        <select id="visitaLocal" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;" required>
                             <option value="">Selecione</option>
                             <option value="Clínica">Clínica</option>
                             <option value="Hospital">Hospital</option>

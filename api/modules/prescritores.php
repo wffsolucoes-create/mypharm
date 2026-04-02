@@ -16,6 +16,40 @@ function prescritores_resolve_usuario_id(PDO $pdo, string $visitador): ?int
     return $row ? (int)$row['id'] : null;
 }
 
+/** Garante tabela prescritor_dados com colunas de cadastro completo (fonte padrão dos dados do prescritor). */
+function prescritores_ensure_prescritor_dados_schema(PDO $pdo): void
+{
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS prescritor_dados (
+            nome_prescritor VARCHAR(255) PRIMARY KEY,
+            profissao VARCHAR(255) NULL,
+            especialidade VARCHAR(255) NULL,
+            registro VARCHAR(100) NULL,
+            uf_registro VARCHAR(10) NULL,
+            data_nascimento DATE NULL,
+            endereco_rua VARCHAR(255) NULL,
+            endereco_numero VARCHAR(20) NULL,
+            endereco_bairro VARCHAR(120) NULL,
+            endereco_cep VARCHAR(20) NULL,
+            endereco_cidade VARCHAR(120) NULL,
+            endereco_uf VARCHAR(5) NULL,
+            local_atendimento VARCHAR(50) NULL,
+            whatsapp VARCHAR(30) NULL,
+            email VARCHAR(255) NULL,
+            usuario_id INT NULL,
+            atualizado_em DATETIME NULL
+        )
+    ");
+    try {
+        $pdo->exec("ALTER TABLE prescritor_dados ADD COLUMN usuario_id INT NULL");
+    } catch (Throwable $e) { /* já existe */
+    }
+    try {
+        $pdo->exec("ALTER TABLE prescritor_dados ADD COLUMN especialidade VARCHAR(255) NULL");
+    } catch (Throwable $e) { /* já existe */
+    }
+}
+
 function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
 {
     try {
@@ -33,67 +67,86 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                 return true;
             }
 
-            $stmt = $pdo->prepare("
-                INSERT INTO prescritor_contatos (nome_prescritor, whatsapp) 
-                VALUES (:nome, :whatsapp)
-                ON DUPLICATE KEY UPDATE whatsapp = :whatsapp2, atualizado_em = NOW()
+            // Fonte padrão: prescritor_dados.
+            prescritores_ensure_prescritor_dados_schema($pdo);
+            $stmtPd = $pdo->prepare("
+                INSERT INTO prescritor_dados (nome_prescritor, whatsapp, atualizado_em)
+                VALUES (:nome, :whatsapp, NOW())
+                ON DUPLICATE KEY UPDATE whatsapp = VALUES(whatsapp), atualizado_em = NOW()
             ");
-            $stmt->execute(['nome' => $nome, 'whatsapp' => $whatsapp, 'whatsapp2' => $whatsapp]);
+            $stmtPd->execute(['nome' => $nome, 'whatsapp' => $whatsapp]);
+            // Compatibilidade com telas legadas: tenta espelhar em prescritor_contatos sem quebrar fluxo.
+            try {
+                $stmt = $pdo->prepare("
+                    INSERT INTO prescritor_contatos (nome_prescritor, whatsapp) 
+                    VALUES (:nome, :whatsapp)
+                    ON DUPLICATE KEY UPDATE whatsapp = :whatsapp2, atualizado_em = NOW()
+                ");
+                $stmt->execute(['nome' => $nome, 'whatsapp' => $whatsapp, 'whatsapp2' => $whatsapp]);
+            } catch (Throwable $e) { /* ignora legado */
+            }
             echo json_encode(['success' => true, 'message' => 'WhatsApp salvo com sucesso!'], JSON_UNESCAPED_UNICODE);
             return true;
 
         case 'get_prescritor_contatos':
-            $stmt = $pdo->query("SELECT nome_prescritor, whatsapp FROM prescritor_contatos WHERE whatsapp IS NOT NULL AND whatsapp != ''");
+            // Prioridade: prescritor_dados; fallback: prescritor_contatos (dados legados).
             $contatos = [];
-            foreach ($stmt->fetchAll() as $row) {
-                $contatos[$row['nome_prescritor']] = $row['whatsapp'];
+            try {
+                prescritores_ensure_prescritor_dados_schema($pdo);
+                $st = $pdo->query("SELECT nome_prescritor, whatsapp FROM prescritor_dados WHERE whatsapp IS NOT NULL AND TRIM(whatsapp) != ''");
+                if ($st) {
+                    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                        $contatos[trim($row['nome_prescritor'])] = $row['whatsapp'];
+                    }
+                }
+            } catch (Throwable $e) { /* ignora */
+            }
+            try {
+                $stmt = $pdo->query("SELECT nome_prescritor, whatsapp FROM prescritor_contatos WHERE whatsapp IS NOT NULL AND whatsapp != ''");
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $k = trim($row['nome_prescritor']);
+                    if ($k !== '' && !isset($contatos[$k])) {
+                        $contatos[$k] = $row['whatsapp'];
+                    }
+                }
+            } catch (Throwable $e) { /* ignora */
             }
             echo json_encode($contatos, JSON_UNESCAPED_UNICODE);
             return true;
 
         case 'get_prescritor_dados':
-            $nome = trim($_GET['nome_prescritor'] ?? '');
+            $nome = trim($_GET['nome_prescritor'] ?? ($_GET['nome'] ?? ''));
             if (empty($nome)) {
                 echo json_encode(['success' => false, 'error' => 'Nome não informado'], JSON_UNESCAPED_UNICODE);
                 return true;
             }
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS prescritor_dados (
-                    nome_prescritor VARCHAR(255) PRIMARY KEY,
-                    profissao VARCHAR(255) NULL,
-                    especialidade VARCHAR(255) NULL,
-                    registro VARCHAR(100) NULL,
-                    uf_registro VARCHAR(10) NULL,
-                    data_nascimento DATE NULL,
-                    endereco_rua VARCHAR(255) NULL,
-                    endereco_numero VARCHAR(20) NULL,
-                    endereco_bairro VARCHAR(120) NULL,
-                    endereco_cep VARCHAR(20) NULL,
-                    endereco_cidade VARCHAR(120) NULL,
-                    endereco_uf VARCHAR(5) NULL,
-                    local_atendimento VARCHAR(50) NULL,
-                    whatsapp VARCHAR(30) NULL,
-                    email VARCHAR(255) NULL,
-                    usuario_id INT NULL,
-                    atualizado_em DATETIME NULL
-                )
-            ");
-            try { $pdo->exec("ALTER TABLE prescritor_dados ADD COLUMN usuario_id INT NULL"); } catch (Throwable $e) {}
-            try { $pdo->exec("ALTER TABLE prescritor_dados ADD COLUMN especialidade VARCHAR(255) NULL"); } catch (Throwable $e) {}
+            prescritores_ensure_prescritor_dados_schema($pdo);
             $stmt = $pdo->prepare("
                 SELECT pd.*, COALESCE(pd.usuario_id, pc.usuario_id) as usuario_id
                 FROM prescritor_dados pd
-                LEFT JOIN prescritores_cadastro pc ON pc.nome = pd.nome_prescritor
-                WHERE pd.nome_prescritor = :nome LIMIT 1
+                LEFT JOIN prescritores_cadastro pc ON LOWER(TRIM(pc.nome)) = LOWER(TRIM(pd.nome_prescritor))
+                WHERE LOWER(TRIM(pd.nome_prescritor)) = LOWER(TRIM(:nome))
+                ORDER BY CASE WHEN pd.nome_prescritor = :nome_exato THEN 0 ELSE 1 END, pd.nome_prescritor
+                LIMIT 1
             ");
-            $stmt->execute(['nome' => $nome]);
+            $stmt->execute(['nome' => $nome, 'nome_exato' => $nome]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             $usuarioIdFromCadastro = null;
+            $whatsappFallbackContatos = '';
             if (!$row) {
-                $st = $pdo->prepare("SELECT usuario_id FROM prescritores_cadastro WHERE nome = :nome LIMIT 1");
-                $st->execute(['nome' => $nome]);
+                $st = $pdo->prepare("SELECT usuario_id FROM prescritores_cadastro WHERE LOWER(TRIM(nome)) = LOWER(TRIM(:nome)) ORDER BY CASE WHEN nome = :nome_exato THEN 0 ELSE 1 END LIMIT 1");
+                $st->execute(['nome' => $nome, 'nome_exato' => $nome]);
                 $cad = $st->fetch(PDO::FETCH_ASSOC);
                 $usuarioIdFromCadastro = $cad && isset($cad['usuario_id']) ? (int)$cad['usuario_id'] : null;
+                try {
+                    $stW = $pdo->prepare("SELECT whatsapp FROM prescritor_contatos WHERE LOWER(TRIM(nome_prescritor)) = LOWER(TRIM(:n)) ORDER BY CASE WHEN nome_prescritor = :n_exato THEN 0 ELSE 1 END LIMIT 1");
+                    $stW->execute(['n' => $nome, 'n_exato' => $nome]);
+                    $wRow = $stW->fetch(PDO::FETCH_ASSOC);
+                    if ($wRow && trim((string)($wRow['whatsapp'] ?? '')) !== '') {
+                        $whatsappFallbackContatos = trim((string)$wRow['whatsapp']);
+                    }
+                } catch (Throwable $e) { /* ignora */
+                }
             }
             $dados = $row ?: [
                 'nome_prescritor' => $nome,
@@ -109,7 +162,7 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                 'endereco_cidade' => '',
                 'endereco_uf' => '',
                 'local_atendimento' => '',
-                'whatsapp' => '',
+                'whatsapp' => $whatsappFallbackContatos,
                 'email' => '',
                 'usuario_id' => $usuarioIdFromCadastro
             ];
@@ -126,51 +179,58 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                 $dados['endereco_cidade'] = $row['endereco_cidade'] ?? '';
                 $dados['endereco_uf'] = $row['endereco_uf'] ?? '';
                 $dados['local_atendimento'] = $row['local_atendimento'] ?? '';
-                $dados['whatsapp'] = $row['whatsapp'] ?? '';
+                $wa = trim((string)($row['whatsapp'] ?? ''));
+                $dados['whatsapp'] = $wa;
                 $dados['email'] = $row['email'] ?? '';
                 $dados['usuario_id'] = isset($row['usuario_id']) ? (int)$row['usuario_id'] : null;
             }
-            $visitador = (strtolower($_SESSION['user_setor'] ?? '') === 'visitador') ? trim($_SESSION['user_nome'] ?? '') : trim($_GET['visitador'] ?? '');
-            $ano = (int)($_GET['ano'] ?? date('Y'));
-            $mes = isset($_GET['mes']) && $_GET['mes'] !== '' ? (int)$_GET['mes'] : null;
-            $whereVis = $visitador !== '' ? " AND pc.visitador = :vis" : "";
-            if ($mes !== null) {
-                $stmtKpi = $pdo->prepare("
-                    SELECT
-                        COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
-                        COALESCE(SUM(CASE WHEN gp.status_financeiro = 'Recusado' THEN gp.preco_liquido ELSE 0 END), 0) as valor_recusado
-                    FROM prescritores_cadastro pc
-                    LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome
-                        AND gp.ano_referencia = :ano AND MONTH(gp.data_aprovacao) = :mes
-                    WHERE pc.nome = :nome $whereVis
-                    GROUP BY pc.nome
-                ");
-                $paramsKpi = ['nome' => $nome, 'ano' => $ano, 'mes' => $mes];
-                if ($visitador !== '') {
-                    $paramsKpi['vis'] = $visitador;
+            $includeKpi = isset($_GET['include_kpi']) ? !in_array(strtolower((string)$_GET['include_kpi']), ['0', 'false', 'no', 'off'], true) : true;
+            if ($includeKpi) {
+                $visitador = (strtolower($_SESSION['user_setor'] ?? '') === 'visitador') ? trim($_SESSION['user_nome'] ?? '') : trim($_GET['visitador'] ?? '');
+                $ano = (int)($_GET['ano'] ?? date('Y'));
+                $mes = isset($_GET['mes']) && $_GET['mes'] !== '' ? (int)$_GET['mes'] : null;
+                $whereVis = $visitador !== '' ? " AND pc.visitador = :vis" : "";
+                if ($mes !== null) {
+                    $stmtKpi = $pdo->prepare("
+                        SELECT
+                            COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
+                            COALESCE(SUM(CASE WHEN gp.status_financeiro = 'Recusado' THEN gp.preco_liquido ELSE 0 END), 0) as valor_recusado
+                        FROM prescritores_cadastro pc
+                        LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome
+                            AND gp.ano_referencia = :ano AND MONTH(gp.data_aprovacao) = :mes
+                        WHERE pc.nome = :nome $whereVis
+                        GROUP BY pc.nome
+                    ");
+                    $paramsKpi = ['nome' => $nome, 'ano' => $ano, 'mes' => $mes];
+                    if ($visitador !== '') {
+                        $paramsKpi['vis'] = $visitador;
+                    }
+                    $stmtKpi->execute($paramsKpi);
+                } else {
+                    $stmtKpi = $pdo->prepare("
+                        SELECT
+                            COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
+                            COALESCE(SUM(pr.valor_recusado), 0) + COALESCE(SUM(pr.valor_no_carrinho), 0) as valor_recusado
+                        FROM prescritores_cadastro pc
+                        LEFT JOIN prescritor_resumido pr ON pr.nome = pc.nome AND pr.ano_referencia = :ano
+                        LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome AND gp.ano_referencia = :ano2
+                            AND gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+                        WHERE pc.nome = :nome $whereVis
+                        GROUP BY pc.nome
+                    ");
+                    $paramsKpi = ['nome' => $nome, 'ano' => $ano, 'ano2' => $ano];
+                    if ($visitador !== '') {
+                        $paramsKpi['vis'] = $visitador;
+                    }
+                    $stmtKpi->execute($paramsKpi);
                 }
-                $stmtKpi->execute($paramsKpi);
+                $kpi = $stmtKpi->fetch(PDO::FETCH_ASSOC);
+                $dados['aprovados'] = $kpi ? number_format((float)($kpi['valor_aprovado'] ?? 0), 2, ',', '.') : '0,00';
+                $dados['recusados'] = $kpi ? number_format((float)($kpi['valor_recusado'] ?? 0), 2, ',', '.') : '0,00';
             } else {
-                $stmtKpi = $pdo->prepare("
-                    SELECT
-                        COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) as valor_aprovado,
-                        COALESCE(SUM(pr.valor_recusado), 0) + COALESCE(SUM(pr.valor_no_carrinho), 0) as valor_recusado
-                    FROM prescritores_cadastro pc
-                    LEFT JOIN prescritor_resumido pr ON pr.nome = pc.nome AND pr.ano_referencia = :ano
-                    LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome AND gp.ano_referencia = :ano2
-                        AND gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
-                    WHERE pc.nome = :nome $whereVis
-                    GROUP BY pc.nome
-                ");
-                $paramsKpi = ['nome' => $nome, 'ano' => $ano, 'ano2' => $ano];
-                if ($visitador !== '') {
-                    $paramsKpi['vis'] = $visitador;
-                }
-                $stmtKpi->execute($paramsKpi);
+                $dados['aprovados'] = '0,00';
+                $dados['recusados'] = '0,00';
             }
-            $kpi = $stmtKpi->fetch(PDO::FETCH_ASSOC);
-            $dados['aprovados'] = $kpi ? number_format((float)($kpi['valor_aprovado'] ?? 0), 2, ',', '.') : '0,00';
-            $dados['recusados'] = $kpi ? number_format((float)($kpi['valor_recusado'] ?? 0), 2, ',', '.') : '0,00';
             echo json_encode(['success' => true, 'dados' => $dados], JSON_UNESCAPED_UNICODE);
             return true;
 
@@ -181,36 +241,31 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                 echo json_encode(['success' => false, 'error' => 'Nome não informado'], JSON_UNESCAPED_UNICODE);
                 return true;
             }
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS prescritor_dados (
-                    nome_prescritor VARCHAR(255) PRIMARY KEY,
-                    profissao VARCHAR(255) NULL,
-                    especialidade VARCHAR(255) NULL,
-                    registro VARCHAR(100) NULL,
-                    uf_registro VARCHAR(10) NULL,
-                    data_nascimento DATE NULL,
-                    endereco_rua VARCHAR(255) NULL,
-                    endereco_numero VARCHAR(20) NULL,
-                    endereco_bairro VARCHAR(120) NULL,
-                    endereco_cep VARCHAR(20) NULL,
-                    endereco_cidade VARCHAR(120) NULL,
-                    endereco_uf VARCHAR(5) NULL,
-                    local_atendimento VARCHAR(50) NULL,
-                    whatsapp VARCHAR(30) NULL,
-                    email VARCHAR(255) NULL,
-                    usuario_id INT NULL,
-                    atualizado_em DATETIME NULL
-                )
-            ");
-            try { $pdo->exec("ALTER TABLE prescritor_dados ADD COLUMN usuario_id INT NULL"); } catch (Throwable $e) {}
-            try { $pdo->exec("ALTER TABLE prescritor_dados ADD COLUMN especialidade VARCHAR(255) NULL"); } catch (Throwable $e) {}
+            prescritores_ensure_prescritor_dados_schema($pdo);
+            $usuarioId = null;
+            try {
+                $stUid = $pdo->prepare("
+                    SELECT usuario_id
+                    FROM prescritores_cadastro
+                    WHERE LOWER(TRIM(nome)) = LOWER(TRIM(:nome))
+                    ORDER BY CASE WHEN nome = :nome_exato THEN 0 ELSE 1 END
+                    LIMIT 1
+                ");
+                $stUid->execute(['nome' => $nome, 'nome_exato' => $nome]);
+                $rowUid = $stUid->fetch(PDO::FETCH_ASSOC);
+                if ($rowUid && isset($rowUid['usuario_id']) && $rowUid['usuario_id'] !== null && $rowUid['usuario_id'] !== '') {
+                    $usuarioId = (int)$rowUid['usuario_id'];
+                }
+            } catch (Throwable $e) { /* mantém null */
+            }
             $stmt = $pdo->prepare("
-                INSERT INTO prescritor_dados (nome_prescritor, profissao, especialidade, registro, uf_registro, data_nascimento, endereco_rua, endereco_numero, endereco_bairro, endereco_cep, endereco_cidade, endereco_uf, local_atendimento, whatsapp, email, atualizado_em)
-                VALUES (:nome, :profissao, :especialidade, :registro, :uf_registro, :data_nascimento, :endereco_rua, :endereco_numero, :endereco_bairro, :endereco_cep, :endereco_cidade, :endereco_uf, :local_atendimento, :whatsapp, :email, NOW())
+                INSERT INTO prescritor_dados (nome_prescritor, profissao, especialidade, registro, uf_registro, data_nascimento, endereco_rua, endereco_numero, endereco_bairro, endereco_cep, endereco_cidade, endereco_uf, local_atendimento, whatsapp, email, usuario_id, atualizado_em)
+                VALUES (:nome, :profissao, :especialidade, :registro, :uf_registro, :data_nascimento, :endereco_rua, :endereco_numero, :endereco_bairro, :endereco_cep, :endereco_cidade, :endereco_uf, :local_atendimento, :whatsapp, :email, :usuario_id, NOW())
                 ON DUPLICATE KEY UPDATE
                     profissao = VALUES(profissao), especialidade = VALUES(especialidade), registro = VALUES(registro), uf_registro = VALUES(uf_registro), data_nascimento = VALUES(data_nascimento),
                     endereco_rua = VALUES(endereco_rua), endereco_numero = VALUES(endereco_numero), endereco_bairro = VALUES(endereco_bairro), endereco_cep = VALUES(endereco_cep),
-                    endereco_cidade = VALUES(endereco_cidade), endereco_uf = VALUES(endereco_uf), local_atendimento = VALUES(local_atendimento), whatsapp = VALUES(whatsapp), email = VALUES(email), atualizado_em = NOW()
+                    endereco_cidade = VALUES(endereco_cidade), endereco_uf = VALUES(endereco_uf), local_atendimento = VALUES(local_atendimento), whatsapp = VALUES(whatsapp), email = VALUES(email),
+                    usuario_id = COALESCE(VALUES(usuario_id), usuario_id), atualizado_em = NOW()
             ");
             $stmt->execute([
                 'nome' => $nome,
@@ -227,9 +282,13 @@ function handlePrescritoresModuleAction(string $action, PDO $pdo): bool
                 'endereco_uf' => trim($input['endereco_uf'] ?? ''),
                 'local_atendimento' => trim($input['local_atendimento'] ?? ''),
                 'whatsapp' => trim($input['whatsapp'] ?? ''),
-                'email' => trim($input['email'] ?? '')
+                'email' => trim($input['email'] ?? ''),
+                'usuario_id' => $usuarioId
             ]);
-            $pdo->prepare("INSERT INTO prescritor_contatos (nome_prescritor, whatsapp) VALUES (:n, :w) ON DUPLICATE KEY UPDATE whatsapp = :w2, atualizado_em = NOW()")->execute(['n' => $nome, 'w' => trim($input['whatsapp'] ?? ''), 'w2' => trim($input['whatsapp'] ?? '')]);
+            try {
+                $pdo->prepare("INSERT INTO prescritor_contatos (nome_prescritor, whatsapp) VALUES (:n, :w) ON DUPLICATE KEY UPDATE whatsapp = :w2, atualizado_em = NOW()")->execute(['n' => $nome, 'w' => trim($input['whatsapp'] ?? ''), 'w2' => trim($input['whatsapp'] ?? '')]);
+            } catch (Throwable $e) { /* ignora legado */
+            }
             echo json_encode(['success' => true, 'message' => 'Dados salvos com sucesso!'], JSON_UNESCAPED_UNICODE);
             return true;
 

@@ -170,6 +170,11 @@ function fillSelectFromListPrescritores(selectEl, items, currentValue) {
     }
 }
 
+var __prescritoresMetaCache = {
+    profissoes: null,
+    especialidades: null
+};
+
 async function openEditarPrescritorModal(nome, visitador) {
     var elNome = document.getElementById('edPrescritorNome');
     var elNomeLabel = document.getElementById('edPrescritorNomeLabel');
@@ -184,17 +189,33 @@ async function openEditarPrescritorModal(nome, visitador) {
             el.value = '';
         }
     });
+    document.getElementById('modalEditarPrescritor').style.display = 'flex';
     try {
         var params = { nome_prescritor: nome };
         if (visitador !== undefined && visitador !== '') {
             params.visitador = visitador;
         }
-        var res = await apiGetPrescritores('get_prescritor_dados', params);
-        var resP = await apiGetPrescritores('list_profissoes', {});
-        var resE = await apiGetPrescritores('list_especialidades', {});
+        params.include_kpi = 0;
+        var reqDados = apiGetPrescritores('get_prescritor_dados', params);
+        var reqProf = __prescritoresMetaCache.profissoes
+            ? Promise.resolve({ items: __prescritoresMetaCache.profissoes })
+            : apiGetPrescritores('list_profissoes', {});
+        var reqEsp = __prescritoresMetaCache.especialidades
+            ? Promise.resolve({ items: __prescritoresMetaCache.especialidades })
+            : apiGetPrescritores('list_especialidades', {});
+        var results = await Promise.all([reqDados, reqProf, reqEsp]);
+        var res = results[0];
+        var resP = results[1];
+        var resE = results[2];
         var d = (res && res.dados) ? res.dados : {};
         var profissoes = (resP && resP.items) ? resP.items : [];
         var especialidades = (resE && resE.items) ? resE.items : [];
+        if (!__prescritoresMetaCache.profissoes && profissoes.length) {
+            __prescritoresMetaCache.profissoes = profissoes.slice();
+        }
+        if (!__prescritoresMetaCache.especialidades && especialidades.length) {
+            __prescritoresMetaCache.especialidades = especialidades.slice();
+        }
         fillSelectFromListPrescritores(document.getElementById('edPrescritorProfissao'), profissoes, d.profissao);
         fillSelectFromListPrescritores(document.getElementById('edPrescritorEspecialidade'), especialidades, d.especialidade);
         document.getElementById('edPrescritorRegistro').value = d.registro || '';
@@ -213,7 +234,6 @@ async function openEditarPrescritorModal(nome, visitador) {
     } catch (e) {
         console.warn('get_prescritor_dados', e);
     }
-    document.getElementById('modalEditarPrescritor').style.display = 'flex';
 }
 
 function closeEditarPrescritorModal() {

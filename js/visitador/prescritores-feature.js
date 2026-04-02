@@ -1,5 +1,9 @@
 // Feature: ações de prescritor no painel do visitador
 var __edPrescritorIsNovoCadastro = false;
+var __visitadorPrescritoresMetaCache = {
+    profissoes: null,
+    especialidades: null
+};
 function openWhatsAppModal(nome, numero) {
     document.getElementById('whatsPrescritorNome').value = nome;
     document.getElementById('whatsModalPrescritorName').textContent = 'Prescritor: ' + nome;
@@ -144,18 +148,32 @@ async function openEditarPrescritorModal(nome, opts) {
             el.value = '';
         }
     });
+    document.getElementById('modalEditarPrescritor').style.display = 'flex';
+    bindEditarPrescritorCepBlur();
     try {
-        var resProf = apiGet('list_profissoes', {});
-        var resEsp = apiGet('list_especialidades', {});
-        var resP = await resProf;
-        var resE = await resEsp;
-        var d = {};
+        var reqProf = __visitadorPrescritoresMetaCache.profissoes
+            ? Promise.resolve({ items: __visitadorPrescritoresMetaCache.profissoes })
+            : apiGet('list_profissoes', {});
+        var reqEsp = __visitadorPrescritoresMetaCache.especialidades
+            ? Promise.resolve({ items: __visitadorPrescritoresMetaCache.especialidades })
+            : apiGet('list_especialidades', {});
+        var reqDados = Promise.resolve({ dados: {} });
         if (!__edPrescritorIsNovoCadastro && nomeNormalizado) {
-            var res = await apiGet('get_prescritor_dados', { nome_prescritor: nomeNormalizado });
-            d = (res && res.dados) ? res.dados : {};
+            reqDados = apiGet('get_prescritor_dados', { nome_prescritor: nomeNormalizado, include_kpi: 0 });
         }
+        var settled = await Promise.all([reqDados, reqProf, reqEsp]);
+        var res = settled[0];
+        var resP = settled[1];
+        var resE = settled[2];
+        var d = (res && res.dados) ? res.dados : {};
         var profissoes = (resP && resP.items) ? resP.items : [];
         var especialidades = (resE && resE.items) ? resE.items : [];
+        if (!__visitadorPrescritoresMetaCache.profissoes && profissoes.length) {
+            __visitadorPrescritoresMetaCache.profissoes = profissoes.slice();
+        }
+        if (!__visitadorPrescritoresMetaCache.especialidades && especialidades.length) {
+            __visitadorPrescritoresMetaCache.especialidades = especialidades.slice();
+        }
         fillSelectFromList(document.getElementById('edPrescritorProfissao'), profissoes, d.profissao);
         fillSelectFromList(document.getElementById('edPrescritorEspecialidade'), especialidades, d.especialidade);
         document.getElementById('edPrescritorRegistro').value = d.registro || '';
@@ -178,9 +196,6 @@ async function openEditarPrescritorModal(nome, opts) {
     } catch (e) {
         console.warn('list_profissoes / list_especialidades / get_prescritor_dados', e);
     }
-
-    document.getElementById('modalEditarPrescritor').style.display = 'flex';
-    bindEditarPrescritorCepBlur();
     var cepVal = (document.getElementById('edPrescritorCep') || {}).value || '';
     var cepDigits = cepVal.replace(/\D/g, '');
     if (cepDigits.length === 8) {
@@ -468,6 +483,73 @@ async function saveEditarPrescritorModal() {
         whatsapp: (document.getElementById('edPrescritorWhatsapp') || {}).value,
         email: (document.getElementById('edPrescritorEmail') || {}).value
     };
+    if (__edPrescritorIsNovoCadastro) {
+        var requiredFields = [
+            { id: 'edPrescritorNomeInput', key: 'nome_prescritor', label: 'Nome do prescritor' },
+            { id: 'edPrescritorProfissao', key: 'profissao', label: 'Profissão' },
+            { id: 'edPrescritorEspecialidade', key: 'especialidade', label: 'Especialidade' },
+            { id: 'edPrescritorRegistro', key: 'registro', label: 'Registro' },
+            { id: 'edPrescritorUfRegistro', key: 'uf_registro', label: 'UF Registro' },
+            { id: 'edPrescritorDataNascimento', key: 'data_nascimento', label: 'Data de nascimento' },
+            { id: 'edPrescritorCep', key: 'endereco_cep', label: 'CEP' },
+            { id: 'edPrescritorRua', key: 'endereco_rua', label: 'Rua' },
+            { id: 'edPrescritorNumero', key: 'endereco_numero', label: 'Número' },
+            { id: 'edPrescritorBairro', key: 'endereco_bairro', label: 'Bairro' },
+            { id: 'edPrescritorCidade', key: 'endereco_cidade', label: 'Cidade' },
+            { id: 'edPrescritorUf', key: 'endereco_uf', label: 'UF' },
+            { id: 'edPrescritorLocalAtendimento', key: 'local_atendimento', label: 'Local de atendimento' },
+            { id: 'edPrescritorWhatsapp', key: 'whatsapp', label: 'WhatsApp' },
+            { id: 'edPrescritorEmail', key: 'email', label: 'E-mail' }
+        ];
+        requiredFields.forEach(function (f) {
+            var el = document.getElementById(f.id);
+            if (el) el.style.borderColor = 'var(--border)';
+        });
+        var missing = [];
+        var firstMissingEl = null;
+        requiredFields.forEach(function (f) {
+            var raw = f.key === 'nome_prescritor' ? nome : payload[f.key];
+            var value = (raw == null ? '' : String(raw)).trim();
+            if (!value) {
+                missing.push(f.label);
+                var el = document.getElementById(f.id);
+                if (el) {
+                    el.style.borderColor = 'var(--danger)';
+                    if (!firstMissingEl) firstMissingEl = el;
+                }
+            }
+        });
+        var whatsappDigits = String(payload.whatsapp || '').replace(/\D/g, '');
+        if (payload.whatsapp && whatsappDigits.length < 10) {
+            missing.push('WhatsApp válido');
+            var wEl = document.getElementById('edPrescritorWhatsapp');
+            if (wEl) {
+                wEl.style.borderColor = 'var(--danger)';
+                if (!firstMissingEl) firstMissingEl = wEl;
+            }
+        }
+        if (payload.endereco_cep && String(payload.endereco_cep).replace(/\D/g, '').length !== 8) {
+            missing.push('CEP válido');
+            var cepEl = document.getElementById('edPrescritorCep');
+            if (cepEl) {
+                cepEl.style.borderColor = 'var(--danger)';
+                if (!firstMissingEl) firstMissingEl = cepEl;
+            }
+        }
+        if (payload.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(payload.email).trim())) {
+            missing.push('E-mail válido');
+            var emailEl = document.getElementById('edPrescritorEmail');
+            if (emailEl) {
+                emailEl.style.borderColor = 'var(--danger)';
+                if (!firstMissingEl) firstMissingEl = emailEl;
+            }
+        }
+        if (missing.length) {
+            alert('Preencha todos os campos obrigatórios para cadastrar o prescritor.');
+            if (firstMissingEl && typeof firstMissingEl.focus === 'function') firstMissingEl.focus();
+            return;
+        }
+    }
     var btn = document.getElementById('btnSaveEditarPrescritor');
     if (btn) {
         btn.disabled = true;

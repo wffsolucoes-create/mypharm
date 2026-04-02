@@ -2785,7 +2785,7 @@ function gestaoComercialDashboard(PDO $pdo): void
             COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS atendente,
             COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)') AS cliente,
             COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') AS prescritor,
-            COALESCE(NULLIF(TRIM(pc.whatsapp), ''), NULLIF(TRIM(pd.whatsapp), ''), '') AS contato,
+            COALESCE(NULLIF(TRIM(pd.whatsapp), ''), NULLIF(TRIM(pc.whatsapp), ''), '') AS contato,
             COUNT(*) AS qtd_rejeicoes,
             COALESCE(SUM(gp.preco_liquido), 0) AS valor_rejeitado
         FROM gestao_pedidos gp
@@ -2799,7 +2799,7 @@ function gestaoComercialDashboard(PDO $pdo): void
             COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)'),
             COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)'),
             COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm'),
-            COALESCE(NULLIF(TRIM(pc.whatsapp), ''), NULLIF(TRIM(pd.whatsapp), ''), '')
+            COALESCE(NULLIF(TRIM(pd.whatsapp), ''), NULLIF(TRIM(pc.whatsapp), ''), '')
         ORDER BY COALESCE(SUM(gp.preco_liquido), 0) DESC
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);

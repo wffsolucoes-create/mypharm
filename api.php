@@ -1106,6 +1106,7 @@ try {
             try {
                 $pdo->exec("CREATE TABLE IF NOT EXISTS prescritores_cadastro (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(200) NOT NULL, visitador VARCHAR(150), usuario_id INT NULL, INDEX idx_nome (nome(120)), INDEX idx_visitador (visitador(80))) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
                 $pdo->exec("CREATE TABLE IF NOT EXISTS prescritor_dados (nome_prescritor VARCHAR(255) PRIMARY KEY, profissao VARCHAR(255) NULL, usuario_id INT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                $pdo->exec("CREATE TABLE IF NOT EXISTS prescritor_contatos (nome_prescritor VARCHAR(255) PRIMARY KEY, whatsapp VARCHAR(30) NULL, atualizado_em DATETIME NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
                 $pdo->exec("CREATE TABLE IF NOT EXISTS historico_visitas (id INT AUTO_INCREMENT PRIMARY KEY, visitador VARCHAR(255), prescritor VARCHAR(255), data_visita DATE NULL, ano_referencia INT NULL, INDEX idx_prescritor (prescritor(100)), INDEX idx_data (data_visita)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
                 $pdo->exec("CREATE TABLE IF NOT EXISTS gestao_pedidos (id INT AUTO_INCREMENT PRIMARY KEY, data_aprovacao DATETIME NULL, data_orcamento DATETIME NULL, canal_atendimento VARCHAR(100), numero_pedido INT DEFAULT 0, serie_pedido INT DEFAULT 0, forma_farmaceutica VARCHAR(100), produto VARCHAR(255), quantidade INT DEFAULT 1, preco_bruto DECIMAL(14,2) DEFAULT 0, valor_subsidio DECIMAL(14,2) DEFAULT 0, preco_custo DECIMAL(14,2) DEFAULT 0, desconto DECIMAL(14,2) DEFAULT 0, acrescimo DECIMAL(14,2) DEFAULT 0, preco_liquido DECIMAL(14,2) DEFAULT 0, cliente VARCHAR(255), paciente VARCHAR(255), prescritor VARCHAR(255), atendente VARCHAR(100), venda_pdv VARCHAR(20), cortesia VARCHAR(20), aprovador VARCHAR(100), orcamentista VARCHAR(100), status_financeiro VARCHAR(100), origem_acrescimo_desconto VARCHAR(100), convenio VARCHAR(255), ano_referencia INT NOT NULL, INDEX idx_ano (ano_referencia), INDEX idx_numero_serie (numero_pedido, serie_pedido)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
             } catch (Throwable $e) { /* ignora se já existirem com estrutura diferente */ }
@@ -1150,7 +1151,8 @@ try {
                             THEN 1 ELSE 0 END) as total_pedidos,
                         MAX(gp.data_aprovacao) as ultima_compra,
                         DATEDIFF(CURDATE(), MAX(gp.data_aprovacao)) as dias_sem_compra,
-                        MAX(hv.ultima_visita) as ultima_visita
+                        MAX(hv.ultima_visita) as ultima_visita,
+                        NULLIF(TRIM(MAX(pd.whatsapp)), '') as whatsapp
                     FROM prescritores_cadastro pc
                     LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pc.nome
                     LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome 
@@ -1187,7 +1189,8 @@ try {
                             THEN 1 ELSE 0 END) as total_pedidos,
                         MAX(gp.data_aprovacao) as ultima_compra,
                         DATEDIFF(CURDATE(), MAX(gp.data_aprovacao)) as dias_sem_compra,
-                        MAX(hv.ultima_visita) as ultima_visita
+                        MAX(hv.ultima_visita) as ultima_visita,
+                        NULLIF(TRIM(MAX(pd.whatsapp)), '') as whatsapp
                     FROM prescritores_cadastro pc
                     LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pc.nome
                     LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome 
@@ -1224,7 +1227,8 @@ try {
                     try {
                         $sqlFallback = "SELECT pc.nome as prescritor, pc.visitador as visitador, pc.usuario_id as usuario_id, MAX(pd.profissao) as profissao,
                             0 as valor_aprovado, 0 as valor_recusado, 0 as qtd_recusados, 0 as total_pedidos,
-                            NULL as ultima_compra, NULL as dias_sem_compra, NULL as ultima_visita
+                            NULL as ultima_compra, NULL as dias_sem_compra, NULL as ultima_visita,
+                            NULLIF(TRIM(MAX(pd.whatsapp)), '') as whatsapp
                             FROM prescritores_cadastro pc
                             LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pc.nome
                             WHERE $visWhere " . ($searchTerm !== null ? "AND (pc.nome LIKE :search)" : "") . "
@@ -1284,7 +1288,8 @@ try {
                             THEN 1 ELSE 0 END) as total_pedidos,
                         MAX(gp.data_aprovacao) as ultima_compra,
                         DATEDIFF(CURDATE(), MAX(gp.data_aprovacao)) as dias_sem_compra,
-                        MAX(hv.ultima_visita) as ultima_visita
+                        MAX(hv.ultima_visita) as ultima_visita,
+                        NULLIF(TRIM(MAX(pd.whatsapp)), '') as whatsapp
                     FROM prescritores_cadastro pc
                     LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pc.nome
                     LEFT JOIN gestao_pedidos gp ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome 

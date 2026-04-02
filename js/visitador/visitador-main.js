@@ -1955,7 +1955,7 @@ function getThemeStorageKeyVisitador() {
             document.getElementById('encerrarVisitaInicio').textContent = inicioTxt;
 
             // limpar campos
-            document.getElementById('visitaStatus').value = 'Realizada';
+            document.getElementById('visitaStatus').value = '';
             document.getElementById('visitaLocal').value = '';
             document.getElementById('visitaAmostra').value = '';
             document.getElementById('visitaBrinde').value = '';
@@ -1971,7 +1971,7 @@ function getThemeStorageKeyVisitador() {
             (async function () {
                 try {
                     var vis = (typeof currentVisitadorName !== 'undefined' ? currentVisitadorName : '') || '';
-                    var r = await apiGet('get_prescritor_dados', { nome: nomePrescritorBd, visitador: vis });
+                    var r = await apiGet('get_prescritor_dados', { nome: nomePrescritorBd, visitador: vis, include_kpi: 0 });
                     if (r && r.dados && r.dados.local_atendimento) {
                         var localEl = document.getElementById('visitaLocal');
                         if (localEl && !localEl.value) {
@@ -2000,8 +2000,10 @@ function getThemeStorageKeyVisitador() {
             const msg = document.getElementById('encerrarVisitaMsg');
             if (!encerrarVisitId) return;
 
-            const status_visita = document.getElementById('visitaStatus').value;
-            const local_visita = document.getElementById('visitaLocal').value;
+            const statusEl = document.getElementById('visitaStatus');
+            const localEl = document.getElementById('visitaLocal');
+            const status_visita = (statusEl && statusEl.value ? statusEl.value : '').trim();
+            const local_visita = (localEl && localEl.value ? localEl.value : '').trim();
             const amostra = document.getElementById('visitaAmostra').value;
             const brinde = document.getElementById('visitaBrinde').value;
             const artigo = document.getElementById('visitaArtigo').value;
@@ -2013,6 +2015,22 @@ function getThemeStorageKeyVisitador() {
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Salvando...';
             if (msg) { msg.style.display = 'none'; }
+            if (statusEl) statusEl.style.borderColor = 'var(--border)';
+            if (localEl) localEl.style.borderColor = 'var(--border)';
+            if (!status_visita || !local_visita) {
+                if (!status_visita && statusEl) statusEl.style.borderColor = 'var(--danger)';
+                if (!local_visita && localEl) localEl.style.borderColor = 'var(--danger)';
+                if (msg) {
+                    msg.textContent = 'Preencha os campos obrigatórios: Status da visita e Local de atendimento.';
+                    msg.style.color = 'var(--danger)';
+                    msg.style.display = 'block';
+                }
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-flag-checkered"></i> Encerrar visita';
+                if (!status_visita && statusEl) statusEl.focus();
+                else if (!local_visita && localEl) localEl.focus();
+                return;
+            }
             try {
                 // Garantir captura automática antes de salvar (não bloqueia se falhar)
                 if ((visitaGeo.lat == null || visitaGeo.lng == null) && navigator.geolocation) {
