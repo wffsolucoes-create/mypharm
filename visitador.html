@@ -236,11 +236,6 @@
                                 title="Encerrar a rota do dia (todos os pontos já registrados serão mantidos).">Finalizar rota</button>
                         </div>
                     </div>
-                    <p id="rotaGpsHint" style="display:none; margin:10px 0 0 0; padding:10px 12px; max-width:640px; font-size:0.8rem; line-height:1.45; color:var(--text-secondary); background:rgba(37,99,235,0.08); border-radius:10px; border:1px solid rgba(37,99,235,0.2);">
-                        <strong style="color:var(--text-primary);">Rota em andamento:</strong> o navegador reduz o GPS quando esta aba fica em segundo plano ou a tela apaga.
-                        Deixe o MyPharm <strong>aberto na frente</strong> durante o deslocamento; a tela pode permanecer ligada automaticamente enquanto a rota estiver ativa.
-                        Ao <strong>voltar</strong> para esta aba, o sistema tenta registrar um ponto na hora para fechar lacunas.
-                    </p>
                     <p style="margin:8px 0 0 0;">Acompanhe suas metas e o desempenho da sua carteira.</p>
                 <p id="ultimaAtualizacao"
                     style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; opacity:0.7;">
@@ -505,12 +500,12 @@
                     </div>
                 </div>
 
-                <!-- Distribuição por Produtos (abaixo da Meta Anual) -->
+                <!-- Distribuição por profissão (abaixo da Meta Anual) -->
                 <div class="card">
                     <div class="card-header">
                         <div>
-                            <div class="card-title">Distribuição por Especialidade</div>
-                            <div class="card-subtitle">Prescritores da carteira por especialidade</div>
+                            <div class="card-title">Distribuição por Profissão</div>
+                            <div class="card-subtitle">Prescritores da carteira por profissão</div>
                         </div>
                     </div>
                     <div style="height: 220px;">
@@ -799,14 +794,36 @@
 
             <!-- Mapa -->
             <div id="roteiroDirecoes" class="roteiro-direcoes" style="display:none;"></div>
-            <p class="roteiro-map-hint" style="margin:0 0 10px; font-size:0.82rem; color:var(--text-secondary);">
-                <i class="fas fa-fire" style="color:#f97316;margin-right:6px;"></i>Mapa de calor destaca as regiões com mais visitas e passagens no período; trajetos e números continuam visíveis por cima.
-            </p>
             <div class="roteiro-map-card">
-                <div id="roteiroMapContainer" class="roteiro-map-container"></div>
-                <div id="roteiroMapEmpty" class="roteiro-map-empty" style="display:none;">
-                    <i class="fas fa-map-marked-alt"></i>
-                    <p>Nenhuma rota no período. Ajuste as datas e clique em Atualizar.</p>
+                <div class="roteiro-map-layout">
+                    <div class="roteiro-map-wrap">
+                        <div id="roteiroMapContainer" class="roteiro-map-container"></div>
+                        <div id="roteiroMapEmpty" class="roteiro-map-empty" style="display:none;">
+                            <i class="fas fa-map-marked-alt"></i>
+                            <p>Nenhuma rota no período. Ajuste as datas e clique em Atualizar.</p>
+                        </div>
+                    </div>
+                    <aside class="roteiro-map-legend" aria-label="Legenda do mapa">
+                        <h4 class="roteiro-map-legend-title">Legenda</h4>
+                        <div class="roteiro-map-legend-block">
+                            <span class="roteiro-map-legend-label">Intensidade (calor)</span>
+                            <div class="roteiro-map-legend-gradient"></div>
+                            <div class="roteiro-map-legend-scale">
+                                <span>Baixa</span>
+                                <span>Alta</span>
+                            </div>
+                        </div>
+                        <div class="roteiro-map-legend-items">
+                            <div class="roteiro-map-legend-row"><span class="roteiro-map-swatch roteiro-map-swatch--visita"></span>Local de visita</div>
+                            <div class="roteiro-map-legend-row"><span class="roteiro-map-swatch roteiro-map-swatch--inicio"></span>Início da rota</div>
+                            <div class="roteiro-map-legend-row"><span class="roteiro-map-swatch roteiro-map-swatch--fim"></span>Fim da rota</div>
+                            <div class="roteiro-map-legend-row"><span class="roteiro-map-swatch roteiro-map-swatch--trajeto"></span>Trajeto</div>
+                        </div>
+                        <div class="roteiro-map-legend-divider"></div>
+                        <p class="roteiro-map-legend-note">
+                            Mapa de calor mostra regiões com mais passagens e visitas no período.
+                        </p>
+                    </aside>
                 </div>
             </div>
         </div>

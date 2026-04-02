@@ -2192,17 +2192,19 @@ function renderRotasDetalhesView() {
         const endIni = escapeHtml(String(r.local_inicio_endereco || '—').trim()) || '—';
         const colFim = isFin ? fmtDt(r.data_fim) : '—';
         const endFim = isFin ? (escapeHtml(String(r.local_fim_endereco || '—').trim()) || '—') : '—';
+        const statusRaw = String(r.status || '—').trim();
+        const statusClass = isFin ? 'status-badge status-badge--ok' : 'status-badge status-badge--warn';
         return `
         <tr>
-            <td>${start + i + 1}</td>
-            <td>${escapeHtml((r.visitador_nome || '—').trim())}</td>
-            <td>${fmtDt(r.data_inicio)}</td>
+            <td class="td-center td-index">${start + i + 1}</td>
+            <td class="td-center td-visitador">${escapeHtml((r.visitador_nome || '—').trim())}</td>
+            <td class="td-center td-data">${fmtDt(r.data_inicio)}</td>
             <td class="td-rota-endereco">${endIni}</td>
-            <td>${colFim}</td>
+            <td class="td-center td-data">${colFim}</td>
             <td class="td-rota-endereco">${endFim}</td>
-            <td>${escapeHtml((r.status || '—').trim())}</td>
-            <td>${(parseFloat(r.km) || 0).toFixed(1)} km</td>
-            <td>${formatNumber(r.qtd_pontos ?? 0)}</td>
+            <td class="td-center"><span class="${statusClass}">${escapeHtml(statusRaw)}</span></td>
+            <td class="td-center td-km"><strong>${(parseFloat(r.km) || 0).toFixed(1)} km</strong></td>
+            <td class="td-center td-pontos">${formatNumber(r.qtd_pontos ?? 0)}</td>
         </tr>`;
     }).join('');
 
@@ -3498,15 +3500,15 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
             });
         }
 
-        // 3. Chart Especialidades da carteira (Doughnut) — prescritores por especialidade
+        // 3. Chart profissão da carteira (Doughnut) — prescritores por profissão (API: top_especialidades)
         const ctxProd = document.getElementById('chartProdutos');
         if (ctxProd) {
             const chartProdStatus = Chart.getChart("chartProdutos");
             if (chartProdStatus != undefined) { chartProdStatus.destroy(); }
 
-            const topEspecialidades = data.top_especialidades || [];
-            const totalEsp = topEspecialidades.reduce((acc, curr) => acc + parseInt(curr.total, 10), 0);
-            const labelEspecialidade = (fam) => {
+            const porProfissao = data.top_especialidades || [];
+            const totalProf = porProfissao.reduce((acc, curr) => acc + parseInt(curr.total, 10), 0);
+            const labelProfissao = (fam) => {
                 const s = (fam && String(fam).trim()) || '';
                 return s ? truncateText(s, 18) : 'Não informada';
             };
@@ -3514,9 +3516,9 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
             new Chart(ctxProd, {
                 type: 'doughnut',
                 data: {
-                    labels: topEspecialidades.map(e => labelEspecialidade(e.familia)),
+                    labels: porProfissao.map(e => labelProfissao(e.familia)),
                     datasets: [{
-                        data: topEspecialidades.map(e => parseInt(e.total, 10)),
+                        data: porProfissao.map(e => parseInt(e.total, 10)),
                         backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#64748B', '#EC4899', '#14B8A6', '#F97316', '#6366F1'],
                         borderWidth: 0,
                         hoverOffset: 10
@@ -3540,7 +3542,7 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
                             callbacks: {
                                 label: ctx => {
                                     const val = ctx.parsed;
-                                    const pct = totalEsp > 0 ? ((val / totalEsp) * 100).toFixed(1) + '%' : '0%';
+                                    const pct = totalProf > 0 ? ((val / totalProf) * 100).toFixed(1) + '%' : '0%';
                                     return ` ${val} prescritor(es) (${pct})`;
                                 }
                             }

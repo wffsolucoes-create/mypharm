@@ -3795,12 +3795,6 @@ function getThemeStorageKeyVisitador() {
             });
         }
 
-        function updateRotaGpsHint() {
-            var el = document.getElementById('rotaGpsHint');
-            if (!el) return;
-            el.style.display = (rotaState === 'em_andamento' && canManageRota) ? 'block' : 'none';
-        }
-
         function updateRotaButton() {
             const btn = document.getElementById('btnIniciarRota');
             const label = document.getElementById('labelIniciarRota');
@@ -3839,7 +3833,6 @@ function getThemeStorageKeyVisitador() {
                 btn.style.background = '#DC2626';
                 if (btnFinalizar) btnFinalizar.style.display = 'none';
             }
-            updateRotaGpsHint();
         }
 
         function stopRotaWatch() {

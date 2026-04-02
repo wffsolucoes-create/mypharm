@@ -258,26 +258,40 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                 $stmt->execute($paramsProd);
                 $top_produtos = $stmt->fetchAll();
     
-                // Especialidades: pr.profissao ou prescritor_dados.profissao; vazio = Não informada
+                // Profissão no gráfico: mesma base da carteira que all_prescritores (prescritores_cadastro + prescritor_dados).
+                // Antes usava só prescritor_resumido por ano — sem linha na importação do ano, o gráfico ficava vazio mesmo com profissão no cadastro.
                 $naoInformada = 'Não informada';
-                // Gráfico distribuição por especialidade (painel visitador)
                 $sqlEsp = "
-                    SELECT 
-                        COALESCE(NULLIF(TRIM(pr.profissao), ''), NULLIF(TRIM(pd.profissao), ''), :nao_inf) as familia,
-                        COUNT(*) as total
-                    FROM prescritor_resumido pr
-                    LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pr.nome
-                    WHERE pr.ano_referencia = :ano
+                    SELECT sub.familia, COUNT(*) as total
+                    FROM (
+                        SELECT
+                            COALESCE(
+                                NULLIF(TRIM(MAX(pd.profissao)), ''),
+                                NULLIF(TRIM(MAX(pr.profissao)), ''),
+                                :nao_inf
+                            ) as familia
+                        FROM prescritores_cadastro pc
+                        LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = pc.nome
+                        LEFT JOIN prescritor_resumido pr ON pr.nome = pc.nome AND pr.ano_referencia = :ano
+                        WHERE 1=1
                 ";
                 if ($isMyPharm) {
-                    $sqlEsp .= " AND (pr.visitador IS NULL OR TRIM(pr.visitador) = '' OR LOWER(TRIM(pr.visitador)) = 'my pharm')";
+                    $sqlEsp .= " AND (pc.visitador IS NULL OR pc.visitador = '' OR pc.visitador = 'My Pharm' OR UPPER(pc.visitador) = 'MY PHARM')";
                 } else {
-                    $sqlEsp .= " AND TRIM(COALESCE(pr.visitador, '')) = TRIM(:nome)";
+                    $sqlEsp .= " AND pc.visitador = :nome_carteira";
                 }
-                $sqlEsp .= " GROUP BY COALESCE(NULLIF(TRIM(pr.profissao), ''), NULLIF(TRIM(pd.profissao), ''), :nao_inf2) ORDER BY total DESC LIMIT 10";
+                $sqlEsp .= "
+                        GROUP BY pc.nome, pc.visitador, pc.usuario_id
+                    ) sub
+                    GROUP BY sub.familia
+                    ORDER BY total DESC
+                    LIMIT 10
+                ";
                 $stmtEsp = $pdo->prepare($sqlEsp);
-                $paramsEsp = ['ano' => $ano, 'nao_inf' => $naoInformada, 'nao_inf2' => $naoInformada];
-                if (!$isMyPharm) $paramsEsp['nome'] = $nome;
+                $paramsEsp = ['ano' => $ano, 'nao_inf' => $naoInformada];
+                if (!$isMyPharm) {
+                    $paramsEsp['nome_carteira'] = $nome;
+                }
                 $stmtEsp->execute($paramsEsp);
                 $top_especialidades = $stmtEsp->fetchAll(PDO::FETCH_ASSOC);
     
