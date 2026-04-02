@@ -268,7 +268,7 @@ Constantes em `scripts/carteira_inativa_mypharm.php`: `CARTEIRA_INATIVA_DATA_INI
 - `dashboard`
 - `anos`
 - `admin_visitas`
-- `admin_visitas_relatorio` — totais, por visitador, rotas/km, mapa; também `prescritores_mais_visitados`, `prescritores_sem_visita_periodo` (carteira `prescritores_cadastro` sem `historico_visitas` no intervalo) e KPIs `prescritores_distintos_visitados` / `prescritores_sem_visita_count`.
+- `admin_visitas_relatorio` — totais, por visitador, rotas/km, mapa; também `prescritores_mais_visitados`, `prescritores_sem_visita_periodo` (carteira `prescritores_cadastro` sem visita no intervalo, alinhada ao filtro de visitador quando aplicável) e KPIs `prescritores_distintos_visitados`, `prescritores_carteira_total`, `prescritores_sem_visita_count` (os percentuais visitados/não visitados sobre a carteira são calculados no front a partir destes dois últimos).
 - `run_carteira_inativa_mypharm` — move para My Pharm prescritores com 40+ dias sem visita (desde 02/03/2026); apenas admin.
 
 ### Visitador

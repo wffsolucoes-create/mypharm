@@ -26,6 +26,9 @@ function handleGestaoComercialModuleAction(string $action, PDO $pdo): void
             case 'gestao_comercial_erros_excluir':
                 gestaoComercialErrosExcluir($pdo);
                 return;
+            case 'gestao_comercial_erros_tipos_distintos':
+                gestaoComercialErrosTiposDistintos($pdo);
+                return;
             default:
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'AÃ§Ã£o de gestÃ£o comercial desconhecida'], JSON_UNESCAPED_UNICODE);
@@ -231,6 +234,7 @@ function gestaoComercialErrosLista(PDO $pdo): void
         $vn = trim((string)($row['vendedor_nome'] ?? ''));
         $canon = gcCanonicalVendedoraNome($vn);
         $row['vendedor_nome'] = gcDisplayConsultoraNamePhp($canon !== '' ? $canon : $vn);
+        $row['tipo_erro'] = gcExibirTipoErroNormalizado((string)($row['tipo_erro'] ?? ''));
         $row['classificacao_erro'] = gcNormalizeClassificacaoErro((string)($row['classificacao_erro'] ?? 'leve'));
     }
     unset($row);
@@ -273,7 +277,7 @@ function gestaoComercialErrosSalvar(PDO $pdo): void
 
     if ($vendedor === '' || $tipoErro === '') {
         http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Vendedora e tipo do erro sÃ£o obrigatÃ³rios.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Vendedora e tipo do erro são obrigatórios.'], JSON_UNESCAPED_UNICODE);
         exit;
     }
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataErro)) {
@@ -322,6 +326,255 @@ function gestaoComercialErrosSalvar(PDO $pdo): void
     exit;
 }
 
+/**
+ * Catálogo oficial de tipos de erro (≈20 itens), em português padronizado.
+ * Substitui a lista infinita de textos livres distintos no banco.
+ */
+function gcCatalogoTiposErroManual(): array
+{
+    return [
+        'Apresentação farmacêutica incorreta',
+        'Ativo farmacológico incorreto',
+        'Ativo faltante na dispensação',
+        'Ativo não constante na prescrição',
+        'Dosagem, concentração ou dose incorreta',
+        'Quantidade a mais dispensada',
+        'Quantidade a menos dispensada',
+        'Outra divergência na quantidade dispensada',
+        'Volume, base ou veículo da formulação incorreto',
+        'Posologia ausente ou incompleta',
+        'Duração do tratamento ou doses inadequados',
+        'Via de administração incorreta',
+        'Dados do prescritor ou da receita incorretos',
+        'Preço ou valor incorreto',
+        'Substituição não autorizada',
+        'Fracionamento ou unidade de medida incorreta',
+        'Embalagem ou recipiente inadequado',
+        'Divergência no pedido ou na requisição',
+        'Falha na conferência ou na liberação',
+        'Registro ou documentação inadequados',
+    ];
+}
+
+function gcNormTipoErroLegadoKey(string $s): string
+{
+    $s = trim($s);
+    if ($s === '') {
+        return '';
+    }
+    if (function_exists('mb_strtolower')) {
+        $s = mb_strtolower($s, 'UTF-8');
+    } else {
+        $s = strtolower($s);
+    }
+    $s = preg_replace('/\s+/', ' ', $s);
+    return $s;
+}
+
+/**
+ * Mapeia textos antigos ou livres (chave em minúsculas) → rótulo do catálogo.
+ */
+function gcMapaTiposErroLegadoParaCatalogo(): array
+{
+    static $map = null;
+    if ($map !== null) {
+        return $map;
+    }
+
+    $pairs = [
+        // Ativo / produto
+        'ativo errado' => 'Ativo farmacológico incorreto',
+        'medicamento errado' => 'Ativo farmacológico incorreto',
+        'vendeu ativo errado' => 'Ativo farmacológico incorreto',
+        'produto errado' => 'Ativo farmacológico incorreto',
+        'ativo faltando' => 'Ativo faltante na dispensação',
+        'ativo faltante' => 'Ativo faltante na dispensação',
+        'vendeu ativo sem estar na receita' => 'Ativo não constante na prescrição',
+        'ativo sem estar na receita' => 'Ativo não constante na prescrição',
+        'ativo fora da receita' => 'Ativo não constante na prescrição',
+        'ativo fora da prescrição' => 'Ativo não constante na prescrição',
+        // Dosagem / dose
+        'dosagem errada' => 'Dosagem, concentração ou dose incorreta',
+        'dose errada' => 'Dosagem, concentração ou dose incorreta',
+        'vendeu dosagem errada' => 'Dosagem, concentração ou dose incorreta',
+        'vendeu dose errada' => 'Dosagem, concentração ou dose incorreta',
+        // Quantidade
+        'quantidade a mais' => 'Quantidade a mais dispensada',
+        'vendeu quantidade a mais' => 'Quantidade a mais dispensada',
+        'quantidade a menos' => 'Quantidade a menos dispensada',
+        'vendeu quantidade a menos' => 'Quantidade a menos dispensada',
+        'quantidade errada' => 'Outra divergência na quantidade dispensada',
+        'vendeu quantidade errada' => 'Outra divergência na quantidade dispensada',
+        'vendeu quantidade errada (base transdérmica)' => 'Volume, base ou veículo da formulação incorreto',
+        'vendeu quantidade errada (base transdermica)' => 'Volume, base ou veículo da formulação incorreto',
+        // Volume / base (grafia antiga comum)
+        'volume base errado' => 'Volume, base ou veículo da formulação incorreto',
+        'volume base errada' => 'Volume, base ou veículo da formulação incorreto',
+        'volume base errada e sem posologia' => 'Posologia ausente ou incompleta',
+        'volume base errado e posologia incompleta' => 'Posologia ausente ou incompleta',
+        'volume base errado e sem posologia' => 'Posologia ausente ou incompleta',
+        'volume base errado, base errada' => 'Volume, base ou veículo da formulação incorreto',
+        'volume base errado, sem posologia' => 'Posologia ausente ou incompleta',
+        'volume base de transdermico errado' => 'Volume, base ou veículo da formulação incorreto',
+        'volume base de transdérmico errado' => 'Volume, base ou veículo da formulação incorreto',
+        'volume base errado, preço errado' => 'Preço ou valor incorreto',
+        'volume base errado, preco errado' => 'Preço ou valor incorreto',
+        // Caps / apresentação
+        'vendeu apenas 1 dose em caps' => 'Outra divergência na quantidade dispensada',
+        'caps. liberação prolongada e vendeu caps. normal' => 'Apresentação farmacêutica incorreta',
+        'caps. liberacao prolongada e vendeu caps. normal' => 'Apresentação farmacêutica incorreta',
+        'flaconetes, colocou em frasco de xarope' => 'Embalagem ou recipiente inadequado',
+        // Tempo / tratamento
+        'vendeu 30 doses, tempo insuficiente para o tratamento' => 'Duração do tratamento ou doses inadequados',
+        'vendeu 30 doses tempo insuficiente para o tratamento' => 'Duração do tratamento ou doses inadequados',
+        // Via / uso
+        'ativo de uso oral em solução tópica' => 'Via de administração incorreta',
+        'ativo de uso oral em solucao topica' => 'Via de administração incorreta',
+        // Prescritor / receita
+        'nome de prescritor errado' => 'Dados do prescritor ou da receita incorretos',
+        'nome do prescritor errado' => 'Dados do prescritor ou da receita incorretos',
+        'cadastro incompleto' => 'Dados do prescritor ou da receita incorretos',
+        // Fracionamento / unidade
+        'vendeu creatina em mg' => 'Fracionamento ou unidade de medida incorreta',
+        'vendeu creatina em MG' => 'Fracionamento ou unidade de medida incorreta',
+        'caps liberação prolongada e vendeu caps normal' => 'Apresentação farmacêutica incorreta',
+        'caps liberacao prolongada e vendeu caps normal' => 'Apresentação farmacêutica incorreta',
+        'liberação prolongada e vendeu caps normal' => 'Apresentação farmacêutica incorreta',
+        'liberacao prolongada e vendeu caps normal' => 'Apresentação farmacêutica incorreta',
+        'flaconetes colocou em frasco de xarope' => 'Embalagem ou recipiente inadequado',
+    ];
+    $map = $pairs;
+    return $map;
+}
+
+/**
+ * Último recurso: classifica textos livres antigos por palavras-chave (sem alterar o banco).
+ */
+function gcExibirTipoErroHeuristica(string $k): ?string
+{
+    if ($k === '') {
+        return null;
+    }
+    if (str_contains($k, 'prescritor') && (str_contains($k, 'errad') || str_contains($k, 'errado'))) {
+        return 'Dados do prescritor ou da receita incorretos';
+    }
+    if (str_contains($k, 'volume') && str_contains($k, 'base') && str_contains($k, 'transderm')) {
+        return 'Volume, base ou veículo da formulação incorreto';
+    }
+    if (str_contains($k, 'volume') && str_contains($k, 'base') && (str_contains($k, 'errad') || str_contains($k, 'errado'))) {
+        if (str_contains($k, 'posologia') || str_contains($k, 'sem posologia')) {
+            return 'Posologia ausente ou incompleta';
+        }
+        if (str_contains($k, 'preço') || str_contains($k, 'preco')) {
+            return 'Preço ou valor incorreto';
+        }
+        return 'Volume, base ou veículo da formulação incorreto';
+    }
+    if ((str_contains($k, 'quantidade') || str_contains($k, 'dose')) && str_contains($k, 'mais')) {
+        return 'Quantidade a mais dispensada';
+    }
+    if ((str_contains($k, 'quantidade') || str_contains($k, 'dose')) && str_contains($k, 'menos')) {
+        return 'Quantidade a menos dispensada';
+    }
+    if (str_contains($k, 'quantidade') && str_contains($k, 'errad')) {
+        return 'Outra divergência na quantidade dispensada';
+    }
+    if (str_contains($k, 'dosagem') || (str_contains($k, 'dose') && str_contains($k, 'errad'))) {
+        return 'Dosagem, concentração ou dose incorreta';
+    }
+    if (str_contains($k, 'ativo') && (str_contains($k, 'falt') || str_contains($k, 'nao disp') || str_contains($k, 'não disp'))) {
+        return 'Ativo faltante na dispensação';
+    }
+    if (str_contains($k, 'ativo') && (str_contains($k, 'receita') || str_contains($k, 'prescri') || str_contains($k, 'sem estar'))) {
+        return 'Ativo não constante na prescrição';
+    }
+    if (str_contains($k, 'ativo') && (str_contains($k, 'errad') || str_contains($k, 'errado'))) {
+        return 'Ativo farmacológico incorreto';
+    }
+    if (str_contains($k, 'caps') || str_contains($k, 'cáps') || str_contains($k, 'capsula') || str_contains($k, 'liberação prolongada') || str_contains($k, 'liberacao prolongada')) {
+        if (str_contains($k, 'errad') || str_contains($k, 'vendeu') || str_contains($k, 'normal')) {
+            return 'Apresentação farmacêutica incorreta';
+        }
+    }
+    if (str_contains($k, 'flaconete') || str_contains($k, 'frasco') || str_contains($k, 'xarope')) {
+        return 'Embalagem ou recipiente inadequado';
+    }
+    if (str_contains($k, 'oral') && str_contains($k, 'tópic')) {
+        return 'Via de administração incorreta';
+    }
+    if (str_contains($k, 'oral') && str_contains($k, 'topic')) {
+        return 'Via de administração incorreta';
+    }
+    if (str_contains($k, 'tempo') && str_contains($k, 'tratamento')) {
+        return 'Duração do tratamento ou doses inadequados';
+    }
+    if (str_contains($k, 'creatina') || preg_match('/\bem\s+mg\b/u', $k)) {
+        return 'Fracionamento ou unidade de medida incorreta';
+    }
+    return null;
+}
+
+function gcExibirTipoErroNormalizado(string $tipoBruto): string
+{
+    $tipoBruto = trim($tipoBruto);
+    if ($tipoBruto === '') {
+        return $tipoBruto;
+    }
+    foreach (gcCatalogoTiposErroManual() as $canon) {
+        if ($tipoBruto === $canon) {
+            return $canon;
+        }
+    }
+    $k = gcNormTipoErroLegadoKey($tipoBruto);
+    $legacy = gcMapaTiposErroLegadoParaCatalogo();
+    if (isset($legacy[$k])) {
+        return $legacy[$k];
+    }
+    $kPlain = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $k);
+    $kPlain = gcNormTipoErroLegadoKey($kPlain);
+    if ($kPlain !== '' && isset($legacy[$kPlain])) {
+        return $legacy[$kPlain];
+    }
+    $guess = gcExibirTipoErroHeuristica($k);
+    if ($guess !== null) {
+        return $guess;
+    }
+    return $tipoBruto;
+}
+
+function gcOrdenarTiposErroCatalogo(array $tipos): array
+{
+    $out = $tipos;
+    if (class_exists('Collator')) {
+        $coll = new Collator('pt_BR');
+        usort($out, static function ($a, $b) use ($coll) {
+            return $coll->compare((string)$a, (string)$b);
+        });
+        return $out;
+    }
+    usort($out, static function ($a, $b) {
+        $ca = function_exists('mb_strtolower') ? mb_strtolower((string)$a, 'UTF-8') : strtolower((string)$a);
+        $cb = function_exists('mb_strtolower') ? mb_strtolower((string)$b, 'UTF-8') : strtolower((string)$b);
+        return strcmp($ca, $cb);
+    });
+    return $out;
+}
+
+/**
+ * Lista o catálogo fixo de tipos de erro (select do formulário).
+ * Acesso: admin.
+ */
+function gestaoComercialErrosTiposDistintos(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    gcEnsureControleErrosTable($pdo);
+
+    $tipos = gcOrdenarTiposErroCatalogo(gcCatalogoTiposErroManual());
+    echo json_encode(['success' => true, 'tipos' => $tipos], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 function gestaoComercialErrosExcluir(PDO $pdo): void
 {
     header('Content-Type: application/json; charset=utf-8');
@@ -333,7 +586,7 @@ function gestaoComercialErrosExcluir(PDO $pdo): void
     $id = (int)($payload['id'] ?? 0);
     if ($id <= 0) {
         http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Registro invÃ¡lido para exclusÃ£o.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Registro inválido para exclusão.'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
@@ -1269,10 +1522,15 @@ function gcEnsureVendedorPerdasAcoesTableGc(PDO $pdo): void
 function gcDisplayConsultoraNamePhp(string $nome): string
 {
     $map = [
-        'clara leticia' => 'Clara LetÃ­cia',
-        'jessica vitoria' => 'JÃ©ssica VitÃ³ria',
         'ananda reis' => 'Ananda Reis',
-        'Micaela',
+        'carla' => 'Carla',
+        'clara leticia' => 'Clara Letícia',
+        'giovanna' => 'Giovanna',
+        'jessica vitoria' => 'Jéssica Vitória',
+        'mariana' => 'Mariana',
+        'micaela' => 'Micaela',
+        'nailena' => 'Nailena',
+        'nereida' => 'Nereida',
     ];
     $k = gcNormName($nome);
     return $map[$k] ?? $nome;

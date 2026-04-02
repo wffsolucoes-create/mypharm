@@ -1,6 +1,166 @@
 (function () {
     // Tudo da gestão comercial usa api_gestao.php
     const API_URL = 'api_gestao.php';
+
+    function clearLocalStoragePreservingMyPharmTheme() {
+        const backup = {};
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && (k === 'mypharm_theme' || k.indexOf('mypharm_theme_') === 0)) {
+                backup[k] = localStorage.getItem(k);
+            }
+        }
+        localStorage.clear();
+        Object.keys(backup).forEach(function (key) { localStorage.setItem(key, backup[key]); });
+    }
+
+    /** Mesma chave do painel admin: preferência de menu recolhido compartilhada entre páginas. */
+    var SIDEBAR_COLLAPSED_KEY = 'mypharm_sidebar_collapsed';
+
+    function gcHideSidebarFlyoutTooltip() {
+        var tip = document.getElementById('gcSidebarFlyoutTooltip');
+        if (tip) {
+            tip.classList.remove('is-visible');
+            tip.textContent = '';
+            tip.style.left = '';
+            tip.style.top = '';
+        }
+    }
+
+    function gcEnsureSidebarFlyoutTooltipEl() {
+        var tip = document.getElementById('gcSidebarFlyoutTooltip');
+        if (!tip) {
+            tip = document.createElement('div');
+            tip.id = 'gcSidebarFlyoutTooltip';
+            tip.className = 'sidebar-flyout-tooltip';
+            tip.setAttribute('role', 'tooltip');
+            document.body.appendChild(tip);
+        }
+        return tip;
+    }
+
+    function gcShowSidebarFlyoutTooltip(text, anchorEl) {
+        if (!text || !anchorEl) {
+            gcHideSidebarFlyoutTooltip();
+            return;
+        }
+        var tip = gcEnsureSidebarFlyoutTooltipEl();
+        tip.textContent = text;
+        tip.classList.add('is-visible');
+        tip.style.left = '-9999px';
+        tip.style.top = '0';
+        var tw = tip.offsetWidth;
+        var th = tip.offsetHeight;
+        var r = anchorEl.getBoundingClientRect();
+        var margin = 10;
+        var left = r.right + margin;
+        var top = r.top + (r.height - th) / 2;
+        if (left + tw > window.innerWidth - 8) {
+            left = Math.max(8, r.left - tw - margin);
+        }
+        top = Math.max(8, Math.min(top, window.innerHeight - th - 8));
+        tip.style.left = Math.round(left) + 'px';
+        tip.style.top = Math.round(top) + 'px';
+    }
+
+    function gcSyncSidebarToggleUi() {
+        var sidebar = document.getElementById('gcSidebar');
+        var toggle = document.getElementById('gcSidebarToggle');
+        if (!sidebar || !toggle) return;
+        var icon = toggle.querySelector('i');
+        var collapsed = sidebar.classList.contains('collapsed');
+        if (icon) icon.className = collapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+        toggle.setAttribute('aria-label', collapsed ? 'Expandir menu' : 'Recolher menu');
+    }
+
+    function gcInitSidebarCollapsedPreference() {
+        var sidebar = document.getElementById('gcSidebar');
+        var toggle = document.getElementById('gcSidebarToggle');
+        if (!sidebar || !toggle) return;
+        if (window.innerWidth <= 768) {
+            sidebar.classList.remove('collapsed');
+            gcSyncSidebarToggleUi();
+            return;
+        }
+        try {
+            var v = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+            if (v === '0') sidebar.classList.remove('collapsed');
+            else sidebar.classList.add('collapsed');
+        } catch (e) {
+            sidebar.classList.add('collapsed');
+        }
+        if (!sidebar.classList.contains('collapsed')) gcHideSidebarFlyoutTooltip();
+        gcSyncSidebarToggleUi();
+    }
+
+    function gcInitSidebarCollapsedLegends() {
+        var sidebar = document.getElementById('gcSidebar');
+        if (!sidebar || sidebar.dataset.collapsedLegendsBound === '1') return;
+        sidebar.dataset.collapsedLegendsBound = '1';
+
+        sidebar.querySelectorAll('.nav-item').forEach(function (a) {
+            var span = a.querySelector('span:not(.gc-sr-only)');
+            var label = span ? span.textContent.replace(/\s+/g, ' ').trim() : '';
+            if (label && !a.getAttribute('title')) a.setAttribute('title', label);
+        });
+
+        document.addEventListener(
+            'mouseover',
+            function (e) {
+                var sb = document.getElementById('gcSidebar');
+                if (!sb || !sb.classList.contains('collapsed')) {
+                    gcHideSidebarFlyoutTooltip();
+                    return;
+                }
+                if (!e.target.closest('#gcSidebar')) {
+                    gcHideSidebarFlyoutTooltip();
+                    return;
+                }
+                var brand = e.target.closest('.sidebar-header .sidebar-brand');
+                if (brand && sb.contains(brand)) {
+                    gcShowSidebarFlyoutTooltip('MyPharm', brand);
+                    return;
+                }
+                var navEl = e.target.closest('#gcSidebar .nav-item');
+                if (navEl && sb.contains(navEl)) {
+                    var sp = navEl.querySelector('span:not(.gc-sr-only)');
+                    var lbl = sp ? sp.textContent.replace(/\s+/g, ' ').trim() : '';
+                    if (lbl) {
+                        gcShowSidebarFlyoutTooltip(lbl, navEl);
+                        return;
+                    }
+                }
+                var userRow = e.target.closest('#gcSidebar .sidebar-footer .user-info');
+                if (userRow && sb.contains(userRow)) {
+                    var n = (document.getElementById('gcUserName') && document.getElementById('gcUserName').textContent.trim()) || '';
+                    var rolEl = userRow.querySelector('.user-role');
+                    var rol = rolEl ? rolEl.textContent.trim() : '';
+                    var t = n && rol ? n + ' · ' + rol : n || rol;
+                    if (t) {
+                        gcShowSidebarFlyoutTooltip(t, userRow);
+                        return;
+                    }
+                }
+                gcHideSidebarFlyoutTooltip();
+            },
+            true
+        );
+
+        sidebar.addEventListener('focusin', function (e) {
+            if (!sidebar.classList.contains('collapsed')) return;
+            var a = e.target.closest('.nav-item');
+            if (!a) return;
+            var sp = a.querySelector('span:not(.gc-sr-only)');
+            var label = sp ? sp.textContent.replace(/\s+/g, ' ').trim() : '';
+            if (label) gcShowSidebarFlyoutTooltip(label, a);
+        });
+        sidebar.addEventListener('focusout', function () {
+            setTimeout(function () {
+                if (!sidebar.contains(document.activeElement)) gcHideSidebarFlyoutTooltip();
+            }, 0);
+        });
+    }
+
     let gcSelectedVendedor = '__ALL__';
     let gcDashboardData = null;
     let gcNomesVendedores = [];
@@ -14,6 +174,7 @@
     let gcVendEquipeLastRows = null;
     let gcVendEquipeSortBound = false;
     let gcErroRowsMap = {};
+    const GC_ERRO_TIPO_OUTRO = '__outro__';
 
     function gcDestroyAllCharts() {
         Object.keys(gcChartInstances).forEach(function (key) {
@@ -76,8 +237,8 @@
                     backgroundColor: 'transparent',
                     tension: 0.25,
                     borderWidth: 2,
-                    pointRadius: evoMeses.length <= 18 ? 3 : 0,
-                    pointHoverRadius: 5,
+                    pointRadius: evoMeses.length <= 18 ? 4 : 0,
+                    pointHoverRadius: 6,
                     pointBackgroundColor: c,
                     pointBorderColor: c,
                     spanGaps: true
@@ -91,12 +252,79 @@
                 backgroundColor: 'transparent',
                 tension: 0.2,
                 borderWidth: 2,
-                pointRadius: 3,
+                pointRadius: 4,
                 pointBackgroundColor: col.muted,
                 pointBorderColor: col.muted
             });
         }
         return { labels: evoLabels, datasets: evoDatasets };
+    }
+
+    var GC_VEND_EVO_CHART_KEYS = ['vendEvolucao', 'vendEvolucaoAprov', 'vendEvolucaoRej'];
+
+    function gcVendEvoPrimeiroChartComSeries() {
+        for (var k = 0; k < GC_VEND_EVO_CHART_KEYS.length; k++) {
+            var ch = gcChartInstances[GC_VEND_EVO_CHART_KEYS[k]];
+            if (ch && ch.data && ch.data.datasets && ch.data.datasets.length) return ch;
+        }
+        return null;
+    }
+
+    function gcVendEvoTodasSeriesVisiveis(chart) {
+        if (!chart || !chart.data || !chart.data.datasets || !chart.data.datasets.length) return true;
+        for (var i = 0; i < chart.data.datasets.length; i++) {
+            if (typeof chart.isDatasetVisible === 'function' && !chart.isDatasetVisible(i)) return false;
+        }
+        return true;
+    }
+
+    function gcSyncVendEvoTodosButton() {
+        var btn = document.getElementById('gcBtnVendEvoTodos');
+        var hint = document.getElementById('gcVendEvoTodosHint');
+        if (!btn) return;
+        var ch = gcVendEvoPrimeiroChartComSeries();
+        if (!ch) {
+            btn.disabled = true;
+            btn.setAttribute('aria-pressed', 'true');
+            btn.textContent = 'Todos';
+            btn.title = 'Aguarde os gráficos carregarem ou clique em Atualizar dados.';
+            if (hint) {
+                hint.innerHTML = '<strong>Todos</strong> ficará ativo após carregar o painel. Aplica aos três gráficos de evolução (receita, aprovados, rejeitados).';
+            }
+            return;
+        }
+        btn.disabled = false;
+        btn.textContent = 'Todos';
+        var todas = gcVendEvoTodasSeriesVisiveis(ch);
+        btn.setAttribute('aria-pressed', todas ? 'true' : 'false');
+        btn.title = todas
+            ? 'Clique para ocultar todas as linhas nos três gráficos.'
+            : 'Clique para mostrar todas as linhas nos três gráficos.';
+        if (hint) {
+            hint.innerHTML = todas
+                ? 'Clique em <strong>Todos</strong> para <strong>ocultar todas</strong> as consultoras de uma vez nos três gráficos. Clique de novo para <strong>mostrar todas</strong>. Na legenda, você alterna uma por uma.'
+                : 'Algumas linhas estão ocultas. Clique em <strong>Todos</strong> para <strong>mostrar todas</strong> de novo nos três gráficos.';
+        }
+    }
+
+    function gcToggleVendEvoTodos() {
+        var ch0 = gcVendEvoPrimeiroChartComSeries();
+        if (!ch0) return;
+        var mostrar = !gcVendEvoTodasSeriesVisiveis(ch0);
+        GC_VEND_EVO_CHART_KEYS.forEach(function (key) {
+            var ch = gcChartInstances[key];
+            if (!ch || !ch.data || !ch.data.datasets) return;
+            for (var i = 0; i < ch.data.datasets.length; i++) {
+                if (typeof ch.setDatasetVisibility === 'function') {
+                    ch.setDatasetVisibility(i, mostrar);
+                } else {
+                    var meta = ch.getDatasetMeta(i);
+                    if (meta) meta.hidden = !mostrar;
+                }
+            }
+            ch.update();
+        });
+        gcSyncVendEvoTodosButton();
     }
 
     function gcVendEvolucaoLineChartOptions(col, commonAxis, tooltipLabelFn) {
@@ -107,14 +335,31 @@
             plugins: {
                 legend: {
                     position: 'bottom',
+                    onClick: function (e, legendItem, legend) {
+                        var chart = legend.chart;
+                        var idx = legendItem.datasetIndex != null ? legendItem.datasetIndex : legendItem.index;
+                        if (idx === undefined || idx === null) return;
+                        var vis = chart.isDatasetVisible(idx);
+                        chart.setDatasetVisibility(idx, !vis);
+                        chart.update();
+                        gcSyncVendEvoTodosButton();
+                    },
                     labels: {
                         color: col.muted,
-                        boxWidth: 10,
-                        padding: 10,
-                        font: { size: 10 }
+                        boxWidth: 14,
+                        padding: 14,
+                        font: { size: 13 }
                     }
                 },
                 tooltip: {
+                    bodyFont: { size: 13 },
+                    titleFont: { size: 13 },
+                    itemSort: function (a, b) {
+                        var ya = a.parsed && typeof a.parsed.y === 'number' && !isNaN(a.parsed.y) ? a.parsed.y : 0;
+                        var yb = b.parsed && typeof b.parsed.y === 'number' && !isNaN(b.parsed.y) ? b.parsed.y : 0;
+                        if (yb !== ya) return yb - ya;
+                        return (a.datasetIndex || 0) - (b.datasetIndex || 0);
+                    },
                     callbacks: {
                         label: tooltipLabelFn
                     }
@@ -122,13 +367,14 @@
             },
             scales: {
                 x: {
-                    ticks: { color: col.muted, maxRotation: 45, minRotation: 0, font: { size: 10 } },
+                    ticks: { color: col.muted, maxRotation: 45, minRotation: 0, font: { size: 13 } },
                     grid: { color: col.grid }
                 },
                 y: Object.assign({}, commonAxis, {
                     beginAtZero: true,
                     ticks: {
                         color: col.muted,
+                        font: { size: 12 },
                         callback: function (v) {
                             return Number(v).toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });
                         }
@@ -177,13 +423,14 @@
 
     function loadSavedTheme() {
         const saved = getSavedThemeForCurrentUser();
-        if (saved) document.documentElement.setAttribute('data-theme', saved);
+        const theme = saved === 'dark' || saved === 'light' ? saved : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
         syncThemeToggleAria();
     }
 
     function toggleTheme() {
         const html = document.documentElement;
-        const currentTheme = html.getAttribute('data-theme');
+        const currentTheme = html.getAttribute('data-theme') || 'light';
         const newTheme = currentTheme === 'light' ? 'dark' : 'light';
         html.setAttribute('data-theme', newTheme);
         localStorage.setItem(getThemeStorageKey(), newTheme);
@@ -420,6 +667,55 @@
             .replace(/'/g, '&#039;');
     }
 
+    function gcSyncErroTipoOutroVisibility() {
+        const sel = document.getElementById('gcErroTipo');
+        const outro = document.getElementById('gcErroTipoOutro');
+        if (!outro || !sel) return;
+        const show = sel.value === GC_ERRO_TIPO_OUTRO;
+        outro.style.display = show ? '' : 'none';
+        if (!show) outro.value = '';
+    }
+
+    function gcResolveErroTipoFromForm() {
+        const sel = document.getElementById('gcErroTipo');
+        const outro = document.getElementById('gcErroTipoOutro');
+        if (!sel) return '';
+        if (sel.value === GC_ERRO_TIPO_OUTRO) {
+            return outro ? String(outro.value || '').trim() : '';
+        }
+        return String(sel.value || '').trim();
+    }
+
+    async function gcLoadErrosTiposDistintos() {
+        const data = await apiGet('gestao_comercial_erros_tipos_distintos');
+        const tipos = Array.isArray(data && data.tipos) ? data.tipos : [];
+        const sel = document.getElementById('gcErroTipo');
+        if (!sel) return;
+        const prevSel = sel.value;
+        const outroEl = document.getElementById('gcErroTipoOutro');
+        const prevOutro = outroEl ? outroEl.value : '';
+        let html = '<option value="">Selecione o tipo do erro</option>';
+        tipos.forEach(function (t) {
+            const s = String(t || '').trim();
+            if (!s) return;
+            html += '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>';
+        });
+        html += '<option value="' + GC_ERRO_TIPO_OUTRO + '">Outro tipo (especificar abaixo)</option>';
+        sel.innerHTML = html;
+        if (prevSel === GC_ERRO_TIPO_OUTRO) {
+            sel.value = GC_ERRO_TIPO_OUTRO;
+            if (outroEl) {
+                outroEl.value = prevOutro;
+                outroEl.style.display = '';
+            }
+        } else if (prevSel && tipos.indexOf(prevSel) >= 0) {
+            sel.value = prevSel;
+        } else {
+            sel.value = '';
+        }
+        gcSyncErroTipoOutroVisibility();
+    }
+
     function normalizeName(v) {
         return String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
     }
@@ -447,6 +743,7 @@
             'giovanna': 'Giovanna',
             'jessica vitoria': 'Jéssica Vitória',
             'mariana': 'Mariana',
+            'micaela': 'Micaela',
             'nailena': 'Nailena',
             'nereida': 'Nereida'
         };
@@ -934,6 +1231,7 @@
             clearGcDashboardError();
 
             gcDashboardData = data;
+            await gcLoadErrosTiposDistintos();
             gcNomesVendedores = Array.isArray(data.lista_vendedores_nomes) ? data.lista_vendedores_nomes : [];
             renderExecutivo(data);
             renderFinanceiroKpis(data);
@@ -1076,6 +1374,7 @@
         }
         gcDeferredChartsPending = false;
         gcDestroyAllCharts();
+        gcSyncVendEvoTodosButton();
         if (typeof Chart === 'undefined') {
             console.warn('Chart.js não carregado; gráficos da Gestão Comercial desativados.');
             return;
@@ -1775,7 +2074,7 @@
         if (evoASub) {
             var yA = typeof evoA.ano_fixo === 'number' ? evoA.ano_fixo : parseInt(evoA.ano_fixo, 10);
             if (!yA || isNaN(yA)) yA = 2026;
-            evoASub.innerHTML = 'Linhas aprovadas em gestão por mês e por consultora, <strong>ano ' + yA + '</strong> (fixo) — não usa o filtro do painel.';
+            evoASub.innerHTML = 'Pedidos aprovados em gestão por mês e por consultora, <strong>ano ' + yA + '</strong> (fixo) — não usa o filtro do painel.';
         }
         var builtA = gcBuildVendEvoLineDatasets(evoA, col, 'Sem aprovados no período');
         gcEnsureChart('vendEvolucaoAprov', 'gcChartVendEvolucaoAprov', function () {
@@ -1785,7 +2084,7 @@
                 options: gcVendEvolucaoLineChartOptions(col, commonAxis, function (ctx) {
                     var lab = ctx.dataset.label ? ctx.dataset.label + ': ' : '';
                     var n = ctx.parsed.y;
-                    return lab + (Number.isFinite(n) ? Number(n).toLocaleString('pt-BR') : '—') + ' linhas';
+                    return lab + (Number.isFinite(n) ? Number(n).toLocaleString('pt-BR') : '—') + ' pedidos';
                 })
             };
         });
@@ -1795,7 +2094,7 @@
         if (evoRSub) {
             var yR = typeof evoR.ano_fixo === 'number' ? evoR.ano_fixo : parseInt(evoR.ano_fixo, 10);
             if (!yR || isNaN(yR)) yR = 2026;
-            evoRSub.innerHTML = 'Linhas rejeitadas em gestão por mês e por consultora, <strong>ano ' + yR + '</strong> (fixo) — não usa o filtro do painel.';
+            evoRSub.innerHTML = 'Pedidos rejeitados em gestão por mês e por consultora, <strong>ano ' + yR + '</strong> (fixo) — não usa o filtro do painel.';
         }
         var builtR = gcBuildVendEvoLineDatasets(evoR, col, 'Sem rejeitados no período');
         gcEnsureChart('vendEvolucaoRej', 'gcChartVendEvolucaoRej', function () {
@@ -1805,10 +2104,11 @@
                 options: gcVendEvolucaoLineChartOptions(col, commonAxis, function (ctx) {
                     var lab = ctx.dataset.label ? ctx.dataset.label + ': ' : '';
                     var n = ctx.parsed.y;
-                    return lab + (Number.isFinite(n) ? Number(n).toLocaleString('pt-BR') : '—') + ' linhas';
+                    return lab + (Number.isFinite(n) ? Number(n).toLocaleString('pt-BR') : '—') + ' pedidos';
                 })
             };
         });
+        gcSyncVendEvoTodosButton();
     }
 
     function gcDestroyChartKeys(keys) {
@@ -1822,7 +2122,7 @@
     }
 
     function forceLogoutRedirect() {
-        localStorage.clear();
+        clearLocalStoragePreservingMyPharmTheme();
         window.location.href = 'index.html';
     }
 
@@ -1957,17 +2257,21 @@
         if (erroData && !erroData.value) {
             erroData.value = new Date().toISOString().slice(0, 10);
         }
+        const gcErroTipoSel = document.getElementById('gcErroTipo');
+        if (gcErroTipoSel) {
+            gcErroTipoSel.addEventListener('change', gcSyncErroTipoOutroVisibility);
+        }
         const erroSalvarBtn = document.getElementById('gcErroSalvarBtn');
         if (erroSalvarBtn) {
             erroSalvarBtn.addEventListener('click', async function () {
                 const vendedor = (document.getElementById('gcErroVendedor') || {}).value || '';
                 const dataErro = (document.getElementById('gcErroData') || {}).value || '';
-                const tipoErro = (document.getElementById('gcErroTipo') || {}).value || '';
+                const tipoErro = gcResolveErroTipoFromForm();
                 const classif = (document.getElementById('gcErroClassificacao') || {}).value || 'leve';
                 const pedidoRef = (document.getElementById('gcErroPedidoRef') || {}).value || '';
                 const descricao = (document.getElementById('gcErroDescricao') || {}).value || '';
                 if (!vendedor || !tipoErro.trim()) {
-                    alert('Preencha consultora e tipo do erro.');
+                    alert('Preencha a consultora e o tipo do erro.');
                     return;
                 }
                 const payload = {
@@ -1984,11 +2288,15 @@
                     return;
                 }
                 const tipoEl = document.getElementById('gcErroTipo');
+                const tipoOutroEl = document.getElementById('gcErroTipoOutro');
                 const pedidoEl = document.getElementById('gcErroPedidoRef');
                 const descEl = document.getElementById('gcErroDescricao');
                 if (tipoEl) tipoEl.value = '';
+                if (tipoOutroEl) tipoOutroEl.value = '';
+                gcSyncErroTipoOutroVisibility();
                 if (pedidoEl) pedidoEl.value = '';
                 if (descEl) descEl.value = '';
+                await gcLoadErrosTiposDistintos();
                 await gcLoadControleErros();
                 await loadDashboardData(false).catch(function () {});
             });
@@ -2022,11 +2330,18 @@
             gcSbToggle.addEventListener('click', function () {
                 if (window.innerWidth <= 768) return;
                 gcSidebar.classList.toggle('collapsed');
-                var icon = gcSbToggle.querySelector('i');
-                if (icon) {
-                    icon.className = gcSidebar.classList.contains('collapsed') ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
-                }
-                gcSbToggle.setAttribute('aria-label', gcSidebar.classList.contains('collapsed') ? 'Expandir menu' : 'Recolher menu');
+                if (!gcSidebar.classList.contains('collapsed')) gcHideSidebarFlyoutTooltip();
+                gcSyncSidebarToggleUi();
+                try {
+                    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, gcSidebar.classList.contains('collapsed') ? '1' : '0');
+                } catch (e) { /* ignore */ }
+            });
+        }
+
+        const gcBtnVendEvoTodos = document.getElementById('gcBtnVendEvoTodos');
+        if (gcBtnVendEvoTodos) {
+            gcBtnVendEvoTodos.addEventListener('click', function () {
+                gcToggleVendEvoTodos();
             });
         }
 
@@ -2041,6 +2356,8 @@
         if (!session) return;
         const app = document.getElementById('gcApp');
         if (app) app.style.display = 'flex';
+        gcInitSidebarCollapsedPreference();
+        gcInitSidebarCollapsedLegends();
         bindUi(session);
         loadDashboardData(false).catch(function () {}).then(function () {
             applyInitialTabFromUrl();

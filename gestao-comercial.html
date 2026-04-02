@@ -1,32 +1,29 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#3B82F6">
     <meta name="description" content="Painel executivo MyPharm: vendas, funil, equipe e financeiro com base no banco local.">
     <title>Gestão Comercial | MyPharm</title>
-    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260327relcards2">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260401-todos-btn-sm">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body class="gc-compact-ui">
     <a href="#gcMain" class="gc-skip-link">Ir para o conteúdo</a>
     <div id="gcApp" class="app-layout" style="display:none;">
-        <aside class="sidebar" id="gcSidebar" aria-label="Menu lateral">
+        <aside class="sidebar collapsed" id="gcSidebar" aria-label="Menu lateral">
             <div class="sidebar-header">
                 <div class="sidebar-brand">
-                    <img src="imagens/logoMypharm.png" alt="MyPharm" class="sidebar-brand-logo" width="48" height="48">
-                    <div class="brand-text">
-                        <span class="brand-name">MY.PHARM</span>
-                        <span class="brand-tagline">Farmácia de manipulação</span>
-                    </div>
+                    <img src="imagens/logoMypharm1.png?v=20260402" alt="MyPharm" class="sidebar-brand-logo sidebar-brand-logo--expanded" width="280" height="72" decoding="async">
+                    <img src="imagens/IconeMyPharm.png?v=20260402" alt="MyPharm" class="sidebar-brand-logo sidebar-brand-logo--collapsed" width="40" height="40" decoding="async">
                 </div>
             </div>
-            <button type="button" class="sidebar-toggle" id="gcSidebarToggle" aria-label="Recolher menu">
-                <i class="fas fa-chevron-left" aria-hidden="true"></i>
+            <button type="button" class="sidebar-toggle" id="gcSidebarToggle" aria-label="Expandir menu">
+                <i class="fas fa-chevron-right" aria-hidden="true"></i>
             </button>
             <nav class="sidebar-nav" aria-label="Seções do relatório e atalhos">
                 <div class="nav-section-title" id="gcNavRelatorio">Relatório</div>
@@ -409,20 +406,28 @@
                                 <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendAprovRej" aria-label="Aprovados rejeitados"></canvas></div>
                             </div>
                         </div>
-                        <div class="gc-chart-panel gc-chart-panel--wide gc-stack-16">
-                            <h4 class="gc-chart-title">Evolução mensal da receita</h4>
-                            <p class="gc-chart-sub" id="gcVendEvolucaoSub">Receita aprovada por mês e por consultora (todas), <strong>sempre o ano 2026</strong> — não acompanha o filtro de datas do painel.</p>
+                        <div class="gc-chart-panel gc-chart-panel--wide gc-stack-16 gc-chart-panel--vend-evo">
+                            <div class="gc-vend-evo-chart-head" role="group" aria-label="Legenda dos gráficos de evolução mensal">
+                                <div class="gc-vend-evo-chart-head__titles">
+                                    <h4 class="gc-chart-title">Evolução mensal da receita</h4>
+                                    <p class="gc-chart-sub" id="gcVendEvolucaoSub">Receita aprovada por mês e por consultora (todas), <strong>sempre o ano 2026</strong> — não acompanha o filtro de datas do painel.</p>
+                                </div>
+                                <div class="gc-vend-evo-chart-head__actions">
+                                    <button type="button" class="gc-vend-evo-todos-btn" id="gcBtnVendEvoTodos" title="Alterna: mostrar ou ocultar todas as séries nos três gráficos de evolução">Todos</button>
+                                </div>
+                            </div>
+                            <p class="gc-vend-evo-todos-hint" id="gcVendEvoTodosHint"><strong>Todos</strong> aplica aos três gráficos (receita, aprovados, rejeitados). Também dá para clicar em cada nome na legenda.</p>
                             <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendEvolucao" aria-label="Evolução mensal vendedores"></canvas></div>
                         </div>
                         <div class="gc-chart-grid gc-chart-grid--2 gc-stack-16">
-                            <div class="gc-chart-panel">
+                            <div class="gc-chart-panel gc-chart-panel--vend-evo">
                                 <h4 class="gc-chart-title">Evolução mensal — aprovados</h4>
-                                <p class="gc-chart-sub" id="gcVendEvolucaoAprovSub">Linhas aprovadas em gestão por mês e por consultora, <strong>ano 2026</strong> (fixo).</p>
+                                <p class="gc-chart-sub" id="gcVendEvolucaoAprovSub">Pedidos aprovados em gestão por mês e por consultora, <strong>ano 2026</strong> (fixo).</p>
                                 <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendEvolucaoAprov" aria-label="Evolução mensal aprovados"></canvas></div>
                             </div>
-                            <div class="gc-chart-panel">
+                            <div class="gc-chart-panel gc-chart-panel--vend-evo">
                                 <h4 class="gc-chart-title">Evolução mensal — rejeitados</h4>
-                                <p class="gc-chart-sub" id="gcVendEvolucaoRejSub">Linhas rejeitadas em gestão por mês e por consultora, <strong>ano 2026</strong> (fixo).</p>
+                                <p class="gc-chart-sub" id="gcVendEvolucaoRejSub">Pedidos rejeitados em gestão por mês e por consultora, <strong>ano 2026</strong> (fixo).</p>
                                 <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendEvolucaoRej" aria-label="Evolução mensal rejeitados"></canvas></div>
                             </div>
                         </div>
@@ -589,12 +594,15 @@
                                     <input type="text" id="gcErroPedidoRef" placeholder="Ex.: 12345/2026">
                                 </label>
                                 <label>Tipo do erro
-                                    <input type="text" id="gcErroTipo" placeholder="Ex.: Cadastro incompleto">
+                                    <select id="gcErroTipo">
+                                        <option value="">Selecione o tipo do erro</option>
+                                    </select>
+                                    <input type="text" id="gcErroTipoOutro" class="gc-erro-tipo-outro" maxlength="120" placeholder="Especifique o novo tipo" style="display:none;" autocomplete="off" aria-label="Especificar outro tipo de erro">
                                 </label>
                             </div>
                             <div class="gc-filters-row gc-erro-form-actions">
                                 <label class="gc-erro-desc-label">Descrição
-                                    <textarea id="gcErroDescricao" rows="3" placeholder="Descreva o erro e contexto"></textarea>
+                                    <textarea id="gcErroDescricao" rows="3" placeholder="Descreva o erro e o contexto."></textarea>
                                 </label>
                                 <button type="button" class="gc-filter-btn" id="gcErroSalvarBtn">
                                     <i class="fas fa-save" aria-hidden="true"></i> Salvar erro
@@ -774,6 +782,6 @@
         </div>
     </div>
 
-    <script defer src="js/gestao-comercial.js?v=20260327bonus1"></script>
+    <script defer src="js/gestao-comercial.js?v=20260401-tooltip-pedidos"></script>
 </body>
 </html>

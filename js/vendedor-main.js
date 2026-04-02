@@ -2,6 +2,18 @@
     const API_URL = 'api_gestao.php';
     const REFRESH_MS = 45000; // Painel alimentado por gestao_pedidos (importação)
 
+    function clearLocalStoragePreservingMyPharmTheme() {
+        const backup = {};
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && (k === 'mypharm_theme' || k.indexOf('mypharm_theme_') === 0)) {
+                backup[k] = localStorage.getItem(k);
+            }
+        }
+        localStorage.clear();
+        Object.keys(backup).forEach(function (key) { localStorage.setItem(key, backup[key]); });
+    }
+
     function formatMoney(v) {
         const n = Number(v || 0);
         return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -31,12 +43,13 @@
     function loadSavedTheme() {
         const userKey = getThemeStorageKey();
         const saved = localStorage.getItem(userKey) || localStorage.getItem('mypharm_theme');
-        if (saved) document.documentElement.setAttribute('data-theme', saved);
+        const theme = saved === 'dark' || saved === 'light' ? saved : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
     }
 
     function toggleTheme() {
         const html = document.documentElement;
-        const currentTheme = html.getAttribute('data-theme');
+        const currentTheme = html.getAttribute('data-theme') || 'light';
         const newTheme = currentTheme === 'light' ? 'dark' : 'light';
         html.setAttribute('data-theme', newTheme);
         localStorage.setItem(getThemeStorageKey(), newTheme);
@@ -118,13 +131,13 @@
     async function enforceVendedorAccess() {
         const session = await apiGet('check_session');
         if (!session || !session.logged_in) {
-            localStorage.clear();
+            clearLocalStoragePreservingMyPharmTheme();
             window.location.href = 'index.html';
             return null;
         }
         const setor = String(session.setor || '').trim().toLowerCase();
         if (setor.indexOf('vendedor') === -1 && String(session.tipo || '').toLowerCase() !== 'admin') {
-            localStorage.clear();
+            clearLocalStoragePreservingMyPharmTheme();
             window.location.href = 'index.html';
             return null;
         }
@@ -615,7 +628,7 @@
             '<div style="display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid #e5e7eb; padding-bottom:10px; margin-bottom:16px;">' +
                 '<div style="display:flex; align-items:center; gap:12px;">' +
                     '<div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:8px; padding:6px 10px; line-height:0;">' +
-                        '<img src="imagens/logoMypharm1.png" alt="MyPharm" style="height:34px; width:auto; display:block;" onerror="this.style.display=\'none\'">' +
+                        '<img src="imagens/logoMypharm1.png?v=20260402" alt="MyPharm" style="height:34px; width:auto; display:block;" onerror="this.style.display=\'none\'">' +
                     '</div>' +
                     '<div>' +
                         '<div style="font-size:18px; font-weight:800; line-height:1.15;">Relatório de Pedidos Filtrados</div>' +
@@ -1573,7 +1586,7 @@
         if (logoutBtn) {
             logoutBtn.addEventListener('click', async function () {
                 try { await apiPost('logout', {}); } catch (_) {}
-                localStorage.clear();
+                clearLocalStoragePreservingMyPharmTheme();
                 window.location.href = 'index.html';
             });
         }

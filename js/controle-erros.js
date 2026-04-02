@@ -1,8 +1,168 @@
 (function () {
     const API_URL = 'api_gestao.php';
+
+    function clearLocalStoragePreservingMyPharmTheme() {
+        const backup = {};
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && (k === 'mypharm_theme' || k.indexOf('mypharm_theme_') === 0)) {
+                backup[k] = localStorage.getItem(k);
+            }
+        }
+        localStorage.clear();
+        Object.keys(backup).forEach(function (key) { localStorage.setItem(key, backup[key]); });
+    }
+
+    const SIDEBAR_COLLAPSED_KEY = 'mypharm_sidebar_collapsed';
+
+    function ceHideSidebarFlyoutTooltip() {
+        const tip = document.getElementById('ceSidebarFlyoutTooltip');
+        if (tip) {
+            tip.classList.remove('is-visible');
+            tip.textContent = '';
+            tip.style.left = '';
+            tip.style.top = '';
+        }
+    }
+
+    function ceEnsureSidebarFlyoutTooltipEl() {
+        let tip = document.getElementById('ceSidebarFlyoutTooltip');
+        if (!tip) {
+            tip = document.createElement('div');
+            tip.id = 'ceSidebarFlyoutTooltip';
+            tip.className = 'sidebar-flyout-tooltip';
+            tip.setAttribute('role', 'tooltip');
+            document.body.appendChild(tip);
+        }
+        return tip;
+    }
+
+    function ceShowSidebarFlyoutTooltip(text, anchorEl) {
+        if (!text || !anchorEl) {
+            ceHideSidebarFlyoutTooltip();
+            return;
+        }
+        const tip = ceEnsureSidebarFlyoutTooltipEl();
+        tip.textContent = text;
+        tip.classList.add('is-visible');
+        tip.style.left = '-9999px';
+        tip.style.top = '0';
+        const tw = tip.offsetWidth;
+        const th = tip.offsetHeight;
+        const r = anchorEl.getBoundingClientRect();
+        const margin = 10;
+        let left = r.right + margin;
+        let top = r.top + (r.height - th) / 2;
+        if (left + tw > window.innerWidth - 8) {
+            left = Math.max(8, r.left - tw - margin);
+        }
+        top = Math.max(8, Math.min(top, window.innerHeight - th - 8));
+        tip.style.left = `${Math.round(left)}px`;
+        tip.style.top = `${Math.round(top)}px`;
+    }
+
+    function ceSyncSidebarToggleUi() {
+        const sidebar = document.getElementById('ceSidebar');
+        const toggle = document.getElementById('ceSidebarToggle');
+        if (!sidebar || !toggle) return;
+        const icon = toggle.querySelector('i');
+        const collapsed = sidebar.classList.contains('collapsed');
+        if (icon) icon.className = collapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+        toggle.setAttribute('aria-label', collapsed ? 'Expandir menu' : 'Recolher menu');
+    }
+
+    function ceInitSidebarCollapsedPreference() {
+        const sidebar = document.getElementById('ceSidebar');
+        const toggle = document.getElementById('ceSidebarToggle');
+        if (!sidebar || !toggle) return;
+        if (window.innerWidth <= 768) {
+            sidebar.classList.remove('collapsed');
+            ceSyncSidebarToggleUi();
+            return;
+        }
+        try {
+            const v = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+            if (v === '0') sidebar.classList.remove('collapsed');
+            else sidebar.classList.add('collapsed');
+        } catch (e) {
+            sidebar.classList.add('collapsed');
+        }
+        if (!sidebar.classList.contains('collapsed')) ceHideSidebarFlyoutTooltip();
+        ceSyncSidebarToggleUi();
+    }
+
+    function ceInitSidebarCollapsedLegends() {
+        const sidebar = document.getElementById('ceSidebar');
+        if (!sidebar || sidebar.dataset.collapsedLegendsBound === '1') return;
+        sidebar.dataset.collapsedLegendsBound = '1';
+
+        sidebar.querySelectorAll('.nav-item').forEach(function (a) {
+            const span = a.querySelector('span');
+            const label = span ? span.textContent.replace(/\s+/g, ' ').trim() : '';
+            if (label && !a.getAttribute('title')) a.setAttribute('title', label);
+        });
+
+        document.addEventListener(
+            'mouseover',
+            function (e) {
+                const sb = document.getElementById('ceSidebar');
+                if (!sb || !sb.classList.contains('collapsed')) {
+                    ceHideSidebarFlyoutTooltip();
+                    return;
+                }
+                if (!e.target.closest('#ceSidebar')) {
+                    ceHideSidebarFlyoutTooltip();
+                    return;
+                }
+                const brand = e.target.closest('.sidebar-header .sidebar-brand');
+                if (brand && sb.contains(brand)) {
+                    ceShowSidebarFlyoutTooltip('MyPharm', brand);
+                    return;
+                }
+                const navEl = e.target.closest('#ceSidebar .nav-item');
+                if (navEl && sb.contains(navEl)) {
+                    const sp = navEl.querySelector('span');
+                    const lbl = sp ? sp.textContent.replace(/\s+/g, ' ').trim() : '';
+                    if (lbl) {
+                        ceShowSidebarFlyoutTooltip(lbl, navEl);
+                        return;
+                    }
+                }
+                const userRow = e.target.closest('#ceSidebar .sidebar-footer .user-info');
+                if (userRow && sb.contains(userRow)) {
+                    const n = (document.getElementById('ceUserName') && document.getElementById('ceUserName').textContent.trim()) || '';
+                    const rolEl = userRow.querySelector('.user-role');
+                    const rol = rolEl ? rolEl.textContent.trim() : '';
+                    const t = n && rol ? `${n} · ${rol}` : n || rol;
+                    if (t) {
+                        ceShowSidebarFlyoutTooltip(t, userRow);
+                        return;
+                    }
+                }
+                ceHideSidebarFlyoutTooltip();
+            },
+            true
+        );
+
+        sidebar.addEventListener('focusin', function (e) {
+            if (!sidebar.classList.contains('collapsed')) return;
+            const a = e.target.closest('.nav-item');
+            if (!a) return;
+            const sp = a.querySelector('span');
+            const label = sp ? sp.textContent.replace(/\s+/g, ' ').trim() : '';
+            if (label) ceShowSidebarFlyoutTooltip(label, a);
+        });
+        sidebar.addEventListener('focusout', function () {
+            setTimeout(function () {
+                if (!sidebar.contains(document.activeElement)) ceHideSidebarFlyoutTooltip();
+            }, 0);
+        });
+    }
+
     let ceRows = [];
     let ceCharts = { consultora: null, gravidade: null };
     let ceInteractiveFilter = { consultora: '', gravidade: '' };
+    const CE_ERRO_TIPO_OUTRO = '__outro__';
 
     function fmtInt(v) {
         return Number(v || 0).toLocaleString('pt-BR');
@@ -32,6 +192,55 @@
         return d.innerHTML;
     }
 
+    function ceSyncTipoErroOutroVisibility() {
+        const sel = document.getElementById('ceTipoErro');
+        const outro = document.getElementById('ceTipoErroOutro');
+        if (!outro || !sel) return;
+        const show = sel.value === CE_ERRO_TIPO_OUTRO;
+        outro.style.display = show ? '' : 'none';
+        if (!show) outro.value = '';
+    }
+
+    function ceResolveTipoErroFromForm() {
+        const sel = document.getElementById('ceTipoErro');
+        const outro = document.getElementById('ceTipoErroOutro');
+        if (!sel) return '';
+        if (sel.value === CE_ERRO_TIPO_OUTRO) {
+            return outro ? String(outro.value || '').trim() : '';
+        }
+        return String(sel.value || '').trim();
+    }
+
+    async function loadTiposErroDistinct() {
+        const data = await apiGet('gestao_comercial_erros_tipos_distintos');
+        const tipos = Array.isArray(data && data.tipos) ? data.tipos : [];
+        const sel = document.getElementById('ceTipoErro');
+        if (!sel) return;
+        const prevSel = sel.value;
+        const outroEl = document.getElementById('ceTipoErroOutro');
+        const prevOutro = outroEl ? outroEl.value : '';
+        let html = '<option value="">Selecione o tipo do erro</option>';
+        tipos.forEach(function (t) {
+            const s = String(t || '').trim();
+            if (!s) return;
+            html += '<option value="' + esc(s) + '">' + esc(s) + '</option>';
+        });
+        html += '<option value="' + CE_ERRO_TIPO_OUTRO + '">Outro tipo (especificar abaixo)</option>';
+        sel.innerHTML = html;
+        if (prevSel === CE_ERRO_TIPO_OUTRO) {
+            sel.value = CE_ERRO_TIPO_OUTRO;
+            if (outroEl) {
+                outroEl.value = prevOutro;
+                outroEl.style.display = '';
+            }
+        } else if (prevSel && tipos.indexOf(prevSel) >= 0) {
+            sel.value = prevSel;
+        } else {
+            sel.value = '';
+        }
+        ceSyncTipoErroOutroVisibility();
+    }
+
     function getThemeStorageKey() {
         const userName = (localStorage.getItem('userName') || '').trim().toLowerCase();
         return userName ? `mypharm_theme_${userName}` : 'mypharm_theme';
@@ -39,12 +248,13 @@
 
     function loadSavedTheme() {
         const saved = localStorage.getItem(getThemeStorageKey()) || localStorage.getItem('mypharm_theme');
-        if (saved) document.documentElement.setAttribute('data-theme', saved);
+        const theme = saved === 'dark' || saved === 'light' ? saved : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
     }
 
     function toggleTheme() {
         const html = document.documentElement;
-        const current = html.getAttribute('data-theme');
+        const current = html.getAttribute('data-theme') || 'light';
         const next = current === 'light' ? 'dark' : 'light';
         html.setAttribute('data-theme', next);
         localStorage.setItem(getThemeStorageKey(), next);
@@ -286,11 +496,11 @@
             data_erro: (document.getElementById('ceDataErro') || {}).value || '',
             pedido_ref: (document.getElementById('cePedidoRef') || {}).value || '',
             classificacao_erro: (document.getElementById('ceClassificacao') || {}).value || 'leve',
-            tipo_erro: (document.getElementById('ceTipoErro') || {}).value || '',
+            tipo_erro: ceResolveTipoErroFromForm(),
             descricao: (document.getElementById('ceDescricao') || {}).value || ''
         };
         if (!payload.vendedor_nome || !String(payload.tipo_erro).trim()) {
-            alert('Preencha consultora e tipo de erro.');
+            alert('Preencha a consultora e o tipo do erro.');
             return;
         }
         const resp = await apiPost('gestao_comercial_erros_salvar', payload);
@@ -299,11 +509,15 @@
             return;
         }
         const tipo = document.getElementById('ceTipoErro');
+        const tipoOutro = document.getElementById('ceTipoErroOutro');
         const pedido = document.getElementById('cePedidoRef');
         const desc = document.getElementById('ceDescricao');
         if (tipo) tipo.value = '';
+        if (tipoOutro) tipoOutro.value = '';
+        ceSyncTipoErroOutroVisibility();
         if (pedido) pedido.value = '';
         if (desc) desc.value = '';
+        await loadTiposErroDistinct();
         await loadErros();
     }
 
@@ -321,7 +535,7 @@
     async function enforceAdminAccess() {
         const session = await apiGet('check_session');
         if (!session || !session.logged_in || String(session.tipo || '').toLowerCase() !== 'admin') {
-            localStorage.clear();
+            clearLocalStoragePreservingMyPharmTheme();
             window.location.href = 'index.html';
             return null;
         }
@@ -354,6 +568,9 @@
                 loadErros().catch(function () {});
             }
         });
+        const tipoErroSel = document.getElementById('ceTipoErro');
+        if (tipoErroSel) tipoErroSel.addEventListener('change', ceSyncTipoErroOutroVisibility);
+
         const filtroVend = document.getElementById('ceFiltroVendedor');
         if (filtroVend) filtroVend.addEventListener('change', function () { loadErros().catch(function () {}); });
         if (de) de.addEventListener('change', function () { loadErros().catch(function () {}); });
@@ -362,7 +579,7 @@
         const logout = document.getElementById('ceLogoutBtn');
         if (logout) logout.addEventListener('click', async function () {
             try { await apiPost('logout', {}); } catch (_) {}
-            localStorage.clear();
+            clearLocalStoragePreservingMyPharmTheme();
             window.location.href = 'index.html';
         });
 
@@ -385,8 +602,11 @@
             toggle.addEventListener('click', function () {
                 if (window.innerWidth <= 768) return;
                 sidebar.classList.toggle('collapsed');
-                const icon = toggle.querySelector('i');
-                if (icon) icon.className = sidebar.classList.contains('collapsed') ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+                if (!sidebar.classList.contains('collapsed')) ceHideSidebarFlyoutTooltip();
+                ceSyncSidebarToggleUi();
+                try {
+                    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, sidebar.classList.contains('collapsed') ? '1' : '0');
+                } catch (e) { /* ignore */ }
             });
         }
     }
@@ -397,8 +617,11 @@
         if (!session) return;
         const app = document.getElementById('ceApp');
         if (app) app.style.display = 'flex';
+        ceInitSidebarCollapsedPreference();
+        ceInitSidebarCollapsedLegends();
         bindUi(session);
         await loadVendedores();
+        await loadTiposErroDistinct();
         await loadErros();
     });
 })();

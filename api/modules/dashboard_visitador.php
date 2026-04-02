@@ -1313,7 +1313,7 @@ function dashboardEvolucaoPrescritor(PDO $pdo): void
 }
 
 /**
- * Retorna um prescritor com dados no ano (para página de documentação "Inteligência do Prescritor").
+ * Retorna um prescritor com dados no ano (exemplo para demos / integrações).
  */
 function dashboardGetExemploPrescritor(PDO $pdo): void
 {

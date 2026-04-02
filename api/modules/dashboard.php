@@ -130,11 +130,11 @@ function dashboardFaturamentoMensal(PDO $pdo): void
         $whereFat = "WHERE ano_referencia = :ano AND data_aprovacao IS NOT NULL";
         $paramsFat = ['ano' => $anoDefault];
     } else {
-        $whereFat = "WHERE $whereCond AND data_aprovacao IS NOT NULL";
+        $whereFat = "WHERE $whereCond";
     }
     $stmt = $pdo->prepare("
         SELECT 
-            MONTH(data_aprovacao) as mes,
+            MONTH(COALESCE(data_aprovacao, data_orcamento)) as mes,
             SUM(preco_liquido) as faturamento,
             SUM(preco_bruto) as receita_bruta,
             SUM(preco_custo) as custo,
@@ -142,7 +142,7 @@ function dashboardFaturamentoMensal(PDO $pdo): void
             COUNT(DISTINCT cliente) as clientes_unicos
         FROM gestao_pedidos 
         $whereFat
-        GROUP BY MONTH(data_aprovacao)
+        GROUP BY MONTH(COALESCE(data_aprovacao, data_orcamento))
         ORDER BY mes
     ");
     foreach ($paramsFat as $k => $v) {

@@ -3,17 +3,16 @@ function getThemeStorageKeyVisitador() {
             return userName ? `mypharm_theme_${userName}` : 'mypharm_theme';
         }
 
-        // Aplicar tema salvo imediatamente (por usuario, com fallback legado)
+        // Aplicar tema salvo imediatamente (por usuario, com fallback legado); sem valor válido → claro
         (function () {
             const savedTheme = localStorage.getItem(getThemeStorageKeyVisitador()) || localStorage.getItem('mypharm_theme');
-            if (savedTheme) {
-                document.documentElement.setAttribute('data-theme', savedTheme);
-            }
+            const theme = savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : 'light';
+            document.documentElement.setAttribute('data-theme', theme);
         })();
 
         function toggleTheme() {
             const html = document.documentElement;
-            const currentTheme = html.getAttribute('data-theme');
+            const currentTheme = html.getAttribute('data-theme') || 'light';
             const newTheme = currentTheme === 'light' ? 'dark' : 'light';
             html.setAttribute('data-theme', newTheme);
             localStorage.setItem(getThemeStorageKeyVisitador(), newTheme);
@@ -2269,6 +2268,7 @@ function getThemeStorageKeyVisitador() {
         var __roteiroMap = null;
         var __roteiroMarkers = [];
         var __roteiroPolylines = [];
+        var __roteiroHeatLayer = null;
         function initRoteiroPage() {
             var deEl = document.getElementById('roteiroDataDe');
             var ateEl = document.getElementById('roteiroDataAte');
@@ -2419,6 +2419,7 @@ function getThemeStorageKeyVisitador() {
                 if (typeof L !== 'undefined' && __roteiroMap) { __roteiroMap.remove(); __roteiroMap = null; }
                 __roteiroMarkers = [];
                 __roteiroPolylines = [];
+                __roteiroHeatLayer = null;
                 return;
             }
             containerEl.style.display = 'block';
@@ -2437,8 +2438,52 @@ function getThemeStorageKeyVisitador() {
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(__roteiroMap);
             __roteiroMarkers = [];
             __roteiroPolylines = [];
+            __roteiroHeatLayer = null;
             var allLatLngs = [];
             var colors = ['#2563EB', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4'];
+            // Mapa de calor (áreas mais visitadas / passagens)
+            if (typeof L.heatLayer === 'function') {
+                var heatCell = new Map();
+                function heatAdd(lat, lng, w) {
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng) || w <= 0) return;
+                    var k = lat.toFixed(4) + ',' + lng.toFixed(4);
+                    heatCell.set(k, (heatCell.get(k) || 0) + w);
+                }
+                rotas.forEach(function (r) {
+                    if (r.pontos && r.pontos.length > 0) {
+                        var step = Math.max(1, Math.ceil(r.pontos.length / 500));
+                        for (var pi = 0; pi < r.pontos.length; pi += step) {
+                            heatAdd(r.pontos[pi].lat, r.pontos[pi].lng, 0.15);
+                        }
+                    }
+                    if (r.visitas) {
+                        r.visitas.forEach(function (v) {
+                            var gla = parseFloat(v.geo_lat);
+                            var gln = parseFloat(v.geo_lng);
+                            heatAdd(gla, gln, 3.5);
+                        });
+                    }
+                });
+                var heatPts = [];
+                var heatMax = 0;
+                heatCell.forEach(function (intensity, k) {
+                    var parts = k.split(',');
+                    var la = parseFloat(parts[0]);
+                    var ln = parseFloat(parts[1]);
+                    heatPts.push([la, ln, intensity]);
+                    if (intensity > heatMax) heatMax = intensity;
+                });
+                if (heatPts.length > 0) {
+                    __roteiroHeatLayer = L.heatLayer(heatPts, {
+                        radius: 36,
+                        blur: 28,
+                        minOpacity: 0.35,
+                        max: (heatMax > 0 ? heatMax : 1) * 1.05,
+                        maxZoom: 18,
+                        gradient: { 0.35: '#1e3a8a', 0.55: '#06b6d4', 0.72: '#84cc16', 0.88: '#facc15', 1: '#ef4444' }
+                    }).addTo(__roteiroMap);
+                }
+            }
             // Traçar rotas
             rotas.forEach(function (r, rIdx) {
                 if (!r.pontos || r.pontos.length === 0) return;
@@ -3495,7 +3540,7 @@ function getThemeStorageKeyVisitador() {
                 '<div style="display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid #e5e7eb; padding-bottom:10px; margin-bottom:16px;">' +
                     '<div style="display:flex; align-items:center; gap:12px;">' +
                         '<div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:8px; padding:6px 10px; line-height:0;">' +
-                            '<img src="imagens/logoMypharm1.png" alt="MyPharm" style="height:34px; width:auto; display:block;" onerror="this.style.display=\'none\'">' +
+                            '<img src="imagens/logoMypharm1.png?v=20260402" alt="MyPharm" style="height:34px; width:auto; display:block;" onerror="this.style.display=\'none\'">' +
                         '</div>' +
                         '<div>' +
                             '<div style="font-size:18px; font-weight:800; line-height:1.15;">Relatório de Pedidos Filtrados</div>' +
@@ -3671,6 +3716,72 @@ function getThemeStorageKeyVisitador() {
         let rotaState = 'idle'; // idle | em_andamento | pausada
         let rotaWatchId = null;
         const ROTA_PONTO_INTERVAL_MS = 15000;
+        let rotaWakeLock = null;
+        let rotaForegroundListenersBound = false;
+        let rotaResumeSnapTimer = null;
+
+        /** Navegadores costumam pausar/reduzir geolocation em segundo plano; isso não substitui app nativo. */
+        async function releaseRotaWakeLock() {
+            try {
+                if (rotaWakeLock) await rotaWakeLock.release();
+            } catch (e) { /* ignore */ }
+            rotaWakeLock = null;
+        }
+
+        async function acquireRotaWakeLock() {
+            if (!('wakeLock' in navigator) || !navigator.wakeLock) return;
+            try {
+                await releaseRotaWakeLock();
+                rotaWakeLock = await navigator.wakeLock.request('screen');
+                rotaWakeLock.addEventListener('release', function () {
+                    rotaWakeLock = null;
+                });
+            } catch (e) { /* permissão, HTTP sem TLS, etc. */ }
+        }
+
+        function snapRotaGpsAgora() {
+            if (rotaState !== 'em_andamento' || !canManageRota || !navigator.geolocation) return;
+            navigator.geolocation.getCurrentPosition(
+                function (pos) {
+                    if (rotaState !== 'em_andamento') return;
+                    sendRotaPonto(pos.coords.latitude, pos.coords.longitude);
+                },
+                function () { /* silencioso */ },
+                { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+            );
+        }
+
+        function scheduleRotaResumeSnap() {
+            if (rotaState !== 'em_andamento' || !canManageRota) return;
+            if (rotaResumeSnapTimer) clearTimeout(rotaResumeSnapTimer);
+            rotaResumeSnapTimer = setTimeout(function () {
+                rotaResumeSnapTimer = null;
+                snapRotaGpsAgora();
+            }, 500);
+        }
+
+        function ensureRotaForegroundListeners() {
+            if (rotaForegroundListenersBound) return;
+            rotaForegroundListenersBound = true;
+            document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState === 'visible') {
+                    scheduleRotaResumeSnap();
+                    if (rotaState === 'em_andamento' && canManageRota) void acquireRotaWakeLock();
+                }
+            });
+            window.addEventListener('pageshow', function (ev) {
+                if (ev.persisted) scheduleRotaResumeSnap();
+            });
+            window.addEventListener('focus', function () {
+                scheduleRotaResumeSnap();
+            });
+        }
+
+        function updateRotaGpsHint() {
+            var el = document.getElementById('rotaGpsHint');
+            if (!el) return;
+            el.style.display = (rotaState === 'em_andamento' && canManageRota) ? 'block' : 'none';
+        }
 
         function updateRotaButton() {
             const btn = document.getElementById('btnIniciarRota');
@@ -3710,6 +3821,7 @@ function getThemeStorageKeyVisitador() {
                 btn.style.background = '#DC2626';
                 if (btnFinalizar) btnFinalizar.style.display = 'none';
             }
+            updateRotaGpsHint();
         }
 
         function stopRotaWatch() {
@@ -3717,6 +3829,7 @@ function getThemeStorageKeyVisitador() {
                 navigator.geolocation.clearWatch(rotaWatchId);
                 rotaWatchId = null;
             }
+            void releaseRotaWakeLock();
         }
 
         function sendRotaPonto(lat, lng) {
@@ -3729,6 +3842,8 @@ function getThemeStorageKeyVisitador() {
         function startRotaWatch() {
             if (!canManageRota) return;
             if (!navigator.geolocation || rotaState !== 'em_andamento') return;
+            ensureRotaForegroundListeners();
+            void acquireRotaWakeLock();
             let lastSent = 0;
             rotaWatchId = navigator.geolocation.watchPosition(
                 function (pos) {
@@ -3896,7 +4011,11 @@ function getThemeStorageKeyVisitador() {
         }
 
         async function doLogout() {
-            localStorage.clear();
+            if (typeof clearLocalStoragePreservingMyPharmTheme === 'function') {
+                clearLocalStoragePreservingMyPharmTheme();
+            } else {
+                localStorage.clear();
+            }
             window.location.href = 'index.html';
         }
 

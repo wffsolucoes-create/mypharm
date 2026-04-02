@@ -399,7 +399,7 @@ try {
                 FROM historico_visitas hv
                 $whereHV
                 ORDER BY hv.data_visita DESC, hv.horario DESC
-                LIMIT 300
+                LIMIT 2000
             ");
             $stmt->execute($paramsHV);
             $lista = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -541,7 +541,7 @@ try {
                 FROM rotas_diarias rd
                 $whereR
                 ORDER BY rd.data_inicio DESC
-                LIMIT 500
+                LIMIT 1500
             ");
             $stmt->execute($paramsR);
             $rotas_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -560,18 +560,75 @@ try {
             $km_por_visitador = [];
             $pontos_rotas = [];
             $rotas_com_km = [];
+            // Mesma regra do painel do visitador / get_relatorio_rota_completo: trechos ≥50 km são ignorados (salto de GPS).
+            $kmSegmentoMaxValido = 50.0;
+            $geoRotasUsed = 0;
+            $geoRotasBudget = 80;
 
             foreach ($rotas_list as $rota) {
                 $rid = (int)$rota['id'];
-                $stmtP = $pdo->prepare("SELECT lat, lng FROM rotas_pontos WHERE rota_id = :rid ORDER BY criado_em ASC");
-                $stmtP->execute(['rid' => $rid]);
+                $dataFimRota = $rota['data_fim'] ?? null;
+                if ($dataFimRota !== null && $dataFimRota !== '') {
+                    $stmtP = $pdo->prepare("SELECT lat, lng, criado_em FROM rotas_pontos WHERE rota_id = :rid AND criado_em <= :data_fim ORDER BY criado_em ASC");
+                    $stmtP->execute(['rid' => $rid, 'data_fim' => $dataFimRota]);
+                } else {
+                    $stmtP = $pdo->prepare("SELECT lat, lng, criado_em FROM rotas_pontos WHERE rota_id = :rid ORDER BY criado_em ASC");
+                    $stmtP->execute(['rid' => $rid]);
+                }
                 $pontos = $stmtP->fetchAll(PDO::FETCH_ASSOC);
                 $qtd_pontos = count($pontos);
+                $primeiroPv = $qtd_pontos > 0 ? $pontos[0] : null;
+                $ultimoPv = $qtd_pontos > 0 ? $pontos[$qtd_pontos - 1] : null;
+                $isRotaFinalizada = strcasecmp(trim((string)($rota['status'] ?? '')), 'finalizada') === 0;
+                $statusNorm = strtolower(trim((string)($rota['status'] ?? '')));
+                $rotaEmDeslocamento = !$isRotaFinalizada && $qtd_pontos > 0
+                    && ($statusNorm === 'em_andamento' || $statusNorm === 'pausada');
+                $posicaoAtual = null;
+                if ($rotaEmDeslocamento && $ultimoPv !== null) {
+                    $posicaoAtual = [
+                        'lat' => (float)$ultimoPv['lat'],
+                        'lng' => (float)$ultimoPv['lng'],
+                        'atualizado_em' => $ultimoPv['criado_em'] ?? null,
+                        'status_rota' => (string)($rota['status'] ?? ''),
+                    ];
+                }
+                $addrInicio = '—';
+                if ($primeiroPv !== null) {
+                    $la0 = (float)$primeiroPv['lat'];
+                    $ln0 = (float)$primeiroPv['lng'];
+                    if ($geoRotasUsed < $geoRotasBudget) {
+                        $addrInicio = reverseGeocode($pdo, $la0, $ln0);
+                        $geoRotasUsed++;
+                    } else {
+                        $addrInicio = number_format($la0, 5, '.', '') . ', ' . number_format($ln0, 5, '.', '');
+                    }
+                }
+                $addrFim = '';
+                if ($isRotaFinalizada && $ultimoPv !== null) {
+                    $la1 = (float)$ultimoPv['lat'];
+                    $ln1 = (float)$ultimoPv['lng'];
+                    if ($geoRotasUsed < $geoRotasBudget) {
+                        $addrFim = reverseGeocode($pdo, $la1, $ln1);
+                        $geoRotasUsed++;
+                    } else {
+                        $addrFim = number_format($la1, 5, '.', '') . ', ' . number_format($ln1, 5, '.', '');
+                    }
+                }
                 $km_rota = 0;
                 for ($i = 1; $i < $qtd_pontos; $i++) {
-                    $km_rota += $haversineKm(
+                    $segKm = $haversineKm(
                         $pontos[$i-1]['lat'], $pontos[$i-1]['lng'],
                         $pontos[$i]['lat'], $pontos[$i]['lng']
+                    );
+                    if ($segKm < $kmSegmentoMaxValido) {
+                        $km_rota += $segKm;
+                    }
+                }
+                $km_linha_reta = 0.0;
+                if ($qtd_pontos >= 2) {
+                    $km_linha_reta = $haversineKm(
+                        $pontos[0]['lat'], $pontos[0]['lng'],
+                        $pontos[$qtd_pontos - 1]['lat'], $pontos[$qtd_pontos - 1]['lng']
                     );
                 }
                 $vn = $rota['visitador_nome'];
@@ -585,12 +642,21 @@ try {
                     'data_fim' => $rota['data_fim'],
                     'status' => $rota['status'],
                     'km' => round($km_rota, 2),
-                    'qtd_pontos' => $qtd_pontos
+                    'km_linha_reta' => round($km_linha_reta, 2),
+                    'qtd_pontos' => $qtd_pontos,
+                    'local_inicio_endereco' => $addrInicio,
+                    'local_fim_endereco' => $addrFim,
                 ];
 
                 $pontos_rotas[] = [
                     'visitador_nome' => $vn,
                     'rota_id' => $rid,
+                    'data_inicio' => $rota['data_inicio'],
+                    'data_fim' => $rota['data_fim'],
+                    'status' => $rota['status'],
+                    'local_inicio_endereco' => $addrInicio,
+                    'local_fim_endereco' => $addrFim,
+                    'posicao_atual' => $posicaoAtual,
                     'pontos' => array_map(function ($p) { return ['lat' => (float)$p['lat'], 'lng' => (float)$p['lng']]; }, $pontos)
                 ];
             }
@@ -617,36 +683,48 @@ try {
             // Pontos de atendimento (visitas com GPS) para marcar no mapa
             $pontos_atendimento = [];
             try {
-                $whereGeo = "WHERE hv.data_visita IS NOT NULL";
+                // Período/visitador em COALESCE(hv, vg): inclui linhas órfãs em visitas_geolocalizacao
+                // e evita perder pinos quando historico_id não casa com historico_visitas.
+                $whereGeo = "WHERE COALESCE(hv.data_visita, vg.data_visita) IS NOT NULL";
                 $paramsGeo = [];
                 if ($dataDeR !== null && $dataAteR !== null) {
-                    $whereGeo .= " AND DATE(hv.data_visita) BETWEEN :data_de AND :data_ate";
+                    $whereGeo .= " AND DATE(COALESCE(hv.data_visita, vg.data_visita)) BETWEEN :data_de AND :data_ate";
                     $paramsGeo['data_de'] = $dataDeR;
                     $paramsGeo['data_ate'] = $dataAteR;
                 } else {
-                    $whereGeo .= " AND YEAR(hv.data_visita) = :ano";
+                    $whereGeo .= " AND YEAR(COALESCE(hv.data_visita, vg.data_visita)) = :ano";
                     $paramsGeo['ano'] = $anoR;
                     if ($mesR !== null) {
-                        $whereGeo .= " AND MONTH(hv.data_visita) = :mes";
+                        $whereGeo .= " AND MONTH(COALESCE(hv.data_visita, vg.data_visita)) = :mes";
                         $paramsGeo['mes'] = $mesR;
                     }
                 }
                 if ($visitadorFiltroR !== null) {
-                    $whereGeo .= " AND TRIM(COALESCE(hv.visitador, '')) = TRIM(:visitador)";
+                    $whereGeo .= " AND TRIM(COALESCE(hv.visitador, vg.visitador, '')) = TRIM(:visitador)";
                     $paramsGeo['visitador'] = $visitadorFiltroR;
                 }
             $stmt = $pdo->prepare("
                 SELECT 
                         vg.lat, vg.lng,
-                        hv.prescritor, hv.visitador as visitador_nome, hv.data_visita,
-                        DATE_FORMAT(hv.horario, '%H:%i') as horario,
-                        hv.local_visita, hv.status_visita
+                        COALESCE(NULLIF(TRIM(hv.prescritor), ''), TRIM(vg.prescritor)) AS prescritor,
+                        COALESCE(NULLIF(TRIM(hv.visitador), ''), TRIM(vg.visitador)) AS visitador_nome,
+                        COALESCE(hv.data_visita, vg.data_visita) AS data_visita,
+                        DATE_FORMAT(COALESCE(hv.horario, vg.horario), '%H:%i') AS horario,
+                        COALESCE(hv.local_visita, '') AS local_visita,
+                        COALESCE(hv.status_visita, '') AS status_visita
                 FROM visitas_geolocalizacao vg
-                    INNER JOIN historico_visitas hv ON hv.id = vg.historico_id
+                    LEFT JOIN historico_visitas hv ON hv.id = vg.historico_id
+                    LEFT JOIN (
+                        SELECT historico_id, MAX(id) AS max_id
+                        FROM visitas_geolocalizacao
+                        WHERE historico_id IS NOT NULL
+                        GROUP BY historico_id
+                    ) vg_last ON vg.historico_id = vg_last.historico_id AND vg.id = vg_last.max_id
                 $whereGeo
                       AND vg.lat IS NOT NULL AND vg.lng IS NOT NULL
-                    ORDER BY hv.data_visita DESC, hv.horario DESC
-                    LIMIT 500
+                    AND (vg.historico_id IS NULL OR vg_last.max_id IS NOT NULL)
+                    ORDER BY COALESCE(hv.data_visita, vg.data_visita) DESC, COALESCE(hv.horario, vg.horario) DESC
+                    LIMIT 2500
                 ");
                 $stmt->execute($paramsGeo);
                 $pontos_atendimento = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -681,10 +759,10 @@ try {
                 $prescritores_mais_visitados = [];
             }
 
-            // Carteira (prescritores_cadastro) sem nenhuma visita registrada no período
+            // Carteira (prescritores_cadastro) sem visita no período — o NOT EXISTS deve considerar o mesmo visitador do filtro (hv2.visitador), senão qualquer visita de outro visitador "limpa" o prescritor da lista.
             $prescritores_sem_visita_periodo = [];
-            $totais['prescritores_carteira_total'] = 0;
             $totais['prescritores_sem_visita_count'] = 0;
+            $totais['prescritores_carteira_total'] = 0;
             try {
                 $pdo->exec("CREATE TABLE IF NOT EXISTS prescritores_cadastro (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(200) NOT NULL, visitador VARCHAR(150), usuario_id INT NULL, INDEX idx_nome (nome(120)), INDEX idx_visitador (visitador(80))) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
                 $wherePC = "WHERE TRIM(COALESCE(pc.nome, '')) != '' AND UPPER(TRIM(pc.nome)) NOT IN ('MY PHARM', '')";
@@ -697,19 +775,37 @@ try {
                         $paramsPC['pc_visitador'] = $visitadorFiltroR;
                     }
                 }
+                $stmtCntCarteira = $pdo->prepare("SELECT COUNT(*) FROM prescritores_cadastro pc $wherePC");
+                $stmtCntCarteira->execute($paramsPC);
+                $totais['prescritores_carteira_total'] = (int)$stmtCntCarteira->fetchColumn();
+                // Placeholders próprios (hv2_*) e sem mesclar $paramsHV: com PDO native prepares
+                // (ATTR_EMULATE_PREPARES false), parâmetros extras como :hv_visitador quebram o execute (HY093)
+                // e o catch deixa lista/contagem zeradas — parecia “não há prescritores sem visita”.
                 $notExistsSql = '';
+                $paramsSemPeriodoHv2 = [];
                 if ($dataDeR !== null && $dataAteR !== null) {
-                    $notExistsSql = "hv2.data_visita IS NOT NULL AND DATE(hv2.data_visita) BETWEEN :hv_data_de AND :hv_data_ate";
+                    $notExistsSql = "hv2.data_visita IS NOT NULL AND DATE(hv2.data_visita) BETWEEN :hv2_data_de AND :hv2_data_ate";
+                    $paramsSemPeriodoHv2['hv2_data_de'] = $dataDeR;
+                    $paramsSemPeriodoHv2['hv2_data_ate'] = $dataAteR;
                 } else {
-                    $notExistsSql = "hv2.data_visita IS NOT NULL AND YEAR(hv2.data_visita) = :hv_ano";
+                    $notExistsSql = "hv2.data_visita IS NOT NULL AND YEAR(hv2.data_visita) = :hv2_ano";
+                    $paramsSemPeriodoHv2['hv2_ano'] = $anoR;
                     if ($mesR !== null) {
-                        $notExistsSql .= " AND MONTH(hv2.data_visita) = :hv_mes";
+                        $notExistsSql .= " AND MONTH(hv2.data_visita) = :hv2_mes";
+                        $paramsSemPeriodoHv2['hv2_mes'] = $mesR;
                     }
                 }
-                $stmtCnt = $pdo->prepare("SELECT COUNT(*) FROM prescritores_cadastro pc $wherePC");
-                $stmtCnt->execute($paramsPC);
-                $totais['prescritores_carteira_total'] = (int)$stmtCnt->fetchColumn();
-
+                $hv2VisitadorSql = '';
+                $paramsHv2Sem = [];
+                if ($visitadorFiltroR !== null) {
+                    if (strcasecmp(trim($visitadorFiltroR), 'My Pharm') === 0) {
+                        $hv2VisitadorSql = " AND (hv2.visitador IS NULL OR TRIM(hv2.visitador) = '' OR hv2.visitador = 'My Pharm' OR UPPER(TRIM(hv2.visitador)) = 'MY PHARM')";
+                    } else {
+                        $hv2VisitadorSql = " AND TRIM(COALESCE(hv2.visitador, '')) = TRIM(:hv2_sem_visitador)";
+                        $paramsHv2Sem['hv2_sem_visitador'] = $visitadorFiltroR;
+                    }
+                }
+                $paramsSemVisita = array_merge($paramsPC, $paramsSemPeriodoHv2, $paramsHv2Sem);
                 $sqlSemBase = "
                     FROM prescritores_cadastro pc
                     $wherePC
@@ -717,10 +813,11 @@ try {
                         SELECT 1 FROM historico_visitas hv2
                         WHERE UPPER(TRIM(COALESCE(hv2.prescritor, ''))) = UPPER(TRIM(pc.nome))
                         AND $notExistsSql
+                        $hv2VisitadorSql
                     )
                 ";
                 $stmtCntSem = $pdo->prepare("SELECT COUNT(*) $sqlSemBase");
-                $stmtCntSem->execute(array_merge($paramsPC, $paramsHV));
+                $stmtCntSem->execute($paramsSemVisita);
                 $totais['prescritores_sem_visita_count'] = (int)$stmtCntSem->fetchColumn();
 
                 $sqlSem = "
@@ -731,7 +828,7 @@ try {
                     LIMIT 250
                 ";
                 $stmtSem = $pdo->prepare($sqlSem);
-                $stmtSem->execute(array_merge($paramsPC, $paramsHV));
+                $stmtSem->execute($paramsSemVisita);
                 $prescritores_sem_visita_periodo = array_map(static function ($row) {
                     return [
                         'prescritor' => (string)($row['prescritor'] ?? ''),
@@ -791,8 +888,37 @@ try {
         // ITENS STATUS (Aprovado vs Recusado)
         // ============================================
         case 'itens_status':
+            $dataDe = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : null;
+            $dataAte = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : null;
+            if ($dataDe === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDe ?? '')) $dataDe = null;
+            if ($dataAte === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAte ?? '')) $dataAte = null;
+            if ($dataDe !== null && $dataAte !== null && $dataDe > $dataAte) $dataAte = $dataDe;
+
             $ano = $_GET['ano'] ?? null;
-            $whereAno = $ano ? "WHERE ano_referencia = :ano" : "";
+            $mes = $_GET['mes'] ?? null;
+            $dia = $_GET['dia'] ?? null;
+            $where = "WHERE 1=1";
+            $params = [];
+
+            if ($dataDe !== null && $dataAte !== null) {
+                $where .= " AND DATE(data) BETWEEN :data_de AND :data_ate";
+                $params['data_de'] = $dataDe;
+                $params['data_ate'] = $dataAte;
+            } else {
+                if ($ano) {
+                    $where .= " AND ano_referencia = :ano";
+                    $params['ano'] = (int)$ano;
+                }
+                if ($mes) {
+                    $where .= " AND MONTH(data) = :mes";
+                    $params['mes'] = (int)$mes;
+                }
+                if ($dia && $ano && $mes) {
+                    $dataFiltro = sprintf('%04d-%02d-%02d', (int)$ano, (int)$mes, (int)$dia);
+                    $where .= " AND DATE(data) = :data_filtro";
+                    $params['data_filtro'] = $dataFiltro;
+                }
+            }
 
             $stmt = $pdo->prepare("
                 SELECT 
@@ -801,12 +927,13 @@ try {
                     SUM(valor_liquido) as valor_total,
                     SUM(valor_bruto) as valor_bruto_total
                 FROM itens_orcamentos_pedidos 
-                $whereAno
+                $where
                 GROUP BY status
                 ORDER BY total DESC
             ");
-            if ($ano)
-                $stmt->bindParam(':ano', $ano, PDO::PARAM_INT);
+            foreach ($params as $k => $v) {
+                $stmt->bindValue(":$k", $v, is_int($v) ? PDO::PARAM_INT : PDO::PARAM_STR);
+            }
             $stmt->execute();
             echo json_encode($stmt->fetchAll(), JSON_UNESCAPED_UNICODE);
             break;
@@ -886,24 +1013,7 @@ try {
                     $stmt->execute();
                     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 }
-                // Se não houver pedidos no período, usar resumo por ano do prescritor_resumido
-                if (empty($rows)) {
-                    $ano = (int)substr($dataAteP, 0, 4);
-                    $stmt = $pdo->prepare("
-                        SELECT
-                            COALESCE(NULLIF(TRIM(profissao), ''), 'Não informada') AS profissao,
-                            COUNT(*) AS total,
-                            SUM(aprovados) AS total_aprovados,
-                            SUM(valor_aprovado) AS valor_total
-                        FROM prescritor_resumido
-                        WHERE ano_referencia = :ano
-                        GROUP BY COALESCE(NULLIF(TRIM(profissao), ''), 'Não informada')
-                        HAVING COALESCE(NULLIF(TRIM(profissao), ''), 'Não informada') != ''
-                        ORDER BY valor_total DESC
-                    ");
-                    $stmt->execute(['ano' => $ano]);
-                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                }
+                // Com data_de/data_ate explícitos, não há fallback anual: vazio = sem pedidos no período (gráfico alinhado ao filtro).
             } else {
                 $ano = $_GET['ano'] ?? date('Y');
                 $stmt = $pdo->prepare("
@@ -938,7 +1048,7 @@ try {
             $whereComp = '';
             $paramsComp = [];
             if ($dataDeComp !== null && $dataAteComp !== null) {
-                $whereComp = ' WHERE DATE(data_aprovacao) BETWEEN :data_de AND :data_ate';
+                $whereComp = ' WHERE (data_aprovacao IS NOT NULL OR data_orcamento IS NOT NULL) AND DATE(COALESCE(data_aprovacao, data_orcamento)) BETWEEN :data_de AND :data_ate';
                 $paramsComp = ['data_de' => $dataDeComp, 'data_ate' => $dataAteComp];
             }
             $stmt = $pdo->prepare("

@@ -9,6 +9,12 @@ let currentYear = '';
 let currentPage = 'dashboard';
 let __csrfToken = '';
 const MAIN_LAST_PAGE_KEY = 'mypharm_main_last_page';
+const ADMIN_PERIOD_DE_KEY = 'mypharm_admin_period_data_de';
+const ADMIN_PERIOD_ATE_KEY = 'mypharm_admin_period_data_ate';
+let __adminFilterChangeTimer = null;
+const MAPA_VISITAS_TRAJ_KEY = 'mypharm_mapa_visitas_show_trajetos';
+const MAPA_VISITAS_PINOS_KEY = 'mypharm_mapa_visitas_show_pinos';
+const SIDEBAR_COLLAPSED_KEY = 'mypharm_sidebar_collapsed';
 
 /** Estado da API de notificações — deve existir antes de qualquer chamada a loadNotificacoesFromAPI (evita TDZ). */
 let __notificacoesApi = [];
@@ -25,10 +31,10 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
-// ============ Chart.js Global Config ============
+// ============ Chart.js Global Config (padrão alinhado ao tema claro até loadSavedTheme ajustar) ============
 if (typeof Chart !== 'undefined') {
-    Chart.defaults.color = '#9CA3B8';
-    Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+    Chart.defaults.color = '#5A6178';
+    Chart.defaults.borderColor = 'rgba(0,0,0,0.06)';
     Chart.defaults.font.family = "'Inter', sans-serif";
     Chart.defaults.font.size = 12;
     Chart.defaults.plugins.legend.labels.usePointStyle = true;
@@ -87,14 +93,32 @@ function parseJsonResponse(text) {
     }
 }
 
+/** Valor do localStorage → tema válido; primeiro acesso ou valor inválido = claro. */
+function resolveMyPharmStoredTheme(raw) {
+    return raw === 'dark' || raw === 'light' ? raw : 'light';
+}
+
+/** Limpa localStorage mantendo mypharm_theme e mypharm_theme_* (última escolha do usuário). */
+function clearLocalStoragePreservingMyPharmTheme() {
+    const backup = {};
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && (k === 'mypharm_theme' || k.startsWith('mypharm_theme_'))) {
+            backup[k] = localStorage.getItem(k);
+        }
+    }
+    localStorage.clear();
+    Object.keys(backup).forEach((key) => localStorage.setItem(key, backup[key]));
+}
+
 async function apiGet(action, params = {}) {
     const query = new URLSearchParams({ action, ...params });
-    const response = await fetch(`${API_URL}?${query}`, { credentials: 'include' });
+    const response = await fetch(`${API_URL}?${query}`, { credentials: 'include', cache: 'no-store' });
     const text = await response.text();
     const data = parseJsonResponse(text);
     if (response.status === 401) {
         if (data && data.error) sessionStorage.setItem('sessionError', data.error);
-        localStorage.clear();
+        clearLocalStoragePreservingMyPharmTheme();
         window.location.href = 'index.html';
         return;
     }
@@ -118,7 +142,7 @@ async function apiPost(action, data = {}) {
     const parsed = parseJsonResponse(text);
     if (response.status === 401) {
         if (parsed && parsed.error) sessionStorage.setItem('sessionError', parsed.error);
-        localStorage.clear();
+        clearLocalStoragePreservingMyPharmTheme();
         window.location.href = 'index.html';
         return;
     }
@@ -398,17 +422,48 @@ function showApp(nome, tipo, fotoPerfil, setorInformado) {
     }
 }
 
+function isValidYmd(s) {
+    return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
+/** Persiste o período do topo (admin) após o usuário alterar as datas. */
+function saveAdminPeriodFilter() {
+    try {
+        const deEl = document.getElementById('dataDeFilter');
+        const ateEl = document.getElementById('dataAteFilter');
+        const de = (deEl && deEl.value) || '';
+        const ate = (ateEl && ateEl.value) || '';
+        if (isValidYmd(de) && isValidYmd(ate) && ate >= de) {
+            localStorage.setItem(ADMIN_PERIOD_DE_KEY, de);
+            localStorage.setItem(ADMIN_PERIOD_ATE_KEY, ate);
+        } else if (!de && !ate) {
+            localStorage.removeItem(ADMIN_PERIOD_DE_KEY);
+            localStorage.removeItem(ADMIN_PERIOD_ATE_KEY);
+        }
+    } catch (e) { /* ignore */ }
+}
+
 function initPeriodFilter() {
     const deEl = document.getElementById('dataDeFilter');
     const ateEl = document.getElementById('dataAteFilter');
     if (!deEl || !ateEl) return;
     const hoje = new Date();
-    const hojeStr = hoje.toISOString().slice(0, 10);
-    // Padrão: primeiro dia do mês até hoje para trazer dados no carregamento
-    const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
-    if (!deEl.value) deEl.value = primeiroDiaMes;
-    if (!ateEl.value) ateEl.value = hojeStr;
-    if (ateEl.value < deEl.value) ateEl.value = deEl.value;
+    const hojeStr = localDateToYmd(hoje);
+    const primeiroDiaMes = localDateToYmd(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+    let de = '';
+    let ate = '';
+    try {
+        de = (localStorage.getItem(ADMIN_PERIOD_DE_KEY) || '').trim();
+        ate = (localStorage.getItem(ADMIN_PERIOD_ATE_KEY) || '').trim();
+    } catch (e) { /* ignore */ }
+    if (isValidYmd(de) && isValidYmd(ate) && ate >= de) {
+        deEl.value = de;
+        ateEl.value = ate;
+    } else {
+        deEl.value = primeiroDiaMes;
+        ateEl.value = hojeStr;
+        if (ateEl.value < deEl.value) ateEl.value = deEl.value;
+    }
 }
 
 function applyAvatarAdmin(initial, fotoUrl) {
@@ -420,7 +475,7 @@ function applyAvatarAdmin(initial, fotoUrl) {
             var url = API_URL + '?action=get_foto_perfil&t=' + Date.now();
             img.src = url;
             img.alt = 'Foto de perfil';
-            img.style.display = '';
+            img.style.display = 'block';
             av.style.display = 'none';
             img.onerror = function () {
                 img.style.display = 'none';
@@ -482,7 +537,8 @@ function setupAvatarUploadAdmin() {
 
 async function doLogout() {
     await apiGet('logout');
-    localStorage.clear();
+    clearLocalStoragePreservingMyPharmTheme();
+    loadSavedTheme();
     const appLayout = document.getElementById('appLayout');
     if (appLayout) appLayout.style.display = 'none';
     const loginPage = document.getElementById('loginPage');
@@ -526,17 +582,164 @@ function navigateTo(page) {
     loadPageData(page);
 }
 
+function hideSidebarFlyoutTooltip() {
+    const tip = document.getElementById('sidebarFlyoutTooltip');
+    if (tip) {
+        tip.classList.remove('is-visible');
+        tip.textContent = '';
+        tip.style.left = '';
+        tip.style.top = '';
+    }
+}
+
+function ensureSidebarFlyoutTooltipEl() {
+    let tip = document.getElementById('sidebarFlyoutTooltip');
+    if (!tip) {
+        tip = document.createElement('div');
+        tip.id = 'sidebarFlyoutTooltip';
+        tip.className = 'sidebar-flyout-tooltip';
+        tip.setAttribute('role', 'tooltip');
+        document.body.appendChild(tip);
+    }
+    return tip;
+}
+
+function showSidebarFlyoutTooltip(text, anchorEl) {
+    if (!text || !anchorEl) {
+        hideSidebarFlyoutTooltip();
+        return;
+    }
+    const tip = ensureSidebarFlyoutTooltipEl();
+    tip.textContent = text;
+    tip.classList.add('is-visible');
+    tip.style.left = '-9999px';
+    tip.style.top = '0';
+    const tw = tip.offsetWidth;
+    const th = tip.offsetHeight;
+    const r = anchorEl.getBoundingClientRect();
+    const margin = 10;
+    let left = r.right + margin;
+    let top = r.top + (r.height - th) / 2;
+    if (left + tw > window.innerWidth - 8) {
+        left = Math.max(8, r.left - tw - margin);
+    }
+    top = Math.max(8, Math.min(top, window.innerHeight - th - 8));
+    tip.style.left = `${Math.round(left)}px`;
+    tip.style.top = `${Math.round(top)}px`;
+}
+
+/** Legendas ao passar o mouse (menu lateral recolhido): tooltip fixo no body, sem cortar por overflow. */
+function initSidebarCollapsedLegends() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar || sidebar.dataset.collapsedLegendsBound === '1') return;
+    sidebar.dataset.collapsedLegendsBound = '1';
+
+    sidebar.querySelectorAll('.nav-item').forEach((a) => {
+        const span = a.querySelector('span');
+        const label = span ? span.textContent.trim() : '';
+        if (label && !a.getAttribute('title')) a.setAttribute('title', label);
+    });
+
+    document.addEventListener(
+        'mouseover',
+        (e) => {
+            const sb = document.getElementById('sidebar');
+            if (!sb || !sb.classList.contains('collapsed')) {
+                hideSidebarFlyoutTooltip();
+                return;
+            }
+            if (!e.target.closest('#sidebar')) {
+                hideSidebarFlyoutTooltip();
+                return;
+            }
+            const brand = e.target.closest('.sidebar-header .sidebar-brand');
+            if (brand && sb.contains(brand)) {
+                showSidebarFlyoutTooltip('MyPharm', brand);
+                return;
+            }
+            const navA = e.target.closest('.sidebar .nav-item');
+            if (navA && sb.contains(navA)) {
+                const sp = navA.querySelector('span');
+                const label = sp ? sp.textContent.trim() : '';
+                if (label) {
+                    showSidebarFlyoutTooltip(label, navA);
+                    return;
+                }
+            }
+            const userRow = e.target.closest('.sidebar-footer .user-info');
+            if (userRow && sb.contains(userRow)) {
+                const n = document.getElementById('userName')?.textContent?.trim() || '';
+                const rol = document.getElementById('userRole')?.textContent?.trim() || '';
+                const t = n && rol ? `${n} · ${rol}` : n || rol;
+                if (t) {
+                    showSidebarFlyoutTooltip(t, userRow);
+                    return;
+                }
+            }
+            hideSidebarFlyoutTooltip();
+        },
+        true
+    );
+
+    sidebar.addEventListener('focusin', (e) => {
+        if (!sidebar.classList.contains('collapsed')) return;
+        const a = e.target.closest('.nav-item');
+        if (!a) return;
+        const sp = a.querySelector('span');
+        const label = sp ? sp.textContent.trim() : '';
+        if (label) showSidebarFlyoutTooltip(label, a);
+    });
+    sidebar.addEventListener('focusout', () => {
+        setTimeout(() => {
+            if (!sidebar.contains(document.activeElement)) hideSidebarFlyoutTooltip();
+        }, 0);
+    });
+}
+
+function syncSidebarToggleUi() {
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebarToggle');
+    if (!sidebar || !toggle) return;
+    const icon = toggle.querySelector('i');
+    const collapsed = sidebar.classList.contains('collapsed');
+    if (icon) {
+        icon.className = collapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+    }
+    toggle.setAttribute('aria-label', collapsed ? 'Expandir menu' : 'Recolher menu');
+}
+
+/** Desktop: padrão recolhido; preferência salva em localStorage (0 = expandido, 1 ou ausente = recolhido). */
+function initSidebarCollapsedPreference() {
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebarToggle');
+    if (!sidebar || !toggle) return;
+    if (window.innerWidth <= 768) {
+        sidebar.classList.remove('collapsed');
+        syncSidebarToggleUi();
+        return;
+    }
+    try {
+        const v = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+        if (v === '0') sidebar.classList.remove('collapsed');
+        else sidebar.classList.add('collapsed');
+    } catch (e) {
+        sidebar.classList.add('collapsed');
+    }
+    if (!sidebar.classList.contains('collapsed')) hideSidebarFlyoutTooltip();
+    syncSidebarToggleUi();
+}
+
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const toggle = document.getElementById('sidebarToggle');
     if (!sidebar || !toggle) return;
     if (window.innerWidth <= 768) return; // No mobile, usar toggleMobileSidebar
     sidebar.classList.toggle('collapsed');
-    const icon = toggle.querySelector('i');
-    if (icon) {
-        icon.className = sidebar.classList.contains('collapsed') ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
-    }
-    toggle.setAttribute('aria-label', sidebar.classList.contains('collapsed') ? 'Expandir menu' : 'Recolher menu');
+    if (!sidebar.classList.contains('collapsed')) hideSidebarFlyoutTooltip();
+    syncSidebarToggleUi();
+    try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, sidebar.classList.contains('collapsed') ? '1' : '0');
+    } catch (e) { /* ignore */ }
 }
 
 function toggleMobileSidebar() {
@@ -558,6 +761,7 @@ function closeMobileSidebar() {
     sidebar.classList.remove('open');
     overlay.classList.remove('visible');
     btn.querySelector('i').className = 'fas fa-bars';
+    hideSidebarFlyoutTooltip();
 }
 
 async function loadYears() {
@@ -570,12 +774,19 @@ async function loadYears() {
     });
 }
 
+function localDateToYmd(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
 function getFilterParams() {
     const deEl = document.getElementById('dataDeFilter');
     const ateEl = document.getElementById('dataAteFilter');
     const hoje = new Date();
-    const hojeStr = hoje.toISOString().slice(0, 10);
-    const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
+    const hojeStr = localDateToYmd(hoje);
+    const primeiroDiaMes = localDateToYmd(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
     const dataDe = deEl?.value || primeiroDiaMes;
     let dataAte = ateEl?.value || hojeStr;
     if (dataAte < dataDe) dataAte = dataDe;
@@ -587,7 +798,12 @@ function onFilterChange() {
     const deEl = document.getElementById('dataDeFilter');
     if (ateEl && deEl && ateEl.value && deEl.value && ateEl.value < deEl.value) ateEl.value = deEl.value;
     currentYear = deEl?.value ? deEl.value.slice(0, 4) : '';
-    loadPageData(currentPage);
+    saveAdminPeriodFilter();
+    if (__adminFilterChangeTimer) clearTimeout(__adminFilterChangeTimer);
+    __adminFilterChangeTimer = setTimeout(() => {
+        __adminFilterChangeTimer = null;
+        loadPageData(currentPage);
+    }, 280);
 }
 
 function refreshData() {
@@ -1021,8 +1237,14 @@ function renderChartFormas(data) {
         },
         options: {
             cutout: '60%',
+            layout: {
+                padding: { top: 4, bottom: 4, left: 4, right: 4 }
+            },
             plugins: {
-                legend: { position: 'right', labels: { font: { size: 11 } } },
+                legend: {
+                    position: 'bottom',
+                    labels: { font: { size: 11 }, boxWidth: 10, padding: 10, usePointStyle: true }
+                },
                 tooltip: {
                     callbacks: {
                         label: ctx => {
@@ -1298,6 +1520,26 @@ async function loadVisitadoresPage() {
 
 // ============ VISITAS (PÁGINA ADMIN) ============
 const VISITAS_VISITADOR_FILTER_KEY = 'mypharm_visitas_visitador_filter';
+const VISITAS_TABLE_SORT_KEYS = ['visitador', 'prescritor', 'data_visita', 'inicio', 'fim', 'duracao', 'status', 'local', 'reagend'];
+
+let __visitasTableState = {
+    lista: [],
+    sortKey: 'data_visita',
+    sortDir: 'desc',
+    page: 1,
+    pageSize: 15
+};
+
+const ROTAS_DET_SORT_KEYS = ['visitador', 'data_inicio', 'data_fim', 'status', 'km', 'pontos'];
+
+let __rotasDetalhesTableState = {
+    lista: [],
+    sortKey: 'data_inicio',
+    sortDir: 'desc',
+    page: 1,
+    pageSize: 15
+};
+
 let __visitasRelatorioCache = null;
 let __visitasSemVisitaRowsCache = [];
 let __modalDetalheVisitaAdminMap = null;
@@ -1348,6 +1590,224 @@ function onVisitasGlobalVisitadorChange() {
 }
 window.onVisitasGlobalVisitadorChange = onVisitasGlobalVisitadorChange;
 
+function initVisitasTableControlsOnce() {
+    const page = document.getElementById('page-visitas');
+    if (!page || page.dataset.visitasTableBound === '1') return;
+    page.dataset.visitasTableBound = '1';
+    const thead = document.querySelector('#tableVisitasPage thead');
+    if (thead) {
+        thead.addEventListener('click', (e) => {
+            const th = e.target.closest('th[data-sort]');
+            if (!th) return;
+            visitasTableSetSort(th.getAttribute('data-sort'));
+        });
+    }
+    const sel = document.getElementById('visitasPageSizeSelect');
+    if (sel) {
+        sel.addEventListener('change', () => {
+            visitasTableSetPageSize(parseInt(sel.value, 10) || 15);
+        });
+    }
+}
+
+function visitaComparableForSort(v, key) {
+    const row = v || {};
+    switch (key) {
+        case 'visitador':
+            return String(row.visitador || '').toLowerCase();
+        case 'prescritor':
+            return String(row.prescritor || '').toLowerCase();
+        case 'data_visita':
+            return String(row.data_visita || '');
+        case 'inicio':
+            return String(row.inicio_visita || '').replace('T', ' ');
+        case 'fim':
+            return String(row.horario || '');
+        case 'duracao': {
+            const n = parseInt(row.duracao_minutos, 10);
+            return Number.isFinite(n) ? n : -1;
+        }
+        case 'status':
+            return String(row.status_visita || '').toLowerCase();
+        case 'local':
+            return String(row.local_visita || '').toLowerCase();
+        case 'reagend':
+            return String(row.reagendado_para || '');
+        default:
+            return '';
+    }
+}
+
+function visitasTableSortedCopy(lista, sortKey, sortDir) {
+    const arr = lista.slice();
+    const mul = sortDir === 'asc' ? 1 : -1;
+    arr.sort((a, b) => {
+        const va = visitaComparableForSort(a, sortKey);
+        const vb = visitaComparableForSort(b, sortKey);
+        let cmp = 0;
+        if (typeof va === 'number' && typeof vb === 'number') {
+            if (va !== vb) cmp = va < vb ? -1 : 1;
+        } else {
+            cmp = String(va).localeCompare(String(vb), 'pt-BR', { numeric: true, sensitivity: 'base' });
+        }
+        if (cmp !== 0) return cmp * mul;
+        return (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0);
+    });
+    return arr;
+}
+
+function updateVisitasTableSortHeaders(activeKey, dir) {
+    document.querySelectorAll('#tableVisitasPage thead th[data-sort]').forEach((th) => {
+        th.classList.remove('sorted-asc', 'sorted-desc');
+        if (th.getAttribute('data-sort') === activeKey) {
+            th.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        }
+    });
+}
+
+function visitasTableSetSort(key) {
+    if (!key || !VISITAS_TABLE_SORT_KEYS.includes(key)) return;
+    if (__visitasTableState.sortKey === key) {
+        __visitasTableState.sortDir = __visitasTableState.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        __visitasTableState.sortKey = key;
+        const descFirst = key === 'data_visita' || key === 'inicio' || key === 'fim' || key === 'duracao' || key === 'reagend';
+        __visitasTableState.sortDir = descFirst ? 'desc' : 'asc';
+    }
+    __visitasTableState.page = 1;
+    renderVisitasTableView();
+}
+
+function visitasTableSetPageSize(n) {
+    const sizes = [10, 15, 25, 50, 100];
+    const v = sizes.includes(n) ? n : 15;
+    __visitasTableState.pageSize = v;
+    __visitasTableState.page = 1;
+    const sel = document.getElementById('visitasPageSizeSelect');
+    if (sel) sel.value = String(v);
+    renderVisitasTableView();
+}
+
+function visitasTablePrevPage() {
+    if (__visitasTableState.page > 1) {
+        __visitasTableState.page--;
+        renderVisitasTableView();
+    }
+}
+
+function visitasTableNextPage() {
+    const { lista, pageSize, sortKey, sortDir } = __visitasTableState;
+    const sorted = visitasTableSortedCopy(lista, sortKey, sortDir);
+    const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+    if (__visitasTableState.page < totalPages) {
+        __visitasTableState.page++;
+        renderVisitasTableView();
+    }
+}
+
+function renderVisitasTableView() {
+    const tbody = document.querySelector('#tableVisitasPage tbody');
+    const emptyEl = document.getElementById('visitasPageEmpty');
+    const pagerEl = document.getElementById('visitasTablePager');
+    if (!tbody) return;
+
+    const { lista, sortKey, sortDir, page, pageSize } = __visitasTableState;
+    updateVisitasTableSortHeaders(sortKey, sortDir);
+
+    if (!Array.isArray(lista) || lista.length === 0) {
+        tbody.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'block';
+        if (pagerEl) pagerEl.style.display = 'none';
+        return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    const formatDate = (d) => {
+        if (!d) return '—';
+        const dt = new Date(d);
+        return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('pt-BR');
+    };
+    const formatTime = (h) => (h ? String(h).slice(0, 5) : '—');
+    const formatInicio = (iv) => {
+        if (!iv) return '—';
+        const s = String(iv).trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(s) && s.length >= 16) return s.slice(11, 16);
+        if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(11, 16);
+        return s.slice(0, 5) || '—';
+    };
+    const formatDuracao = (min) => {
+        if (min == null || min === '' || isNaN(parseInt(min, 10))) return '—';
+        const m = parseInt(min, 10);
+        if (m < 60) return m + ' min';
+        const h = Math.floor(m / 60);
+        const rest = m % 60;
+        return rest ? h + 'h ' + rest + 'min' : h + 'h';
+    };
+    const formatReagend = (r) => {
+        if (!r || !String(r).trim()) return '—';
+        const s = String(r).trim();
+        const match = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{1,2}):(\d{2})?)?/);
+        if (match) {
+            const [, y, mo, d, h, mi] = match;
+            const dt = new Date(parseInt(y, 10), parseInt(mo, 10) - 1, parseInt(d, 10), h ? parseInt(h, 10) : 0, mi ? parseInt(mi, 10) : 0);
+            return isNaN(dt.getTime()) ? s : dt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: h ? 'short' : undefined });
+        }
+        return s;
+    };
+    const truncate = (str, max) => {
+        const s = (str || '').trim();
+        if (!s) return '—';
+        return s.length <= max ? s : s.slice(0, max) + '…';
+    };
+
+    const sorted = visitasTableSortedCopy(lista, sortKey, sortDir);
+    const total = sorted.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    let p = Math.min(Math.max(1, page), totalPages);
+    if (p !== __visitasTableState.page) __visitasTableState.page = p;
+    const start = (p - 1) * pageSize;
+    const slice = sorted.slice(start, start + pageSize);
+
+    tbody.innerHTML = slice.map((v, i) => `
+        <tr>
+            <td>${start + i + 1}</td>
+            <td>${escapeHtml((v.visitador || '—').trim())}</td>
+            <td>${escapeHtml((v.prescritor || '—').trim())}</td>
+            <td>${formatDate(v.data_visita)}</td>
+            <td>${formatInicio(v.inicio_visita)}</td>
+            <td>${formatTime(v.horario)}</td>
+            <td>${formatDuracao(v.duracao_minutos)}</td>
+            <td>${escapeHtml((v.status_visita || '—').trim())}</td>
+            <td title="${(v.local_visita || '').replace(/"/g, '&quot;')}">${escapeHtml(truncate(v.local_visita, 35))}</td>
+            <td>${escapeHtml(formatReagend(v.reagendado_para))}</td>
+            <td>
+                <button type="button"
+                    onclick="openModalDetalheVisitaAdmin(${parseInt(v.id || 0, 10)}, '${String(v.visitador || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')"
+                    style="border:1px solid var(--border); background:var(--bg-card); color:var(--primary); border-radius:8px; padding:4px 8px; cursor:pointer; font-size:0.8rem;"
+                    title="Ver relatório da visita">
+                    <i class="fas fa-clipboard-list"></i> Ver
+                </button>
+            </td>
+        </tr>
+    `).join('');
+
+    if (pagerEl) {
+        pagerEl.style.display = 'flex';
+        const info = document.getElementById('visitasPagerInfo');
+        const meta = document.getElementById('visitasPagerMeta');
+        const prev = document.getElementById('visitasPagerPrev');
+        const next = document.getElementById('visitasPagerNext');
+        if (info) {
+            info.textContent = total === 0
+                ? 'Nenhuma visita'
+                : `Exibindo ${start + 1}–${Math.min(start + pageSize, total)} de ${total} visita(s)`;
+        }
+        if (meta) meta.textContent = `Pág. ${p} / ${totalPages}`;
+        if (prev) prev.disabled = p <= 1;
+        if (next) next.disabled = p >= totalPages;
+    }
+}
+
 function initVisitasGestaoFiltersOnce() {
     const page = document.getElementById('page-visitas');
     if (!page || page.dataset.gestaoFilterBound === '1') return;
@@ -1365,8 +1825,54 @@ function initVisitasGestaoFiltersOnce() {
     }
 }
 
+function mapaVisitasShowTrajetos() {
+    try {
+        return localStorage.getItem(MAPA_VISITAS_TRAJ_KEY) === '1';
+    } catch (e) {
+        return false;
+    }
+}
+
+function mapaVisitasShowPinos() {
+    try {
+        return localStorage.getItem(MAPA_VISITAS_PINOS_KEY) !== '0';
+    } catch (e) {
+        return true;
+    }
+}
+
+/** Preferências do mapa de visitas (legenda): uma vez por sessão da página. */
+function initMapaVisitasMapControlsOnce() {
+    const page = document.getElementById('page-visitas');
+    if (!page || page.dataset.mapVisitasControlsBound === '1') return;
+    page.dataset.mapVisitasControlsBound = '1';
+    const traj = document.getElementById('mapaVisitasToggleTrajetos');
+    const pinos = document.getElementById('mapaVisitasTogglePinos');
+    if (traj) {
+        traj.checked = mapaVisitasShowTrajetos();
+        traj.addEventListener('change', () => {
+            try {
+                localStorage.setItem(MAPA_VISITAS_TRAJ_KEY, traj.checked ? '1' : '0');
+            } catch (e) { /* ignore */ }
+            renderMapaRotasFromStore();
+        });
+    }
+    if (pinos) {
+        pinos.checked = mapaVisitasShowPinos();
+        pinos.addEventListener('change', () => {
+            try {
+                localStorage.setItem(MAPA_VISITAS_PINOS_KEY, pinos.checked ? '1' : '0');
+            } catch (e) { /* ignore */ }
+            renderMapaRotasFromStore();
+        });
+    }
+}
+
 async function loadVisitasPage() {
     initVisitasGestaoFiltersOnce();
+    initVisitasTableControlsOnce();
+    initRotasDetalhesTableControlsOnce();
+    initMapaVisitasMapControlsOnce();
     await ensureVisitasGlobalVisitadorSelect();
     const fp = getFilterParams();
     const params = { data_de: fp.data_de, data_ate: fp.data_ate };
@@ -1413,10 +1919,27 @@ function renderVisitasKPIs(totais, totalKm) {
     const elPresc = document.getElementById('visitasKpiPrescritores');
     const elSemana = document.getElementById('visitasKpiSemana');
     const elKm = document.getElementById('visitasKpiKm');
+    const elCarteira = document.getElementById('visitasKpiCarteiraTotal');
+    const elSemVisita = document.getElementById('visitasKpiSemVisitaPeriodo');
+    const elPctVis = document.getElementById('visitasKpiPctVisitadosCarteira');
+    const elPctNao = document.getElementById('visitasKpiPctNaoVisitadosCarteira');
     if (elPeriodo) elPeriodo.textContent = formatNumber(totais.total_visitas_periodo ?? 0);
     if (elPresc) elPresc.textContent = formatNumber(totais.prescritores_distintos_visitados ?? 0);
     if (elSemana) elSemana.textContent = formatNumber(totais.total_visitas_semana_atual ?? 0);
     if (elKm) elKm.textContent = (totalKm > 0 ? totalKm.toFixed(1) : '0');
+    const carteira = Math.max(0, parseInt(String(totais.prescritores_carteira_total ?? 0), 10) || 0);
+    const semVisita = Math.max(0, parseInt(String(totais.prescritores_sem_visita_count ?? 0), 10) || 0);
+    const visitadosCarteira = Math.max(0, carteira - semVisita);
+    let pctVis = 0;
+    let pctNao = 0;
+    if (carteira > 0) {
+        pctNao = Math.round((100 * semVisita) / carteira * 10) / 10;
+        pctVis = Math.round((100 * visitadosCarteira) / carteira * 10) / 10;
+    }
+    if (elCarteira) elCarteira.textContent = formatNumber(carteira);
+    if (elSemVisita) elSemVisita.textContent = formatNumber(semVisita);
+    if (elPctVis) elPctVis.textContent = `${pctVis.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}%`;
+    if (elPctNao) elPctNao.textContent = `${pctNao.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}%`;
 }
 
 function renderPrescritoresMaisVisitados(rows) {
@@ -1508,31 +2031,244 @@ function renderVisitasPorVisitador(por_visitador) {
     `).join('');
 }
 
-function renderRotasDetalhes(rotas) {
+function initRotasDetalhesTableControlsOnce() {
+    const page = document.getElementById('page-visitas');
+    if (!page || page.dataset.rotasDetTableBound === '1') return;
+    page.dataset.rotasDetTableBound = '1';
+    const thead = document.querySelector('#tableRotasDetalhes thead');
+    if (thead) {
+        thead.addEventListener('click', (e) => {
+            const th = e.target.closest('th[data-sort]');
+            if (!th) return;
+            rotasDetalhesTableSetSort(th.getAttribute('data-sort'));
+        });
+    }
+    const sel = document.getElementById('rotasDetalhesPageSizeSelect');
+    if (sel) {
+        sel.addEventListener('change', () => {
+            rotasDetalhesTableSetPageSize(parseInt(sel.value, 10) || 15);
+        });
+    }
+}
+
+function rotaDetDateMs(val) {
+    if (val == null || val === '') return 0;
+    const t = new Date(val).getTime();
+    return Number.isFinite(t) ? t : 0;
+}
+
+function rotasDetComparableForSort(r, key) {
+    const row = r || {};
+    switch (key) {
+        case 'visitador':
+            return String(row.visitador_nome || '').toLowerCase();
+        case 'data_inicio':
+            return rotaDetDateMs(row.data_inicio);
+        case 'data_fim':
+            return rotaDetDateMs(row.data_fim);
+        case 'status':
+            return String(row.status || '').toLowerCase();
+        case 'km': {
+            const x = parseFloat(row.km);
+            return Number.isFinite(x) ? x : 0;
+        }
+        case 'pontos': {
+            const n = parseInt(row.qtd_pontos, 10);
+            return Number.isFinite(n) ? n : 0;
+        }
+        default:
+            return '';
+    }
+}
+
+function rotasDetTableSortedCopy(lista, sortKey, sortDir) {
+    const arr = lista.slice();
+    const mul = sortDir === 'asc' ? 1 : -1;
+    arr.sort((a, b) => {
+        const va = rotasDetComparableForSort(a, sortKey);
+        const vb = rotasDetComparableForSort(b, sortKey);
+        let cmp = 0;
+        if (typeof va === 'number' && typeof vb === 'number') {
+            if (va !== vb) cmp = va < vb ? -1 : 1;
+        } else {
+            cmp = String(va).localeCompare(String(vb), 'pt-BR', { numeric: true, sensitivity: 'base' });
+        }
+        if (cmp !== 0) return cmp * mul;
+        return (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0);
+    });
+    return arr;
+}
+
+function updateRotasDetalhesSortHeaders(activeKey, dir) {
+    document.querySelectorAll('#tableRotasDetalhes thead th[data-sort]').forEach((th) => {
+        th.classList.remove('sorted-asc', 'sorted-desc');
+        if (th.getAttribute('data-sort') === activeKey) {
+            th.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        }
+    });
+}
+
+function rotasDetalhesTableSetSort(key) {
+    if (!key || !ROTAS_DET_SORT_KEYS.includes(key)) return;
+    if (__rotasDetalhesTableState.sortKey === key) {
+        __rotasDetalhesTableState.sortDir = __rotasDetalhesTableState.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        __rotasDetalhesTableState.sortKey = key;
+        const descFirst = key === 'data_inicio' || key === 'data_fim' || key === 'km' || key === 'pontos';
+        __rotasDetalhesTableState.sortDir = descFirst ? 'desc' : 'asc';
+    }
+    __rotasDetalhesTableState.page = 1;
+    renderRotasDetalhesView();
+}
+
+function rotasDetalhesTableSetPageSize(n) {
+    const sizes = [10, 15, 25, 50];
+    const v = sizes.includes(n) ? n : 15;
+    __rotasDetalhesTableState.pageSize = v;
+    __rotasDetalhesTableState.page = 1;
+    const sel = document.getElementById('rotasDetalhesPageSizeSelect');
+    if (sel) sel.value = String(v);
+    renderRotasDetalhesView();
+}
+
+function rotasDetalhesTablePrevPage() {
+    if (__rotasDetalhesTableState.page > 1) {
+        __rotasDetalhesTableState.page--;
+        renderRotasDetalhesView();
+    }
+}
+
+function rotasDetalhesTableNextPage() {
+    const { lista, pageSize, sortKey, sortDir } = __rotasDetalhesTableState;
+    const sorted = rotasDetTableSortedCopy(lista, sortKey, sortDir);
+    const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+    if (__rotasDetalhesTableState.page < totalPages) {
+        __rotasDetalhesTableState.page++;
+        renderRotasDetalhesView();
+    }
+}
+
+function renderRotasDetalhesView() {
     const tbody = document.querySelector('#tableRotasDetalhes tbody');
     const emptyEl = document.getElementById('rotasDetalhesEmpty');
+    const pagerEl = document.getElementById('rotasDetalhesPager');
     if (!tbody) return;
-    if (emptyEl) emptyEl.style.display = 'none';
-    if (!Array.isArray(rotas) || rotas.length === 0) {
+
+    const { lista, page, pageSize } = __rotasDetalhesTableState;
+    let sortKey = __rotasDetalhesTableState.sortKey;
+    let sortDir = __rotasDetalhesTableState.sortDir;
+    if (!ROTAS_DET_SORT_KEYS.includes(sortKey)) {
+        sortKey = 'data_inicio';
+        sortDir = 'desc';
+        __rotasDetalhesTableState.sortKey = sortKey;
+        __rotasDetalhesTableState.sortDir = sortDir;
+    }
+    updateRotasDetalhesSortHeaders(sortKey, sortDir);
+
+    if (!Array.isArray(lista) || lista.length === 0) {
         tbody.innerHTML = '';
         if (emptyEl) emptyEl.style.display = 'block';
+        if (pagerEl) pagerEl.style.display = 'none';
         return;
     }
+    if (emptyEl) emptyEl.style.display = 'none';
+
     const fmtDt = (d) => {
         if (!d) return '—';
         const dt = new Date(d);
-        return isNaN(dt.getTime()) ? d : dt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+        return isNaN(dt.getTime()) ? String(d) : dt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
     };
-    tbody.innerHTML = rotas.map(r => `
+
+    const sorted = rotasDetTableSortedCopy(lista, sortKey, sortDir);
+    const total = sorted.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    let p = Math.min(Math.max(1, page), totalPages);
+    if (p !== __rotasDetalhesTableState.page) __rotasDetalhesTableState.page = p;
+    const start = (p - 1) * pageSize;
+    const slice = sorted.slice(start, start + pageSize);
+
+    tbody.innerHTML = slice.map((r, i) => {
+        const isFin = String(r.status || '').toLowerCase().trim() === 'finalizada';
+        const endIni = escapeHtml(String(r.local_inicio_endereco || '—').trim()) || '—';
+        const colFim = isFin ? fmtDt(r.data_fim) : '—';
+        const endFim = isFin ? (escapeHtml(String(r.local_fim_endereco || '—').trim()) || '—') : '—';
+        return `
         <tr>
-            <td>${escapeHtml(r.visitador_nome || '—')}</td>
+            <td>${start + i + 1}</td>
+            <td>${escapeHtml((r.visitador_nome || '—').trim())}</td>
             <td>${fmtDt(r.data_inicio)}</td>
-            <td>${fmtDt(r.data_fim)}</td>
-            <td>${escapeHtml(r.status || '—')}</td>
-            <td>${(r.km ?? 0).toFixed(1)} km</td>
+            <td class="td-rota-endereco">${endIni}</td>
+            <td>${colFim}</td>
+            <td class="td-rota-endereco">${endFim}</td>
+            <td>${escapeHtml((r.status || '—').trim())}</td>
+            <td>${(parseFloat(r.km) || 0).toFixed(1)} km</td>
             <td>${formatNumber(r.qtd_pontos ?? 0)}</td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
+
+    if (pagerEl) {
+        pagerEl.style.display = 'flex';
+        const info = document.getElementById('rotasDetalhesPagerInfo');
+        const meta = document.getElementById('rotasDetalhesPagerMeta');
+        const prev = document.getElementById('rotasDetalhesPagerPrev');
+        const next = document.getElementById('rotasDetalhesPagerNext');
+        if (info) {
+            info.textContent = total === 0
+                ? 'Nenhuma rota'
+                : `Exibindo ${start + 1}–${Math.min(start + pageSize, total)} de ${total} rota(s)`;
+        }
+        if (meta) meta.textContent = `Pág. ${p} / ${totalPages}`;
+        if (prev) prev.disabled = p <= 1;
+        if (next) next.disabled = p >= totalPages;
+    }
+}
+
+function renderRotasDetalhes(rotas) {
+    __rotasDetalhesTableState.lista = Array.isArray(rotas) ? rotas.slice() : [];
+    const sel = document.getElementById('rotasDetalhesPageSizeSelect');
+    if (sel) {
+        const n = parseInt(sel.value, 10);
+        if ([10, 15, 25, 50].includes(n)) __rotasDetalhesTableState.pageSize = n;
+    }
+    __rotasDetalhesTableState.page = 1;
+    renderRotasDetalhesView();
+}
+
+window.rotasDetalhesTablePrevPage = rotasDetalhesTablePrevPage;
+window.rotasDetalhesTableNextPage = rotasDetalhesTableNextPage;
+
+/**
+ * Agrega pontos para mapa de calor: visitas (peso maior) + amostra dos trajetos de rota.
+ * Retorna { points: [lat, lng, intensity], max } para L.heatLayer.
+ */
+function buildVisitasHeatData(pontos_rotasFiltered, pontosAtendimento) {
+    const cell = new Map();
+    const add = (lat, lng, w) => {
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) || w <= 0) return;
+        const k = lat.toFixed(4) + ',' + lng.toFixed(4);
+        cell.set(k, (cell.get(k) || 0) + w);
+    };
+    (pontosAtendimento || []).forEach(pa => {
+        const lat = parseFloat(pa.lat);
+        const lng = parseFloat(pa.lng);
+        add(lat, lng, 3.5);
+    });
+    (pontos_rotasFiltered || []).forEach(pr => {
+        const pts = (pr.pontos || []).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+        if (pts.length === 0) return;
+        const step = Math.max(1, Math.ceil(pts.length / 1500));
+        for (let i = 0; i < pts.length; i += step) {
+            add(pts[i].lat, pts[i].lng, 0.15);
+        }
+    });
+    const points = [];
+    let max = 0;
+    cell.forEach((intensity, k) => {
+        const [la, ln] = k.split(',').map(Number);
+        points.push([la, ln, intensity]);
+        if (intensity > max) max = intensity;
+    });
+    return { points, max: max > 0 ? max : 1 };
 }
 
 /** Recarrega o mapa a partir do cache (ex.: após redimensionar). Usa filtro global de visitador nos dados já carregados. */
@@ -1545,6 +2281,92 @@ function renderMapaRotasFromStore() {
 
 let __mapaRotasVisitasInstance = null;
 
+/** Marcador circular A/B na cor do trajeto (Leaflet divIcon). */
+function __mapaRotaExtremoIcon(letter, colorHex) {
+    const c = String(colorHex || '#2563EB');
+    return L.divIcon({
+        className: 'mapa-rota-extremo-icon',
+        html: `<span style="background:${c};color:#fff;font-weight:800;font-size:11px;line-height:22px;width:22px;height:22px;display:block;text-align:center;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4);">${letter}</span>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+    });
+}
+
+/** Último ping GPS em rota em andamento / pausada (mapa admin). */
+function __mapaPosicaoAtualIcon() {
+    return L.divIcon({
+        className: 'mapa-posicao-atual-div',
+        html: '<div class="mapa-posicao-atual-pulse" aria-hidden="true"></div>',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+    });
+}
+
+function __fmtMapaRotaDateTime(iso) {
+    if (!iso) return { data: '—', hora: '—' };
+    const raw = String(iso).trim();
+    const normalized = raw.includes('T') ? raw : raw.replace(/^(\d{4}-\d{2}-\d{2})\s+/, '$1T');
+    const d = new Date(normalized);
+    if (isNaN(d.getTime())) return { data: '—', hora: '—' };
+    return {
+        data: d.toLocaleDateString('pt-BR'),
+        hora: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    };
+}
+
+function __mapaRotaExtremoPopupHtml(titulo, meta, endereco, dataIso) {
+    let dataStr = '—';
+    let horaStr = '—';
+    if (dataIso) {
+        const raw = String(dataIso).trim();
+        const normalized = raw.includes('T') ? raw : raw.replace(/^(\d{4}-\d{2}-\d{2})\s+/, '$1T');
+        const d = new Date(normalized);
+        if (!isNaN(d.getTime())) {
+            dataStr = d.toLocaleDateString('pt-BR');
+            horaStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        }
+    }
+    const end = escapeHtml(String(endereco || '—').trim()) || '—';
+    return `<div class="mapa-rotas-ext-popup" style="min-width:220px;font-size:0.82rem;line-height:1.35;">
+        <div style="font-weight:800;margin-bottom:6px;color:var(--text-primary,#0f172a);">${escapeHtml(titulo)} — ${escapeHtml(meta)}</div>
+        <div style="color:var(--text-secondary,#64748b);margin-bottom:4px;"><strong>Endereço:</strong> ${end}</div>
+        <div style="color:var(--text-secondary,#64748b);"><strong>Data:</strong> ${dataStr} &nbsp; <strong>Horário:</strong> ${horaStr}</div>
+    </div>`;
+}
+
+/** Popup de um ponto de visita (prescritor) no mapa admin Visitas. */
+function __mapaAtendimentoPopupHtml(pa) {
+    const dataFmt = pa.data_visita ? new Date(pa.data_visita + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+    const horario = (pa.horario || '').slice(0, 5) || '—';
+    const local = (pa.local_visita || '').trim() || '—';
+    const prescritor = (pa.prescritor || '—').trim();
+    const visitadorNome = (pa.visitador_nome || '').trim();
+    const status = (pa.status_visita || '').trim();
+    return `<div class="mapa-rotas-popup-inner" style="min-width:200px;font-family:inherit;">
+            <strong style="font-size:0.95rem;color:var(--text-primary, #0f172a);">${escapeHtml(prescritor)}</strong>
+            <div style="margin-top:6px;font-size:0.8rem;color:var(--text-secondary, #64748b);">
+                <div><i class="far fa-calendar" style="width:14px;"></i> ${dataFmt} ${horario !== '—' ? ' · ' + horario : ''}</div>
+                ${visitadorNome ? `<div><i class="fas fa-user" style="width:14px;"></i> ${escapeHtml(visitadorNome)}</div>` : ''}
+                ${local !== '—' ? `<div><i class="fas fa-map-pin" style="width:14px;"></i> ${escapeHtml(local)}</div>` : ''}
+                ${status ? `<div><span style="background:#e8f5e9;color:#2e7d32;padding:2px 6px;border-radius:4px;font-size:0.75rem;">${escapeHtml(status)}</span></div>` : ''}
+            </div>
+        </div>`;
+}
+
+/** Agrupa por coordenada arredondada (fallback quando MarkerCluster não carregar). */
+function __groupAtendimentoPorCoordenada(atendimentoArr) {
+    const map = new Map();
+    (atendimentoArr || []).forEach((pa) => {
+        const lat = parseFloat(pa.lat);
+        const lng = parseFloat(pa.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        const k = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+        if (!map.has(k)) map.set(k, []);
+        map.get(k).push({ pa, lat, lng });
+    });
+    return map;
+}
+
 function renderMapaRotas(pontos_rotas, visitadorSelecionado, pontos_atendimento) {
     const container = document.getElementById('mapaRotasVisitas');
     const emptyEl = document.getElementById('mapaRotasEmpty');
@@ -1553,13 +2375,22 @@ function renderMapaRotas(pontos_rotas, visitadorSelecionado, pontos_atendimento)
     const filtered = visitadorSelecionado
         ? (pontos_rotas || []).filter(pr => (pr.visitador_nome || '') === visitadorSelecionado)
         : (pontos_rotas || []);
-    const temRotas = filtered.length > 0 && filtered.some(pr => (pr.pontos || []).length >= 2);
     const atendimento = (pontos_atendimento || []).filter(pa =>
         Number.isFinite(parseFloat(pa.lat)) && Number.isFinite(parseFloat(pa.lng)) &&
         (!visitadorSelecionado || (pa.visitador_nome || '') === visitadorSelecionado)
     );
     const temAtendimento = atendimento.length > 0;
-    if (!temRotas && !temAtendimento) {
+    const showTrajetos = mapaVisitasShowTrajetos();
+    const showPinos = mapaVisitasShowPinos();
+    const { points: heatPts, max: heatMax } = buildVisitasHeatData(filtered, atendimento);
+    const temHeat = heatPts.length > 0;
+    const temRotasLinha = filtered.some(pr => (pr.pontos || []).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng)).length >= 1);
+    const temPosicaoAtual = filtered.some((pr) => {
+        const p = pr.posicao_atual;
+        return p && Number.isFinite(parseFloat(p.lat)) && Number.isFinite(parseFloat(p.lng));
+    });
+    const temAlgoNoMapa = temHeat || temAtendimento || (showTrajetos && temRotasLinha) || temPosicaoAtual;
+    if (!temAlgoNoMapa) {
         if (__mapaRotasVisitasInstance) {
             __mapaRotasVisitasInstance.remove();
             __mapaRotasVisitasInstance = null;
@@ -1577,123 +2408,164 @@ function renderMapaRotas(pontos_rotas, visitadorSelecionado, pontos_atendimento)
     }
     const colors = ['#2563EB', '#059669', '#D97706', '#DC2626', '#7C3AED', '#DB2777'];
     const map = L.map(container, { zoomControl: true }).setView([-8.76, -63.90], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
     __mapaRotasVisitasInstance = map;
     let bounds = null;
-    filtered.forEach((pr, idx) => {
-        const pts = (pr.pontos || []).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
-        if (pts.length < 2) return;
-        const latlngs = pts.map(p => [p.lat, p.lng]);
-        const color = colors[idx % colors.length];
-        const polyline = L.polyline(latlngs, { color, weight: 4, opacity: 0.8 }).addTo(map);
-        polyline.bindTooltip(pr.visitador_nome || 'Rota ' + (pr.rota_id || ''), { permanent: false });
-        if (!bounds) bounds = L.latLngBounds(latlngs);
-        else bounds.extend(latlngs);
-    });
-    const iconAtendimento = L.divIcon({
-        className: '',
-        html: '<div style="font-size:30px; line-height:1; color:#E63946; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));"><i class="fas fa-location-dot"></i></div>',
-        iconSize: [30, 36],
-        iconAnchor: [15, 34],
-        popupAnchor: [0, -30]
-    });
-    atendimento.forEach(pa => {
-        const lat = parseFloat(pa.lat);
-        const lng = parseFloat(pa.lng);
-        const dataFmt = pa.data_visita ? new Date(pa.data_visita + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
-        const horario = (pa.horario || '').slice(0, 5) || '—';
-        const local = (pa.local_visita || '').trim() || '—';
-        const prescritor = (pa.prescritor || '—').trim();
-        const visitadorNome = (pa.visitador_nome || '').trim();
-        const status = (pa.status_visita || '').trim();
-        const popupHtml = `<div style="min-width:200px;font-family:inherit;">
-            <strong style="font-size:0.95rem;">${escapeHtml(prescritor)}</strong>
-            <div style="margin-top:6px;font-size:0.8rem;color:#555;">
-                <div><i class="far fa-calendar" style="width:14px;"></i> ${dataFmt} ${horario !== '—' ? ' · ' + horario : ''}</div>
-                ${visitadorNome ? `<div><i class="fas fa-user" style="width:14px;"></i> ${escapeHtml(visitadorNome)}</div>` : ''}
-                ${local !== '—' ? `<div><i class="fas fa-map-pin" style="width:14px;"></i> ${escapeHtml(local)}</div>` : ''}
-                ${status ? `<div><span style="background:#e8f5e9;color:#2e7d32;padding:2px 6px;border-radius:4px;font-size:0.75rem;">${escapeHtml(status)}</span></div>` : ''}
-            </div>
-        </div>`;
-        const marker = L.marker([lat, lng], { icon: iconAtendimento }).addTo(map);
-        marker.bindPopup(popupHtml, { maxWidth: 320 });
-        if (!bounds) bounds = L.latLngBounds([lat, lng]);
+    const extendBounds = (lat, lng) => {
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        if (!bounds) bounds = L.latLngBounds([lat, lng], [lat, lng]);
         else bounds.extend([lat, lng]);
-    });
-    if (bounds) map.fitBounds(bounds.pad(0.15));
+    };
+    if (typeof L.heatLayer === 'function' && temHeat) {
+        L.heatLayer(heatPts, {
+            radius: 38,
+            blur: 30,
+            minOpacity: 0.38,
+            max: heatMax * 1.05,
+            maxZoom: 18,
+            gradient: { 0.35: '#1e3a8a', 0.55: '#06b6d4', 0.72: '#84cc16', 0.88: '#facc15', 1: '#ef4444' }
+        }).addTo(map);
+        heatPts.forEach(p => extendBounds(p[0], p[1]));
+    }
+    if (temPosicaoAtual) {
+        filtered.forEach((pr) => {
+            const pa = pr.posicao_atual;
+            if (!pa || !Number.isFinite(parseFloat(pa.lat)) || !Number.isFinite(parseFloat(pa.lng))) return;
+            const lat = parseFloat(pa.lat);
+            const lng = parseFloat(pa.lng);
+            const visitador = (pr.visitador_nome || '').trim() || 'Visitador';
+            const st = (pa.status_rota || pr.status || '').trim();
+            const { data: dAt, hora: hAt } = __fmtMapaRotaDateTime(pa.atualizado_em);
+            const meta = `${visitador} · Rota #${pr.rota_id != null ? pr.rota_id : '—'}`;
+            const pop = `<div class="mapa-rotas-ext-popup" style="min-width:220px;font-size:0.82rem;line-height:1.35;">
+                <div style="font-weight:800;margin-bottom:6px;color:var(--text-primary,#0f172a);">Posição atual — ${escapeHtml(meta)}</div>
+                <div style="color:var(--text-secondary,#64748b);margin-bottom:4px;"><strong>Status da rota:</strong> ${escapeHtml(st || '—')}</div>
+                <div style="color:var(--text-secondary,#64748b);"><strong>Último GPS:</strong> ${escapeHtml(dAt)} ${escapeHtml(hAt)}</div>
+                <div style="color:var(--text-secondary,#64748b);font-size:0.78rem;margin-top:6px;">Último ponto registrado no trajeto (atualize a página para atualizar).</div>
+            </div>`;
+            L.marker([lat, lng], { icon: __mapaPosicaoAtualIcon(), zIndexOffset: 1100 })
+                .addTo(map)
+                .bindPopup(pop, { maxWidth: 320, className: 'mapa-rotas-popup' })
+                .bindTooltip(`Posição atual · ${escapeHtml(visitador)}`, { direction: 'top' });
+            extendBounds(lat, lng);
+        });
+    }
+    if (showTrajetos) {
+        filtered.forEach((pr, idx) => {
+            const pts = (pr.pontos || []).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+            if (pts.length < 1) return;
+            const latlngs = pts.map(p => [p.lat, p.lng]);
+            const color = colors[idx % colors.length];
+            const rotaMeta = (pr.visitador_nome ? String(pr.visitador_nome).trim() + ' · ' : '') + 'Rota #' + (pr.rota_id != null ? pr.rota_id : '—');
+            const isFinalizada = String(pr.status || '').toLowerCase().trim() === 'finalizada';
+            if (latlngs.length >= 2) {
+                const polyline = L.polyline(latlngs, {
+                    color,
+                    weight: 2,
+                    opacity: 0.42,
+                    lineJoin: 'round',
+                    lineCap: 'round',
+                    smoothFactor: 1.25
+                }).addTo(map);
+                polyline.bindTooltip(pr.visitador_nome || 'Rota ' + (pr.rota_id || ''), { permanent: false, sticky: true });
+            }
+            latlngs.forEach(ll => extendBounds(ll[0], ll[1]));
+            const popInicio = __mapaRotaExtremoPopupHtml('Início', rotaMeta, pr.local_inicio_endereco, pr.data_inicio);
+            L.marker(latlngs[0], { icon: __mapaRotaExtremoIcon('A', color), zIndexOffset: 950 })
+                .addTo(map)
+                .bindPopup(popInicio, { maxWidth: 320, className: 'mapa-rotas-popup' })
+                .bindTooltip('Início — ' + rotaMeta, { direction: 'top' });
+            if (isFinalizada) {
+                let endLat = latlngs[latlngs.length - 1][0];
+                let endLng = latlngs[latlngs.length - 1][1];
+                const samePoint = latlngs.length === 1
+                    || (Math.abs(latlngs[0][0] - endLat) < 1e-7 && Math.abs(latlngs[0][1] - endLng) < 1e-7);
+                if (samePoint) {
+                    endLat += 0.00012;
+                    endLng += 0.00012;
+                }
+                const popFim = __mapaRotaExtremoPopupHtml('Fim', rotaMeta, pr.local_fim_endereco, pr.data_fim);
+                L.marker([endLat, endLng], { icon: __mapaRotaExtremoIcon('B', color), zIndexOffset: 950 })
+                    .addTo(map)
+                    .bindPopup(popFim, { maxWidth: 320, className: 'mapa-rotas-popup' })
+                    .bindTooltip('Fim — ' + rotaMeta, { direction: 'top' });
+                extendBounds(endLat, endLng);
+            }
+        });
+    }
+    if (showPinos) {
+        const useCluster = typeof L.markerClusterGroup === 'function';
+        const atendCluster = useCluster
+            ? L.markerClusterGroup({
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                zoomToBoundsOnClick: true,
+                maxClusterRadius: 52,
+                spiderLegPolylineOptions: { weight: 1.5, color: '#94a3b8', opacity: 0.85 }
+            })
+            : null;
+        if (useCluster && atendCluster) {
+            atendimento.forEach((pa) => {
+                const lat = parseFloat(pa.lat);
+                const lng = parseFloat(pa.lng);
+                if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+                const prescritor = (pa.prescritor || '—').trim();
+                const marker = L.circleMarker([lat, lng], {
+                    radius: 7,
+                    color: '#ffffff',
+                    weight: 2,
+                    opacity: 0.95,
+                    fillColor: '#E63946',
+                    fillOpacity: 0.88
+                });
+                marker.bindPopup(__mapaAtendimentoPopupHtml(pa), { maxWidth: 320, className: 'mapa-rotas-popup' });
+                marker.bindTooltip(escapeHtml(prescritor), { direction: 'top', opacity: 0.95 });
+                atendCluster.addLayer(marker);
+                extendBounds(lat, lng);
+            });
+            atendCluster.addTo(map);
+        } else {
+            __groupAtendimentoPorCoordenada(atendimento).forEach((gr) => {
+                const lat = gr[0].lat;
+                const lng = gr[0].lng;
+                const multi = gr.length > 1;
+                const popupHtml = multi
+                    ? `<div class="mapa-rotas-popup-stack"><div class="mapa-rotas-popup-stack-head"><strong>${gr.length} visitas</strong> no mesmo local</div><div class="mapa-rotas-popup-stack-scroll">${gr.map(({ pa }) => `<div class="mapa-rotas-popup-stack-item">${__mapaAtendimentoPopupHtml(pa)}</div>`).join('')}</div></div>`
+                    : __mapaAtendimentoPopupHtml(gr[0].pa);
+                const marker = L.circleMarker([lat, lng], {
+                    radius: multi ? 9 : 7,
+                    color: '#ffffff',
+                    weight: 2,
+                    opacity: 0.95,
+                    fillColor: '#E63946',
+                    fillOpacity: 0.88
+                }).addTo(map);
+                marker.bindPopup(popupHtml, { maxWidth: 320, className: 'mapa-rotas-popup' });
+                marker.bindTooltip(
+                    multi ? `${gr.length} visitas no mesmo local` : escapeHtml((gr[0].pa.prescritor || '—').trim()),
+                    { direction: 'top', opacity: 0.95 }
+                );
+                extendBounds(lat, lng);
+            });
+        }
+    }
+    if (bounds) map.fitBounds(bounds.pad(0.12));
     setTimeout(() => map.invalidateSize(), 150);
 }
 
 function renderTableVisitasPage(lista) {
-    const tbody = document.querySelector('#tableVisitasPage tbody');
-    const emptyEl = document.getElementById('visitasPageEmpty');
-    if (!tbody) return;
-    if (emptyEl) emptyEl.style.display = 'none';
-    if (!Array.isArray(lista) || lista.length === 0) {
-        tbody.innerHTML = '';
-        if (emptyEl) emptyEl.style.display = 'block';
-        return;
+    __visitasTableState.lista = Array.isArray(lista) ? lista.slice() : [];
+    const sel = document.getElementById('visitasPageSizeSelect');
+    if (sel) {
+        const n = parseInt(sel.value, 10);
+        if ([10, 15, 25, 50, 100].includes(n)) __visitasTableState.pageSize = n;
     }
-    const formatDate = (d) => {
-        if (!d) return '—';
-        const dt = new Date(d);
-        return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('pt-BR');
-    };
-    const formatTime = (h) => h ? String(h).slice(0, 5) : '—';
-    const formatInicio = (iv) => {
-        if (!iv) return '—';
-        const s = String(iv).trim();
-        if (/^\d{4}-\d{2}-\d{2}/.test(s) && s.length >= 16) return s.slice(11, 16);
-        if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(11, 16);
-        return s.slice(0, 5) || '—';
-    };
-    const formatDuracao = (min) => {
-        if (min == null || min === '' || isNaN(parseInt(min, 10))) return '—';
-        const m = parseInt(min, 10);
-        if (m < 60) return m + ' min';
-        const h = Math.floor(m / 60);
-        const rest = m % 60;
-        return rest ? h + 'h ' + rest + 'min' : h + 'h';
-    };
-    const formatReagend = (r) => {
-        if (!r || !String(r).trim()) return '—';
-        const s = String(r).trim();
-        const match = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{1,2}):(\d{2})?)?/);
-        if (match) {
-            const [, y, mo, d, h, mi] = match;
-            const dt = new Date(parseInt(y, 10), parseInt(mo, 10) - 1, parseInt(d, 10), h ? parseInt(h, 10) : 0, mi ? parseInt(mi, 10) : 0);
-            return isNaN(dt.getTime()) ? s : dt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: h ? 'short' : undefined });
-        }
-        return s;
-    };
-    const truncate = (str, max) => {
-        const s = (str || '').trim();
-        if (!s) return '—';
-        return s.length <= max ? s : s.slice(0, max) + '…';
-    };
-    tbody.innerHTML = lista.map((v, i) => `
-        <tr>
-            <td>${i + 1}</td>
-            <td>${(v.visitador || '—').trim()}</td>
-            <td>${(v.prescritor || '—').trim()}</td>
-            <td>${formatDate(v.data_visita)}</td>
-            <td>${formatInicio(v.inicio_visita)}</td>
-            <td>${formatTime(v.horario)}</td>
-            <td>${formatDuracao(v.duracao_minutos)}</td>
-            <td>${(v.status_visita || '—').trim()}</td>
-            <td title="${(v.local_visita || '').replace(/"/g, '&quot;')}">${truncate(v.local_visita, 35)}</td>
-            <td>${formatReagend(v.reagendado_para)}</td>
-            <td>
-                <button type="button"
-                    onclick="openModalDetalheVisitaAdmin(${parseInt(v.id || 0, 10)}, '${String(v.visitador || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')"
-                    style="border:1px solid var(--border); background:var(--bg-card); color:var(--primary); border-radius:8px; padding:4px 8px; cursor:pointer; font-size:0.8rem;"
-                    title="Ver relatório da visita">
-                    <i class="fas fa-clipboard-list"></i> Ver
-                </button>
-            </td>
-        </tr>
-    `).join('');
+    __visitasTableState.page = 1;
+    renderVisitasTableView();
 }
+
+window.visitasTablePrevPage = visitasTablePrevPage;
+window.visitasTableNextPage = visitasTableNextPage;
 
 function closeModalDetalheVisitaAdmin() {
     const modal = document.getElementById('modalDetalheVisitaAdmin');
@@ -3016,7 +3888,7 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
             else if (typeof window.updateNotificationsFromAgenda === 'function') window.updateNotificationsFromAgenda();
         }
 
-        // 7. Mapa de Visitas (GPS)
+        // 7. Mapa de Visitas
         try {
             renderDashboardMapaVisitas(data.visitas_mapa || [], data.visitas_mapa_resumo || null, { ano, mes });
         } catch (e) {
@@ -3055,7 +3927,7 @@ function renderDashboardMapaVisitas(visitas, resumo, contexto) {
         const parts = [];
         if (totalVisitas !== null) parts.push(`<strong>${totalVisitas}</strong> visitas no período`);
         if (totalRealizadas !== null) parts.push(`<strong>${totalRealizadas}</strong> realizadas`);
-        parts.push(`<strong>${totalGPS}</strong> com GPS`);
+        parts.push(`<strong>${totalGPS}</strong> no mapa`);
         resumoEl.innerHTML = parts.join(' • ');
     }
 
@@ -3142,9 +4014,7 @@ function openMapaVisitasStatsModal() {
     const mesTxt = ctx && ctx.mes ? `/${String(ctx.mes).padStart(2, '0')}` : '';
     const kmRotasPadrao = resumo && typeof resumo.km_rotas_periodo === 'number' ? resumo.km_rotas_periodo : null;
     if (sub) {
-        sub.innerHTML = kmRotasPadrao !== null
-            ? `Período: <strong>${anoTxt}${mesTxt || ''}</strong> • distância padrão por rota do dia (GPS contínuo)`
-            : `Período: <strong>${anoTxt}${mesTxt || ''}</strong> • cálculo por GPS (somente onde existe ponto)`;
+        sub.innerHTML = `Período: <strong>${anoTxt}${mesTxt || ''}</strong>`;
     }
 
     const totalVisitas = resumo && typeof resumo.total_visitas_periodo === 'number' ? resumo.total_visitas_periodo : null;
@@ -3168,7 +4038,7 @@ function openMapaVisitasStatsModal() {
                 </tr>
             `).join('');
         } else {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:26px; color:var(--text-secondary);">Sem GPS suficiente para calcular distância (precisa de 2+ pontos).</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:26px; color:var(--text-secondary);">Pontos insuficientes (mínimo 2).</td></tr>`;
         }
     }
 }
@@ -3629,7 +4499,7 @@ function getSavedThemeForCurrentUser() {
 
 function toggleTheme() {
     const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
+    const currentTheme = html.getAttribute('data-theme') || 'light';
     const newTheme = currentTheme === 'light' ? 'dark' : 'light';
     html.setAttribute('data-theme', newTheme);
     localStorage.setItem(getThemeStorageKey(), newTheme);
@@ -3672,11 +4542,9 @@ function applyChartTheme(theme) {
 }
 
 function loadSavedTheme() {
-    const saved = getSavedThemeForCurrentUser();
-    if (saved) {
-        document.documentElement.setAttribute('data-theme', saved);
-        applyChartTheme(saved);
-    }
+    const theme = resolveMyPharmStoredTheme(getSavedThemeForCurrentUser());
+    document.documentElement.setAttribute('data-theme', theme);
+    applyChartTheme(theme);
 }
 
 async function fetchCsrfToken() {
@@ -3720,4 +4588,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }).catch(function () {});
         }
     }
+
+    initSidebarCollapsedPreference();
+    initSidebarCollapsedLegends();
 });

@@ -821,6 +821,79 @@ html:not([data-theme="light"]) .gc-filters input[type="date"]::-webkit-calendar-
     }
 }
 
+.gc-vend-evo-chart-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px 18px;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.gc-vend-evo-chart-head__titles {
+    flex: 1;
+    min-width: min(100%, 280px);
+}
+
+.gc-vend-evo-chart-head__actions {
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.gc-vend-evo-todos-btn {
+    flex-shrink: 0;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    background: #2563eb;
+    color: #fff;
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.28);
+    transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+}
+
+.gc-vend-evo-todos-btn:hover:not(:disabled) {
+    background: #1d4ed8;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.38);
+}
+
+.gc-vend-evo-todos-btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.gc-vend-evo-todos-btn:disabled {
+    opacity: 1;
+    background: #64748b;
+    color: #f8fafc;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+.gc-vend-evo-todos-hint {
+    margin: 0 0 12px 0;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+
+html[data-theme="dark"] .gc-vend-evo-todos-btn:disabled {
+    background: #475569;
+    color: #e2e8f0;
+}
+
+.gc-chart-panel--vend-evo .gc-chart-title {
+    font-size: 1.05rem;
+}
+
+.gc-chart-panel--vend-evo .gc-chart-sub {
+    font-size: 0.88rem;
+}
+
 .gc-chart-title {
     margin: 0 0 4px 0;
     font-size: 0.95rem;
@@ -1724,6 +1797,12 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     width: 100%;
     resize: vertical;
     min-height: 88px;
+}
+
+#gc-section-erros .gc-erro-tipo-outro {
+    margin-top: 0.5rem;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 #gc-section-erros select:focus-visible,

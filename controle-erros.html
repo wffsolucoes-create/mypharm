@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#3B82F6">
     <meta name="description" content="Controle manual de erros comerciais por consultora.">
     <title>Controle de Erros | MyPharm</title>
-    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/controle-erros.css?v=20260327b">
@@ -14,18 +14,15 @@
 </head>
 <body>
     <div id="ceApp" class="app-layout" style="display:none;">
-        <aside class="sidebar" id="ceSidebar" aria-label="Menu lateral">
+        <aside class="sidebar collapsed" id="ceSidebar" aria-label="Menu lateral">
             <div class="sidebar-header">
                 <div class="sidebar-brand">
-                    <img src="imagens/logoMypharm.png" alt="MyPharm" class="sidebar-brand-logo" width="48" height="48">
-                    <div class="brand-text">
-                        <span class="brand-name">MY.PHARM</span>
-                        <span class="brand-tagline">Farmácia de manipulação</span>
-                    </div>
+                    <img src="imagens/logoMypharm1.png?v=20260402" alt="MyPharm" class="sidebar-brand-logo sidebar-brand-logo--expanded" width="280" height="72" decoding="async">
+                    <img src="imagens/IconeMyPharm.png?v=20260402" alt="MyPharm" class="sidebar-brand-logo sidebar-brand-logo--collapsed" width="40" height="40" decoding="async">
                 </div>
             </div>
-            <button type="button" class="sidebar-toggle" id="ceSidebarToggle" aria-label="Recolher menu">
-                <i class="fas fa-chevron-left" aria-hidden="true"></i>
+            <button type="button" class="sidebar-toggle" id="ceSidebarToggle" aria-label="Expandir menu">
+                <i class="fas fa-chevron-right" aria-hidden="true"></i>
             </button>
             <nav class="sidebar-nav" aria-label="Atalhos">
                 <div class="nav-section-title">Gestão</div>
@@ -126,8 +123,11 @@
                                     <option value="grave">Grave</option>
                                 </select>
                             </label>
-                            <label>Tipo de erro
-                                <input type="text" id="ceTipoErro" placeholder="Ex.: nome de prescritor errado">
+                            <label>Tipo do erro
+                                <select id="ceTipoErro">
+                                    <option value="">Selecione o tipo do erro</option>
+                                </select>
+                                <input type="text" id="ceTipoErroOutro" maxlength="120" placeholder="Especifique o novo tipo" style="display:none;margin-top:0.5rem;width:100%;box-sizing:border-box;" autocomplete="off" aria-label="Especificar outro tipo de erro">
                             </label>
                         </div>
                         <label class="ce-textarea-label">Observação

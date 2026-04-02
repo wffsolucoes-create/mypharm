@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
@@ -7,14 +7,15 @@
     <meta name="theme-color" content="#E63946">
     <title>Painel do Visitador | MyPharm</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
-    <link rel="apple-touch-icon" href="imagens/IconeMyPharm.png">
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
+    <link rel="apple-touch-icon" href="imagens/IconeMyPharm.png?v=20260402">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Chart.js carregado antes de app.js no final do <body> (scripts síncronos abaixo de app.js quebrariam a ordem) -->
     <!-- Mapa (Leaflet) para confirmação de local no tablet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script defer src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <link rel="stylesheet" href="css/visitador-inline.css">
     <link rel="stylesheet" href="css/visitador.css">
     <!-- Fallback: painel Mensagens e Enviar mensagem (funciona mesmo se visitador.css não carregar no servidor/hosting) -->
@@ -98,7 +99,7 @@
         <div class="brand">
             <!-- LOGO: Container escuro para logo branca -->
             <div class="logo-container">
-                <img src="imagens/logoMypharm.png" alt="MyPharm"
+                <img src="imagens/logoMypharm.png?v=20260402" alt="MyPharm"
                     onerror="this.onerror=null;this.src='https://placehold.co/150x50?text=MyPharm';">
             </div>
             <div class="brand-text-col">
@@ -235,6 +236,11 @@
                                 title="Encerrar a rota do dia (todos os pontos já registrados serão mantidos).">Finalizar rota</button>
                         </div>
                     </div>
+                    <p id="rotaGpsHint" style="display:none; margin:10px 0 0 0; padding:10px 12px; max-width:640px; font-size:0.8rem; line-height:1.45; color:var(--text-secondary); background:rgba(37,99,235,0.08); border-radius:10px; border:1px solid rgba(37,99,235,0.2);">
+                        <strong style="color:var(--text-primary);">Rota em andamento:</strong> o navegador reduz o GPS quando esta aba fica em segundo plano ou a tela apaga.
+                        Deixe o MyPharm <strong>aberto na frente</strong> durante o deslocamento; a tela pode permanecer ligada automaticamente enquanto a rota estiver ativa.
+                        Ao <strong>voltar</strong> para esta aba, o sistema tenta registrar um ponto na hora para fechar lacunas.
+                    </p>
                     <p style="margin:8px 0 0 0;">Acompanhe suas metas e o desempenho da sua carteira.</p>
                 <p id="ultimaAtualizacao"
                     style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; opacity:0.7;">
@@ -793,6 +799,9 @@
 
             <!-- Mapa -->
             <div id="roteiroDirecoes" class="roteiro-direcoes" style="display:none;"></div>
+            <p class="roteiro-map-hint" style="margin:0 0 10px; font-size:0.82rem; color:var(--text-secondary);">
+                <i class="fas fa-fire" style="color:#f97316;margin-right:6px;"></i>Mapa de calor destaca as regiões com mais visitas e passagens no período; trajetos e números continuam visíveis por cima.
+            </p>
             <div class="roteiro-map-card">
                 <div id="roteiroMapContainer" class="roteiro-map-container"></div>
                 <div id="roteiroMapEmpty" class="roteiro-map-empty" style="display:none;">
@@ -1514,7 +1523,7 @@
         </div>
     </div>
 
-    <!-- Modal: Estatísticas do Mapa (Distância + Quantidade de Visitas) -->
+    <!-- Modal: Estatísticas do Mapa -->
     <div id="modalMapaVisitasStats"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:3600; justify-content:center; align-items:center; padding:20px;">
         <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:860px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
@@ -1540,7 +1549,7 @@
                         <div id="mapaStatRealizadas" style="font-size:1.2rem; font-weight:900; color:var(--success);">-</div>
                     </div>
                     <div style="border:1px solid var(--border); border-radius:12px; padding:12px; background:var(--bg-body);">
-                        <div style="font-size:0.72rem; color:var(--text-secondary); font-weight:700;">Com GPS</div>
+                        <div style="font-size:0.72rem; color:var(--text-secondary); font-weight:700;">No mapa</div>
                         <div id="mapaStatComGPS" style="font-size:1.2rem; font-weight:900; color:var(--primary);">-</div>
                     </div>
                     <div style="border:1px solid var(--border); border-radius:12px; padding:12px; background:var(--bg-body);">
@@ -1574,10 +1583,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
-    <script src="js/app.js"></script>
+    <script src="js/app.js?v=20260401-visitas-copy-clean"></script>
     <script src="js/shared/mypharm-utils.js"></script>
     <script src="js/visitador/prescritores-feature.js"></script>
-    <script src="js/visitador/visitador-main.js?v=20260326-pedidos-impressao1"></script>
+    <script src="js/visitador/visitador-main.js?v=20260401-rota-bg-gps"></script>
 </body>
 
 </html>

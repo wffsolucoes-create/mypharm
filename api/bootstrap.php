@@ -21,7 +21,11 @@ function buildDateFilter()
     if ($dataDe !== null && $dataAte !== null && $dataDe > $dataAte) $dataAte = $dataDe;
 
     if ($dataDe !== null && $dataAte !== null) {
-        return ['DATE(data_aprovacao) BETWEEN :data_de AND :data_ate', ['data_de' => $dataDe, 'data_ate' => $dataAte]];
+        // Período do topo: considerar movimento no dia (aprovação ou, se vazia, data do orçamento).
+        return [
+            '(data_aprovacao IS NOT NULL OR data_orcamento IS NOT NULL) AND DATE(COALESCE(data_aprovacao, data_orcamento)) BETWEEN :data_de AND :data_ate',
+            ['data_de' => $dataDe, 'data_ate' => $dataAte],
+        ];
     }
 
     $ano = $_GET['ano'] ?? null;

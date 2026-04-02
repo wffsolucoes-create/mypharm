@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
@@ -8,15 +8,19 @@
     <meta name="theme-color" content="#E63946">
     <title>MyPharm - Sistema de Gestão e Insights</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png">
-    <link rel="apple-touch-icon" href="imagens/IconeMyPharm.png">
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
+    <link rel="apple-touch-icon" href="imagens/IconeMyPharm.png?v=20260402">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/login.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
     <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script defer src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <style>
         .btn-see-all:hover {
             filter: brightness(1.1);
@@ -375,7 +379,7 @@
 
             <!-- Right Panel -->
             <div class="login-panel right">
-                <img src="imagens/logoMypharm.png" alt="MyPharm Logo - Gestão e Performance" class="brand-logo-login">
+                <img src="imagens/logoMypharm.png?v=20260402" alt="MyPharm Logo - Gestão e Performance" class="brand-logo-login">
 
                 <div class="system-description">
                     SISTEMA PARA GESTÃO E TOMADA DE DECISÕES
@@ -444,18 +448,15 @@
         <!-- Overlay para fechar sidebar no mobile -->
         <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
         <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
+        <aside class="sidebar collapsed" id="sidebar">
             <div class="sidebar-header">
                 <div class="sidebar-brand">
-                    <img src="imagens/logoMypharm.png" alt="MyPharm" class="sidebar-brand-logo" width="48" height="48">
-                    <div class="brand-text">
-                        <span class="brand-name">MY.PHARM</span>
-                        <span class="brand-tagline">Farmácia de manipulação</span>
-                    </div>
+                    <img src="imagens/logoMypharm1.png?v=20260402" alt="MyPharm" class="sidebar-brand-logo sidebar-brand-logo--expanded" width="280" height="72" decoding="async">
+                    <img src="imagens/IconeMyPharm.png?v=20260402" alt="MyPharm" class="sidebar-brand-logo sidebar-brand-logo--collapsed" width="40" height="40" decoding="async">
                 </div>
             </div>
-            <button type="button" class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Recolher menu">
-                <i class="fas fa-chevron-left" aria-hidden="true"></i>
+            <button type="button" class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Expandir menu">
+                <i class="fas fa-chevron-right" aria-hidden="true"></i>
             </button>
 
             <nav class="sidebar-nav">
@@ -501,10 +502,6 @@
                     <i class="fas fa-lightbulb"></i>
                     <span>Insights</span>
                 </a>
-                <a class="nav-item" href="inteligencia-prescritor.html" target="_blank" rel="noopener">
-                    <i class="fas fa-brain"></i>
-                    <span>Inteligência do Prescritor</span>
-                </a>
 
                 <div class="nav-section-title">Sistema</div>
                 <a class="nav-item" data-page="importar" onclick="navigateTo('importar')">
@@ -548,10 +545,9 @@
                         <span class="topbar-period-label">Período</span>
                         <div class="topbar-period-inputs">
                             <label class="topbar-date-label" for="dataDeFilter">De</label>
-                            <input type="date" id="dataDeFilter" class="filter-date-input" title="Data inicial" onchange="onFilterChange()">
+                            <input type="date" id="dataDeFilter" class="filter-date-input" title="Data inicial" onchange="onFilterChange()" oninput="onFilterChange()">
                             <span class="topbar-period-sep">até</span>
-                            <label class="topbar-date-label" for="dataAteFilter">Até</label>
-                            <input type="date" id="dataAteFilter" class="filter-date-input" title="Data final" onchange="onFilterChange()">
+                            <input type="date" id="dataAteFilter" class="filter-date-input" title="Data final" aria-label="Data final do período" onchange="onFilterChange()" oninput="onFilterChange()">
                         </div>
                     </div>
                     <div class="theme-toggle" onclick="toggleTheme()" title="Alternar tema claro/escuro">
@@ -604,8 +600,8 @@
                         <div class="chart-card">
                             <div class="chart-header">
                                 <div>
-                                    <div class="chart-title">Faturamento Mensal</div>
-                                    <div class="chart-subtitle">Evolução do faturamento líquido</div>
+                                    <div class="chart-title">Faturamento por mês</div>
+                                    <div class="chart-subtitle">Respeita o período do topo (data de aprovação ou, se vazia, do orçamento)</div>
                                 </div>
                             </div>
                             <div class="chart-body">
@@ -660,7 +656,7 @@
                             <strong>Cobertura de visitas e prescritores</strong> ficam no menu <strong>Análises → Visitas</strong> (mapa, rotas, quem mais foi visitado e carteira sem visita no período).
                         </div>
                     </div>
-                    <div class="kpi-grid stagger" id="kpiGridVisitadores"></div>
+                    <div class="kpi-grid stagger visitadores-kpi-grid" id="kpiGridVisitadores"></div>
                     <div class="charts-grid single">
                         <div class="chart-card full-width">
                             <div class="chart-header">
@@ -710,34 +706,62 @@
                             <option value="">Todos os visitadores</option>
                         </select>
                     </div>
-                    <!-- KPIs -->
+                    <!-- KPIs: linha 1 carteira/cobertura · linha 2 atividade no período (respeitam filtros do topo) -->
                     <div class="kpi-grid stagger visitas-kpi-grid" id="visitasKpiGrid">
-                        <div class="kpi-card">
+                        <div class="kpi-card visitas-kpi-card visitas-kpi-card--carteira">
+                            <div class="kpi-icon"><i class="fas fa-address-book"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-value" id="visitasKpiCarteiraTotal">0</span>
+                                <p class="kpi-label">Prescritores na carteira</p>
+                            </div>
+                        </div>
+                        <div class="kpi-card visitas-kpi-card visitas-kpi-card--pendentes">
+                            <div class="kpi-icon"><i class="fas fa-user-clock"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-value" id="visitasKpiSemVisitaPeriodo">0</span>
+                                <p class="kpi-label">Sem visita no período</p>
+                            </div>
+                        </div>
+                        <div class="kpi-card visitas-kpi-card visitas-kpi-card--cobertura">
+                            <div class="kpi-icon"><i class="fas fa-chart-pie"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-value" id="visitasKpiPctVisitadosCarteira">0%</span>
+                                <p class="kpi-label">Cobertura da carteira</p>
+                            </div>
+                        </div>
+                        <div class="kpi-card visitas-kpi-card visitas-kpi-card--pendencia-pct">
+                            <div class="kpi-icon"><i class="fas fa-user-slash"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-value" id="visitasKpiPctNaoVisitadosCarteira">0%</span>
+                                <p class="kpi-label">Pendência na carteira</p>
+                            </div>
+                        </div>
+                        <div class="kpi-card visitas-kpi-card visitas-kpi-card--visitas">
                             <div class="kpi-icon"><i class="fas fa-clipboard-check"></i></div>
                             <div class="kpi-info">
                                 <span class="kpi-value" id="visitasKpiPeriodo">0</span>
-                                <p class="kpi-label">Total de visitas (período)</p>
+                                <p class="kpi-label">Visitas no período</p>
                             </div>
                         </div>
-                        <div class="kpi-card">
+                        <div class="kpi-card visitas-kpi-card visitas-kpi-card--distintos">
                             <div class="kpi-icon"><i class="fas fa-user-md"></i></div>
                             <div class="kpi-info">
                                 <span class="kpi-value" id="visitasKpiPrescritores">0</span>
-                                <p class="kpi-label">Prescritores distintos visitados</p>
+                                <p class="kpi-label">Prescritores distintos no período</p>
                             </div>
                         </div>
-                        <div class="kpi-card">
+                        <div class="kpi-card visitas-kpi-card visitas-kpi-card--semana">
                             <div class="kpi-icon"><i class="fas fa-calendar-week"></i></div>
                             <div class="kpi-info">
                                 <span class="kpi-value" id="visitasKpiSemana">0</span>
-                                <p class="kpi-label">Visitas esta semana</p>
+                                <p class="kpi-label">Visitas na semana</p>
                             </div>
                         </div>
-                        <div class="kpi-card">
+                        <div class="kpi-card visitas-kpi-card visitas-kpi-card--rotas">
                             <div class="kpi-icon"><i class="fas fa-route"></i></div>
                             <div class="kpi-info">
                                 <span class="kpi-value" id="visitasKpiKm">0</span>
-                                <p class="kpi-label">Km percorridos (rotas)</p>
+                                <p class="kpi-label">Quilometragem em rotas</p>
                             </div>
                         </div>
                     </div>
@@ -768,7 +792,7 @@
                             <div class="chart-header">
                                 <div>
                                     <div class="chart-title"><i class="fas fa-exclamation-circle" style="color:#ef4444;margin-right:6px;"></i>Sem visita no período</div>
-                                    <div class="chart-subtitle">Cadastro na carteira sem nenhuma visita registrada no período · <strong id="visitasSemVisitaCountBadge">0</strong> prescritores</div>
+                                    <div class="chart-subtitle">Carteira sem visita <strong>do visitador do filtro</strong> no período (com “Todos os visitadores”, conta visita de qualquer um) · <strong id="visitasSemVisitaCountBadge">0</strong> prescritores</div>
                                 </div>
                             </div>
                             <div class="visitas-filter-inline">
@@ -795,7 +819,7 @@
                         <div class="chart-header">
                             <div>
                                 <div class="chart-title">Visitas por visitador</div>
-                                <div class="chart-subtitle">Total de visitas e km de rotas por visitador no período</div>
+                                    <div class="chart-subtitle">Visitas e rotas por visitador no período</div>
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -817,37 +841,103 @@
                         <div class="chart-header">
                             <div>
                                 <div class="chart-title">Detalhes das rotas</div>
-                                <div class="chart-subtitle">Rotas do dia registradas no período</div>
+                                    <div class="chart-subtitle">Rotas do dia registradas no período</div>
                             </div>
                         </div>
                         <div class="table-responsive">
-                            <table class="data-table" id="tableRotasDetalhes">
+                            <table class="data-table data-table--sortable" id="tableRotasDetalhes">
                                 <thead>
                                     <tr>
-                                        <th>Visitador</th>
-                                        <th>Data início</th>
-                                        <th>Data fim</th>
-                                        <th>Status</th>
-                                        <th>Km</th>
-                                        <th>Pontos GPS</th>
+                                        <th class="th-num" scope="col">#</th>
+                                        <th class="th-sortable" data-sort="visitador" scope="col" title="Ordenar por visitador">Visitador <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th class="th-sortable" data-sort="data_inicio" scope="col" title="Ordenar por data de início">Início <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th scope="col">Endereço início</th>
+                                        <th class="th-sortable" data-sort="data_fim" scope="col" title="Ordenar por data de fim">Fim <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th scope="col">Endereço fim</th>
+                                        <th class="th-sortable" data-sort="status" scope="col" title="Ordenar por status">Status <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th class="th-sortable" data-sort="km" scope="col" title="Soma dos trechos em linha reta entre cada par de pontos GPS consecutivos">Km (trajeto) <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th class="th-sortable" data-sort="pontos" scope="col" title="Ordenar por quantidade de pontos">Pontos <span class="th-sort-icon" aria-hidden="true"></span></th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
                             </table>
                         </div>
+                        <div id="rotasDetalhesPager" class="visitas-table-pager" style="display:none;" aria-label="Paginação das rotas">
+                            <span id="rotasDetalhesPagerInfo" class="visitas-pager-info"></span>
+                            <div class="visitas-pager-nav">
+                                <button type="button" class="visitas-pager-btn" id="rotasDetalhesPagerPrev" onclick="rotasDetalhesTablePrevPage()" title="Página anterior">&laquo; Anterior</button>
+                                <span id="rotasDetalhesPagerMeta" class="visitas-pager-meta"></span>
+                                <button type="button" class="visitas-pager-btn" id="rotasDetalhesPagerNext" onclick="rotasDetalhesTableNextPage()" title="Próxima página">Próxima &raquo;</button>
+                            </div>
+                            <label class="visitas-pager-size">
+                                <span class="visitas-pager-size-label">Linhas</span>
+                                <select id="rotasDetalhesPageSizeSelect" class="visitas-page-size-select" title="Itens por página">
+                                    <option value="10">10</option>
+                                    <option value="15" selected>15</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                </select>
+                            </label>
+                        </div>
                         <div id="rotasDetalhesEmpty" class="empty-state" style="display:none; text-align:center; padding:1.5rem; color:var(--text-secondary);">Nenhuma rota no período.</div>
                     </div>
                     <!-- Mapa de rotas -->
-                    <div class="chart-card full-width" style="margin-bottom:32px;">
+                    <div class="chart-card full-width mapa-rotas-card" style="margin-bottom:32px;">
                         <div class="chart-header">
                             <div>
-                                <div class="chart-title">Mapa de rotas</div>
-                                <div class="chart-subtitle">Trajetos e pontos de atendimento · usa o <strong>filtro de visitador</strong> acima</div>
+                                <div class="chart-title">Mapa de visitas</div>
+                                <div class="chart-subtitle">Densidade por região (calor) · visitas pontuais · respeita o <strong>filtro de visitador</strong> acima</div>
                             </div>
                         </div>
-                        <div class="chart-body" style="height:400px; position:relative;">
-                            <div id="mapaRotasVisitas" style="width:100%; height:100%; min-height:300px; border-radius:8px;"></div>
-                            <div id="mapaRotasEmpty" class="empty-state" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; color:var(--text-secondary);">Nenhum trajeto no período.</div>
+                        <div class="chart-body mapa-rotas-chart-body">
+                            <div class="mapa-rotas-layout">
+                                <div class="mapa-rotas-map-wrap">
+                                    <div id="mapaRotasVisitas" class="mapa-rotas-leaflet"></div>
+                                    <div id="mapaRotasEmpty" class="empty-state mapa-rotas-empty">Nenhum ponto no período para exibir no mapa.</div>
+                                </div>
+                                <aside class="mapa-rotas-legend" aria-label="Legenda e camadas do mapa">
+                                    <h4 class="mapa-rotas-legend-title">Legenda</h4>
+                                    <div class="mapa-rotas-legend-block">
+                                        <span class="mapa-rotas-legend-label">Intensidade (áreas mais visitadas)</span>
+                                        <div class="mapa-rotas-legend-gradient" role="img" aria-label="Gradiente de baixa a alta densidade de visitas"></div>
+                                        <div class="mapa-rotas-legend-scale"><span>Menos passagens</span><span>Mais passagens</span></div>
+                                    </div>
+                                    <div class="mapa-rotas-legend-items">
+                                        <div class="mapa-rotas-legend-row">
+                                            <span class="mapa-rotas-swatch mapa-rotas-swatch--posicao-atual" aria-hidden="true"></span>
+                                            <span>Posição atual (rota em andamento)</span>
+                                        </div>
+                                        <div class="mapa-rotas-legend-row">
+                                            <span class="mapa-rotas-swatch mapa-rotas-swatch--visita" aria-hidden="true"></span>
+                                            <span>Local da visita (prescritor)</span>
+                                        </div>
+                                        <div class="mapa-rotas-legend-row">
+                                            <span class="mapa-rotas-swatch mapa-rotas-swatch--trajeto" aria-hidden="true"></span>
+                                            <span>Trajeto da rota</span>
+                                        </div>
+                                        <div class="mapa-rotas-legend-row">
+                                            <span class="mapa-rotas-swatch mapa-rotas-swatch--rota-a" aria-hidden="true">A</span>
+                                            <span>Início do trajeto</span>
+                                        </div>
+                                        <div class="mapa-rotas-legend-row">
+                                            <span class="mapa-rotas-swatch mapa-rotas-swatch--rota-b" aria-hidden="true">B</span>
+                                            <span>Fim do trajeto (rota finalizada)</span>
+                                        </div>
+                                    </div>
+                                    <div class="mapa-rotas-legend-divider"></div>
+                                    <p class="mapa-rotas-legend-hint">Camadas</p>
+                                    <label class="mapa-rotas-toggle">
+                                        <input type="checkbox" id="mapaVisitasTogglePinos" checked>
+                                        <span>Mostrar pontos de visita</span>
+                                    </label>
+                                    <label class="mapa-rotas-toggle">
+                                        <input type="checkbox" id="mapaVisitasToggleTrajetos">
+                                        <span>Mostrar trajetos no mapa</span>
+                                    </label>
+                                    <p class="mapa-rotas-legend-note">Trajetos desligados deixam o calor mais legível. Ative só quando precisar ver o percurso.</p>
+                                    <p class="mapa-rotas-legend-note mapa-rotas-legend-note--cluster">Várias visitas no mesmo local ou muito próximas aparecem <strong>agrupadas</strong>: clique no círculo com o número ou aproxime o zoom ao máximo para ver cada pino em leque.</p>
+                                </aside>
+                            </div>
                         </div>
                     </div>
                     <!-- Tabela Visitas realizadas (existente) -->
@@ -859,24 +949,42 @@
                             </div>
                         </div>
                         <div class="table-responsive">
-                            <table class="data-table" id="tableVisitasPage">
+                            <table class="data-table data-table--sortable" id="tableVisitasPage">
                                 <thead>
                                     <tr>
-                                        <th>#</th>
-                                        <th>Visitador</th>
-                                        <th>Prescritor</th>
-                                        <th>Data</th>
-                                        <th>Início</th>
-                                        <th>Fim</th>
-                                        <th>Duração</th>
-                                        <th>Status</th>
-                                        <th>Local</th>
-                                        <th>Próx. agend.</th>
-                                        <th>Relatório</th>
+                                        <th class="th-num" scope="col">#</th>
+                                        <th class="th-sortable" data-sort="visitador" scope="col" title="Ordenar por visitador">Visitador <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th class="th-sortable" data-sort="prescritor" scope="col" title="Ordenar por prescritor">Prescritor <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th class="th-sortable" data-sort="data_visita" scope="col" title="Ordenar por data">Data <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th class="th-sortable" data-sort="inicio" scope="col" title="Ordenar por início">Início <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th class="th-sortable" data-sort="fim" scope="col" title="Ordenar por fim">Fim <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th class="th-sortable" data-sort="duracao" scope="col" title="Ordenar por duração">Duração <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th class="th-sortable" data-sort="status" scope="col" title="Ordenar por status">Status <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th class="th-sortable" data-sort="local" scope="col" title="Ordenar por local">Local <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th class="th-sortable" data-sort="reagend" scope="col" title="Ordenar por próximo agendamento">Próx. agend. <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th class="th-actions" scope="col">Relatório</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
                             </table>
+                        </div>
+                        <div id="visitasTablePager" class="visitas-table-pager" style="display:none;" aria-label="Paginação da tabela de visitas">
+                            <span id="visitasPagerInfo" class="visitas-pager-info"></span>
+                            <div class="visitas-pager-nav">
+                                <button type="button" class="visitas-pager-btn" id="visitasPagerPrev" onclick="visitasTablePrevPage()" title="Página anterior">&laquo; Anterior</button>
+                                <span id="visitasPagerMeta" class="visitas-pager-meta"></span>
+                                <button type="button" class="visitas-pager-btn" id="visitasPagerNext" onclick="visitasTableNextPage()" title="Próxima página">Próxima &raquo;</button>
+                            </div>
+                            <label class="visitas-pager-size">
+                                <span class="visitas-pager-size-label">Linhas</span>
+                                <select id="visitasPageSizeSelect" class="visitas-page-size-select" title="Itens por página">
+                                    <option value="10">10</option>
+                                    <option value="15" selected>15</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </label>
                         </div>
                         <div id="visitasPageEmpty" class="empty-state" style="display:none; text-align:center; padding:2rem; color:var(--text-secondary);">Nenhuma visita encontrada no período.</div>
                     </div>
@@ -1395,7 +1503,7 @@
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <img src="imagens/logoMypharm.png" alt="MyPharm" style="height: 35px;">
+                    <img src="imagens/logoMypharm.png?v=20260402" alt="MyPharm" style="height: 35px;">
                     <h3 style="margin:0;">Definir Metas</h3>
                 </div>
                 <button class="modal-close" onclick="closeModal('modalEditMetas')">&times;</button>
@@ -1535,7 +1643,7 @@
         })();
     </script>
     <!-- defer: executa após Chart.js/Leaflet (também defer no <head>), nesta ordem -->
-    <script defer src="js/app.js?v=20260315keep-page1"></script>
+    <script defer src="js/app.js?v=20260401-dashboard-periodo"></script>
 </body>
 
 </html>

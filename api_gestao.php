@@ -54,6 +54,7 @@ $allowedActions = [
     'gestao_comercial_erros_lista',
     'gestao_comercial_erros_salvar',
     'gestao_comercial_erros_excluir',
+    'gestao_comercial_erros_tipos_distintos',
     'gestao_rd_metricas',
     'gestao_rejeitados_rd',
     'vendedor_dashboard_rd',
