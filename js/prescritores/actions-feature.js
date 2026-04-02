@@ -170,6 +170,50 @@ function fillSelectFromListPrescritores(selectEl, items, currentValue) {
     }
 }
 
+function formatCepEditarPrescritorAdmin(input) {
+    if (!input) return;
+    var v = (input.value || '').replace(/\D/g, '');
+    if (v.length > 8) v = v.slice(0, 8);
+    input.value = v.length > 5 ? (v.slice(0, 5) + '-' + v.slice(5)) : v;
+}
+
+function fetchCepAndFillEditarPrescritorAdmin(cepDigits) {
+    cepDigits = String(cepDigits || '').replace(/\D/g, '');
+    if (cepDigits.length !== 8) return;
+    fetch('https://viacep.com.br/ws/' + cepDigits + '/json/')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data || data.erro) return;
+            var rua = document.getElementById('edPrescritorRua');
+            var bairro = document.getElementById('edPrescritorBairro');
+            var cidade = document.getElementById('edPrescritorCidade');
+            var uf = document.getElementById('edPrescritorUf');
+            var cidadeUf = document.getElementById('edPrescritorCidadeUf');
+            if (rua) rua.value = data.logradouro || '';
+            if (bairro) bairro.value = data.bairro || '';
+            if (cidade) cidade.value = data.localidade || '';
+            if (uf) uf.value = data.uf || '';
+            if (cidadeUf) cidadeUf.value = [data.localidade, data.uf].filter(Boolean).join(' - ');
+        })
+        .catch(function () {});
+}
+
+function bindEditarPrescritorCepBlurAdmin() {
+    var cepEl = document.getElementById('edPrescritorCep');
+    if (!cepEl) return;
+    if (cepEl._edPrescritorCepBoundAdmin) return;
+    cepEl._edPrescritorCepBoundAdmin = true;
+    cepEl.addEventListener('input', function () {
+        formatCepEditarPrescritorAdmin(cepEl);
+        var cep = (cepEl.value || '').replace(/\D/g, '');
+        if (cep.length === 8) fetchCepAndFillEditarPrescritorAdmin(cep);
+    });
+    cepEl.addEventListener('blur', function () {
+        var cep = (cepEl.value || '').replace(/\D/g, '');
+        if (cep.length === 8) fetchCepAndFillEditarPrescritorAdmin(cep);
+    });
+}
+
 var __prescritoresMetaCache = {
     profissoes: null,
     especialidades: null
@@ -189,6 +233,7 @@ async function openEditarPrescritorModal(nome, visitador) {
             el.value = '';
         }
     });
+    bindEditarPrescritorCepBlurAdmin();
     document.getElementById('modalEditarPrescritor').style.display = 'flex';
     try {
         var params = { nome_prescritor: nome };
@@ -231,6 +276,11 @@ async function openEditarPrescritorModal(nome, visitador) {
         document.getElementById('edPrescritorLocalAtendimento').value = d.local_atendimento || '';
         document.getElementById('edPrescritorWhatsapp').value = (d.whatsapp || '').replace(/\D/g, '');
         document.getElementById('edPrescritorEmail').value = d.email || '';
+        var cepDigits = String(d.endereco_cep || '').replace(/\D/g, '');
+        if (cepDigits.length === 8) {
+            formatCepEditarPrescritorAdmin(document.getElementById('edPrescritorCep'));
+            fetchCepAndFillEditarPrescritorAdmin(cepDigits);
+        }
     } catch (e) {
         console.warn('get_prescritor_dados', e);
     }

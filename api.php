@@ -321,6 +321,8 @@ try {
         case 'top_atendentes':
         case 'canais':
         case 'visitadores':
+        case 'profissoes_carteira':
+        case 'visitadores_carteira':
         case 'visitador_dashboard':
         case 'list_pedidos_visitador':
         case 'list_componentes_prescritor':
@@ -969,51 +971,41 @@ try {
             if ($dataDeP !== null && $dataAteP !== null && $dataDeP > $dataAteP) $dataAteP = $dataDeP;
 
             if ($dataDeP !== null && $dataAteP !== null) {
-                list($whereCond, $paramsP) = buildDateFilter();
-                $whereSql = $whereCond === '1=1' ? '' : "AND $whereCond";
+                // Fonte principal de profissão: prescritor_dados.
+                // O período continua vindo de gestao_pedidos (data_aprovacao/data_orcamento),
+                // mas a classificação de profissão passa a ser do cadastro.
                 $rows = [];
-                // Tentar com prescritor_dados (profissão do cadastro); se tabela não existir, usar só pr
-                $sqlComPd = "
+                $sql = "
                     SELECT
-                        COALESCE(NULLIF(TRIM(pr.profissao), ''), NULLIF(TRIM(pd.profissao), ''), 'Não informada') AS profissao,
-                        COUNT(DISTINCT COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')) AS total,
-                        SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN 1 ELSE 0 END) AS total_aprovados,
-                        COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) AS valor_total
-                    FROM gestao_pedidos gp
-                    LEFT JOIN prescritor_resumido pr ON pr.nome = COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') AND pr.ano_referencia = YEAR(gp.data_aprovacao)
-                    LEFT JOIN prescritor_dados pd ON pd.nome_prescritor = COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')
-                    WHERE gp.data_aprovacao IS NOT NULL $whereSql
-                    GROUP BY COALESCE(NULLIF(TRIM(pr.profissao), ''), NULLIF(TRIM(pd.profissao), ''), 'Não informada')
-                    ORDER BY valor_total DESC
-                ";
-                $sqlSemPd = "
-                    SELECT
-                        COALESCE(NULLIF(TRIM(pr.profissao), ''), 'Não informada') AS profissao,
-                        COUNT(DISTINCT COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')) AS total,
-                        SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN 1 ELSE 0 END) AS total_aprovados,
-                        COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) AS valor_total
-                    FROM gestao_pedidos gp
-                    LEFT JOIN prescritor_resumido pr ON pr.nome = COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') AND pr.ano_referencia = YEAR(gp.data_aprovacao)
-                    WHERE gp.data_aprovacao IS NOT NULL $whereSql
-                    GROUP BY COALESCE(NULLIF(TRIM(pr.profissao), ''), 'Não informada')
+                        COALESCE(NULLIF(TRIM(pd.profissao), ''), 'Não informada') AS profissao,
+                        COUNT(DISTINCT base.prescritor_norm) AS total,
+                        SUM(base.total_aprovados) AS total_aprovados,
+                        COALESCE(SUM(base.valor_total), 0) AS valor_total
+                    FROM (
+                        SELECT
+                            UPPER(TRIM(COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm'))) AS prescritor_norm,
+                            SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN 1 ELSE 0 END) AS total_aprovados,
+                            COALESCE(SUM(CASE WHEN gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') THEN gp.preco_liquido ELSE 0 END), 0) AS valor_total
+                        FROM gestao_pedidos gp
+                        WHERE (gp.data_aprovacao IS NOT NULL OR gp.data_orcamento IS NOT NULL)
+                          AND DATE(COALESCE(gp.data_aprovacao, gp.data_orcamento)) BETWEEN :data_de AND :data_ate
+                        GROUP BY UPPER(TRIM(COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')))
+                    ) base
+                    LEFT JOIN prescritor_dados pd
+                        ON UPPER(TRIM(pd.nome_prescritor)) = base.prescritor_norm
+                    GROUP BY COALESCE(NULLIF(TRIM(pd.profissao), ''), 'Não informada')
                     ORDER BY valor_total DESC
                 ";
                 try {
-                    $stmt = $pdo->prepare($sqlComPd);
-                    foreach ($paramsP as $k => $v) {
-                        $stmt->bindValue(":$k", $v);
-                    }
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->bindValue(':data_de', $dataDeP);
+                    $stmt->bindValue(':data_ate', $dataAteP);
                     $stmt->execute();
                     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 } catch (Throwable $e) {
-                    $stmt = $pdo->prepare($sqlSemPd);
-                    foreach ($paramsP as $k => $v) {
-                        $stmt->bindValue(":$k", $v);
-                    }
-                    $stmt->execute();
-                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    $rows = [];
                 }
-                // Com data_de/data_ate explícitos, não há fallback anual: vazio = sem pedidos no período (gráfico alinhado ao filtro).
+                // Com data_de/data_ate explícitos, não há fallback anual: vazio = sem pedidos no período.
             } else {
                 $ano = $_GET['ano'] ?? date('Y');
                 $stmt = $pdo->prepare("

@@ -109,6 +109,14 @@ function parseBRMoney($s) {
     return (float)$s;
 }
 
+function shouldSkipPrescritorNome($nome) {
+    $nome = trim((string)$nome);
+    if ($nome === '') return true;
+    if (preg_match('/desativad[oa]/iu', $nome)) return true;
+    if (preg_match('/\d/', $nome)) return true;
+    return false;
+}
+
 function readCsvHeader($path, $delim = ';') {
     $h = fopen($path, 'r');
     if (!$h) return [null, null];
@@ -221,6 +229,7 @@ foreach ($anosPrescritor as $anoPrescritor) {
         $nome = trim($row['Nome'] ?? '');
         $visitador = trim($row['Visitador'] ?? '');
         if ($nome === '' && $visitador === '') continue;
+        if (shouldSkipPrescritorNome($nome)) continue;
         $batch[] = [$nome, $visitador];
         $count++;
         if (count($batch) >= 500) {
@@ -423,6 +432,7 @@ foreach ($anosPrescritor as $anoPresc) {
         $visitador = trim($row['Visitador'] ?? $data[0] ?? '');
         $nome = trim($row['Nome'] ?? $data[1] ?? '');
         if ($nome === '' && $visitador === '') continue;
+        if (shouldSkipPrescritorNome($nome)) continue;
         $profissao = trim($row['Profissão'] ?? $row['Profissao'] ?? $data[2] ?? '');
         $sigla = trim($row['Sigla'] ?? $data[3] ?? '');
         $uf = trim($row['UF'] ?? $data[4] ?? '');

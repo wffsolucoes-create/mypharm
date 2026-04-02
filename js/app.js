@@ -1493,15 +1493,15 @@ function renderChartTicketAnual(data) {
 async function loadPrescritores() {
     const fp = getFilterParams();
     const params = { data_de: fp.data_de, data_ate: fp.data_ate };
-    const [prescritores, profissoes, visitadores] = await Promise.all([
+    const [prescritores, profissoes, visitadoresCarteira] = await Promise.all([
         apiGet('top_prescritores', { ...params, limit: 10 }),
-        apiGet('profissoes', params),
-        apiGet('visitadores', params)
+        apiGet('profissoes_carteira'),
+        apiGet('visitadores_carteira')
     ]);
 
     renderTablePrescritores(prescritores);
     renderChartProfissoes(profissoes);
-    renderChartVisitadores(visitadores);
+    renderChartVisitadores(visitadoresCarteira);
 }
 
 // ============ VISITADORES (NOVA PÁGINA) ============
@@ -2781,7 +2781,7 @@ function renderChartProfissoes(data) {
         data: {
             labels: data.map(d => d.profissao),
             datasets: [{
-                data: data.map(d => parseFloat(d.valor_total) || 0),
+                data: data.map(d => parseInt(d.total, 10) || 0),
                 backgroundColor: CHART_COLORS.slice(0, data.length),
                 borderWidth: 0,
                 hoverOffset: 8,
@@ -2793,7 +2793,7 @@ function renderChartProfissoes(data) {
                 legend: { position: 'right', labels: { font: { size: 10 } } },
                 tooltip: {
                     callbacks: {
-                        label: ctx => `${ctx.label}: ${formatMoney(ctx.parsed)} (${data[ctx.dataIndex].total} prescritores)`
+                        label: ctx => `${ctx.label}: ${formatNumber(ctx.parsed)} prescritores`
                     }
                 }
             }
@@ -2809,34 +2809,26 @@ function renderChartVisitadores(data) {
         type: 'bar',
         data: {
             labels: data.map(d => truncateText(d.visitador, 15)),
-            datasets: [
-                {
-                    label: 'Aprovado',
-                    data: data.map(d => parseFloat(d.total_valor_aprovado) || 0),
-                    backgroundColor: 'rgba(6, 214, 160, 0.7)',
-                    borderRadius: 4,
-                },
-                {
-                    label: 'Recusado',
-                    data: data.map(d => parseFloat(d.total_valor_recusado) || 0),
-                    backgroundColor: 'rgba(239, 71, 111, 0.6)',
-                    borderRadius: 4,
-                },
-                {
-                    label: 'No Carrinho',
-                    data: data.map(d => parseFloat(d.total_valor_carrinho) || 0),
-                    backgroundColor: 'rgba(255, 209, 102, 0.6)',
-                    borderRadius: 4,
-                }
-            ]
+            datasets: [{
+                label: 'Prescritores na carteira',
+                data: data.map(d => parseInt(d.total_prescritores, 10) || 0),
+                backgroundColor: 'rgba(67, 97, 238, 0.75)',
+                borderColor: 'rgba(67, 97, 238, 1)',
+                borderWidth: 1,
+                borderRadius: 6
+            }]
         },
         options: {
             plugins: {
-                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatMoney(ctx.parsed.y)}` } }
+                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatNumber(ctx.parsed.y)}` } }
             },
             scales: {
-                y: { stacked: true, ticks: { callback: v => formatCompactMoney(v) }, grid: { color: 'rgba(255,255,255,0.04)' } },
-                x: { stacked: true, grid: { display: false } }
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: v => formatNumber(v) },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                x: { grid: { display: false } }
             }
         }
     });

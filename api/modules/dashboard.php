@@ -35,6 +35,12 @@ function handleDashboardModuleAction(string $action, PDO $pdo): void
         case 'visitadores':
             dashboardVisitadoresStub($pdo);
             return;
+        case 'profissoes_carteira':
+            dashboardProfissoesCarteira($pdo);
+            return;
+        case 'visitadores_carteira':
+            dashboardVisitadoresCarteira($pdo);
+            return;
         case 'visitador_dashboard':
             dashboardVisitadorDashboardReal($pdo);
             return;
@@ -527,6 +533,42 @@ function dashboardVisitadoresStub(PDO $pdo): void
     });
 
     echo json_encode($out, JSON_UNESCAPED_UNICODE);
+}
+
+// ---------------------------------------------------------------------------
+// Prescritores por profissão (cadastro atual)
+// ---------------------------------------------------------------------------
+function dashboardProfissoesCarteira(PDO $pdo): void
+{
+    $sql = "
+        SELECT
+            COALESCE(NULLIF(TRIM(pd.profissao), ''), 'Não informada') AS profissao,
+            COUNT(*) AS total
+        FROM prescritores_cadastro pc
+        LEFT JOIN prescritor_dados pd
+            ON UPPER(TRIM(pd.nome_prescritor)) = UPPER(TRIM(pc.nome))
+        GROUP BY COALESCE(NULLIF(TRIM(pd.profissao), ''), 'Não informada')
+        ORDER BY total DESC
+    ";
+    $stmt = $pdo->query($sql);
+    echo json_encode($stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [], JSON_UNESCAPED_UNICODE);
+}
+
+// ---------------------------------------------------------------------------
+// Prescritores por carteira de visitador (cadastro atual)
+// ---------------------------------------------------------------------------
+function dashboardVisitadoresCarteira(PDO $pdo): void
+{
+    $sql = "
+        SELECT
+            COALESCE(NULLIF(TRIM(pc.visitador), ''), 'My Pharm') AS visitador,
+            COUNT(*) AS total_prescritores
+        FROM prescritores_cadastro pc
+        GROUP BY COALESCE(NULLIF(TRIM(pc.visitador), ''), 'My Pharm')
+        ORDER BY total_prescritores DESC, visitador ASC
+    ";
+    $stmt = $pdo->query($sql);
+    echo json_encode($stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [], JSON_UNESCAPED_UNICODE);
 }
 
 // ---------------------------------------------------------------------------
