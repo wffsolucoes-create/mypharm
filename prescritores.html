@@ -10,7 +10,6 @@
     <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
     <link rel="apple-touch-icon" href="imagens/IconeMyPharm.png?v=20260402">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="css/styles.css">
     <style>
         :root {
@@ -736,7 +735,6 @@
                     <i class="fas fa-sync-alt"></i> Atualizar
                 </button>
             </div>
-
             <div class="kpi-row" aria-label="Resumo dos prescritores">
                 <div class="kpi-card">
                     <div class="icon-box icon-purple">
@@ -798,6 +796,9 @@
                                 <th onclick="sortTable('valor_recusado')" style="text-align:right; cursor:pointer;">
                                     <div class="th-sort">Recusados (valor + qtd) <i class="fas fa-sort"></i></div>
                                 </th>
+                                <th onclick="sortTable('saldo_bonus_positivo')" style="text-align:right; cursor:pointer; min-width: 168px;" title="Saldo de bônus positivo na carteira do prescritor">
+                                    <div class="th-sort">Bonif. 20% <i class="fas fa-sort"></i></div>
+                                </th>
                                 <th onclick="sortTable('dias_sem_compra')" style="text-align:center; cursor:pointer;">
                                     <div class="th-sort">Dias s/ Compra <i class="fas fa-sort"></i></div>
                                 </th>
@@ -809,7 +810,7 @@
                         </thead>
                         <tbody id="prescritoresBody">
                             <tr>
-                                <td colspan="8"
+                                <td colspan="9"
                                     style="text-align:center; padding: 100px; color: var(--text-secondary);">
                                     <i class="fas fa-circle-notch fa-spin fa-2x"></i><br><br>
                                     Carregando prescritores...
@@ -961,8 +962,23 @@
         </div>
     </div>
 
+    <!-- Modal Bônus do prescritor -->
+    <div id="modalBonusPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(2px); z-index:3200; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:12px; width:100%; max-width:960px; box-shadow:0 20px 60px rgba(0,0,0,0.25); border:1px solid var(--border); overflow:hidden; max-height:90vh; display:flex; flex-direction:column;">
+            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="modalBonusTitle" style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-gift" style="margin-right:8px; color:#F59E0B;"></i>Bônus do prescritor</h3>
+                <button type="button" onclick="closeBonusPrescritorModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div id="modalBonusBody" style="padding:18px 22px; overflow:auto; flex:1;"></div>
+            <div style="padding:14px 22px; border-top:1px solid var(--border); text-align:right;">
+                <button type="button" onclick="closeBonusPrescritorModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/shared/mypharm-utils.js"></script>
     <script src="js/prescritores/actions-feature.js"></script>
+    
     <script>
         let __csrfToken = '';
         (async function() {
@@ -1010,9 +1026,11 @@
         let allData = [];
         let totalFromServer = 0;
         let currentSort = { column: 'valor_aprovado', direction: 'desc' };
+        let __bonusContext = { prescritor: '', visitador: '' };
+        let __loadDataReqSeq = 0;
 
         let currentPage = 1;
-        const itemsPerPage = 200;
+        const itemsPerPage = 80;
         let searchDebounceTimer = null;
 
         function getTodayLocalYmd() {
@@ -1069,7 +1087,7 @@
             const btnAtualizar = document.getElementById('btnAtualizarPrescritores');
             const selects = document.querySelectorAll('#visitadorFilter, #dataDeFilter, #dataAteFilter');
             if (loading) {
-                body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 80px 24px; color: var(--text-secondary);">
+                body.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 80px 24px; color: var(--text-secondary);">
                     <i class="fas fa-circle-notch fa-spin" style="font-size: 2.5rem; margin-bottom: 16px; display: block; color: var(--primary);"></i>
                     <strong>Carregando prescritores...</strong><br>
                     <span style="font-size: 0.85rem; opacity: 0.8;">Aguarde alguns segundos.</span>
@@ -1083,6 +1101,7 @@
         }
 
         async function loadData(page) {
+            const reqSeq = ++__loadDataReqSeq;
             const body = document.getElementById('prescritoresBody');
             const visitador = (document.getElementById('visitadorFilter') && document.getElementById('visitadorFilter').value) || '';
             const searchTerm = (document.getElementById('searchTerm') && document.getElementById('searchTerm').value) || '';
@@ -1099,6 +1118,7 @@
                 const response = await fetch(url);
 
                 if (response.status === 401) {
+                    if (reqSeq !== __loadDataReqSeq) return;
                     setLoadingPrescritores(false);
                     localStorage.clear();
                     window.location.href = 'index.html';
@@ -1108,8 +1128,9 @@
                 const data = await response.json();
 
                 if (data.error) {
+                    if (reqSeq !== __loadDataReqSeq) return;
                     setLoadingPrescritores(false);
-                    body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 100px; color: #EF476F;">
+                    body.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 100px; color: #EF476F;">
                         <i class="fas fa-exclamation-triangle fa-2x"></i><br><br>
                         Erro do Sistema: ${data.error}
                     </td></tr>`;
@@ -1120,14 +1141,21 @@
                 const isPaginated = data && typeof data.total === 'number' && Array.isArray(data.data);
                 allData = isPaginated ? data.data : (Array.isArray(data) ? data : []);
                 totalFromServer = isPaginated ? data.total : allData.length;
+                if (reqSeq !== __loadDataReqSeq) return;
                 if (!isPaginated) currentPage = 1;
                 setLoadingPrescritores(false);
                 updateSortIcons();
                 renderTableWithCurrentState();
+                // Bônus é enriquecimento: não bloqueia o primeiro render da tabela.
+                loadBonusResumoLote().then(() => {
+                    if (reqSeq !== __loadDataReqSeq) return;
+                    renderTableWithCurrentState();
+                }).catch(() => {});
             } catch (err) {
+                if (reqSeq !== __loadDataReqSeq) return;
                 console.error('Erro prescritores:', err);
                 setLoadingPrescritores(false);
-                body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 100px; color: #EF476F;">
+                body.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 100px; color: #EF476F;">
                     <i class="fas fa-exclamation-triangle fa-2x"></i><br><br>
                     Erro ao carregar os dados.<br>
                     <small style="color: var(--text-secondary);">${err.message || 'Verifique a conexão.'}</small>
@@ -1161,6 +1189,47 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+        async function loadBonusResumoLote() {
+            if (!Array.isArray(allData) || allData.length === 0) return;
+            const payload = {
+                prescritores: allData.map(d => ({
+                    prescritor: d.prescritor || '',
+                    visitador: d.visitador || ''
+                }))
+            };
+            try {
+                const resp = await fetch('api_bonus.php?action=bonus_resumo_lote', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': __csrfToken || ''
+                    },
+                    body: JSON.stringify(payload)
+                });
+                if (!resp.ok) return;
+                const json = await resp.json();
+                const resumo = (json && json.success && json.resumo) ? json.resumo : {};
+                allData = allData.map(function (d) {
+                    const item = resumo[d.prescritor] || null;
+                    const elegivel = !!(item && item.bonificacao_eligivel);
+                    const saldo = item ? (parseFloat(item.saldo_bonus) || 0) : 0;
+                    return Object.assign({}, d, {
+                        bonificacao_eligivel: elegivel,
+                        saldo_bonus: saldo,
+                        saldo_bonus_positivo: (elegivel && saldo > 0) ? saldo : 0
+                    });
+                });
+            } catch (_) {
+                allData = allData.map(function (d) {
+                    return Object.assign({}, d, {
+                        bonificacao_eligivel: false,
+                        saldo_bonus: 0,
+                        saldo_bonus_positivo: 0
+                    });
+                });
+            }
+        }
+
         function renderTable(data) {
             const body = document.getElementById('prescritoresBody');
             const pagInfo = document.getElementById('paginationInfo');
@@ -1169,7 +1238,7 @@
             const pagBar = document.getElementById('paginationBar');
 
             if (!Array.isArray(data) || !data.length) {
-                body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 100px; color: var(--text-secondary);">
+                body.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 100px; color: var(--text-secondary);">
                     <i class="fas fa-search fa-2x"></i><br><br>
                     Nenhum resultado encontrado para os filtros selecionados.<br>
                     Tente ajustar o visitador ou o nome pesquisado.
@@ -1202,6 +1271,13 @@
                     <td style="color: var(--text-secondary);">${d.visitador || 'My Pharm'}</td>
                     <td class="val-approved" style="text-align:right;">${formatMoney(d.valor_aprovado)}<br><small style="opacity:0.9;">${formatNumber(d.total_pedidos ?? 0)} ped.</small></td>
                     <td class="val-refused" style="text-align:right; color: var(--danger, #EF4444);">${formatMoney(d.valor_recusado)}<br><small style="opacity:0.95; color: var(--danger, #EF4444);">${formatNumber(d.qtd_recusados ?? 0)} ped.</small></td>
+                    <td style="text-align:right; font-size:0.82rem; vertical-align:top;">
+                        ${d.bonificacao_eligivel
+                            ? ((parseFloat(d.saldo_bonus_positivo) || 0) > 0
+                                ? `<div style="font-weight:700; color:var(--warning, #F59E0B);">${formatMoney(d.saldo_bonus_positivo)}</div>`
+                                : '<span style="color:var(--text-secondary);">—</span>')
+                            : '<span style="color:var(--text-secondary);">—</span>'}
+                    </td>
                     <td style="text-align:center;">
                         ${getDaysBadge(d.dias_sem_compra)}
                     </td>
@@ -1219,6 +1295,7 @@
                             <button onclick="openComponentesPrescritorModal('${(d.prescritor||'').replace(/'/g, "\\'")}', 'aprovados', '${((d.visitador || 'My Pharm')).replace(/'/g, "\\'")}')" title="Componentes aprovados" style="background:var(--bg-body); border:1px solid var(--border); color:#10B981; padding:6px 8px; border-radius:6px; cursor:pointer;"><i class="fas fa-atom"></i></button>
                             <button onclick="openComponentesPrescritorModal('${(d.prescritor||'').replace(/'/g, "\\'")}', 'recusados', '${((d.visitador || 'My Pharm')).replace(/'/g, "\\'")}')" title="Componentes recusados" style="background:var(--bg-body); border:1px solid var(--border); color:#EF4444; padding:6px 8px; border-radius:6px; cursor:pointer;"><i class="fas fa-atom"></i></button>
                             <button onclick="openAnalisePrescritorModal('${(d.prescritor||'').replace(/'/g, "\\'")}', '${((d.visitador || 'My Pharm')).replace(/'/g, "\\'")}')" title="Análises e evolução" style="background:var(--bg-body); border:1px solid var(--border); color:#8B5CF6; padding:6px 8px; border-radius:6px; cursor:pointer;"><i class="fas fa-chart-line"></i></button>
+                            <button onclick="openBonusPrescritorModal('${(d.prescritor||'').replace(/'/g, "\\'")}', '${((d.visitador || 'My Pharm')).replace(/'/g, "\\'")}')" title="Bônus do prescritor" style="background:var(--bg-body); border:1px solid var(--border); color:#F59E0B; padding:6px 8px; border-radius:6px; cursor:pointer;"><i class="fas fa-gift"></i></button>
                             <button onclick="openTransferModal('${(d.prescritor||'').replace(/'/g, "\\'")}', '${(d.visitador || 'My Pharm').replace(/'/g, "\\'")}')" title="Transferir Prescritor" style="background:var(--bg-body); border:1px solid var(--border); color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer;" onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-secondary)';"><i class="fas fa-exchange-alt"></i></button>
                         </div>
                     </td>
@@ -1252,9 +1329,6 @@
                 } else {
                     valA = parseFloat(valA) || 0;
                     valB = parseFloat(valB) || 0;
-                    // Handle nulls for days (sem registro = infinite)
-                    if ((col === 'dias_sem_compra' || col === 'dias_sem_visita') && a[col] === null) valA = 999999;
-                    if ((col === 'dias_sem_compra' || col === 'dias_sem_visita') && b[col] === null) valB = 999999;
                 }
 
                 if (valA < valB) return dir === 'asc' ? -1 : 1;
@@ -1308,8 +1382,9 @@
                 'valor_aprovado': 3,
                 'valor_recusado': 4,
                 'total_pedidos': 3,
-                'dias_sem_compra': 5,
-                'dias_sem_visita': 6
+                'saldo_bonus_positivo': 5,
+                'dias_sem_compra': 6,
+                'dias_sem_visita': 7
             };
 
             const index = headers[currentSort.column];
@@ -1319,6 +1394,171 @@
                     icon.className = currentSort.direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
                     icon.style.opacity = '1';
                 }
+            }
+        }
+
+        function closeBonusPrescritorModal() {
+            const modal = document.getElementById('modalBonusPrescritor');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function renderBonusExtratoHtml(data) {
+            const resumo = data && data.resumo ? data.resumo : {};
+            const creditos = Array.isArray(data.creditos) ? data.creditos : [];
+            const debitos = Array.isArray(data.debitos) ? data.debitos : [];
+            const bonifMesAnterior = parseFloat(resumo.bonificacao_mes_anterior || 0);
+            const bonifMesAtual = parseFloat(resumo.bonificacao_mes_atual_a_bonificar || 0);
+            const totalDebito = parseFloat(resumo.bonificacoes_utilizadas || resumo.total_debito || 0);
+            const saldoBonif = parseFloat(resumo.saldo_bonificacao || resumo.saldo_bonus || 0);
+            const refMesAnterior = resumo.referencia_mes_anterior_label || 'mês anterior';
+            const compMesAtual = resumo.competencia_mes_atual_label || 'mês atual';
+            const elegivel = !!resumo.bonificacao_eligivel;
+
+            const creditosHtml = creditos.length
+                ? creditos.map(c => {
+                    const comp = `${String(c.competencia_mes).padStart(2, '0')}/${c.competencia_ano}`;
+                    const ref = `${String(c.referencia_mes).padStart(2, '0')}/${c.referencia_ano}`;
+                    return `<tr>
+                        <td style="padding:8px; border-bottom:1px solid var(--border);">${comp}</td>
+                        <td style="padding:8px; border-bottom:1px solid var(--border);">${ref}</td>
+                        <td style="padding:8px; border-bottom:1px solid var(--border); text-align:right;">${formatMoney(c.valor_base || 0)}</td>
+                        <td style="padding:8px; border-bottom:1px solid var(--border); text-align:right; color:#F59E0B; font-weight:700;">${formatMoney(c.valor_credito || 0)}</td>
+                    </tr>`;
+                }).join('')
+                : `<tr><td colspan="4" style="padding:10px; text-align:center; color:var(--text-secondary);">Sem créditos mensais registrados.</td></tr>`;
+
+            const debitosHtml = debitos.length
+                ? debitos.map(d => `<tr>
+                    <td style="padding:8px; border-bottom:1px solid var(--border);">${d.data_debito || '-'}</td>
+                    <td style="padding:8px; border-bottom:1px solid var(--border);">#${d.numero_pedido || 0}/${d.serie_pedido || 0}</td>
+                    <td style="padding:8px; border-bottom:1px solid var(--border); text-align:right; color:#EF4444; font-weight:700;">${formatMoney(d.valor_debito || 0)}</td>
+                    <td style="padding:8px; border-bottom:1px solid var(--border);">${escapeHtml(d.usuario_nome || '-')}</td>
+                </tr>`).join('')
+                : `<tr><td colspan="4" style="padding:10px; text-align:center; color:var(--text-secondary);">Sem débitos lançados.</td></tr>`;
+
+            return `
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:14px;">
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:10px;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Bonificação ${refMesAnterior}</div>
+                        <div style="font-size:1.2rem; font-weight:800; color:#10B981;">${formatMoney(bonifMesAnterior)}</div>
+                    </div>
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:10px;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Bonificação ${compMesAtual} (a bonificar)</div>
+                        <div style="font-size:1.05rem; font-weight:700; color:#0EA5E9;">${formatMoney(bonifMesAtual)}</div>
+                    </div>
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:10px;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Bonificações utilizadas</div>
+                        <div style="font-size:1.05rem; font-weight:700; color:#EF4444;">${formatMoney(totalDebito)}</div>
+                    </div>
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:10px;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Saldo de bonificação</div>
+                        <div style="font-size:1.05rem; font-weight:700; color:${saldoBonif > 0 ? '#F59E0B' : 'var(--text-secondary)'};">${formatMoney(Math.max(0, saldoBonif))}</div>
+                    </div>
+                </div>
+                ${!elegivel ? `<div style="margin-bottom:12px; padding:10px 12px; border-radius:8px; border:1px solid rgba(239,68,68,.35); background:rgba(239,68,68,.08); color:#EF4444; font-size:0.8rem;">Prescritor não elegível para bônus (regra: carteiras dos visitadores Aulis e Priscila).</div>` : ''}
+                <div style="display:grid; grid-template-columns:1fr; gap:14px;">
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:10px;">
+                        <h4 style="margin:0 0 10px 0; font-size:0.92rem;">Lançar débito de bônus</h4>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px;">
+                            <div><label style="display:block; font-size:0.72rem; color:var(--text-secondary); margin-bottom:4px;">Nº Pedido</label><input id="bonusDebitoPedido" type="number" min="1" style="width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary);"></div>
+                            <div><label style="display:block; font-size:0.72rem; color:var(--text-secondary); margin-bottom:4px;">Série</label><input id="bonusDebitoSerie" type="number" min="1" style="width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary);"></div>
+                            <div><label style="display:block; font-size:0.72rem; color:var(--text-secondary); margin-bottom:4px;">Valor a debitar</label><input id="bonusDebitoValor" type="number" min="0.01" step="0.01" style="width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary);"></div>
+                            <div><label style="display:block; font-size:0.72rem; color:var(--text-secondary); margin-bottom:4px;">Data</label><input id="bonusDebitoData" type="date" value="${getTodayLocalYmd()}" style="width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary);"></div>
+                        </div>
+                        <div style="margin-top:10px;">
+                            <label style="display:block; font-size:0.72rem; color:var(--text-secondary); margin-bottom:4px;">Observação (opcional)</label>
+                            <input id="bonusDebitoObs" type="text" maxlength="500" placeholder="Motivo / detalhe do consumo de bônus" style="width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary);">
+                        </div>
+                        <div style="margin-top:10px; text-align:right;">
+                            <button type="button" onclick="registrarDebitoBonusAtual()" ${!elegivel ? 'disabled' : ''} style="padding:9px 14px; border-radius:8px; border:none; background:${elegivel ? '#F59E0B' : '#94A3B8'}; color:white; font-weight:700; cursor:${elegivel ? 'pointer' : 'not-allowed'};">Registrar débito</button>
+                        </div>
+                    </div>
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:10px;">
+                        <h4 style="margin:0 0 10px 0; font-size:0.92rem;">Bonificações geradas por mês</h4>
+                        <div style="overflow:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                                <thead><tr><th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Competência</th><th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Ref. vendas</th><th style="text-align:right; padding:8px; border-bottom:1px solid var(--border);">Base</th><th style="text-align:right; padding:8px; border-bottom:1px solid var(--border);">Crédito 20%</th></tr></thead>
+                                <tbody>${creditosHtml}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:10px;">
+                        <h4 style="margin:0 0 10px 0; font-size:0.92rem;">Bonificações utilizadas</h4>
+                        <div style="overflow:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                                <thead><tr><th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Data</th><th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Pedido/Série</th><th style="text-align:right; padding:8px; border-bottom:1px solid var(--border);">Débito</th><th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Usuário</th></tr></thead>
+                                <tbody>${debitosHtml}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function openBonusPrescritorModal(prescritor, visitador) {
+            __bonusContext = { prescritor: prescritor || '', visitador: visitador || '' };
+            const modal = document.getElementById('modalBonusPrescritor');
+            const title = document.getElementById('modalBonusTitle');
+            const body = document.getElementById('modalBonusBody');
+            if (!modal || !title || !body) return;
+            title.innerHTML = `<i class="fas fa-gift" style="margin-right:8px; color:#F59E0B;"></i>Bônus: ${escapeHtml(__bonusContext.prescritor)}`;
+            body.innerHTML = '<div style="padding:28px; text-align:center; color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin"></i> Carregando bônus...</div>';
+            modal.style.display = 'flex';
+            try {
+                const url = `api_bonus.php?action=bonus_extrato&prescritor=${encodeURIComponent(__bonusContext.prescritor)}`;
+                const resp = await fetch(url);
+                const json = await resp.json();
+                if (!json || !json.success) {
+                    body.innerHTML = `<div style="padding:24px; text-align:center; color:#EF4444;">${escapeHtml((json && json.error) ? json.error : 'Falha ao carregar bônus.')}</div>`;
+                    return;
+                }
+                body.innerHTML = renderBonusExtratoHtml(json);
+            } catch (e) {
+                body.innerHTML = `<div style="padding:24px; text-align:center; color:#EF4444;">Erro ao carregar bônus: ${escapeHtml(e.message || 'indefinido')}</div>`;
+            }
+        }
+
+        async function registrarDebitoBonusAtual() {
+            const prescritor = (__bonusContext && __bonusContext.prescritor) || '';
+            if (!prescritor) return;
+            const numeroPedido = parseInt((document.getElementById('bonusDebitoPedido') || {}).value || '0', 10) || 0;
+            const seriePedido = parseInt((document.getElementById('bonusDebitoSerie') || {}).value || '0', 10) || 0;
+            const valorDebito = parseFloat((document.getElementById('bonusDebitoValor') || {}).value || '0') || 0;
+            const dataDebito = (document.getElementById('bonusDebitoData') || {}).value || '';
+            const observacao = (document.getElementById('bonusDebitoObs') || {}).value || '';
+
+            if (numeroPedido <= 0 || seriePedido <= 0 || valorDebito <= 0 || !dataDebito) {
+                alert('Preencha corretamente pedido, série, valor e data do débito.');
+                return;
+            }
+
+            try {
+                const resp = await fetch('api_bonus.php?action=bonus_debito', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': __csrfToken || ''
+                    },
+                    body: JSON.stringify({
+                        csrf_token: __csrfToken || '',
+                        prescritor: prescritor,
+                        visitador: (__bonusContext && __bonusContext.visitador) || '',
+                        numero_pedido: numeroPedido,
+                        serie_pedido: seriePedido,
+                        valor_debito: valorDebito,
+                        data_debito: dataDebito,
+                        observacao: observacao
+                    })
+                });
+                const json = await resp.json();
+                if (!json || !json.success) {
+                    alert((json && json.error) ? json.error : 'Não foi possível registrar o débito de bônus.');
+                    return;
+                }
+                await loadData(currentPage);
+                await openBonusPrescritorModal((__bonusContext && __bonusContext.prescritor) || '', (__bonusContext && __bonusContext.visitador) || '');
+            } catch (e) {
+                alert('Erro ao registrar débito de bônus.');
             }
         }
 

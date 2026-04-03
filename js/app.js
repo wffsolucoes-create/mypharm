@@ -15,6 +15,7 @@ let __adminFilterChangeTimer = null;
 const MAPA_VISITAS_TRAJ_KEY = 'mypharm_mapa_visitas_show_trajetos';
 const MAPA_VISITAS_PINOS_KEY = 'mypharm_mapa_visitas_show_pinos';
 const SIDEBAR_COLLAPSED_KEY = 'mypharm_sidebar_collapsed';
+let __leafletLoadPromise = null;
 
 /** Estado da API de notificações — deve existir antes de qualquer chamada a loadNotificacoesFromAPI (evita TDZ). */
 let __notificacoesApi = [];
@@ -50,6 +51,61 @@ const CHART_COLORS = [
 ];
 
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+function loadCssOnce(href, id) {
+    if (id && document.getElementById(id)) return;
+    const already = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+        .some((l) => (l.href || '').indexOf(href) !== -1);
+    if (already) return;
+    const link = document.createElement('link');
+    if (id) link.id = id;
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+}
+
+function loadScriptOnce(src, id) {
+    return new Promise((resolve, reject) => {
+        if (id && document.getElementById(id)) return resolve();
+        const existing = Array.from(document.querySelectorAll('script[src]'))
+            .find((s) => (s.src || '').indexOf(src) !== -1);
+        if (existing) {
+            if (existing.dataset.loaded === '1') return resolve();
+            existing.addEventListener('load', () => resolve(), { once: true });
+            existing.addEventListener('error', () => reject(new Error('Falha ao carregar script: ' + src)), { once: true });
+            return;
+        }
+        const script = document.createElement('script');
+        if (id) script.id = id;
+        script.src = src;
+        script.defer = true;
+        script.onload = () => {
+            script.dataset.loaded = '1';
+            resolve();
+        };
+        script.onerror = () => reject(new Error('Falha ao carregar script: ' + src));
+        document.head.appendChild(script);
+    });
+}
+
+async function ensureLeafletLoaded() {
+    if (typeof L !== 'undefined' && typeof L.map === 'function') return true;
+    if (!__leafletLoadPromise) {
+        __leafletLoadPromise = (async () => {
+            loadCssOnce('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', 'leaflet-css');
+            loadCssOnce('https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css', 'leaflet-mc-css');
+            loadCssOnce('https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css', 'leaflet-mc-default-css');
+            await loadScriptOnce('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', 'leaflet-js');
+            await loadScriptOnce('https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js', 'leaflet-mc-js');
+            await loadScriptOnce('https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js', 'leaflet-heat-js');
+            return true;
+        })().catch((e) => {
+            console.warn('Leaflet indisponível:', e);
+            return false;
+        });
+    }
+    return __leafletLoadPromise;
+}
 
 // ============ Utility Functions ============
 function formatMoney(value) {
@@ -1869,6 +1925,7 @@ function initMapaVisitasMapControlsOnce() {
 }
 
 async function loadVisitasPage() {
+    await ensureLeafletLoaded();
     initVisitasGestaoFiltersOnce();
     initVisitasTableControlsOnce();
     initRotasDetalhesTableControlsOnce();
@@ -3882,12 +3939,12 @@ async function loadVisitadorDashboard(nomeVisitador, anoSelecionado = null, mesS
             else if (typeof window.updateNotificationsFromAgenda === 'function') window.updateNotificationsFromAgenda();
         }
 
-        // 7. Mapa de Visitas
-        try {
-            renderDashboardMapaVisitas(data.visitas_mapa || [], data.visitas_mapa_resumo || null, { ano, mes });
-        } catch (e) {
-            // não quebrar o dashboard se o mapa falhar
-        }
+        // 7. Mapa de Visitas (lazy-load de Leaflet para não bloquear o dashboard inicial)
+        Promise.resolve(ensureLeafletLoaded()).then(() => {
+            try {
+                renderDashboardMapaVisitas(data.visitas_mapa || [], data.visitas_mapa_resumo || null, { ano, mes });
+            } catch (_) { /* ignore */ }
+        });
 
     } catch (err) {
         console.error('Erro loadVisitadorDashboard:', err);

@@ -569,6 +569,7 @@ try {
 
             foreach ($rotas_list as $rota) {
                 $rid = (int)$rota['id'];
+                $dataInicioRota = $rota['data_inicio'] ?? null;
                 $dataFimRota = $rota['data_fim'] ?? null;
                 if ($dataFimRota !== null && $dataFimRota !== '') {
                     $stmtP = $pdo->prepare("SELECT lat, lng, criado_em FROM rotas_pontos WHERE rota_id = :rid AND criado_em <= :data_fim ORDER BY criado_em ASC");
@@ -616,15 +617,68 @@ try {
                         $addrFim = number_format($la1, 5, '.', '') . ', ' . number_format($ln1, 5, '.', '');
                     }
                 }
-                $km_rota = 0;
-                for ($i = 1; $i < $qtd_pontos; $i++) {
-                    $segKm = $haversineKm(
-                        $pontos[$i-1]['lat'], $pontos[$i-1]['lng'],
-                        $pontos[$i]['lat'], $pontos[$i]['lng']
-                    );
-                    if ($segKm < $kmSegmentoMaxValido) {
-                        $km_rota += $segKm;
+                // Alinha com o cálculo do visitador: combina pontos de rota + GPS de visitas em timeline.
+                $allGps = [];
+                foreach ($pontos as $p) {
+                    $allGps[] = [
+                        'lat' => (float)$p['lat'],
+                        'lng' => (float)$p['lng'],
+                        'ts' => strtotime((string)($p['criado_em'] ?? '')) ?: 0,
+                    ];
+                }
+                try {
+                    $diaRota = $dataInicioRota ? substr((string)$dataInicioRota, 0, 10) : null;
+                    if ($diaRota) {
+                        $stmtVisRota = $pdo->prepare("
+                            SELECT
+                                hv.inicio_visita,
+                                CONCAT(hv.data_visita, ' ', COALESCE(hv.horario, '00:00:00')) AS fim_visita,
+                                vg.lat AS geo_lat,
+                                vg.lng AS geo_lng
+                            FROM historico_visitas hv
+                            LEFT JOIN visitas_geolocalizacao vg ON vg.historico_id = hv.id
+                            WHERE TRIM(COALESCE(hv.visitador, '')) = TRIM(:visitador)
+                              AND hv.data_visita = :dia
+                            ORDER BY hv.inicio_visita ASC
+                        ");
+                        $stmtVisRota->execute([
+                            'visitador' => (string)($rota['visitador_nome'] ?? ''),
+                            'dia' => $diaRota,
+                        ]);
+                        $visitasRota = $stmtVisRota->fetchAll(PDO::FETCH_ASSOC);
+                        if ($dataFimRota !== null && $dataFimRota !== '') {
+                            $tsFim = strtotime((string)$dataFimRota) ?: null;
+                            if ($tsFim !== null) {
+                                $visitasRota = array_values(array_filter($visitasRota, function ($v) use ($tsFim) {
+                                    $ts = !empty($v['inicio_visita']) ? strtotime((string)$v['inicio_visita']) : strtotime((string)($v['fim_visita'] ?? ''));
+                                    return $ts !== false && $ts <= $tsFim;
+                                }));
+                            }
+                        }
+                        foreach ($visitasRota as $vis) {
+                            if (!empty($vis['geo_lat']) && !empty($vis['geo_lng'])) {
+                                $ts = !empty($vis['inicio_visita']) ? strtotime((string)$vis['inicio_visita']) : strtotime((string)($vis['fim_visita'] ?? ''));
+                                if ($ts !== false) {
+                                    $allGps[] = [
+                                        'lat' => (float)$vis['geo_lat'],
+                                        'lng' => (float)$vis['geo_lng'],
+                                        'ts' => $ts,
+                                    ];
+                                }
+                            }
+                        }
                     }
+                } catch (Throwable $e) {
+                    // Mantém cálculo pelos pontos de rota caso visitas_geolocalizacao/historico falhe.
+                }
+                usort($allGps, function ($a, $b) { return (int)$a['ts'] <=> (int)$b['ts']; });
+                $km_rota = 0.0;
+                for ($i = 1; $i < count($allGps); $i++) {
+                    $segKm = $haversineKm(
+                        $allGps[$i-1]['lat'], $allGps[$i-1]['lng'],
+                        $allGps[$i]['lat'], $allGps[$i]['lng']
+                    );
+                    if ($segKm < $kmSegmentoMaxValido) $km_rota += $segKm;
                 }
                 $km_linha_reta = 0.0;
                 if ($qtd_pontos >= 2) {
