@@ -763,24 +763,124 @@
         .roteiro-map-card {
             padding: 0;
             overflow: hidden;
-            min-height: 400px;
+            min-height: 420px;
             border-radius: 12px;
             border: 1px solid var(--border);
             box-shadow: 0 2px 12px rgba(0,0,0,0.06);
         }
+        .roteiro-map-layout {
+            display: flex;
+            align-items: stretch;
+            min-height: 420px;
+        }
+        .roteiro-map-wrap {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            min-height: 420px;
+        }
         .roteiro-map-container {
             width: 100%;
-            height: 500px;
+            height: 100%;
+            min-height: 420px;
             background: var(--bg-body);
         }
         .roteiro-map-empty {
+            position: absolute;
+            inset: 0;
+            margin: auto;
+            max-width: 280px;
+            height: fit-content;
             padding: 56px 24px;
             text-align: center;
             color: var(--text-secondary);
             font-size: 0.9rem;
+            z-index: 500;
+            pointer-events: none;
         }
         .roteiro-map-empty i { font-size: 2.5rem; margin-bottom: 16px; opacity: 0.4; display: block; }
         .roteiro-map-empty p { margin: 0; }
+        .roteiro-map-legend {
+            flex: 0 0 220px;
+            max-width: 240px;
+            padding: 1rem 1rem 1.1rem;
+            background: var(--bg-surface);
+            border-left: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+        .roteiro-map-legend-title {
+            margin: 0 0 0.75rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        .roteiro-map-legend-block { margin-bottom: 1rem; }
+        .roteiro-map-legend-label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.35rem;
+        }
+        .roteiro-map-legend-gradient {
+            height: 10px;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #1e3a8a 0%, #06b6d4 28%, #84cc16 55%, #facc15 78%, #ef4444 100%);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+        }
+        .roteiro-map-legend-scale {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.25rem;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+        .roteiro-map-legend-items {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .roteiro-map-legend-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.78rem;
+            color: var(--text-primary);
+        }
+        .roteiro-map-swatch {
+            flex-shrink: 0;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.85);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.2);
+        }
+        .roteiro-map-swatch--visita { background: #e63946; }
+        .roteiro-map-swatch--inicio { background: #10B981; }
+        .roteiro-map-swatch--fim { background: #EF4444; }
+        .roteiro-map-swatch--trajeto {
+            width: 22px;
+            height: 4px;
+            border-radius: 2px;
+            border: none;
+            box-shadow: none;
+            background: linear-gradient(90deg, #2563eb, #7c3aed);
+        }
+        .roteiro-map-legend-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 0.85rem 0 0.65rem;
+        }
+        .roteiro-map-legend-note {
+            margin: 0;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
         .leaflet-popup-content-wrapper { border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
         .leaflet-popup-content { margin: 12px 16px; font-size: 0.88rem; line-height: 1.5; min-width: 180px; }
         .roteiro-popup strong { display: block; }
@@ -797,6 +897,25 @@
             text-align: left;
         }
         .roteiro-tooltip::before { border-top-color: var(--border); }
+
+        @media (max-width: 900px) {
+            .roteiro-map-layout {
+                flex-direction: column;
+                min-height: 0;
+            }
+            .roteiro-map-wrap {
+                min-height: 360px;
+            }
+            .roteiro-map-container {
+                min-height: 360px;
+            }
+            .roteiro-map-legend {
+                flex: none;
+                max-width: none;
+                border-left: none;
+                border-top: 1px solid var(--border);
+            }
+        }
 
         /* Mobile: páginas Pedidos, Prescritores, Agenda e Roteiro alinhadas como o painel */
         @media (max-width: 768px) {

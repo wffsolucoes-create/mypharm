@@ -3010,6 +3010,16 @@ body {
     word-break: break-word;
 }
 
+#page-visitas #tableRotasDetalhes thead th {
+    text-align: center;
+    vertical-align: middle;
+}
+
+#page-visitas #tableRotasDetalhes tbody td {
+    text-align: center;
+    vertical-align: middle;
+}
+
 #page-visitas #tableRotasDetalhes td:nth-child(3),
 #page-visitas #tableRotasDetalhes td:nth-child(5) {
     white-space: nowrap;
@@ -3019,6 +3029,54 @@ body {
 #page-visitas #tableRotasDetalhes td:nth-child(8),
 #page-visitas #tableRotasDetalhes td:nth-child(9) {
     white-space: nowrap;
+}
+
+#page-visitas #tableRotasDetalhes td.td-rota-endereco {
+    text-align: left;
+    line-height: 1.35;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    max-width: 320px;
+}
+
+#page-visitas #tableRotasDetalhes td.td-visitador {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#page-visitas #tableRotasDetalhes td.td-km strong {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+#page-visitas #tableRotasDetalhes td.td-index {
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+#page-visitas #tableRotasDetalhes .status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 86px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    border: 1px solid transparent;
+}
+
+#page-visitas #tableRotasDetalhes .status-badge--ok {
+    color: #0f7a4b;
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.35);
+}
+
+#page-visitas #tableRotasDetalhes .status-badge--warn {
+    color: #9a6b00;
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(245, 158, 11, 0.35);
 }
 
 .visitas-table-pager {
