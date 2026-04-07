@@ -1347,11 +1347,15 @@ function gcBuildRelatoriosComerciais(PDO $pdo, string $start, string $end, strin
     }
 
     $errosCountMap = [];
+    $errosPtsMap = [];
     gcEnsureControleErrosTable($pdo);
     gcEnsureVendedorPerdasAcoesTableGc($pdo);
-    // Score "Pts erros": tabela por quantidade total de registros (manuais + perdas), nÃ£o soma de pontos_descontados.
+    // Score "Pts erros": 20 menos a soma de pontos_descontados (manuais + perdas), limitado entre 0 e 20.
     $cntPerdas = gcTryFetchAll($pdo, "
-        SELECT TRIM(vpa.vendedor_nome) AS atendente, COUNT(*) AS qtd
+        SELECT
+            TRIM(vpa.vendedor_nome) AS atendente,
+            COUNT(*) AS qtd,
+            COALESCE(SUM(vpa.pontos_descontados), 0) AS pts
         FROM vendedor_perdas_acoes vpa
         WHERE DATE(COALESCE(vpa.data_perda, vpa.created_at)) BETWEEN :ini AND :fim
         GROUP BY TRIM(vpa.vendedor_nome)
@@ -1363,9 +1367,13 @@ function gcBuildRelatoriosComerciais(PDO $pdo, string $start, string $end, strin
         }
         $nk = gcNormName($nome);
         $errosCountMap[$nk] = (int)($errosCountMap[$nk] ?? 0) + (int)($r['qtd'] ?? 0);
+        $errosPtsMap[$nk] = (float)($errosPtsMap[$nk] ?? 0) + (float)($r['pts'] ?? 0);
     }
     $cntManuais = gcTryFetchAll($pdo, "
-        SELECT TRIM(vendedor_nome) AS atendente, COUNT(*) AS qtd
+        SELECT
+            TRIM(vendedor_nome) AS atendente,
+            COUNT(*) AS qtd,
+            COALESCE(SUM(pontos_descontados), 0) AS pts
         FROM vendedor_erros_manuais
         WHERE data_erro BETWEEN :ini AND :fim
         GROUP BY TRIM(vendedor_nome)
@@ -1377,6 +1385,7 @@ function gcBuildRelatoriosComerciais(PDO $pdo, string $start, string $end, strin
         }
         $nk = gcNormName($nome);
         $errosCountMap[$nk] = (int)($errosCountMap[$nk] ?? 0) + (int)($r['qtd'] ?? 0);
+        $errosPtsMap[$nk] = (float)($errosPtsMap[$nk] ?? 0) + (float)($r['pts'] ?? 0);
     }
 
     $bonusMetaScore85 = 200.0;
@@ -1415,8 +1424,8 @@ function gcBuildRelatoriosComerciais(PDO $pdo, string $start, string $end, strin
         // Sheets: =SE(G2>=0,4;20;(G2/0,4)*20), onde G2 é a razão de conversão (0..1).
         $pConvRaw = $convRatio >= 0.4 ? 20.0 : (($convRatio / 0.4) * 20.0);
         $pConv = round(min(20.0, max(0.0, $pConvRaw)), 2);
-        $totalErrosScore = (int)($errosCountMap[$nk] ?? 0);
-        $pErros = gcPontosErrosScorePorTotal($totalErrosScore);
+        $pontosDescontados = (float)($errosPtsMap[$nk] ?? 0);
+        $pErros = max(0.0, min(20.0, round(20.0 - $pontosDescontados, 2)));
         $score = round($pFat + $pConv + $pErros + $crm, 2);
         $status = $score >= 80 ? 'Muito Bom' : ($score >= 65 ? 'Bom' : ($score >= 50 ? 'Plano de Ação' : 'Crítico'));
         $ci = (float)gcCalcComissaoIndividualPct($pctMetaSemanal);
@@ -1753,7 +1762,8 @@ function gcBuildResumoErrosPayload(PDO $pdo, string $ini, string $fim): array
         $leves = $agg ? (int)$agg['leves'] : 0;
         $medios = $agg ? (int)$agg['medios'] : 0;
         $graves = $agg ? (int)$agg['graves'] : 0;
-        $pScore = gcPontosErrosScorePorTotal($total);
+        $pts = $agg ? (float)($agg['pts'] ?? 0) : 0.0;
+        $pScore = max(0.0, min(20.0, round(20.0 - $pts, 2)));
         $linhasErros[] = [
             'vendedora' => $ev['vendedora'],
             'total_erros' => $total,
@@ -2172,6 +2182,27 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
         return ($b['receita'] ?? 0) <=> ($a['receita'] ?? 0);
     });
     $topPrescritores = array_slice($topPrescritores, 0, 15);
+    $topClientesReceita = [];
+    $ticketMedioCliente = [];
+    $vendasDiariasPrescritor = ['labels' => [], 'series' => []];
+    $vendasDiariasCliente = ['labels' => [], 'series' => []];
+    $comparativoMesMes = ['labels' => [], 'series' => [], 'meta' => []];
+    $comparativoPedidosMesMes = ['labels' => [], 'series' => [], 'meta' => []];
+    $clientesAnalise = [
+        'mix_novos_recorrentes' => [
+            'novos' => 0,
+            'recorrentes' => 0,
+            'receita_novos' => 0.0,
+            'receita_recorrentes' => 0.0,
+        ],
+        'faixa_ticket' => [
+            ['faixa' => 'Até R$ 500', 'clientes' => 0, 'receita' => 0.0],
+            ['faixa' => 'R$ 500 a 1 mil', 'clientes' => 0, 'receita' => 0.0],
+            ['faixa' => 'R$ 1 mil a 2 mil', 'clientes' => 0, 'receita' => 0.0],
+            ['faixa' => 'Acima de R$ 2 mil', 'clientes' => 0, 'receita' => 0.0],
+        ],
+        'top_clientes_perda' => [],
+    ];
 
     $formulasMargem = [];
     $baseReceita = max((float)$receitaMes, 0.0);
@@ -2187,19 +2218,19 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
     });
     $formulasMargem = array_slice($formulasMargem, 0, 15);
 
-    $ticketEspecialidade = [];
+    $ticketPrescritor = [];
     foreach ($porLista as $row) {
         $ganhos = (int)($row['total_ganhos'] ?? 0);
         $receitaVendedor = (float)($row['receita'] ?? 0);
-        $ticketEspecialidade[] = [
-            'especialidade' => (string)($row['vendedor'] ?? 'NÃ£o informado'),
+        $ticketPrescritor[] = [
+            'prescritor'    => (string)($row['vendedor'] ?? 'NÃ£o informado'),
             'ticket_medio'  => $ganhos > 0 ? round($receitaVendedor / $ganhos, 2) : 0.0,
         ];
     }
-    usort($ticketEspecialidade, static function (array $a, array $b): int {
+    usort($ticketPrescritor, static function (array $a, array $b): int {
         return ($b['ticket_medio'] ?? 0) <=> ($a['ticket_medio'] ?? 0);
     });
-    $ticketEspecialidade = array_slice($ticketEspecialidade, 0, 15);
+    $ticketPrescritor = array_slice($ticketPrescritor, 0, 20);
 
     $approvedGpRd = gcApprovedCase('gp');
     $evolucaoMensalVendedores = gcEvolucaoMensalVendedoresPayload($pdo, $approvedGpRd, $equipe);
@@ -2315,7 +2346,15 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
             'top_formulas_mais_vendidas'     => $topFormulas,
             'formulas_maior_margem'          => $formulasMargem,
             'prescritores_maior_receita'     => $topPrescritores,
-            'ticket_medio_por_especialidade' => $ticketEspecialidade,
+            'ticket_medio_por_especialidade' => $ticketPrescritor,
+            'ticket_medio_por_prescritor'    => $ticketPrescritor,
+            'top_clientes_receita'           => $topClientesReceita,
+            'ticket_medio_por_cliente'       => $ticketMedioCliente,
+            'clientes_analise'               => $clientesAnalise,
+            'vendas_diarias_por_prescritor'  => $vendasDiariasPrescritor,
+            'vendas_diarias_por_cliente'     => $vendasDiariasCliente,
+            'comparativo_vendas_dia_a_dia'    => $comparativoMesMes,
+            'comparativo_pedidos_dia_a_dia'   => $comparativoPedidosMesMes,
         ],
         'financeiro_aplicado'    => [
             'receita' => [
@@ -2897,37 +2936,387 @@ function gestaoComercialDashboard(PDO $pdo): void
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);
 
-    $ticketEspecialidade = gcFetchAll($pdo, "
+    $ticketPrescritor = gcFetchAll($pdo, "
         SELECT
-            COALESCE(
-                NULLIF(TRIM(pd.profissao), ''),
-                NULLIF(TRIM(pr.profissao), ''),
-                '(Sem profissao)'
-            ) AS especialidade,
+            COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') AS prescritor,
             COALESCE(AVG(CASE WHEN {$approvedGp} THEN gp.preco_liquido END), 0) AS ticket_medio,
             COUNT(*) AS total
         FROM gestao_pedidos gp
-        LEFT JOIN prescritor_dados pd
-            ON LOWER(TRIM(pd.nome_prescritor)) = LOWER(TRIM(COALESCE(NULLIF(gp.prescritor,''), 'My Pharm')))
-        LEFT JOIN (
-            SELECT
-                LOWER(TRIM(nome)) AS nome_norm,
-                ano_referencia,
-                MAX(NULLIF(TRIM(profissao), '')) AS profissao
-            FROM prescritor_resumido
-            GROUP BY LOWER(TRIM(nome)), ano_referencia
-        ) pr
-            ON pr.nome_norm = LOWER(TRIM(COALESCE(NULLIF(gp.prescritor,''), 'My Pharm')))
-           AND pr.ano_referencia = gp.ano_referencia
         WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
-        GROUP BY COALESCE(
-            NULLIF(TRIM(pd.profissao), ''),
-            NULLIF(TRIM(pr.profissao), ''),
-            '(Sem profissao)'
-        )
+        GROUP BY COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')
         ORDER BY COALESCE(AVG(CASE WHEN {$approvedGp} THEN gp.preco_liquido END), 0) DESC
         LIMIT {$limit}
     ", ['ini' => $start, 'fim' => $end]);
+
+    $topClientesReceita = gcFetchAll($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)') AS cliente,
+            COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS receita
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        GROUP BY COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)')
+        ORDER BY COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) DESC
+        LIMIT {$limit}
+    ", ['ini' => $start, 'fim' => $end]);
+
+    $ticketMedioCliente = gcFetchAll($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)') AS cliente,
+            COALESCE(AVG(CASE WHEN {$approvedGp} THEN gp.preco_liquido END), 0) AS ticket_medio,
+            COUNT(*) AS total
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        GROUP BY COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)')
+        ORDER BY COALESCE(AVG(CASE WHEN {$approvedGp} THEN gp.preco_liquido END), 0) DESC
+        LIMIT {$limit}
+    ", ['ini' => $start, 'fim' => $end]);
+
+    $clientesStats = gcFetchAll($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)') AS cliente,
+            COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS receita,
+            COALESCE(COUNT(DISTINCT CASE WHEN {$approvedGp} THEN CONCAT(COALESCE(gp.numero_pedido,''), '-', COALESCE(gp.serie_pedido,'')) END), 0) AS pedidos
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        GROUP BY COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)')
+    ", ['ini' => $start, 'fim' => $end]);
+
+    $novosClientes = 0;
+    $clientesRecorrentes = 0;
+    $receitaNovos = 0.0;
+    $receitaRecorrentes = 0.0;
+    $faixasTicket = [
+        ['faixa' => 'Até R$ 500', 'clientes' => 0, 'receita' => 0.0],
+        ['faixa' => 'R$ 500 a 1 mil', 'clientes' => 0, 'receita' => 0.0],
+        ['faixa' => 'R$ 1 mil a 2 mil', 'clientes' => 0, 'receita' => 0.0],
+        ['faixa' => 'Acima de R$ 2 mil', 'clientes' => 0, 'receita' => 0.0],
+    ];
+    foreach ($clientesStats as $cs) {
+        $receitaCli = (float)($cs['receita'] ?? 0);
+        $pedidosCli = (int)($cs['pedidos'] ?? 0);
+        if ($pedidosCli <= 0 || $receitaCli <= 0) {
+            continue;
+        }
+        if ($pedidosCli >= 2) {
+            $clientesRecorrentes++;
+            $receitaRecorrentes += $receitaCli;
+        } else {
+            $novosClientes++;
+            $receitaNovos += $receitaCli;
+        }
+        $ticketCli = $receitaCli / max($pedidosCli, 1);
+        if ($ticketCli < 500) {
+            $faixaIdx = 0;
+        } elseif ($ticketCli < 1000) {
+            $faixaIdx = 1;
+        } elseif ($ticketCli < 2000) {
+            $faixaIdx = 2;
+        } else {
+            $faixaIdx = 3;
+        }
+        $faixasTicket[$faixaIdx]['clientes']++;
+        $faixasTicket[$faixaIdx]['receita'] += $receitaCli;
+    }
+    foreach ($faixasTicket as &$ft) {
+        $ft['clientes'] = (int)($ft['clientes'] ?? 0);
+        $ft['receita'] = round((float)($ft['receita'] ?? 0), 2);
+    }
+    unset($ft);
+
+    $topClientesPerda = gcTryFetchAll($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)') AS cliente,
+            COUNT(*) AS qtd_rejeicoes,
+            COALESCE(SUM(gp.preco_liquido), 0) AS valor_rejeitado
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+          AND NOT ({$approvedGp})
+        GROUP BY COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)')
+        ORDER BY COALESCE(SUM(gp.preco_liquido), 0) DESC, COUNT(*) DESC
+        LIMIT {$limit}
+    ", ['ini' => $start, 'fim' => $end]);
+    foreach ($topClientesPerda as &$tcp) {
+        $tcp['qtd_rejeicoes'] = (int)($tcp['qtd_rejeicoes'] ?? 0);
+        $tcp['valor_rejeitado'] = round((float)($tcp['valor_rejeitado'] ?? 0), 2);
+    }
+    unset($tcp);
+
+    $clientesAnalise = [
+        'mix_novos_recorrentes' => [
+            'novos' => $novosClientes,
+            'recorrentes' => $clientesRecorrentes,
+            'receita_novos' => round($receitaNovos, 2),
+            'receita_recorrentes' => round($receitaRecorrentes, 2),
+        ],
+        'faixa_ticket' => $faixasTicket,
+        'top_clientes_perda' => $topClientesPerda,
+    ];
+
+    $tzPv = new DateTimeZone('America/Porto_Velho');
+    $agoraPv = new DateTime('now', $tzPv);
+    $anoRef = (int)$agoraPv->format('Y');
+    $mesAtualNum = (int)$agoraPv->format('n');
+    // Todos os meses do ano corrente no gráfico; em janeiro inclui dezembro do ano anterior (último mês).
+    // Ignora filtro global de período.
+    $dataIniRange = sprintf('%04d-01-01', $anoRef);
+    if ($mesAtualNum === 1) {
+        $dataIniRange = sprintf('%04d-12-01', $anoRef - 1);
+    }
+    $dataFimRange = sprintf('%04d-12-31', $anoRef);
+
+    $labelsComparativo = [];
+    for ($d = 1; $d <= 31; $d++) {
+        $labelsComparativo[] = str_pad((string)$d, 2, '0', STR_PAD_LEFT);
+    }
+
+    $rowsCmpMes = gcFetchAll($pdo, "
+        SELECT
+            YEAR(DATE(gp.data_aprovacao)) AS y,
+            MONTH(DATE(gp.data_aprovacao)) AS m,
+            DAY(DATE(gp.data_aprovacao)) AS dia,
+            COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS receita,
+            COALESCE(SUM(CASE WHEN {$approvedGp} THEN 1 ELSE 0 END), 0) AS qtd_pedidos
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        GROUP BY y, m, dia
+    ", ['ini' => $dataIniRange, 'fim' => $dataFimRange]);
+
+    $dailyByKey = [];
+    $dailyByKeyQtd = [];
+    foreach ($rowsCmpMes as $rw) {
+        $y = (int)($rw['y'] ?? 0);
+        $m = (int)($rw['m'] ?? 0);
+        $dia = (int)($rw['dia'] ?? 0);
+        if ($y < 2000 || $m < 1 || $m > 12 || $dia < 1 || $dia > 31) {
+            continue;
+        }
+        $key = sprintf('%04d-%02d', $y, $m);
+        if (!isset($dailyByKey[$key])) {
+            $dailyByKey[$key] = array_fill(0, 31, 0.0);
+            $dailyByKeyQtd[$key] = array_fill(0, 31, 0);
+        }
+        $dailyByKey[$key][$dia - 1] = round((float)($rw['receita'] ?? 0), 2);
+        $dailyByKeyQtd[$key][$dia - 1] = (int)($rw['qtd_pedidos'] ?? 0);
+    }
+
+    $chavesMeses = [];
+    if ($mesAtualNum === 1) {
+        $chavesMeses[] = sprintf('%04d-12', $anoRef - 1);
+    }
+    for ($m = 1; $m <= 12; $m++) {
+        $chavesMeses[] = sprintf('%04d-%02d', $anoRef, $m);
+    }
+
+    $acumularDias = static function (array $diarios): array {
+        $acc = 0.0;
+        $out = [];
+        foreach ($diarios as $v) {
+            $acc += (float)$v;
+            $out[] = round($acc, 2);
+        }
+        return $out;
+    };
+
+    $acumularDiasInt = static function (array $diarios): array {
+        $acc = 0;
+        $out = [];
+        foreach ($diarios as $v) {
+            $acc += (int)$v;
+            $out[] = $acc;
+        }
+        return $out;
+    };
+
+    $seriesComparativo = [];
+    $totaisPorMes = [];
+    $seriesComparativoPed = [];
+    $totaisPorMesPed = [];
+    foreach ($chavesMeses as $key) {
+        $diario = $dailyByKey[$key] ?? array_fill(0, 31, 0.0);
+        $acum = $acumularDias($diario);
+        $total = round(array_sum($diario), 2);
+        $diarioQtd = $dailyByKeyQtd[$key] ?? array_fill(0, 31, 0);
+        $acumQtd = $acumularDiasInt($diarioQtd);
+        $totalQtd = (int)array_sum($diarioQtd);
+        $parts = explode('-', $key);
+        $yk = (int)($parts[0] ?? 0);
+        $mk = (int)($parts[1] ?? 0);
+        $nome = sprintf('%02d/%d', $mk, $yk);
+        $seriesComparativo[] = [
+            'chave'      => $key,
+            'nome'       => $nome,
+            'valores'    => $acum,
+            'total_mes'  => $total,
+        ];
+        $totaisPorMes[$key] = $total;
+        $seriesComparativoPed[] = [
+            'chave'      => $key,
+            'nome'       => $nome,
+            'valores'    => $acumQtd,
+            'total_mes'  => $totalQtd,
+        ];
+        $totaisPorMesPed[$key] = $totalQtd;
+    }
+
+    $chaveMesAtual = sprintf('%04d-%02d', $anoRef, $mesAtualNum);
+    $chaveMesAnterior = $mesAtualNum === 1
+        ? sprintf('%04d-12', $anoRef - 1)
+        : sprintf('%04d-%02d', $anoRef, $mesAtualNum - 1);
+
+    $totalPrev = $totaisPorMes[$chaveMesAnterior] ?? 0.0;
+    $totalCur = $totaisPorMes[$chaveMesAtual] ?? 0.0;
+    $crescimentoComparado = $totalPrev > 0
+        ? round((($totalCur / $totalPrev) - 1) * 100, 2)
+        : null;
+
+    $labelPrev = sprintf('%02d/%d', $mesAtualNum === 1 ? 12 : $mesAtualNum - 1, $mesAtualNum === 1 ? $anoRef - 1 : $anoRef);
+    $labelCur = sprintf('%02d/%d', $mesAtualNum, $anoRef);
+
+    $comparativoMesMes = [
+        'labels' => $labelsComparativo,
+        'series' => $seriesComparativo,
+        'meta'   => [
+            'ano_referencia'             => $anoRef,
+            'dias_considerados'          => 31,
+            'meses_padrao_selecionados'  => [$chaveMesAnterior, $chaveMesAtual],
+            'mes_atual_chave'            => $chaveMesAtual,
+            'mes_anterior_chave'         => $chaveMesAnterior,
+            'mes_anterior_label'         => $labelPrev,
+            'mes_atual_label'            => $labelCur,
+            'total_mes_anterior'         => $totalPrev,
+            'total_mes_atual'            => $totalCur,
+            'crescimento_percentual'     => $crescimentoComparado,
+            'serie_acumulada'            => true,
+            'totais_por_mes'             => $totaisPorMes,
+            'metrica'                    => 'receita',
+        ],
+    ];
+
+    $totalPrevPed = (int)($totaisPorMesPed[$chaveMesAnterior] ?? 0);
+    $totalCurPed = (int)($totaisPorMesPed[$chaveMesAtual] ?? 0);
+    $crescimentoPedidos = $totalPrevPed > 0
+        ? round((($totalCurPed / $totalPrevPed) - 1) * 100, 2)
+        : null;
+
+    $comparativoPedidosMesMes = [
+        'labels' => $labelsComparativo,
+        'series' => $seriesComparativoPed,
+        'meta'   => [
+            'ano_referencia'             => $anoRef,
+            'dias_considerados'          => 31,
+            'meses_padrao_selecionados'  => [$chaveMesAnterior, $chaveMesAtual],
+            'mes_atual_chave'            => $chaveMesAtual,
+            'mes_anterior_chave'         => $chaveMesAnterior,
+            'mes_anterior_label'         => $labelPrev,
+            'mes_atual_label'            => $labelCur,
+            'total_mes_anterior'         => $totalPrevPed,
+            'total_mes_atual'            => $totalCurPed,
+            'crescimento_percentual'     => $crescimentoPedidos,
+            'serie_acumulada'            => true,
+            'totais_por_mes'             => $totaisPorMesPed,
+            'metrica'                    => 'pedidos',
+        ],
+    ];
+
+    $labelsDiarios = [];
+    try {
+        $dtIni = new DateTime($start, new DateTimeZone('America/Porto_Velho'));
+        $dtFim = new DateTime($end, new DateTimeZone('America/Porto_Velho'));
+        while ($dtIni <= $dtFim) {
+            $labelsDiarios[] = $dtIni->format('d/m');
+            $dtIni->modify('+1 day');
+        }
+    } catch (Throwable $e) {
+        $labelsDiarios = [];
+    }
+
+    $mapIndexDia = [];
+    foreach ($labelsDiarios as $idx => $lbl) {
+        $mapIndexDia[$lbl] = $idx;
+    }
+
+    $topPrescritorNomes = array_values(array_filter(array_map(static function (array $r): string {
+        return trim((string)($r['prescritor'] ?? ''));
+    }, array_slice($topPrescritores, 0, 5)), static function (string $n): bool {
+        return $n !== '';
+    }));
+    $topClienteNomes = array_values(array_filter(array_map(static function (array $r): string {
+        return trim((string)($r['cliente'] ?? ''));
+    }, array_slice($topClientesReceita, 0, 5)), static function (string $n): bool {
+        return $n !== '';
+    }));
+
+    $vendasDiariasPrescritor = ['labels' => $labelsDiarios, 'series' => []];
+    if (!empty($topPrescritorNomes) && !empty($labelsDiarios)) {
+        $prescSeries = [];
+        foreach ($topPrescritorNomes as $nm) {
+            $prescSeries[$nm] = array_fill(0, count($labelsDiarios), 0.0);
+        }
+        $inP = implode(',', array_fill(0, count($topPrescritorNomes), '?'));
+        $paramsP = array_merge([$start, $end], $topPrescritorNomes);
+        $rowsP = gcFetchAll($pdo, "
+            SELECT
+                DATE(gp.data_aprovacao) AS dia,
+                COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') AS nome,
+                COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS receita
+            FROM gestao_pedidos gp
+            WHERE DATE(gp.data_aprovacao) BETWEEN ? AND ?
+              AND COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') IN ($inP)
+            GROUP BY DATE(gp.data_aprovacao), COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm')
+        ", $paramsP);
+        foreach ($rowsP as $rw) {
+            $nome = (string)($rw['nome'] ?? '');
+            $diaLbl = '';
+            try {
+                $diaLbl = (new DateTime((string)$rw['dia']))->format('d/m');
+            } catch (Throwable $e) {
+                $diaLbl = '';
+            }
+            if ($nome === '' || $diaLbl === '' || !isset($prescSeries[$nome]) || !isset($mapIndexDia[$diaLbl])) {
+                continue;
+            }
+            $prescSeries[$nome][$mapIndexDia[$diaLbl]] = round((float)($rw['receita'] ?? 0), 2);
+        }
+        foreach ($topPrescritorNomes as $nm) {
+            $vendasDiariasPrescritor['series'][] = ['nome' => $nm, 'valores' => $prescSeries[$nm]];
+        }
+    }
+
+    $vendasDiariasCliente = ['labels' => $labelsDiarios, 'series' => []];
+    if (!empty($topClienteNomes) && !empty($labelsDiarios)) {
+        $cliSeries = [];
+        foreach ($topClienteNomes as $nm) {
+            $cliSeries[$nm] = array_fill(0, count($labelsDiarios), 0.0);
+        }
+        $inC = implode(',', array_fill(0, count($topClienteNomes), '?'));
+        $paramsC = array_merge([$start, $end], $topClienteNomes);
+        $rowsC = gcFetchAll($pdo, "
+            SELECT
+                DATE(gp.data_aprovacao) AS dia,
+                COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)') AS nome,
+                COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) AS receita
+            FROM gestao_pedidos gp
+            WHERE DATE(gp.data_aprovacao) BETWEEN ? AND ?
+              AND COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)') IN ($inC)
+            GROUP BY DATE(gp.data_aprovacao), COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)')
+        ", $paramsC);
+        foreach ($rowsC as $rw) {
+            $nome = (string)($rw['nome'] ?? '');
+            $diaLbl = '';
+            try {
+                $diaLbl = (new DateTime((string)$rw['dia']))->format('d/m');
+            } catch (Throwable $e) {
+                $diaLbl = '';
+            }
+            if ($nome === '' || $diaLbl === '' || !isset($cliSeries[$nome]) || !isset($mapIndexDia[$diaLbl])) {
+                continue;
+            }
+            $cliSeries[$nome][$mapIndexDia[$diaLbl]] = round((float)($rw['receita'] ?? 0), 2);
+        }
+        foreach ($topClienteNomes as $nm) {
+            $vendasDiariasCliente['series'][] = ['nome' => $nm, 'valores' => $cliSeries[$nm]];
+        }
+    }
 
     $havingReceita = "COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) > 0";
     $orderReceitaDesc = "COALESCE(SUM(CASE WHEN {$approvedGp} THEN gp.preco_liquido ELSE 0 END), 0) DESC";
@@ -3111,7 +3500,15 @@ function gestaoComercialDashboard(PDO $pdo): void
             'top_formulas_mais_vendidas' => $topFormulas,
             'formulas_maior_margem' => $formulasMargem,
             'prescritores_maior_receita' => $topPrescritores,
-            'ticket_medio_por_especialidade' => $ticketEspecialidade,
+            'ticket_medio_por_especialidade' => $ticketPrescritor,
+            'ticket_medio_por_prescritor' => $ticketPrescritor,
+            'top_clientes_receita' => $topClientesReceita,
+            'ticket_medio_por_cliente' => $ticketMedioCliente,
+            'clientes_analise' => $clientesAnalise,
+            'vendas_diarias_por_prescritor' => $vendasDiariasPrescritor,
+            'vendas_diarias_por_cliente' => $vendasDiariasCliente,
+            'comparativo_vendas_dia_a_dia'  => $comparativoMesMes,
+            'comparativo_pedidos_dia_a_dia' => $comparativoPedidosMesMes,
         ],
         'financeiro_aplicado' => [
             'receita' => [

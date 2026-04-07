@@ -16,6 +16,7 @@
 
     /** Mesma chave do painel admin: preferência de menu recolhido compartilhada entre páginas. */
     var SIDEBAR_COLLAPSED_KEY = 'mypharm_sidebar_collapsed';
+    var GC_ACTIVE_TAB_KEY = 'gc_active_tab';
 
     function gcHideSidebarFlyoutTooltip() {
         var tip = document.getElementById('gcSidebarFlyoutTooltip');
@@ -167,12 +168,20 @@
     let gcLoading = false;
     let gcApplyBtnHtml = null;
     const gcChartInstances = {};
+    /** Contexto dos gráficos comparativos de meses (toolbar + redesenho). */
+    var gcComparativoVendasCtx = { cmp: null, col: null, commonAxis: null, padraoKeys: [] };
+    var gcComparativoPedidosCtx = { cmp: null, col: null, commonAxis: null, padraoKeys: [] };
     let gcBgChartsTimer = null;
     let gcDeferredChartsPending = false;
     let gcDeferredChartsData = null;
     let gcVendEquipeSortState = { key: 'receita', dir: 'desc' };
     let gcVendEquipeLastRows = null;
     let gcVendEquipeSortBound = false;
+    let gcRelSemSortState = { key: 'total_vendido', dir: 'desc' };
+    let gcRelSemLastRows = null;
+    let gcRelSemSortBound = false;
+    let gcRelMensalLastRows = null;
+    let gcRelMensalCrmBound = false;
     let gcErroRowsMap = {};
     const GC_ERRO_TIPO_OUTRO = '__outro__';
 
@@ -481,6 +490,241 @@
         return `${n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`;
     }
 
+    function gcCompareMesesStorageKey(kind, ano) {
+        return 'gc_' + kind + '_compare_meses_' + String(ano);
+    }
+
+    function gcLoadCompareMesesSelection(ano, padrao, allChavesSet, kind) {
+        try {
+            var raw = localStorage.getItem(gcCompareMesesStorageKey(kind, ano));
+            if (!raw) return padrao.slice();
+            var arr = JSON.parse(raw);
+            if (!Array.isArray(arr)) return padrao.slice();
+            var filtered = arr.filter(function (k) { return allChavesSet[k]; });
+            if (!filtered.length) return padrao.slice();
+            return filtered;
+        } catch (e) {
+            return padrao.slice();
+        }
+    }
+
+    function gcSaveCompareMesesSelection(ano, keys, kind) {
+        try {
+            localStorage.setItem(gcCompareMesesStorageKey(kind, ano), JSON.stringify(keys));
+        } catch (e) { /* ignore */ }
+    }
+
+    var GC_CMP_OPT_VENDAS = {
+        kind: 'vendas',
+        wrapId: 'gcCompareMesesChecks',
+        chartKey: 'vendasMesMes',
+        canvasId: 'gcChartVendasMesMes',
+        subId: 'gcVendasMesMesSub',
+        formatTooltip: function (lbl, y) {
+            return (lbl || 'Série') + ': ' + formatMoney(y);
+        },
+        formatSubPair: function (a, b) {
+            return formatMoney(a) + ' / ' + formatMoney(b);
+        }
+    };
+
+    var GC_CMP_OPT_PEDIDOS = {
+        kind: 'pedidos',
+        wrapId: 'gcCompareMesesChecksPedidos',
+        chartKey: 'pedidosMesMes',
+        canvasId: 'gcChartPedidosMesMes',
+        subId: 'gcPedidosMesMesSub',
+        formatTooltip: function (lbl, y) {
+            var n = Math.round(Number(y) || 0);
+            return (lbl || 'Série') + ': ' + n.toLocaleString('pt-BR') + ' ped.';
+        },
+        formatSubPair: function (a, b) {
+            return Math.round(Number(a) || 0).toLocaleString('pt-BR') + ' / ' + Math.round(Number(b) || 0).toLocaleString('pt-BR') + ' ped.';
+        }
+    };
+
+    function gcRedrawComparativoMesesChart(ctxRef, opt) {
+        var ctx = ctxRef;
+        var cmp = ctx.cmp || { labels: [], series: [], meta: {} };
+        var col = ctx.col || gcChartColors();
+        var commonAxis = ctx.commonAxis || { ticks: { color: col.muted }, grid: { color: col.grid } };
+        var wrap = document.getElementById(opt.wrapId);
+        var padrao = (Array.isArray(ctx.padraoKeys) && ctx.padraoKeys.length)
+            ? ctx.padraoKeys
+            : ((cmp.meta && cmp.meta.meses_padrao_selecionados) || []);
+        padrao = padrao.map(String);
+        var selected = [];
+        if (wrap) {
+            wrap.querySelectorAll('input[type=checkbox]').forEach(function (el) {
+                if (el.checked) {
+                    var k = el.getAttribute('data-chave');
+                    if (k) selected.push(k);
+                }
+            });
+        }
+        if (!selected.length) selected = padrao.slice();
+
+        var labels = Array.isArray(cmp.labels) ? cmp.labels : [];
+        var allSeries = Array.isArray(cmp.series) ? cmp.series : [];
+        var selectedSet = {};
+        selected.forEach(function (k) { selectedSet[k] = true; });
+
+        var chaveToIdx = {};
+        allSeries.forEach(function (s, i) {
+            var ch = String(s.chave || '');
+            if (ch) chaveToIdx[ch] = i;
+        });
+
+        var pal = (col.palette && col.palette.length) ? col.palette : ['#6366F1', '#10B981'];
+        var datasets = [];
+        allSeries.forEach(function (s) {
+            var ch = String(s.chave != null && s.chave !== '' ? s.chave : '');
+            if (!ch) return;
+            if (!selectedSet[ch]) return;
+            var idx = chaveToIdx[ch] != null ? chaveToIdx[ch] : 0;
+            datasets.push({
+                label: String(s.nome || ch).slice(0, 20),
+                data: Array.isArray(s.valores) ? s.valores.map(function (v) { return Number(v || 0); }) : [],
+                borderColor: pal[idx % pal.length],
+                backgroundColor: 'transparent',
+                tension: 0.25,
+                pointRadius: 2.5,
+                pointHoverRadius: 4.5,
+                borderWidth: 3
+            });
+        });
+
+        if (!labels.length || !datasets.length) {
+            labels = ['01'];
+            datasets = [{
+                label: 'Comparação',
+                data: [0],
+                borderColor: col.primary,
+                backgroundColor: 'transparent',
+                tension: 0.25,
+                pointRadius: 2.5,
+                borderWidth: 3
+            }];
+        }
+
+        var fmtTip = opt.formatTooltip || function (lbl, y) { return (lbl || '') + ': ' + String(y); };
+        gcEnsureChart(opt.chartKey, opt.canvasId, function () {
+            return {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: col.muted, boxWidth: 12, font: { size: 10 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function (c) {
+                                    return fmtTip(c.dataset.label, c.parsed.y);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: col.muted, maxRotation: 0, minRotation: 0 }, grid: { color: col.grid } },
+                        y: Object.assign({}, commonAxis, {
+                            beginAtZero: true,
+                            ticks: {
+                                color: col.muted,
+                                callback: function (v) { return Number(v).toLocaleString('pt-BR', { notation: 'compact' }); }
+                            }
+                        })
+                    }
+                }
+            };
+        });
+    }
+
+    function gcSetupComparativoMesesBlock(cmp, col, commonAxis, ctxRef, opt) {
+        ctxRef.cmp = cmp;
+        ctxRef.col = col;
+        ctxRef.commonAxis = commonAxis;
+
+        var cmpMeta = cmp.meta || {};
+        var ano = Number(cmpMeta.ano_referencia || new Date().getFullYear());
+        var allSeries = Array.isArray(cmp.series) ? cmp.series : [];
+        var allChavesSet = {};
+        allSeries.forEach(function (s) {
+            var ch = String(s.chave || '');
+            if (ch) allChavesSet[ch] = true;
+        });
+        var padrao = Array.isArray(cmpMeta.meses_padrao_selecionados) ? cmpMeta.meses_padrao_selecionados.map(String) : [];
+        if (!padrao.length) {
+            var keysOrd = Object.keys(allChavesSet).sort();
+            if (keysOrd.length >= 2) padrao = keysOrd.slice(-2);
+            else if (keysOrd.length === 1) padrao = [keysOrd[0]];
+        }
+        ctxRef.padraoKeys = padrao.slice();
+
+        var stored = gcLoadCompareMesesSelection(ano, padrao, allChavesSet, opt.kind);
+        var wrap = document.getElementById(opt.wrapId);
+        if (wrap) {
+            wrap.innerHTML = '';
+            allSeries.forEach(function (s) {
+                var ch = String(s.chave || '');
+                if (!ch) return;
+                var lbl = document.createElement('label');
+                lbl.className = 'gc-compare-mes-check';
+                var inp = document.createElement('input');
+                inp.type = 'checkbox';
+                inp.setAttribute('data-chave', ch);
+                inp.checked = stored.indexOf(ch) !== -1;
+                inp.addEventListener('change', function () {
+                    var keys = [];
+                    wrap.querySelectorAll('input[type=checkbox]').forEach(function (el) {
+                        if (el.checked) keys.push(el.getAttribute('data-chave'));
+                    });
+                    var rePor = (ctxRef.padraoKeys && ctxRef.padraoKeys.length) ? ctxRef.padraoKeys : padrao;
+                    if (!keys.length && rePor.length) {
+                        rePor.forEach(function (pch) {
+                            wrap.querySelectorAll('input[type=checkbox]').forEach(function (el) {
+                                if (el.getAttribute('data-chave') === pch) el.checked = true;
+                            });
+                        });
+                        keys = rePor.slice();
+                    }
+                    gcSaveCompareMesesSelection(ano, keys, opt.kind);
+                    gcRedrawComparativoMesesChart(ctxRef, opt);
+                });
+                lbl.appendChild(inp);
+                lbl.appendChild(document.createTextNode(' ' + String(s.nome || ch)));
+                wrap.appendChild(lbl);
+            });
+        }
+
+        var cmpSub = document.getElementById(opt.subId);
+        if (cmpSub) {
+            var tAnt = Number(cmpMeta.total_mes_anterior || 0);
+            var tAtu = Number(cmpMeta.total_mes_atual || 0);
+            var cres = cmpMeta.crescimento_percentual;
+            var cresTxt = (cres == null || isNaN(Number(cres)))
+                ? '—'
+                : ((Number(cres) >= 0 ? '+' : '') + Number(cres).toFixed(2).replace('.', ',') + '%');
+            var acum = cmpMeta.serie_acumulada === true || cmpMeta.serie_acumulada === 1 || cmpMeta.serie_acumulada === '1';
+            var modo = acum ? 'Acumulado no mês até cada dia · ' : '';
+            var pairFmt = opt.formatSubPair || function (a, b) { return String(a) + ' / ' + String(b); };
+            cmpSub.textContent = modo + 'Ano ' + String(ano)
+                + ' · Padrão: ' + String(cmpMeta.mes_anterior_label || '—') + ' vs ' + String(cmpMeta.mes_atual_label || '—')
+                + ' (totais ' + pairFmt(tAnt, tAtu) + ', cresc. ' + cresTxt + ')'
+                + ' · Marque os meses abaixo para o gráfico.';
+        }
+
+        gcRedrawComparativoMesesChart(ctxRef, opt);
+    }
+
+    function gcSetupComparativoVendasMesMes(cmp, col, commonAxis) {
+        gcSetupComparativoMesesBlock(cmp, col, commonAxis, gcComparativoVendasCtx, GC_CMP_OPT_VENDAS);
+    }
+
+    function gcSetupComparativoPedidosMesMes(cmp, col, commonAxis) {
+        gcSetupComparativoMesesBlock(cmp, col, commonAxis, gcComparativoPedidosCtx, GC_CMP_OPT_PEDIDOS);
+    }
+
     /** Minutos (número bruto da API) → texto legível (h, d). */
     function formatDurationMin(min) {
         const n = Number(min);
@@ -537,6 +781,8 @@
                 return Number(row.ticket_medio != null ? row.ticket_medio : 0);
             case 'meta_mensal':
                 return Number(row.meta_mensal != null ? row.meta_mensal : 0);
+            case 'falta_meta':
+                return Math.max(0, Number(row.meta_mensal != null ? row.meta_mensal : 0) - Number(row.receita || 0));
             case 'previsao':
                 return Number(row.previsao_ganho != null ? row.previsao_ganho : 0);
             case 'pedidos':
@@ -594,12 +840,12 @@
         if (!equipeBody) return;
         gcVendEquipeLastRows = rows;
         if (!rows.length) {
-            equipeBody.innerHTML = '<tr><td colspan="11">Sem dados no período selecionado.</td></tr>';
+            equipeBody.innerHTML = '<tr><td colspan="12">Sem dados no período selecionado.</td></tr>';
             gcUpdateVendEquipeSortHeaders();
             return;
         }
         const sorted = gcSortEquipeRows(rows, gcVendEquipeSortState.key, gcVendEquipeSortState.dir);
-        equipeBody.innerHTML = sorted.map(function (r) {
+        const linhasHtml = sorted.map(function (r) {
             const convCls = gcTierConversao(r.conversao_individual);
             const perdaCls = gcTierPerda(r.taxa_perda);
             const tempoCls = gcTierTempoMin(r.tempo_medio_espera_resposta);
@@ -608,6 +854,8 @@
             const nomeFmt = gcDisplayConsultoraName(nomeRaw);
             const recVal = Number(r.receita || 0);
             const metaVal = Number(r.meta_mensal != null ? r.meta_mensal : 0);
+            const faltaMeta = Math.max(0, metaVal - recVal);
+            const faltaMetaCls = faltaMeta > 0 ? 'gc-cell-warn' : 'gc-cell-good';
             const pctMetaRow = Number(r.percentual_meta);
             const metaHit = Number.isFinite(pctMetaRow) ? pctMetaRow >= 100 : (metaVal > 0 && recVal >= metaVal);
             const rowMetaClass = metaHit ? 'gc-row-meta-hit' : '';
@@ -619,6 +867,7 @@
                     <td class="gc-num">${formatMoney(r.receita || 0)}</td>
                     <td class="gc-num">${formatMoney(r.ticket_medio != null ? r.ticket_medio : 0)}</td>
                     <td class="gc-num ${metaHit ? 'gc-cell-meta-hit' : ''}">${formatMoney(r.meta_mensal != null ? r.meta_mensal : 0)}</td>
+                    <td class="gc-num ${faltaMetaCls}">${formatMoney(faltaMeta)}</td>
                     <td class="gc-num">${formatMoney(r.previsao_ganho != null ? r.previsao_ganho : 0)}</td>
                     <td class="gc-num">${Number(r.vendas_aprovadas || 0).toLocaleString('pt-BR')}</td>
                     <td class="gc-num">${Number(r.vendas_rejeitadas || 0).toLocaleString('pt-BR')}</td>
@@ -628,6 +877,47 @@
                     <td class="gc-num ${perdaCls}">${formatPercent(r.taxa_perda || 0)}</td>
                 </tr>`;
         }).join('');
+
+        const total = rows.reduce(function (acc, r) {
+            const receita = Number(r.receita || 0);
+            const meta = Number(r.meta_mensal != null ? r.meta_mensal : 0);
+            const aprov = Number(r.vendas_aprovadas || 0);
+            const rej = Number(r.vendas_rejeitadas || 0);
+            const tempo = Number(r.tempo_medio_espera_resposta || 0);
+            const clientes = Number(r.clientes_atendidos || 0);
+            acc.receita += receita;
+            acc.meta += meta;
+            acc.falta += Math.max(0, meta - receita);
+            acc.previsao += Number(r.previsao_ganho != null ? r.previsao_ganho : 0);
+            acc.aprov += aprov;
+            acc.rej += rej;
+            acc.tempoSum += tempo;
+            acc.tempoCount += tempo > 0 ? 1 : 0;
+            acc.clientes += clientes;
+            return acc;
+        }, { receita: 0, meta: 0, falta: 0, previsao: 0, aprov: 0, rej: 0, tempoSum: 0, tempoCount: 0, clientes: 0 });
+
+        const denom = total.aprov + total.rej;
+        const convTotal = denom > 0 ? (total.aprov / denom) * 100 : 0;
+        const perdaTotal = denom > 0 ? (total.rej / denom) * 100 : 0;
+        const ticketTotal = total.aprov > 0 ? (total.receita / total.aprov) : 0;
+        const tempoMedioTotal = total.tempoCount > 0 ? (total.tempoSum / total.tempoCount) : 0;
+        const totalRowHtml = `<tr class="gc-row-total-semanal">
+            <td><strong>Total geral</strong></td>
+            <td class="gc-num"><strong>${formatMoney(total.receita)}</strong></td>
+            <td class="gc-num"><strong>${formatMoney(ticketTotal)}</strong></td>
+            <td class="gc-num"><strong>${formatMoney(total.meta)}</strong></td>
+            <td class="gc-num ${total.falta > 0 ? 'gc-cell-warn' : 'gc-cell-good'}"><strong>${formatMoney(total.falta)}</strong></td>
+            <td class="gc-num"><strong>${formatMoney(total.previsao)}</strong></td>
+            <td class="gc-num"><strong>${Math.round(total.aprov).toLocaleString('pt-BR')}</strong></td>
+            <td class="gc-num"><strong>${Math.round(total.rej).toLocaleString('pt-BR')}</strong></td>
+            <td class="gc-num ${gcTierConversao(convTotal)}"><strong>${formatPercent(convTotal)}</strong></td>
+            <td class="gc-num ${gcTierTempoMin(tempoMedioTotal)}"><strong>${formatDurationMin(tempoMedioTotal)}</strong></td>
+            <td class="gc-num"><strong>${Math.round(total.clientes).toLocaleString('pt-BR')}</strong></td>
+            <td class="gc-num ${gcTierPerda(perdaTotal)}"><strong>${formatPercent(perdaTotal)}</strong></td>
+        </tr>`;
+
+        equipeBody.innerHTML = linhasHtml + totalRowHtml;
         gcUpdateVendEquipeSortHeaders();
     }
 
@@ -919,11 +1209,14 @@
     function gcRenderRelatorioSemanal(rows) {
         const body = document.getElementById('gcRelSemanalTbody');
         if (!body) return;
+        gcRelSemLastRows = rows;
         if (!Array.isArray(rows) || !rows.length) {
             body.innerHTML = '<tr><td colspan="11">Sem dados no período selecionado.</td></tr>';
+            gcUpdateRelSemSortHeaders();
             return;
         }
-        body.innerHTML = rows.map(function (r) {
+        const sorted = gcSortRelSemRows(rows, gcRelSemSortState.key, gcRelSemSortState.dir);
+        const linhasHtml = sorted.map(function (r) {
             const pct = Number(r.percentual_atingido || 0);
             const pctCls = pct >= 100 ? 'gc-cell-good' : (pct >= 80 ? 'gc-cell-warn' : 'gc-cell-bad');
             return `<tr>
@@ -940,34 +1233,256 @@
                 <td class="gc-num">${formatMoney(r.comissao_total || r.comissao_valor || 0)}</td>
             </tr>`;
         }).join('');
+
+        const soma = rows.reduce(function (acc, r) {
+            acc.meta += Number(r.meta_individual || 0);
+            acc.s1 += Number(r.venda_semana_1 || 0);
+            acc.s2 += Number(r.venda_semana_2 || 0);
+            acc.s3 += Number(r.venda_semana_3 || 0);
+            acc.s4 += Number(r.venda_semana_4 || 0);
+            acc.total += Number(r.total_vendido || 0);
+            acc.bonus += Number(r.bonus_valor || 0);
+            acc.comissao += Number(r.comissao_total || r.comissao_valor || 0);
+            return acc;
+        }, { meta: 0, s1: 0, s2: 0, s3: 0, s4: 0, total: 0, bonus: 0, comissao: 0 });
+
+        const faltaMetaTotal = Math.max(0, soma.meta - soma.total);
+        const pctTotal = soma.meta > 0 ? (soma.total / soma.meta) * 100 : 0;
+        const pctTotalCls = pctTotal >= 100 ? 'gc-cell-good' : (pctTotal >= 80 ? 'gc-cell-warn' : 'gc-cell-bad');
+        const totalRowHtml = `<tr class="gc-row-total-semanal">
+            <td><strong>Total geral</strong></td>
+            <td class="gc-num"><strong>${formatMoney(soma.meta)}</strong></td>
+            <td class="gc-num"><strong>${formatMoney(soma.s1)}</strong></td>
+            <td class="gc-num"><strong>${formatMoney(soma.s2)}</strong></td>
+            <td class="gc-num"><strong>${formatMoney(soma.s3)}</strong></td>
+            <td class="gc-num"><strong>${formatMoney(soma.s4)}</strong></td>
+            <td class="gc-num"><strong>${formatMoney(soma.total)}</strong></td>
+            <td class="gc-num ${pctTotalCls}"><strong>${formatPercent(pctTotal)}</strong></td>
+            <td class="gc-num"><strong>${formatMoney(faltaMetaTotal)}</strong></td>
+            <td class="gc-num"><strong>${formatMoney(soma.bonus)}</strong></td>
+            <td class="gc-num"><strong>${formatMoney(soma.comissao)}</strong></td>
+        </tr>`;
+
+        body.innerHTML = linhasHtml + totalRowHtml;
+        gcUpdateRelSemSortHeaders();
+    }
+
+    function gcRelSemSortValue(row, key) {
+        switch (key) {
+            case 'consultora':
+                return String(row.vendedora || '');
+            case 'meta':
+                return Number(row.meta_individual || 0);
+            case 's1':
+                return Number(row.venda_semana_1 || 0);
+            case 's2':
+                return Number(row.venda_semana_2 || 0);
+            case 's3':
+                return Number(row.venda_semana_3 || 0);
+            case 's4':
+                return Number(row.venda_semana_4 || 0);
+            case 'total_vendido':
+                return Number(row.total_vendido || 0);
+            case 'pct':
+                return Number(row.percentual_atingido || 0);
+            case 'falta':
+                return Number(row.falta_meta || 0);
+            case 'bonus':
+                return Number(row.bonus_valor || 0);
+            case 'comissao':
+                return Number(row.comissao_total || row.comissao_valor || 0);
+            default:
+                return 0;
+        }
+    }
+
+    function gcSortRelSemRows(rows, key, dir) {
+        const arr = rows.slice();
+        const asc = dir === 'asc';
+        arr.sort(function (a, b) {
+            let cmp = 0;
+            if (key === 'consultora') {
+                cmp = String(a.vendedora || '').localeCompare(String(b.vendedora || ''), 'pt-BR', { sensitivity: 'base' });
+            } else {
+                const va = gcRelSemSortValue(a, key);
+                const vb = gcRelSemSortValue(b, key);
+                if (va < vb) cmp = -1;
+                else if (va > vb) cmp = 1;
+            }
+            if (cmp !== 0) return asc ? cmp : -cmp;
+            return String(a.vendedora || '').localeCompare(String(b.vendedora || ''), 'pt-BR', { sensitivity: 'base' });
+        });
+        return arr;
+    }
+
+    function gcUpdateRelSemSortHeaders() {
+        const table = document.getElementById('gcRelSemanalTable');
+        if (!table) return;
+        table.querySelectorAll('thead th[data-sort]').forEach(function (th) {
+            if (th.getAttribute('data-sort') === gcRelSemSortState.key) {
+                th.setAttribute('aria-sort', gcRelSemSortState.dir === 'asc' ? 'ascending' : 'descending');
+            } else {
+                th.removeAttribute('aria-sort');
+            }
+        });
+    }
+
+    function gcEnsureRelSemSortBind() {
+        if (gcRelSemSortBound) return;
+        const table = document.getElementById('gcRelSemanalTable');
+        if (!table) return;
+        const thead = table.querySelector('thead');
+        if (!thead) return;
+        thead.addEventListener('click', function (ev) {
+            const btn = ev.target.closest('.gc-th-sort');
+            if (!btn) return;
+            const th = btn.closest('th[data-sort]');
+            if (!th || !table.contains(th)) return;
+            const key = th.getAttribute('data-sort');
+            if (!key) return;
+            if (gcRelSemSortState.key === key) {
+                gcRelSemSortState.dir = gcRelSemSortState.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                gcRelSemSortState.key = key;
+                gcRelSemSortState.dir = key === 'consultora' ? 'asc' : 'desc';
+            }
+            if (gcRelSemLastRows && gcRelSemLastRows.length) {
+                gcRenderRelatorioSemanal(gcRelSemLastRows);
+            }
+        });
+        gcRelSemSortBound = true;
+    }
+
+    function gcRelMensalCrmStatus(score) {
+        const s = Number(score || 0);
+        if (s >= 80) return 'Muito Bom';
+        if (s >= 65) return 'Bom';
+        if (s >= 50) return 'Plano de Ação';
+        return 'Crítico';
+    }
+
+    function gcRelMensalCrmStorageKey() {
+        const p = (gcDashboardData && gcDashboardData.periodo) || {};
+        const de = String(p.data_de || 'sem-data-de');
+        const ate = String(p.data_ate || 'sem-data-ate');
+        return 'gc_rel_mensal_crm_' + de + '_' + ate;
+    }
+
+    function gcLoadRelMensalCrmMap() {
+        try {
+            const raw = localStorage.getItem(gcRelMensalCrmStorageKey());
+            const parsed = raw ? JSON.parse(raw) : {};
+            if (!parsed || typeof parsed !== 'object') return {};
+            const out = {};
+            Object.keys(parsed).forEach(function (k) {
+                const v = Number(parsed[k]);
+                if (isFinite(v)) out[k] = v;
+            });
+            return out;
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function gcSaveRelMensalCrmMap(map) {
+        try {
+            localStorage.setItem(gcRelMensalCrmStorageKey(), JSON.stringify(map || {}));
+        } catch (e) { /* ignore */ }
+    }
+
+    function gcEnsureRelMensalCrmBind() {
+        if (gcRelMensalCrmBound) return;
+        const body = document.getElementById('gcRelMensalTbody');
+        if (!body) return;
+
+        function applyInput(evTarget) {
+            const input = evTarget && evTarget.closest ? evTarget.closest('.gc-rel-crm-input') : null;
+            if (!input) return;
+            const key = String(input.getAttribute('data-crm-key') || '');
+            if (!key) return;
+            const v = Math.max(0, Number(input.value || 0));
+            if (!isFinite(v)) return;
+            const map = gcLoadRelMensalCrmMap();
+            map[key] = v;
+            gcSaveRelMensalCrmMap(map);
+            if (gcRelMensalLastRows && gcRelMensalLastRows.length) {
+                gcRenderRelatorioMensal(gcRelMensalLastRows);
+            }
+        }
+
+        body.addEventListener('change', function (ev) {
+            applyInput(ev.target);
+        });
+        body.addEventListener('blur', function (ev) {
+            applyInput(ev.target);
+        }, true);
+        body.addEventListener('keydown', function (ev) {
+            if (ev.key !== 'Enter') return;
+            const input = ev.target && ev.target.closest ? ev.target.closest('.gc-rel-crm-input') : null;
+            if (!input) return;
+            ev.preventDefault();
+            input.blur();
+        });
+
+        gcRelMensalCrmBound = true;
     }
 
     function gcRenderRelatorioMensal(rows) {
         const body = document.getElementById('gcRelMensalTbody');
         if (!body) return;
+        gcRelMensalLastRows = rows;
         if (!Array.isArray(rows) || !rows.length) {
-            body.innerHTML = '<tr><td colspan="15">Sem dados no período selecionado.</td></tr>';
+            body.innerHTML = '<tr><td colspan="16">Sem dados no período selecionado.</td></tr>';
             return;
         }
+        const crmMap = gcLoadRelMensalCrmMap();
         body.innerHTML = rows.map(function (r) {
-            const score = Number(r.score_final || 0);
+            const rowKey = gcNameKey(r.vendedora || '');
+            const crmOriginal = Number(r.crm || 0);
+            const crmEdit = Object.prototype.hasOwnProperty.call(crmMap, rowKey) ? Number(crmMap[rowKey]) : crmOriginal;
+            const crmVal = isFinite(crmEdit) ? Math.max(0, crmEdit) : Math.max(0, crmOriginal);
+            const pFat = Number(r.pontos_faturamento || 0);
+            const pConv = Number(r.pontos_conversao || 0);
+            const pErros = Number(r.pontos_erros || 0);
+            const pctMeta = Number(r.percentual_meta || 0);
+            const convPct = Number(r.conversao || 0);
+            const pedidos = Number(r.pedidos || 0);
+            const rejeitados = Number(r.rejeitados_itens || 0);
+            const erros = Number(r.erros || 0);
+            const denRej = pedidos + rejeitados;
+            const taxaRej = denRej > 0 ? (rejeitados / denRej) * 100 : 0;
+            const totalPts = pFat + pConv + pErros + crmVal;
+            const scoreBase = Number(r.score_final || 0) - crmOriginal;
+            const score = scoreBase + crmVal;
+            const pctMetaCls = pctMeta >= 100 ? 'gc-cell-good' : (pctMeta >= 80 ? 'gc-cell-warn' : 'gc-cell-bad');
+            const convCls = convPct >= 40 ? 'gc-cell-good' : (convPct >= 25 ? 'gc-cell-warn' : 'gc-cell-bad');
+            const rejCls = taxaRej <= 20 ? 'gc-cell-good' : (taxaRej <= 35 ? 'gc-cell-warn' : 'gc-cell-bad');
+            const errosCls = erros <= 0 ? 'gc-cell-good' : (erros <= 2 ? 'gc-cell-warn' : 'gc-cell-bad');
+            const crmCls = crmVal >= 5 ? 'gc-cell-good' : (crmVal >= 3 ? 'gc-cell-warn' : 'gc-cell-bad');
+            const pFatCls = pFat >= 35 ? 'gc-cell-good' : (pFat >= 20 ? 'gc-cell-warn' : 'gc-cell-bad');
+            const pConvCls = pConv >= 14 ? 'gc-cell-good' : (pConv >= 8 ? 'gc-cell-warn' : 'gc-cell-bad');
+            const pErrosCls = pErros >= 14 ? 'gc-cell-good' : (pErros >= 8 ? 'gc-cell-warn' : 'gc-cell-bad');
             const scoreCls = score >= 80 ? 'gc-cell-good' : (score >= 65 ? 'gc-cell-warn' : 'gc-cell-bad');
+            const totalCls = totalPts >= 80 ? 'gc-cell-good' : (totalPts >= 65 ? 'gc-cell-warn' : 'gc-cell-bad');
+            const status = gcRelMensalCrmStatus(score);
+            const statusCls = score >= 80 ? 'gc-rel-status-good' : (score >= 65 ? 'gc-rel-status-warn' : 'gc-rel-status-bad');
             return `<tr>
                 <td>${escapeHtml(gcDisplayConsultoraName(r.vendedora || ''))}</td>
                 <td class="gc-num">${formatMoney(r.meta_individual || 0)}</td>
                 <td class="gc-num">${formatMoney(r.venda_total_mes || 0)}</td>
-                <td class="gc-num">${formatPercent(r.percentual_meta || 0)}</td>
+                <td class="gc-num ${pctMetaCls}">${formatPercent(pctMeta)}</td>
                 <td class="gc-num">${Number(r.orcamentos || 0).toLocaleString('pt-BR')}</td>
                 <td class="gc-num">${Number(r.pedidos || 0).toLocaleString('pt-BR')}</td>
-                <td class="gc-num">${formatPercent(r.conversao || 0)}</td>
-                <td class="gc-num">${Number(r.rejeitados_itens || 0).toLocaleString('pt-BR')}</td>
-                <td class="gc-num">${Number(r.erros || 0).toLocaleString('pt-BR')}</td>
-                <td class="gc-num">${Number(r.crm || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
-                <td class="gc-num">${Number(r.pontos_faturamento || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
-                <td class="gc-num">${Number(r.pontos_conversao || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
-                <td class="gc-num">${Number(r.pontos_erros || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                <td class="gc-num ${convCls}">${formatPercent(convPct)}</td>
+                <td class="gc-num ${rejCls}" title="Taxa de rejeição: ${formatPercent(taxaRej)}">${rejeitados.toLocaleString('pt-BR')}</td>
+                <td class="gc-num ${errosCls}">${erros.toLocaleString('pt-BR')}</td>
+                <td class="gc-num ${crmCls}"><input type="number" min="0" step="0.1" class="gc-rel-crm-input" data-crm-key="${escapeHtml(rowKey)}" value="${crmVal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1, useGrouping: false })}" aria-label="Editar CRM de ${escapeHtml(gcDisplayConsultoraName(r.vendedora || ''))}"></td>
+                <td class="gc-num ${pFatCls}">${pFat.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                <td class="gc-num ${pConvCls}">${pConv.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                <td class="gc-num ${pErrosCls}">${pErros.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                <td class="gc-num ${totalCls}">${totalPts.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
                 <td class="gc-num ${scoreCls}">${Number(score).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
-                <td>${escapeHtml(String(r.status || '—'))}</td>
+                <td><span class="gc-rel-status-chip ${statusCls}">${escapeHtml(String(status || '—'))}</span></td>
             </tr>`;
         }).join('');
     }
@@ -991,6 +1506,8 @@
             if (el) el.textContent = semMap[id];
         });
 
+        gcEnsureRelSemSortBind();
+        gcEnsureRelMensalCrmBind();
         gcRenderRelatorioSemanal(semanal?.linhas || []);
         gcRenderRelatorioMensal(mensal?.linhas || []);
 
@@ -1182,7 +1699,7 @@
         });
 
         const tbodies = [
-            { id: 'gcVendEquipeTbody', cols: 11, emptyText: 'Sem dados no período selecionado.' },
+            { id: 'gcVendEquipeTbody', cols: 12, emptyText: 'Sem dados no período selecionado.' },
             { id: 'gcRelSemanalTbody', cols: 10, emptyText: 'Sem dados no período selecionado.' },
             { id: 'gcRelMensalTbody', cols: 15, emptyText: 'Sem dados no período selecionado.' },
             { id: 'gcRelComissaoIndTbody', cols: 3, emptyText: 'Sem regras cadastradas.' },
@@ -1258,16 +1775,17 @@
         var e = data?.eficiencia_comercial || {};
         var r = data?.rentabilidade || {};
         var f = data?.fidelizacao || {};
+        var vgResumo = data?.vendedor_gestao?.resumo || {};
         var map = {
             gcCrescReceitaMes: fmtVal(c.receita_mes, 'money'),
             gcCrescCrescimentoMesAnt: c.crescimento_vs_mes_anterior != null ? fmtVal(c.crescimento_vs_mes_anterior, 'percent') : '—',
-            gcCrescCrescimentoAnoPassado: c.crescimento_vs_mes_ano_passado != null ? fmtVal(c.crescimento_vs_mes_ano_passado, 'percent') : '—',
+            gcExecClientesAtendidos: fmtVal(vgResumo.clientes_atendidos, 'int'),
             gcCrescTicketMedio: fmtVal(c.ticket_medio, 'money'),
             gcCrescNumVendas: fmtVal(c.numero_vendas, 'int'),
             gcCrescClientesAtivos6m: fmtVal(c.numero_clientes_ativos_6_meses, 'int'),
             gcEficConversao: e.conversao_geral != null ? fmtVal(e.conversao_geral, 'percent') : '—',
             gcRentMargemBruta: r.margem_bruta != null ? fmtVal(r.margem_bruta, 'percent') : '—',
-            gcEficLeads: 'Leads recebidos: ' + fmtVal(e.leads_recebidos, 'int'),
+            gcEficLeads: 'Clientes atendidos no período: ' + fmtVal(vgResumo.clientes_atendidos, 'int'),
             gcEficTempoFechamento: e.tempo_medio_fechamento_horas != null && e.tempo_medio_fechamento_horas !== ''
                 ? ('Tempo médio de fechamento: ' + Number(e.tempo_medio_fechamento_horas).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' h')
                 : 'Tempo médio de fechamento: —',
@@ -1291,12 +1809,13 @@
         });
 
         var quickMap = {
-            gcEficQuickLeads: fmtVal(e.leads_recebidos, 'int'),
-            gcEficQuickVendas: fmtVal(data?.funil_comercial?.vendas_fechadas, 'int'),
+            gcEficQuickLeads: fmtVal(vgResumo.clientes_atendidos, 'int'),
+            gcEficQuickVendas: fmtVal(c.numero_vendas, 'int'),
             gcEficQuickTempo: (e.tempo_medio_fechamento_horas != null && e.tempo_medio_fechamento_horas !== '')
                 ? (Number(e.tempo_medio_fechamento_horas).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' h')
                 : '—',
             gcFidelQuickLucro: fmtVal(r.lucro_operacional, 'money'),
+            gcFidelQuickVendas: fmtVal(c.receita_mes, 'money'),
             gcFidelQuickRecompra: f.taxa_recompra != null ? fmtVal(f.taxa_recompra, 'percent') : '—',
             gcFidelQuickBase: fmtVal(f.base_ativa_90_dias, 'int')
         };
@@ -1389,13 +1908,15 @@
             grid: { color: col.grid }
         };
 
-        /* —— Executivo: receita / CMV / lucro —— */
+        /* —— Executivo: visão de gestão comercial —— */
         var c = data?.crescimento || {};
         var r = data?.rentabilidade || {};
         var e = data?.eficiencia_comercial || {};
         var f = data?.fidelizacao || {};
         var fun = data?.funil_comercial || {};
         var fin = data?.financeiro_aplicado || {};
+        var vgResumo = data?.vendedor_gestao?.resumo || {};
+        var equipeExec = Array.isArray(data?.performance_vendedor) ? data.performance_vendedor.slice() : [];
         var receita = Number(c.receita_mes || 0);
         var cmv = Number(fin.custos?.cmv || 0);
         var lucro = Number(r.lucro_operacional || 0);
@@ -1437,47 +1958,71 @@
             };
         });
 
-        /* —— Percentuais —— */
-        var pctLabels = [];
-        var pctVals = [];
-        function pushPct(label, val) {
-            if (val == null || val === '') return;
-            pctLabels.push(label);
-            pctVals.push(Number(val));
-        }
-        pushPct('Δ mês anterior', c.crescimento_vs_mes_anterior);
-        pushPct('Δ ano anterior', c.crescimento_vs_mes_ano_passado);
-        pushPct('Conversão geral', e.conversao_geral);
-        pushPct('Margem bruta', r.margem_bruta);
-        pushPct('CMV / fat.', r.cmv_sobre_faturamento);
-        pushPct('Taxa recompra', f.taxa_recompra);
-        pushPct('Taxa perda cliente', e.taxa_perda_cliente);
-        if (pctLabels.length === 0) {
-            pctLabels = ['Sem dados'];
-            pctVals = [0];
-        }
-        gcEnsureChart('execPct', 'gcChartExecPercent', function () {
+        /* —— CMV por forma farmacêutica —— */
+        var cmvFormaRaw = Array.isArray(r?.margem_contribuicao_por?.forma_farmaceutica)
+            ? r.margem_contribuicao_por.forma_farmaceutica.slice()
+            : [];
+        cmvFormaRaw.sort(function (a, b) {
+            return Number(b?.custo || 0) - Number(a?.custo || 0);
+        });
+        var cmvForma = cmvFormaRaw.slice(0, 8);
+        gcEnsureChart('execCmvForma', 'gcChartExecCmvForma', function () {
+            var hasCmvForma = cmvForma.length > 0;
             return {
                 type: 'bar',
                 data: {
-                    labels: pctLabels,
-                    datasets: [{
-                        label: '%',
-                        data: pctVals,
-                        backgroundColor: pctLabels.map(function (_, i) { return col.palette[i % col.palette.length]; }),
-                        borderRadius: 6
-                    }]
+                    labels: hasCmvForma
+                        ? cmvForma.map(function (x) { return String(x.nome || 'Sem forma').slice(0, 28); })
+                        : ['Sem dados'],
+                    datasets: [
+                        {
+                            label: 'Receita',
+                            data: hasCmvForma
+                                ? cmvForma.map(function (x) { return Number(x.receita || 0); })
+                                : [0],
+                            backgroundColor: col.primary,
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'CMV',
+                            data: hasCmvForma
+                                ? cmvForma.map(function (x) { return Number(x.custo || 0); })
+                                : [0],
+                            backgroundColor: col.warning,
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Lucro',
+                            data: hasCmvForma
+                                ? cmvForma.map(function (x) {
+                                    var receitaForma = Number(x.receita || 0);
+                                    var custoForma = Number(x.custo || 0);
+                                    return receitaForma - custoForma;
+                                })
+                                : [0],
+                            backgroundColor: col.success,
+                            borderRadius: 6
+                        }
+                    ]
                 },
                 options: {
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false },
+                        legend: { display: true, position: 'bottom', labels: { color: col.muted, boxWidth: 12, font: { size: 10 } } },
                         tooltip: {
                             callbacks: {
                                 label: function (ctx) {
-                                    return Number(ctx.parsed.x).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%';
+                                    var idx = ctx.dataIndex;
+                                    var row = cmvForma[idx] || {};
+                                    var receitaForma = Number(row.receita || 0);
+                                    var cmvPct = receitaForma > 0 ? (Number(row.custo || 0) / receitaForma) * 100 : 0;
+                                    var ds = String(ctx.dataset.label || '');
+                                    if (ds === 'CMV') {
+                                        return 'CMV: ' + formatMoney(ctx.parsed.x) + ' · ' + cmvPct.toFixed(1).replace('.', ',') + '% da receita da forma';
+                                    }
+                                    return ds + ': ' + formatMoney(ctx.parsed.x);
                                 }
                             }
                         }
@@ -1486,39 +2031,10 @@
                         x: Object.assign({}, commonAxis, {
                             ticks: {
                                 color: col.muted,
-                                callback: function (v) { return v + '%'; }
+                                callback: function (v) { return Number(v).toLocaleString('pt-BR', { notation: 'compact' }); }
                             }
                         }),
-                        y: { ticks: { color: col.muted }, grid: { display: false } }
-                    }
-                }
-            };
-        });
-
-        /* —— Funil macro —— */
-        gcEnsureChart('execFunil', 'gcChartExecFunil', function () {
-            return {
-                type: 'bar',
-                data: {
-                    labels: ['Atendimentos', 'Oportunidades', 'Vendas fechadas'],
-                    datasets: [{
-                        label: 'Volume',
-                        data: [
-                            Number(fun.volume_atendimentos || 0),
-                            Number(fun.oportunidades_abertas || 0),
-                            Number(fun.vendas_fechadas || 0)
-                        ],
-                        backgroundColor: [col.cyan, col.purple, col.success],
-                        borderRadius: 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { ticks: { color: col.muted }, grid: { display: false } },
-                        y: Object.assign({}, commonAxis, { beginAtZero: true, ticks: { color: col.muted, precision: 0 } })
+                        y: { ticks: { color: col.muted, font: { size: 11 } }, grid: { display: false } }
                     }
                 }
             };
@@ -1526,6 +2042,9 @@
 
         /* —— Canais (executivo) —— */
         var canais = Array.isArray(data?.performance_canal) ? data.performance_canal.slice(0, 8) : [];
+        var totalCanaisExec = canais.reduce(function (acc, row) {
+            return acc + Number(row && row.receita ? row.receita : 0);
+        }, 0);
         gcEnsureChart('execCanais', 'gcChartExecCanais', function () {
             return {
                 type: 'bar',
@@ -1546,7 +2065,11 @@
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: function (ctx) { return formatMoney(ctx.parsed.x); }
+                                label: function (ctx) {
+                                    var val = Number(ctx.parsed.x || 0);
+                                    var pct = totalCanaisExec > 0 ? (val / totalCanaisExec) * 100 : 0;
+                                    return formatMoney(val) + ' · ' + pct.toFixed(1).replace('.', ',') + '% do total';
+                                }
                             }
                         }
                     },
@@ -1563,19 +2086,37 @@
             };
         });
 
-        /* —— Eficiência: leads, vendas funil, base 90d —— */
+        /* —— Base de clientes e atendimento —— */
+        var rawMapExec = fun.etapas_raw || {};
+        function etapaCountExec(terms) {
+            var total = 0;
+            Object.keys(rawMapExec || {}).forEach(function (k) {
+                var n = String(k || '').toLowerCase();
+                for (var i = 0; i < terms.length; i++) {
+                    if (n.indexOf(terms[i]) !== -1) {
+                        total += Number(rawMapExec[k] || 0);
+                        break;
+                    }
+                }
+            });
+            return total;
+        }
+        var noCarrinhoExec = etapaCountExec(['carrinho']);
+        var perdidosExec = etapaCountExec(['perdid', 'recus']);
         gcEnsureChart('execEfic', 'gcChartExecEfic', function () {
             return {
                 type: 'bar',
                 data: {
-                    labels: ['Leads', 'Vendas (funil)', 'Base ativa 90d'],
+                    labels: ['Clientes atendidos', 'Clientes ativos 6m', 'No carrinho', 'Perdidos', 'Pedidos aprovados'],
                     datasets: [{
                         data: [
-                            Number(e.leads_recebidos || 0),
-                            Number(fun.vendas_fechadas || 0),
-                            Number(f.base_ativa_90_dias || 0)
+                            Number(vgResumo.clientes_atendidos || 0),
+                            Number(c.numero_clientes_ativos_6_meses || 0),
+                            Number(noCarrinhoExec || 0),
+                            Number(perdidosExec || 0),
+                            Number(c.numero_vendas || 0)
                         ],
-                        backgroundColor: [col.primary, col.success, col.warning],
+                        backgroundColor: [col.primary, col.cyan, '#F59E0B', '#EF4444', col.success],
                         borderRadius: 8
                     }]
                 },
@@ -1591,11 +2132,14 @@
             };
         });
 
-        /* —— Margem por produto (top 6) —— */
-        var segProd = (r.margem_contribuicao_por && r.margem_contribuicao_por.produto) ? r.margem_contribuicao_por.produto.slice(0, 6) : [];
+        /* —— Produtividade comercial (top consultoras por receita) —— */
+        equipeExec.sort(function (a, b) {
+            return Number(b?.receita || 0) - Number(a?.receita || 0);
+        });
+        var topEquipe = equipeExec.slice(0, 8);
         var fidelWrap = document.getElementById('gcExecFidelChartWrap');
         var fidelEmpty = document.getElementById('gcExecFidelEmpty');
-        if (!segProd.length) {
+        if (!topEquipe.length) {
             gcDestroyChartKeys(['execFidel']);
             if (fidelWrap) fidelWrap.style.display = 'none';
             if (fidelEmpty) fidelEmpty.style.display = 'block';
@@ -1606,10 +2150,10 @@
                 return {
                     type: 'bar',
                     data: {
-                        labels: segProd.map(function (x) { return String(x.nome || '').slice(0, 22); }),
+                        labels: topEquipe.map(function (x) { return String(x.atendente || 'Sem nome').slice(0, 22); }),
                         datasets: [{
-                            label: 'Margem %',
-                            data: segProd.map(function (x) { return Number(x.margem_percentual || 0); }),
+                            label: 'Receita',
+                            data: topEquipe.map(function (x) { return Number(x.receita || 0); }),
                             backgroundColor: col.purple,
                             borderRadius: 6
                         }]
@@ -1623,15 +2167,23 @@
                             tooltip: {
                                 callbacks: {
                                     label: function (ctx) {
-                                        return Number(ctx.parsed.x).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+                                        var idx = ctx.dataIndex;
+                                        var row = topEquipe[idx] || {};
+                                        var conv = row.conversao_individual != null
+                                            ? Number(row.conversao_individual).toFixed(1).replace('.', ',') + '%'
+                                            : '—';
+                                        var clientes = Number(row.clientes_atendidos || 0).toLocaleString('pt-BR');
+                                        return formatMoney(ctx.parsed.x) + ' · Conversão ' + conv + ' · Clientes ' + clientes;
                                     }
                                 }
                             }
                         },
                         scales: {
                             x: Object.assign({}, commonAxis, {
-                                max: 100,
-                                ticks: { color: col.muted, callback: function (v) { return v + '%'; } }
+                                ticks: {
+                                    color: col.muted,
+                                    callback: function (v) { return Number(v).toLocaleString('pt-BR', { notation: 'compact' }); }
+                                }
                             }),
                             y: { ticks: { color: col.muted, font: { size: 10 } }, grid: { display: false } }
                         }
@@ -1665,18 +2217,37 @@
         if (gargaloEl) {
             gargaloEl.textContent = 'Gargalo estimado (menor conversão entre etapas): ' + gargaloFunilLabel(fun.gargalo_funil);
         }
+        var rawMap = fun.etapas_raw || {};
+        function etapaCountByTerms(mapObj, terms) {
+            var total = 0;
+            Object.keys(mapObj || {}).forEach(function (k) {
+                var n = String(k || '').toLowerCase();
+                for (var i = 0; i < terms.length; i++) {
+                    if (n.indexOf(terms[i]) !== -1) {
+                        total += Number(mapObj[k] || 0);
+                        break;
+                    }
+                }
+            });
+            return total;
+        }
+        var noCarrinho = etapaCountByTerms(rawMap, ['carrinho']);
+        var perdidas = etapaCountByTerms(rawMap, ['recus', 'perdid']);
+        var vendas = Number(fun.vendas_fechadas || 0);
+        var atendidos = Number(noCarrinho || 0) + Number(perdidas || 0) + vendas;
         gcEnsureChart('vendasMacro', 'gcChartVendasFunilMacro', function () {
             return {
                 type: 'bar',
                 data: {
-                    labels: ['Atendimentos', 'Oportunidades', 'Vendas'],
+                    labels: ['Atendidos', 'No carrinho', 'Perdidas', 'Vendas'],
                     datasets: [{
                         data: [
-                            Number(fun.volume_atendimentos || 0),
-                            Number(fun.oportunidades_abertas || 0),
-                            Number(fun.vendas_fechadas || 0)
+                            Number(atendidos || 0),
+                            Number(noCarrinho || 0),
+                            Number(perdidas || 0),
+                            vendas
                         ],
-                        backgroundColor: [col.cyan, col.purple, col.success],
+                        backgroundColor: [col.primary, '#F59E0B', '#EF4444', col.success],
                         borderRadius: 10
                     }]
                 },
@@ -1692,7 +2263,6 @@
             };
         });
 
-        var rawMap = fun.etapas_raw || {};
         var etapaKeys = Object.keys(rawMap);
         var etapaLabels = etapaKeys.map(function (k) { return k.length > 24 ? k.slice(0, 22) + '…' : k; });
         var etapaVals = etapaKeys.map(function (k) { return Number(rawMap[k] || 0); });
@@ -1700,14 +2270,26 @@
             etapaLabels = ['Sem dados'];
             etapaVals = [0];
         }
+        var etapaTotal = etapaVals.reduce(function (acc, v) { return acc + (Number(v) || 0); }, 0);
+        var etapaLabelsComPct = etapaLabels.map(function (lbl, i) {
+            if (etapaTotal <= 0) return lbl;
+            var pct = ((Number(etapaVals[i] || 0) / etapaTotal) * 100);
+            return lbl + ' (' + pct.toFixed(1).replace('.', ',') + '%)';
+        });
         gcEnsureChart('vendasEtapas', 'gcChartVendasEtapas', function () {
             return {
                 type: 'doughnut',
                 data: {
-                    labels: etapaLabels,
+                    labels: etapaLabelsComPct,
                     datasets: [{
                         data: etapaVals,
-                        backgroundColor: etapaLabels.map(function (_, i) { return col.palette[i % col.palette.length]; }),
+                        backgroundColor: etapaLabels.map(function (lbl, i) {
+                            var n = String(lbl || '').toLowerCase();
+                            if (n.indexOf('carrinho') !== -1) return '#F59E0B';
+                            if (n.indexOf('recus') !== -1) return '#EF4444';
+                            if (n.indexOf('aprov') !== -1) return '#2563EB';
+                            return col.palette[i % col.palette.length];
+                        }),
                         borderWidth: 0
                     }]
                 },
@@ -1715,7 +2297,16 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'right', labels: { color: col.muted, boxWidth: 12, font: { size: 10 } } }
+                        legend: { position: 'right', labels: { color: col.muted, boxWidth: 12, font: { size: 10 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    var value = Number(ctx.parsed || 0);
+                                    var pct = etapaTotal > 0 ? ((value / etapaTotal) * 100) : 0;
+                                    return (ctx.label || '') + ' · ' + value.toLocaleString('pt-BR') + ' (' + pct.toFixed(1).replace('.', ',') + '%)';
+                                }
+                            }
+                        }
                     }
                 }
             };
@@ -1766,15 +2357,15 @@
         });
 
         var intel = data?.inteligencia_comercial || {};
-        var topQ = Array.isArray(intel.top_formulas_mais_vendidas) ? intel.top_formulas_mais_vendidas.slice(0, 10) : [];
+        var topClientes = Array.isArray(intel.top_clientes_receita) ? intel.top_clientes_receita.slice(0, 20) : [];
         gcEnsureChart('vendasTopQtd', 'gcChartVendasTopProdQtd', function () {
             return {
                 type: 'bar',
                 data: {
-                    labels: topQ.length ? topQ.map(function (x) { return String(x.produto || '').slice(0, 26); }) : ['Sem dados'],
+                    labels: topClientes.length ? topClientes.map(function (x) { return String(x.cliente || '').slice(0, 28); }) : ['Sem dados'],
                     datasets: [{
-                        label: 'Qtd',
-                        data: topQ.length ? topQ.map(function (x) { return Number(x.quantidade || 0); }) : [0],
+                        label: 'Receita',
+                        data: topClientes.length ? topClientes.map(function (x) { return Number(x.receita || 0); }) : [0],
                         backgroundColor: col.cyan,
                         borderRadius: 6
                     }]
@@ -1783,16 +2374,29 @@
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) { return formatMoney(ctx.parsed.x); }
+                            }
+                        }
+                    },
                     scales: {
-                        x: Object.assign({}, commonAxis, { beginAtZero: true, ticks: { color: col.muted, precision: 0 } }),
+                        x: Object.assign({}, commonAxis, {
+                            beginAtZero: true,
+                            ticks: {
+                                color: col.muted,
+                                callback: function (v) { return Number(v).toLocaleString('pt-BR', { notation: 'compact' }); }
+                            }
+                        }),
                         y: { ticks: { color: col.muted, font: { size: 9 } }, grid: { display: false } }
                     }
                 }
             };
         });
 
-        var topP = Array.isArray(intel.prescritores_maior_receita) ? intel.prescritores_maior_receita.slice(0, 10) : [];
+        var topP = Array.isArray(intel.prescritores_maior_receita) ? intel.prescritores_maior_receita.slice(0, 20) : [];
         gcEnsureChart('vendasPresc', 'gcChartVendasTopPresc', function () {
             return {
                 type: 'bar',
@@ -1830,15 +2434,15 @@
             };
         });
 
-        var margemProd = Array.isArray(intel.formulas_maior_margem) ? intel.formulas_maior_margem.slice(0, 10) : [];
+        var ticketCli = Array.isArray(intel.ticket_medio_por_cliente) ? intel.ticket_medio_por_cliente.slice(0, 20) : [];
         gcEnsureChart('vendasMargem', 'gcChartVendasMargemProd', function () {
             return {
                 type: 'bar',
                 data: {
-                    labels: margemProd.length ? margemProd.map(function (x) { return String(x.produto || '').slice(0, 24); }) : ['Sem dados'],
+                    labels: ticketCli.length ? ticketCli.map(function (x) { return String(x.cliente || '').slice(0, 28); }) : ['Sem dados'],
                     datasets: [{
-                        label: 'Margem %',
-                        data: margemProd.length ? margemProd.map(function (x) { return Number(x.margem_percentual || 0); }) : [0],
+                        label: 'Ticket médio',
+                        data: ticketCli.length ? ticketCli.map(function (x) { return Number(x.ticket_medio || 0); }) : [0],
                         backgroundColor: col.success,
                         borderRadius: 6
                     }]
@@ -1851,16 +2455,16 @@
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: function (ctx) {
-                                    return Number(ctx.parsed.x).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
-                                }
+                                label: function (ctx) { return formatMoney(ctx.parsed.x); }
                             }
                         }
                     },
                     scales: {
                         x: Object.assign({}, commonAxis, {
-                            max: 100,
-                            ticks: { color: col.muted, callback: function (v) { return v + '%'; } }
+                            ticks: {
+                                color: col.muted,
+                                callback: function (v) { return Number(v).toLocaleString('pt-BR', { notation: 'compact' }); }
+                            }
                         }),
                         y: { ticks: { color: col.muted, font: { size: 9 } }, grid: { display: false } }
                     }
@@ -1868,15 +2472,17 @@
             };
         });
 
-        var esp = Array.isArray(intel.ticket_medio_por_especialidade) ? intel.ticket_medio_por_especialidade.slice(0, 10) : [];
+        var ticketPresc = Array.isArray(intel.ticket_medio_por_prescritor)
+            ? intel.ticket_medio_por_prescritor.slice(0, 20)
+            : (Array.isArray(intel.ticket_medio_por_especialidade) ? intel.ticket_medio_por_especialidade.slice(0, 20) : []);
         gcEnsureChart('vendasEsp', 'gcChartVendasEspecialidade', function () {
             return {
                 type: 'bar',
                 data: {
-                    labels: esp.length ? esp.map(function (x) { return String(x.especialidade || '').slice(0, 22); }) : ['Sem dados'],
+                    labels: ticketPresc.length ? ticketPresc.map(function (x) { return String(x.prescritor || x.especialidade || '').slice(0, 28); }) : ['Sem dados'],
                     datasets: [{
                         label: 'Ticket médio',
-                        data: esp.length ? esp.map(function (x) { return Number(x.ticket_medio || 0); }) : [0],
+                        data: ticketPresc.length ? ticketPresc.map(function (x) { return Number(x.ticket_medio || 0); }) : [0],
                         backgroundColor: col.warning,
                         borderRadius: 6
                     }]
@@ -1905,6 +2511,134 @@
                 }
             };
         });
+
+        var clientesAnalise = intel.clientes_analise || {};
+        var mix = clientesAnalise.mix_novos_recorrentes || {};
+        var mixNovos = Number(mix.novos || 0);
+        var mixRecorrentes = Number(mix.recorrentes || 0);
+        var mixReceitaNovos = Number(mix.receita_novos || 0);
+        var mixReceitaRecorrentes = Number(mix.receita_recorrentes || 0);
+        var mixSub = document.getElementById('gcClientesMixSub');
+        if (mixSub) {
+            mixSub.textContent = 'Novos: ' + mixNovos.toLocaleString('pt-BR') + ' | Recorrentes: ' + mixRecorrentes.toLocaleString('pt-BR');
+        }
+        gcEnsureChart('vendasClientesMix', 'gcChartVendasClientesMix', function () {
+            return {
+                type: 'doughnut',
+                data: {
+                    labels: ['Novos (1 compra)', 'Recorrentes (2+ compras)'],
+                    datasets: [{
+                        data: [mixNovos, mixRecorrentes],
+                        backgroundColor: [col.warning, col.success],
+                        borderColor: 'transparent'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: col.muted } },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    var idx = ctx.dataIndex;
+                                    var qtd = Number(ctx.parsed || 0).toLocaleString('pt-BR');
+                                    var receita = idx === 0 ? mixReceitaNovos : mixReceitaRecorrentes;
+                                    return qtd + ' clientes · Receita ' + formatMoney(receita);
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+        });
+
+        var faixaTicket = Array.isArray(clientesAnalise.faixa_ticket) ? clientesAnalise.faixa_ticket : [];
+        gcEnsureChart('vendasClientesFaixaTicket', 'gcChartVendasClientesFaixaTicket', function () {
+            return {
+                type: 'bar',
+                data: {
+                    labels: faixaTicket.length ? faixaTicket.map(function (x) { return String(x.faixa || 'Faixa'); }) : ['Sem dados'],
+                    datasets: [{
+                        label: 'Clientes',
+                        data: faixaTicket.length ? faixaTicket.map(function (x) { return Number(x.clientes || 0); }) : [0],
+                        backgroundColor: col.primary,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    var idx = ctx.dataIndex;
+                                    var row = faixaTicket[idx] || {};
+                                    var qtd = Number(row.clientes || 0).toLocaleString('pt-BR');
+                                    return qtd + ' clientes · Receita ' + formatMoney(Number(row.receita || 0));
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: col.muted }, grid: { display: false } },
+                        y: Object.assign({}, commonAxis, {
+                            beginAtZero: true,
+                            ticks: { color: col.muted, precision: 0 }
+                        })
+                    }
+                }
+            };
+        });
+
+        var clientesPerda = Array.isArray(clientesAnalise.top_clientes_perda) ? clientesAnalise.top_clientes_perda.slice(0, 20) : [];
+        gcEnsureChart('vendasClientesPerda', 'gcChartVendasClientesPerda', function () {
+            return {
+                type: 'bar',
+                data: {
+                    labels: clientesPerda.length ? clientesPerda.map(function (x) { return String(x.cliente || '').slice(0, 28); }) : ['Sem dados'],
+                    datasets: [{
+                        label: 'Valor rejeitado',
+                        data: clientesPerda.length ? clientesPerda.map(function (x) { return Number(x.valor_rejeitado || 0); }) : [0],
+                        backgroundColor: col.danger,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    var row = clientesPerda[ctx.dataIndex] || {};
+                                    var qtd = Number(row.qtd_rejeicoes || 0).toLocaleString('pt-BR');
+                                    return formatMoney(ctx.parsed.x) + ' · ' + qtd + ' rejeições';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: Object.assign({}, commonAxis, {
+                            ticks: {
+                                color: col.muted,
+                                callback: function (v) { return Number(v).toLocaleString('pt-BR', { notation: 'compact' }); }
+                            }
+                        }),
+                        y: { ticks: { color: col.muted, font: { size: 9 } }, grid: { display: false } }
+                    }
+                }
+            };
+        });
+
+        var cmp = intel.comparativo_vendas_dia_a_dia || { labels: [], series: [], meta: {} };
+        gcSetupComparativoVendasMesMes(cmp, col, commonAxis);
+        var cmpPed = intel.comparativo_pedidos_dia_a_dia || { labels: [], series: [], meta: {} };
+        gcSetupComparativoPedidosMesMes(cmpPed, col, commonAxis);
 
         /* —— Financeiro —— */
         gcEnsureChart('finResumo', 'gcChartFinResumo', function () {
@@ -2050,11 +2784,12 @@
             };
         });
 
+        var anoAtual = new Date().getFullYear();
         var evo = bloco.evolucao_mensal_vendedores || { meses: [], series: [] };
         var evoSub = document.getElementById('gcVendEvolucaoSub');
         if (evoSub) {
             var yFix = typeof evo.ano_fixo === 'number' ? evo.ano_fixo : parseInt(evo.ano_fixo, 10);
-            if (!yFix || isNaN(yFix)) yFix = 2026;
+            if (!yFix || isNaN(yFix)) yFix = anoAtual;
             evoSub.innerHTML = 'Receita aprovada por mês e por consultora (todas), <strong>sempre o ano ' + yFix + '</strong> — não acompanha o filtro de datas do painel.';
         }
         var builtEvo = gcBuildVendEvoLineDatasets(evo, col, 'Sem receita no período');
@@ -2073,7 +2808,7 @@
         var evoASub = document.getElementById('gcVendEvolucaoAprovSub');
         if (evoASub) {
             var yA = typeof evoA.ano_fixo === 'number' ? evoA.ano_fixo : parseInt(evoA.ano_fixo, 10);
-            if (!yA || isNaN(yA)) yA = 2026;
+            if (!yA || isNaN(yA)) yA = anoAtual;
             evoASub.innerHTML = 'Pedidos aprovados em gestão por mês e por consultora, <strong>ano ' + yA + '</strong> (fixo) — não usa o filtro do painel.';
         }
         var builtA = gcBuildVendEvoLineDatasets(evoA, col, 'Sem aprovados no período');
@@ -2093,7 +2828,7 @@
         var evoRSub = document.getElementById('gcVendEvolucaoRejSub');
         if (evoRSub) {
             var yR = typeof evoR.ano_fixo === 'number' ? evoR.ano_fixo : parseInt(evoR.ano_fixo, 10);
-            if (!yR || isNaN(yR)) yR = 2026;
+            if (!yR || isNaN(yR)) yR = anoAtual;
             evoRSub.innerHTML = 'Pedidos rejeitados em gestão por mês e por consultora, <strong>ano ' + yR + '</strong> (fixo) — não usa o filtro do painel.';
         }
         var builtR = gcBuildVendEvoLineDatasets(evoR, col, 'Sem rejeitados no período');
@@ -2162,6 +2897,9 @@
                     window.location.href = 'controle-erros.html';
                     return;
                 }
+                try {
+                    localStorage.setItem(GC_ACTIVE_TAB_KEY, String(target || 'vendedores'));
+                } catch (e) { /* ignore */ }
                 tabs.forEach(function (t) {
                     t.classList.remove('active');
                     if (t.getAttribute('role') === 'tab') {
@@ -2201,8 +2939,23 @@
         if (!tab && window.location.hash) {
             tab = String(window.location.hash.replace(/^#/, '')).toLowerCase().trim();
         }
+        if (!tab) {
+            try {
+                tab = String(localStorage.getItem(GC_ACTIVE_TAB_KEY) || '').toLowerCase().trim();
+            } catch (e) {
+                tab = '';
+            }
+        }
         const valid = ['executivo', 'vendas', 'vendedores', 'relatorios', 'erros', 'financeiro', 'reuniao'];
-        if (valid.indexOf(tab) === -1 || tab === 'vendedores') return;
+        if (valid.indexOf(tab) === -1 || tab === 'erros') {
+            return;
+        }
+        if (tab === 'vendedores') {
+            try {
+                localStorage.setItem(GC_ACTIVE_TAB_KEY, 'vendedores');
+            } catch (e) { /* ignore */ }
+            return;
+        }
         const btn = document.querySelector('.gc-menu-item[data-section="' + tab + '"]');
         if (btn) btn.click();
     }

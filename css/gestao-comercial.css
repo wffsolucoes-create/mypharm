@@ -638,6 +638,77 @@ html:not([data-theme="light"]) .gc-filters input[type="date"]::-webkit-calendar-
     font-variant-numeric: tabular-nums;
 }
 
+#gcRelSemanalTable th,
+#gcRelSemanalTable td {
+    text-align: center;
+}
+
+#gcRelSemanalTable td.gc-num {
+    text-align: center;
+}
+
+#gcRelSemanalTable .gc-th-sort {
+    justify-content: center;
+    text-align: center;
+}
+
+#gcRelMensalTable th,
+#gcRelMensalTable td {
+    text-align: center;
+}
+
+#gcRelMensalTable td.gc-num {
+    text-align: center;
+}
+
+.gc-rel-crm-input {
+    width: 72px;
+    max-width: 100%;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    text-align: center;
+    font: inherit;
+}
+
+.gc-rel-crm-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.gc-rel-status-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 92px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+}
+
+.gc-rel-status-good {
+    color: #065f46;
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.28);
+}
+
+.gc-rel-status-warn {
+    color: #92400e;
+    background: rgba(245, 158, 11, 0.16);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.gc-rel-status-bad {
+    color: #991b1b;
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
 .gc-table--prod td.gc-cell-meta-name {
     color: #166534;
     font-weight: 700;
@@ -708,6 +779,12 @@ html:not([data-theme="light"]) .gc-filters input[type="date"]::-webkit-calendar-
     background: rgba(239, 68, 68, 0.12);
 }
 
+.gc-table--prod tr.gc-row-total-semanal td {
+    font-weight: 700;
+    background: rgba(59, 130, 246, 0.10);
+    border-top: 2px solid var(--color-primary);
+}
+
 [data-theme='dark'] .gc-table--prod td.gc-cell-good {
     color: #34d399;
     background: rgba(16, 185, 129, 0.16);
@@ -721,6 +798,10 @@ html:not([data-theme="light"]) .gc-filters input[type="date"]::-webkit-calendar-
 [data-theme='dark'] .gc-table--prod td.gc-cell-bad {
     color: #f87171;
     background: rgba(239, 68, 68, 0.14);
+}
+
+[data-theme='dark'] .gc-table--prod tr.gc-row-total-semanal td {
+    background: rgba(59, 130, 246, 0.14);
 }
 
 /* ——— Gráficos (Chart.js) ——— */
@@ -806,6 +887,26 @@ html:not([data-theme="light"]) .gc-filters input[type="date"]::-webkit-calendar-
 .gc-chart-panel--grow {
     flex: 1;
     min-width: 0;
+}
+
+.gc-chart-panel--exec-forma {
+    min-height: 420px;
+}
+
+.gc-chart-canvas-wrap--exec-forma {
+    height: 330px;
+    min-height: 300px;
+}
+
+@media (min-width: 960px) {
+    .gc-chart-panel--exec-forma {
+        grid-row: span 2;
+    }
+
+    .gc-chart-canvas-wrap--exec-forma {
+        height: 520px;
+        min-height: 460px;
+    }
 }
 
 .gc-rd-charts-row {
@@ -945,6 +1046,12 @@ html[data-theme="dark"] .gc-vend-evo-todos-btn:disabled {
     min-height: 300px;
 }
 
+/* Comparação mês a mês (mais linhas no eixo): área vertical maior */
+.gc-chart-canvas-wrap--tall.gc-chart-canvas-wrap--comparativo {
+    height: 480px;
+    min-height: 420px;
+}
+
 .gc-chart-canvas-wrap canvas {
     max-height: 100%;
 }
@@ -954,6 +1061,78 @@ html[data-theme="dark"] .gc-vend-evo-todos-btn:disabled {
     color: var(--text-secondary);
     margin: 6px 0 0 0;
     line-height: 1.45;
+}
+
+.gc-compare-banner {
+    margin-top: 16px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    border-left: 4px solid #2563eb;
+    border-radius: 10px;
+    background: rgba(37, 99, 235, 0.08);
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gc-compare-banner i {
+    color: #2563eb;
+}
+
+.gc-compare-meses-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin: 0 0 10px 0;
+    line-height: 1.45;
+}
+
+.gc-compare-meses-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px 14px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary, rgba(148, 163, 184, 0.08));
+}
+
+.gc-compare-meses-toolbar__label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    flex: 0 0 auto;
+    padding-top: 4px;
+}
+
+.gc-compare-meses-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    flex: 1 1 200px;
+    align-items: center;
+}
+
+.gc-compare-mes-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.gc-compare-mes-check input {
+    width: 15px;
+    height: 15px;
+    accent-color: #2563eb;
+    cursor: pointer;
 }
 
 .gc-rd-funil-list--below {
@@ -1205,6 +1384,7 @@ html[data-theme="dark"] .gc-vend-evo-todos-btn:disabled {
 
 .gc-chart-panel--wide {
     width: 100%;
+    grid-column: 1 / -1;
     margin-bottom: 0;
     min-height: 420px;
 }
@@ -1236,6 +1416,11 @@ html[data-theme="dark"] .gc-vend-evo-todos-btn:disabled {
 
     .gc-chart-canvas-wrap {
         min-height: 210px;
+    }
+
+    .gc-chart-canvas-wrap--tall.gc-chart-canvas-wrap--comparativo {
+        height: 360px;
+        min-height: 300px;
     }
 }
 
@@ -1481,6 +1666,29 @@ body.gc-compact-ui .gc-chart-canvas-wrap {
 body.gc-compact-ui .gc-chart-canvas-wrap--tall {
     height: 235px;
     min-height: 220px;
+}
+
+body.gc-compact-ui .gc-chart-canvas-wrap--exec-forma {
+    height: 360px;
+    min-height: 320px;
+}
+
+@media (min-width: 960px) {
+    body.gc-compact-ui .gc-chart-canvas-wrap--exec-forma {
+        height: 500px;
+        min-height: 440px;
+    }
+}
+
+/* Aba Gestão de vendas: dar mais área útil aos 4 charts de inteligência comercial */
+body.gc-compact-ui #gc-section-vendas .gc-chart-canvas-wrap--tall {
+    height: 320px;
+    min-height: 300px;
+}
+
+body.gc-compact-ui #gc-section-vendas .gc-chart-canvas-wrap--tall.gc-chart-canvas-wrap--comparativo {
+    height: 440px;
+    min-height: 380px;
 }
 
 body.gc-compact-ui .gc-chart-canvas-wrap--short {
@@ -1831,13 +2039,13 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     padding: 0 14px;
 }
 
-#gcErrosTable td:nth-child(7),
-#gcErrosTable th:nth-child(7) {
+#gc-section-erros #gcErrosTable td:nth-child(7),
+#gc-section-erros #gcErrosTable th:nth-child(7) {
     white-space: normal;
     max-width: 420px;
 }
 
-#gcErrosTable td:last-child .gc-filter-btn {
+#gc-section-erros #gcErrosTable td:last-child .gc-filter-btn {
     min-width: 34px;
     padding: 6px 10px;
 }

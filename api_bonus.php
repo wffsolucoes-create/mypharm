@@ -108,20 +108,50 @@ function bonusInitTables(PDO $pdo): void
         INDEX idx_data (data_debito),
         INDEX idx_usuario (usuario_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS prescritor_bonus_meta (
+        meta_key VARCHAR(120) PRIMARY KEY,
+        meta_value VARCHAR(255) NULL,
+        atualizado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 }
 
-function bonusGenerateMonthlyCredits(PDO $pdo): void
+function bonusShouldRefreshCredits(PDO $pdo, DateTime $now, int $ttlMinutes = 20): bool
 {
-    $now = new DateTime('now', new DateTimeZone('America/Porto_Velho'));
-    $competenciaAno = (int)$now->format('Y');
-    $competenciaMes = (int)$now->format('n');
+    $st = $pdo->prepare("SELECT meta_value FROM prescritor_bonus_meta WHERE meta_key = 'last_generation_run' LIMIT 1");
+    $st->execute();
+    $last = trim((string)($st->fetchColumn() ?: ''));
+    if ($last === '') {
+        return true;
+    }
+    try {
+        $lastDt = new DateTime($last, new DateTimeZone('America/Porto_Velho'));
+    } catch (Throwable $e) {
+        return true;
+    }
+    $diff = $now->getTimestamp() - $lastDt->getTimestamp();
+    return $diff >= ($ttlMinutes * 60);
+}
 
-    $ref = (clone $now)->modify('first day of last month');
-    $refAno = (int)$ref->format('Y');
-    $refMes = (int)$ref->format('n');
-    $refIni = $ref->format('Y-m-01');
-    $refFim = $ref->format('Y-m-t');
+function bonusMarkCreditsRefreshed(PDO $pdo, DateTime $now): void
+{
+    $st = $pdo->prepare("
+        INSERT INTO prescritor_bonus_meta (meta_key, meta_value, atualizado_em)
+        VALUES ('last_generation_run', :v, NOW())
+        ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value), atualizado_em = NOW()
+    ");
+    $st->execute(['v' => $now->format('Y-m-d H:i:s')]);
+}
 
+function bonusUpsertCreditsByReference(
+    PDO $pdo,
+    int $competenciaAno,
+    int $competenciaMes,
+    int $refAno,
+    int $refMes,
+    string $refIni,
+    string $refFim
+): void {
     $sql = "
         SELECT
             pc.nome AS prescritor,
@@ -139,7 +169,6 @@ function bonusGenerateMonthlyCredits(PDO $pdo): void
         FROM prescritores_cadastro pc
         LEFT JOIN gestao_pedidos gp
             ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome
-        WHERE 1=1
         GROUP BY pc.nome, pc.visitador
     ";
     $stmt = $pdo->prepare($sql);
@@ -180,20 +209,77 @@ function bonusGenerateMonthlyCredits(PDO $pdo): void
     }
 }
 
+function bonusGenerateMonthlyCredits(PDO $pdo): void
+{
+    $now = new DateTime('now', new DateTimeZone('America/Porto_Velho'));
+    $competenciaAtualAno = (int)$now->format('Y');
+    $competenciaAtualMes = (int)$now->format('n');
+    $competenciaProx = (clone $now)->modify('first day of next month');
+    $competenciaProxAno = (int)$competenciaProx->format('Y');
+    $competenciaProxMes = (int)$competenciaProx->format('n');
+
+    $refAnterior = (clone $now)->modify('first day of last month');
+    $refAnteriorAno = (int)$refAnterior->format('Y');
+    $refAnteriorMes = (int)$refAnterior->format('n');
+    $refAnteriorIni = $refAnterior->format('Y-m-01');
+    $refAnteriorFim = $refAnterior->format('Y-m-t');
+
+    $refAtualAno = (int)$now->format('Y');
+    $refAtualMes = (int)$now->format('n');
+    $refAtualIni = $now->format('Y-m-01');
+    $refAtualFim = $now->format('Y-m-d');
+
+    // Crédito disponível no mês atual (base do mês anterior).
+    bonusUpsertCreditsByReference(
+        $pdo,
+        $competenciaAtualAno,
+        $competenciaAtualMes,
+        $refAnteriorAno,
+        $refAnteriorMes,
+        $refAnteriorIni,
+        $refAnteriorFim
+    );
+
+    // Crédito a bonificar para o próximo mês (base do mês atual acumulado até hoje).
+    bonusUpsertCreditsByReference(
+        $pdo,
+        $competenciaProxAno,
+        $competenciaProxMes,
+        $refAtualAno,
+        $refAtualMes,
+        $refAtualIni,
+        $refAtualFim
+    );
+}
+
 function bonusGetResumoForNames(PDO $pdo, array $prescritores): array
 {
     $result = [];
     $clean = [];
+    $normalizedToOriginals = [];
     foreach ($prescritores as $p) {
         $v = trim((string)$p);
-        if ($v !== '') $clean[] = $v;
+        if ($v === '') {
+            continue;
+        }
+        $clean[] = $v;
+        $norm = bonusNormalize($v);
+        if ($norm !== '') {
+            if (!isset($normalizedToOriginals[$norm])) {
+                $normalizedToOriginals[$norm] = [];
+            }
+            $normalizedToOriginals[$norm][] = $v;
+        }
     }
     $clean = array_values(array_unique($clean));
     if ($clean === []) return $result;
 
     $chunkSize = 200;
     foreach (array_chunk($clean, $chunkSize) as $chunk) {
-        $in = implode(',', array_fill(0, count($chunk), '?'));
+        $chunkNorm = array_map(static function ($name) {
+            return bonusNormalize((string)$name);
+        }, $chunk);
+        $in = implode(',', array_fill(0, count($chunkNorm), '?'));
         $sql = "
             SELECT
                 q.prescritor,
@@ -218,14 +304,14 @@ function bonusGetResumoForNames(PDO $pdo, array $prescritores): array
                     FROM prescritor_bonus_debitos
                     GROUP BY prescritor
                 ) d ON d.prescritor = pc.nome
-                WHERE pc.nome IN ($in)
+                WHERE LOWER(TRIM(pc.nome)) IN ($in)
             ) q
         ";
         $st = $pdo->prepare($sql);
-        $st->execute($chunk);
+        $st->execute($chunkNorm);
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $key = trim((string)$r['prescritor']);
-            $result[$key] = [
+            $payload = [
                 'prescritor' => $key,
                 'visitador' => (string)($r['visitador'] ?? ''),
                 'bonificacao_eligivel' => bonusIsEligibleVisitador((string)($r['visitador'] ?? '')),
@@ -233,6 +319,14 @@ function bonusGetResumoForNames(PDO $pdo, array $prescritores): array
                 'total_credito' => (float)($r['total_credito'] ?? 0),
                 'total_debito' => (float)($r['total_debito'] ?? 0),
             ];
+            $result[$key] = $payload;
+
+            $keyNorm = bonusNormalize($key);
+            if ($keyNorm !== '' && isset($normalizedToOriginals[$keyNorm])) {
+                foreach ($normalizedToOriginals[$keyNorm] as $originalName) {
+                    $result[$originalName] = $payload;
+                }
+            }
         }
     }
     return $result;
@@ -276,34 +370,32 @@ function bonusGetExtrato(PDO $pdo, string $prescritor): array
     $stD->execute(['p' => $prescritor]);
     $out['debitos'] = $stD->fetchAll(PDO::FETCH_ASSOC);
 
-    // Cards operacionais (mês anterior e mês atual a bonificar)
     $tz = new DateTimeZone('America/Porto_Velho');
     $now = new DateTime('now', $tz);
     $prev = (clone $now)->modify('first day of last month');
-    $prevIni = $prev->format('Y-m-01');
-    $prevFim = $prev->format('Y-m-t');
-    $curIni = $now->format('Y-m-01');
-    $curFim = $now->format('Y-m-d');
-    $approvedCond = "gp.data_aprovacao IS NOT NULL AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%'))";
+    $next = (clone $now)->modify('first day of next month');
+    $curAno = (int)$now->format('Y');
+    $curMes = (int)$now->format('n');
+    $nextAno = (int)$next->format('Y');
+    $nextMes = (int)$next->format('n');
+
     $stCard = $pdo->prepare("
         SELECT
-            COALESCE(SUM(CASE WHEN $approvedCond AND DATE(gp.data_aprovacao) BETWEEN :p_ini AND :p_fim THEN gp.preco_liquido ELSE 0 END), 0) AS base_mes_anterior,
-            COALESCE(SUM(CASE WHEN $approvedCond AND DATE(gp.data_aprovacao) BETWEEN :c_ini AND :c_fim THEN gp.preco_liquido ELSE 0 END), 0) AS base_mes_atual
-        FROM gestao_pedidos gp
-        WHERE COALESCE(NULLIF(TRIM(gp.prescritor), ''), 'My Pharm') = :prescritor
+            COALESCE(SUM(CASE WHEN competencia_ano = :cur_ano AND competencia_mes = :cur_mes THEN valor_credito ELSE 0 END), 0) AS bonificacao_mes_anterior,
+            COALESCE(SUM(CASE WHEN competencia_ano = :next_ano AND competencia_mes = :next_mes THEN valor_credito ELSE 0 END), 0) AS bonificacao_mes_atual_a_bonificar
+        FROM prescritor_bonus_creditos_mensais
+        WHERE prescritor = :prescritor
     ");
     $stCard->execute([
-        'p_ini' => $prevIni,
-        'p_fim' => $prevFim,
-        'c_ini' => $curIni,
-        'c_fim' => $curFim,
+        'cur_ano' => $curAno,
+        'cur_mes' => $curMes,
+        'next_ano' => $nextAno,
+        'next_mes' => $nextMes,
         'prescritor' => $prescritor,
     ]);
     $rowCard = $stCard->fetch(PDO::FETCH_ASSOC) ?: [];
-    $bonifMesAnterior = round(((float)($rowCard['base_mes_anterior'] ?? 0)) * 0.20, 2);
-    $bonifMesAtual = round(((float)($rowCard['base_mes_atual'] ?? 0)) * 0.20, 2);
-    $out['resumo']['bonificacao_mes_anterior'] = $bonifMesAnterior;
-    $out['resumo']['bonificacao_mes_atual_a_bonificar'] = $bonifMesAtual;
+    $out['resumo']['bonificacao_mes_anterior'] = round((float)($rowCard['bonificacao_mes_anterior'] ?? 0), 2);
+    $out['resumo']['bonificacao_mes_atual_a_bonificar'] = round((float)($rowCard['bonificacao_mes_atual_a_bonificar'] ?? 0), 2);
     $out['resumo']['bonificacoes_utilizadas'] = (float)$out['resumo']['total_debito'];
     $out['resumo']['saldo_bonificacao'] = (float)$out['resumo']['saldo_bonus'];
     $out['resumo']['referencia_mes_anterior_label'] = $prev->format('m/Y');
@@ -316,45 +408,55 @@ function bonusGetControleLista(PDO $pdo): array
 {
     $tz = new DateTimeZone('America/Porto_Velho');
     $now = new DateTime('now', $tz);
-    $curIni = $now->format('Y-m-01');
-    $curFim = $now->format('Y-m-d');
     $prev = (clone $now)->modify('first day of last month');
-    $prevIni = $prev->format('Y-m-01');
-    $prevFim = $prev->format('Y-m-t');
+    $next = (clone $now)->modify('first day of next month');
+    $curAno = (int)$now->format('Y');
+    $curMes = (int)$now->format('n');
+    $nextAno = (int)$next->format('Y');
+    $nextMes = (int)$next->format('n');
     $compMesLabel = $now->format('m/Y');
     $refMesLabel = $prev->format('m/Y');
 
-    $approvedCond = "gp.data_aprovacao IS NOT NULL AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento') AND gp.status_financeiro NOT LIKE '%carrinho%'))";
     $sql = "
         SELECT
             pc.nome AS prescritor,
             pc.visitador AS visitador,
-            COALESCE(SUM(CASE WHEN $approvedCond AND DATE(gp.data_aprovacao) BETWEEN :p_ini AND :p_fim THEN gp.preco_liquido ELSE 0 END), 0) AS base_mes_anterior,
-            COALESCE(SUM(CASE WHEN $approvedCond AND DATE(gp.data_aprovacao) BETWEEN :c_ini AND :c_fim THEN gp.preco_liquido ELSE 0 END), 0) AS base_mes_atual,
+            COALESCE(ccur.valor_credito, 0) AS bonificacao_mes_anterior,
+            COALESCE(cnext.valor_credito, 0) AS bonificacao_mes_atual_a_bonificar,
             COALESCE(c.total_credito, 0) AS total_credito,
             COALESCE(d.total_debito, 0) AS total_debito
         FROM prescritores_cadastro pc
-        LEFT JOIN gestao_pedidos gp
-            ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome
         LEFT JOIN (
             SELECT prescritor, SUM(valor_credito) AS total_credito
             FROM prescritor_bonus_creditos_mensais
             GROUP BY prescritor
         ) c ON c.prescritor = pc.nome
         LEFT JOIN (
+            SELECT prescritor, SUM(valor_credito) AS valor_credito
+            FROM prescritor_bonus_creditos_mensais
+            WHERE competencia_ano = :cur_ano AND competencia_mes = :cur_mes
+            GROUP BY prescritor
+        ) ccur ON ccur.prescritor = pc.nome
+        LEFT JOIN (
+            SELECT prescritor, SUM(valor_credito) AS valor_credito
+            FROM prescritor_bonus_creditos_mensais
+            WHERE competencia_ano = :next_ano AND competencia_mes = :next_mes
+            GROUP BY prescritor
+        ) cnext ON cnext.prescritor = pc.nome
+        LEFT JOIN (
             SELECT prescritor, SUM(valor_debito) AS total_debito
             FROM prescritor_bonus_debitos
             GROUP BY prescritor
         ) d ON d.prescritor = pc.nome
-        GROUP BY pc.nome, pc.visitador, c.total_credito, d.total_debito
+        GROUP BY pc.nome, pc.visitador, ccur.valor_credito, cnext.valor_credito, c.total_credito, d.total_debito
         ORDER BY pc.nome ASC
     ";
     $st = $pdo->prepare($sql);
     $st->execute([
-        'p_ini' => $prevIni,
-        'p_fim' => $prevFim,
-        'c_ini' => $curIni,
-        'c_fim' => $curFim,
+        'cur_ano' => $curAno,
+        'cur_mes' => $curMes,
+        'next_ano' => $nextAno,
+        'next_mes' => $nextMes,
     ]);
     $rows = [];
     foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
@@ -362,13 +464,15 @@ function bonusGetControleLista(PDO $pdo): array
         if (!bonusIsEligibleVisitador($visitador)) {
             continue;
         }
-        $baseAnterior = (float)($r['base_mes_anterior'] ?? 0);
-        $baseAtual = (float)($r['base_mes_atual'] ?? 0);
-        $creditoMesAnterior = round($baseAnterior * 0.20, 2);
-        $aBonificarMesAtual = round($baseAtual * 0.20, 2);
+        $creditoMesAnterior = round((float)($r['bonificacao_mes_anterior'] ?? 0), 2);
+        $aBonificarMesAtual = round((float)($r['bonificacao_mes_atual_a_bonificar'] ?? 0), 2);
         $totalCredito = (float)($r['total_credito'] ?? 0);
         $totalDebito = (float)($r['total_debito'] ?? 0);
         $saldo = round($totalCredito - $totalDebito, 2);
+        // Exibe somente prescritores com bonificação/movimentação real.
+        if ($creditoMesAnterior <= 0 && $aBonificarMesAtual <= 0 && $totalCredito <= 0 && $totalDebito <= 0 && $saldo <= 0) {
+            continue;
+        }
         $rows[] = [
             'prescritor' => (string)($r['prescritor'] ?? ''),
             'visitador' => $visitador,
@@ -398,7 +502,11 @@ try {
         exit;
     }
     bonusInitTables($pdo);
-    bonusGenerateMonthlyCredits($pdo);
+    $nowPv = new DateTime('now', new DateTimeZone('America/Porto_Velho'));
+    if (bonusShouldRefreshCredits($pdo, $nowPv, 20)) {
+        bonusGenerateMonthlyCredits($pdo);
+        bonusMarkCreditsRefreshed($pdo, $nowPv);
+    }
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Falha ao inicializar API de bônus.'], JSON_UNESCAPED_UNICODE);
@@ -413,12 +521,32 @@ if ($action === 'bonus_resumo_lote') {
         ? $payload['prescritores']
         : [];
     $names = [];
+    $fallbackVisitadorByName = [];
     foreach ($items as $it) {
         if (is_array($it) && isset($it['prescritor'])) {
-            $names[] = (string)$it['prescritor'];
+            $prescritor = trim((string)$it['prescritor']);
+            if ($prescritor === '') {
+                continue;
+            }
+            $names[] = $prescritor;
+            $fallbackVisitadorByName[$prescritor] = trim((string)($it['visitador'] ?? ''));
         }
     }
     $resumo = bonusGetResumoForNames($pdo, $names);
+    foreach ($names as $name) {
+        if (isset($resumo[$name])) {
+            continue;
+        }
+        $fallbackVisitador = (string)($fallbackVisitadorByName[$name] ?? '');
+        $resumo[$name] = [
+            'prescritor' => $name,
+            'visitador' => $fallbackVisitador,
+            'bonificacao_eligivel' => bonusIsEligibleVisitador($fallbackVisitador),
+            'saldo_bonus' => 0.0,
+            'total_credito' => 0.0,
+            'total_debito' => 0.0,
+        ];
+    }
     echo json_encode(['success' => true, 'resumo' => $resumo], JSON_UNESCAPED_UNICODE);
     exit;
 }

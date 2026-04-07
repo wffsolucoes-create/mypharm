@@ -164,10 +164,10 @@
                                 <div class="kpi-sub">Receita vs mês anterior</div>
                             </div>
                             <div class="kpi-card" role="listitem">
-                                <div class="kpi-icon"><i class="fas fa-calendar-alt" aria-hidden="true"></i></div>
-                                <div class="kpi-label">Δ vs ano anterior</div>
-                                <div class="kpi-value gc-metric-value" id="gcCrescCrescimentoAnoPassado">—</div>
-                                <div class="kpi-sub">Mesmo mês, ano passado</div>
+                                <div class="kpi-icon"><i class="fas fa-user-check" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Clientes atendidos</div>
+                                <div class="kpi-value gc-metric-value" id="gcExecClientesAtendidos">—</div>
+                                <div class="kpi-sub">Quantidade atendida no período</div>
                             </div>
                             <div class="kpi-card" role="listitem">
                                 <div class="kpi-icon"><i class="fas fa-chart-pie" aria-hidden="true"></i></div>
@@ -186,39 +186,34 @@
 
                     <div class="gc-subsection">
                         <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-chart-column"></i></span> Análises gráficas</h3>
-                        <p class="gc-subsection__desc">Comparativos monetários, percentuais, volume do funil e participação por canal.</p>
+                        <p class="gc-subsection__desc">Visão executiva para decisão comercial: resultado financeiro, saúde do funil, volume de clientes e produtividade do time.</p>
                     <div class="gc-chart-grid">
                         <div class="gc-chart-panel">
-                            <h4 class="gc-chart-title">Receita, CMV e lucro operacional</h4>
-                            <p class="gc-chart-sub">Valores no período filtrado (pedidos aprovados).</p>
-                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecFinance" aria-label="Receita custo lucro"></canvas></div>
+                            <h4 class="gc-chart-title">Resultado financeiro do período</h4>
+                            <p class="gc-chart-sub">Receita, CMV e lucro operacional para leitura rápida de resultado.</p>
+                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecFinance" aria-label="Resultado financeiro"></canvas></div>
+                        </div>
+                        <div class="gc-chart-panel gc-chart-panel--exec-forma">
+                            <h4 class="gc-chart-title">Receita, CMV e lucro por forma farmacêutica</h4>
+                            <p class="gc-chart-sub">Compara as 3 linhas por forma para ver resultado e custo por segmento.</p>
+                            <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--exec-forma"><canvas id="gcChartExecCmvForma" aria-label="Receita CMV e lucro por forma farmacêutica"></canvas></div>
                         </div>
                         <div class="gc-chart-panel">
-                            <h4 class="gc-chart-title">Indicadores em %</h4>
-                            <p class="gc-chart-sub">Crescimento, conversão, margem CMV, recompra e perda.</p>
-                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecPercent" aria-label="Indicadores percentuais"></canvas></div>
-                        </div>
-                        <div class="gc-chart-panel">
-                            <h4 class="gc-chart-title">Funil comercial (volume)</h4>
-                            <p class="gc-chart-sub">Atendimentos → oportunidades → vendas fechadas.</p>
-                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecFunil" aria-label="Funil volume"></canvas></div>
-                        </div>
-                        <div class="gc-chart-panel">
-                            <h4 class="gc-chart-title">Receita por canal</h4>
-                            <p class="gc-chart-sub">Top canais no período.</p>
-                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecCanais" aria-label="Canais"></canvas></div>
+                            <h4 class="gc-chart-title">Mix de receita por canal</h4>
+                            <p class="gc-chart-sub">Participação dos canais que mais geraram receita.</p>
+                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecCanais" aria-label="Mix de canais"></canvas></div>
                         </div>
                     </div>
 
                     <div class="gc-chart-grid gc-chart-grid--2">
                         <div class="gc-chart-panel">
-                            <h4 class="gc-chart-title">Eficiência (volume e tempo)</h4>
-                            <p class="gc-chart-sub">Leads, vendas no funil e métricas de ciclo / LTV quando disponíveis.</p>
-                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecEfic" aria-label="Eficiência"></canvas></div>
+                            <h4 class="gc-chart-title">Base de clientes e atendimento</h4>
+                            <p class="gc-chart-sub">Clientes e volume operacional: atendidos, ativos, no carrinho, perdidos e pedidos aprovados.</p>
+                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecEfic" aria-label="Clientes e atendimento"></canvas></div>
                             <div class="gc-quick-kpis" id="gcEficQuickKpis" role="list" aria-label="Resumo rápido de eficiência">
-                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Leads</span><strong id="gcEficQuickLeads">—</strong></div>
-                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Vendas</span><strong id="gcEficQuickVendas">—</strong></div>
-                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Fechamento</span><strong id="gcEficQuickTempo">—</strong></div>
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Clientes atendidos</span><strong id="gcEficQuickLeads">—</strong></div>
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Pedidos</span><strong id="gcEficQuickVendas">—</strong></div>
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Fechamento médio</span><strong id="gcEficQuickTempo">—</strong></div>
                             </div>
                             <div class="gc-chart-legend-text gc-metric-value" id="gcEficLeads">Leads: —</div>
                             <div class="gc-chart-legend-text gc-metric-value" id="gcEficTempoFechamento">Tempo médio fechamento: —</div>
@@ -228,12 +223,13 @@
                             <div class="gc-chart-legend-text gc-metric-value" id="gcEficLtvCac">LTV/CAC: —</div>
                         </div>
                         <div class="gc-chart-panel">
-                            <h4 class="gc-chart-title">Rentabilidade e fidelização</h4>
-                            <p class="gc-chart-sub">Margem por produto (top), lucro, recompra e indicadores de satisfação.</p>
-                            <div class="gc-chart-canvas-wrap" id="gcExecFidelChartWrap"><canvas id="gcChartExecFidel" aria-label="Fidelização"></canvas></div>
-                            <div class="gc-chart-empty" id="gcExecFidelEmpty" style="display:none;">Sem base de margem por produto no período.</div>
+                            <h4 class="gc-chart-title">Produtividade comercial (time)</h4>
+                            <p class="gc-chart-sub">Top consultoras por receita no período e indicadores de rentabilidade/fidelização.</p>
+                            <div class="gc-chart-canvas-wrap" id="gcExecFidelChartWrap"><canvas id="gcChartExecFidel" aria-label="Produtividade comercial"></canvas></div>
+                            <div class="gc-chart-empty" id="gcExecFidelEmpty" style="display:none;">Sem base de performance por consultora no período.</div>
                             <div class="gc-quick-kpis" id="gcFidelQuickKpis" role="list" aria-label="Resumo rápido de rentabilidade e fidelização">
                                 <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Lucro operacional</span><strong id="gcFidelQuickLucro">—</strong></div>
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Valor de venda</span><strong id="gcFidelQuickVendas">—</strong></div>
                                 <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Taxa recompra</span><strong id="gcFidelQuickRecompra">—</strong></div>
                                 <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Base ativa 90d</span><strong id="gcFidelQuickBase">—</strong></div>
                             </div>
@@ -289,29 +285,74 @@
 
                     <div class="gc-block">
                         <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-lightbulb"></i></span> Inteligência comercial</h3>
-                        <p class="gc-note gc-note--tight">Rankings para priorizar componentes, prescritores e oportunidades de margem.</p>
+                        <p class="gc-note gc-note--tight">Rankings para priorizar prescritores e clientes com maior impacto de receita e ticket médio.</p>
                         <div class="gc-chart-grid gc-chart-grid--2">
                             <div class="gc-chart-panel">
-                                <h4 class="gc-chart-title">Top componentes (quantidade)</h4>
-                                <p class="gc-chart-sub">Componentes com maior volume no período.</p>
-                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasTopProdQtd" aria-label="Top componentes qtd"></canvas></div>
+                                <h4 class="gc-chart-title">Top clientes (receita)</h4>
+                                <p class="gc-chart-sub">Clientes com maior receita aprovada no período.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasTopProdQtd" aria-label="Top clientes"></canvas></div>
                             </div>
                             <div class="gc-chart-panel">
                                 <h4 class="gc-chart-title">Top prescritores (receita)</h4>
-                                <p class="gc-chart-sub">Maiores geradores de receita aprovada.</p>
+                                <p class="gc-chart-sub">Top 20 maiores geradores de receita aprovada.</p>
                                 <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasTopPresc" aria-label="Top prescritores"></canvas></div>
                             </div>
                         </div>
                         <div class="gc-chart-grid gc-chart-grid--2 gc-stack-20">
                             <div class="gc-chart-panel">
-                                <h4 class="gc-chart-title">Maior margem % (componente)</h4>
-                                <p class="gc-chart-sub">Componentes com melhor contribuição percentual estimada.</p>
-                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasMargemProd" aria-label="Margem componente"></canvas></div>
+                                <h4 class="gc-chart-title">Ticket médio por cliente</h4>
+                                <p class="gc-chart-sub">Top 20 clientes com maior ticket médio.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasMargemProd" aria-label="Ticket médio por cliente"></canvas></div>
                             </div>
                             <div class="gc-chart-panel">
-                                <h4 class="gc-chart-title">Ticket médio por especialidade</h4>
-                                <p class="gc-chart-sub">Comparação entre especialidades médicas.</p>
-                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasEspecialidade" aria-label="Especialidade"></canvas></div>
+                                <h4 class="gc-chart-title">Ticket médio por prescritor</h4>
+                                <p class="gc-chart-sub">Top 20 prescritores por ticket médio.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasEspecialidade" aria-label="Ticket médio por prescritor"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="gc-chart-grid gc-chart-grid--2 gc-stack-20">
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Clientes novos x recorrentes</h4>
+                                <p class="gc-chart-sub" id="gcClientesMixSub">Distribuição da base no período (quem comprou 1x vs 2x+).</p>
+                                <div class="gc-chart-canvas-wrap"><canvas id="gcChartVendasClientesMix" aria-label="Clientes novos e recorrentes"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Distribuição de ticket por cliente</h4>
+                                <p class="gc-chart-sub">Quantidade de clientes por faixa de ticket médio.</p>
+                                <div class="gc-chart-canvas-wrap"><canvas id="gcChartVendasClientesFaixaTicket" aria-label="Faixas de ticket por cliente"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="gc-chart-grid gc-stack-20">
+                            <div class="gc-chart-panel gc-chart-panel--wide">
+                                <h4 class="gc-chart-title">Clientes com maior perda potencial</h4>
+                                <p class="gc-chart-sub">Clientes com maior valor rejeitado/no carrinho no período.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasClientesPerda" aria-label="Clientes com maior perda potencial"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="gc-compare-banner">
+                            <i class="fas fa-circle-info" aria-hidden="true"></i>
+                            <span>Os próximos gráficos são de comparação fixa e não se aplicam aos filtros globais de período.</span>
+                        </div>
+                        <div class="gc-chart-grid gc-stack-20">
+                            <div class="gc-chart-panel gc-chart-panel--wide">
+                                <h4 class="gc-chart-title">Comparação acumulada — receita (R$)</h4>
+                                <p class="gc-chart-sub" id="gcVendasMesMesSub">Carregando…</p>
+                                <p class="gc-compare-meses-hint" id="gcCompareMesesHint">Todos os meses do ano estão disponíveis; por padrão só o mês atual e o anterior vêm marcados (não usa o filtro global).</p>
+                                <div class="gc-compare-meses-toolbar" role="group" aria-label="Meses exibidos no gráfico de receita">
+                                    <span class="gc-compare-meses-toolbar__label">Meses no gráfico</span>
+                                    <div class="gc-compare-meses-checks" id="gcCompareMesesChecks"></div>
+                                </div>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall gc-chart-canvas-wrap--comparativo"><canvas id="gcChartVendasMesMes" aria-label="Comparação acumulada de receita por dia entre meses"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel gc-chart-panel--wide">
+                                <h4 class="gc-chart-title">Comparação acumulada — quantidade de pedidos</h4>
+                                <p class="gc-chart-sub" id="gcPedidosMesMesSub">Carregando…</p>
+                                <p class="gc-compare-meses-hint" id="gcCompareMesesHintPedidos">Pedidos aprovados por dia de aprovação, mesma lógica do gráfico de receita. Seleção de meses independente (memorizada separadamente).</p>
+                                <div class="gc-compare-meses-toolbar" role="group" aria-label="Meses exibidos no gráfico de pedidos">
+                                    <span class="gc-compare-meses-toolbar__label">Meses no gráfico</span>
+                                    <div class="gc-compare-meses-checks" id="gcCompareMesesChecksPedidos"></div>
+                                </div>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall gc-chart-canvas-wrap--comparativo"><canvas id="gcChartPedidosMesMes" aria-label="Comparação acumulada de pedidos por dia entre meses"></canvas></div>
                             </div>
                         </div>
                     </div>
@@ -445,6 +486,7 @@
                                         <th scope="col" data-sort="receita"><button type="button" class="gc-th-sort">Receita</button></th>
                                         <th scope="col" data-sort="ticket"><button type="button" class="gc-th-sort">Ticket médio</button></th>
                                         <th scope="col" data-sort="meta_mensal"><button type="button" class="gc-th-sort">Meta (mensal)</button></th>
+                                        <th scope="col" data-sort="falta_meta"><button type="button" class="gc-th-sort">Falta p/ meta</button></th>
                                         <th scope="col" data-sort="previsao"><button type="button" class="gc-th-sort">Previsão ganho</button></th>
                                         <th scope="col" data-sort="aprovados"><button type="button" class="gc-th-sort">Aprovados</button></th>
                                         <th scope="col" data-sort="rejeitados"><button type="button" class="gc-th-sort">Rejeitados</button></th>
@@ -458,39 +500,25 @@
                             </table>
                         </div>
                     </div>
-                </section>
-
-                <section class="gc-section" id="gc-section-relatorios" role="tabpanel" aria-labelledby="gc-tab-relatorios" aria-hidden="true">
-                    <header class="gc-tab-head">
-                        <p class="gc-tab-head__kicker">Relatórios comerciais</p>
-                        <p class="gc-tab-head__desc">Visão equivalente às planilhas Semanal, Mensal e Comissão, calculada automaticamente pelo banco no período selecionado.</p>
-                    </header>
 
                     <div class="gc-block">
                         <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-calendar-week"></i></span> Relatório semanal</h3>
                         <p class="gc-note gc-note--tight">Meta individual, vendas por semana (1 a 4), total vendido, atingimento e comissão estimada.</p>
-                        <div class="gc-quick-kpis" role="list" aria-label="Totais semanais">
-                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Semana 1</span><strong id="gcRelSemTotS1">—</strong></div>
-                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Semana 2</span><strong id="gcRelSemTotS2">—</strong></div>
-                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Semana 3</span><strong id="gcRelSemTotS3">—</strong></div>
-                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Semana 4</span><strong id="gcRelSemTotS4">—</strong></div>
-                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Total</span><strong id="gcRelSemTotGeral">—</strong></div>
-                        </div>
                         <div class="gc-table-wrap">
-                            <table class="gc-table gc-table--prod" id="gcErrosTable">
+                            <table class="gc-table gc-table--prod" id="gcRelSemanalTable">
                                 <thead>
                                     <tr>
-                                        <th scope="col">Vendedora</th>
-                                        <th scope="col">Meta</th>
-                                        <th scope="col">Semana 1</th>
-                                        <th scope="col">Semana 2</th>
-                                        <th scope="col">Semana 3</th>
-                                        <th scope="col">Semana 4</th>
-                                        <th scope="col">Total vendido</th>
-                                        <th scope="col">% Atingido</th>
-                                        <th scope="col">Falta p/ 100%</th>
-                                        <th scope="col">Bônus (R$)</th>
-                                        <th scope="col">Comissão (R$)</th>
+                                        <th scope="col" data-sort="consultora"><button type="button" class="gc-th-sort">Consultora</button></th>
+                                        <th scope="col" data-sort="meta"><button type="button" class="gc-th-sort">Meta (mensal)</button></th>
+                                        <th scope="col" data-sort="s1"><button type="button" class="gc-th-sort">Semana 1</button></th>
+                                        <th scope="col" data-sort="s2"><button type="button" class="gc-th-sort">Semana 2</button></th>
+                                        <th scope="col" data-sort="s3"><button type="button" class="gc-th-sort">Semana 3</button></th>
+                                        <th scope="col" data-sort="s4"><button type="button" class="gc-th-sort">Semana 4</button></th>
+                                        <th scope="col" data-sort="total_vendido"><button type="button" class="gc-th-sort">Receita</button></th>
+                                        <th scope="col" data-sort="pct"><button type="button" class="gc-th-sort">% Atingido</button></th>
+                                        <th scope="col" data-sort="falta"><button type="button" class="gc-th-sort">Falta p/ meta</button></th>
+                                        <th scope="col" data-sort="bonus"><button type="button" class="gc-th-sort">Bônus (R$)</button></th>
+                                        <th scope="col" data-sort="comissao"><button type="button" class="gc-th-sort">Comissão (R$)</button></th>
                                     </tr>
                                 </thead>
                                 <tbody id="gcRelSemanalTbody"></tbody>
@@ -502,7 +530,7 @@
                         <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-calendar-alt"></i></span> Relatório mensal</h3>
                         <p class="gc-note gc-note--tight">Desempenho por consultora com score final e status calculados pelo sistema. <strong>Conversão</strong> = pedidos ÷ (orçamentos + pedidos + rejeitados), em % — a coluna <strong>Rejeitados</strong> soma linhas no carrinho e recusadas. A coluna <strong>Erros</strong> é a quantidade de registros no período (controle manual + perdas). <strong>Pts Erros</strong> segue a tabela por total de erros: 0→20, 1→18, 2→15, 3→12, 4 ou mais→5.</p>
                         <div class="gc-table-wrap">
-                            <table class="gc-table gc-table--prod">
+                            <table class="gc-table gc-table--prod" id="gcRelMensalTable">
                                 <thead>
                                     <tr>
                                         <th scope="col">Vendedora</th>
@@ -518,6 +546,7 @@
                                         <th scope="col">Pts Fat.</th>
                                         <th scope="col">Pts Conv.</th>
                                         <th scope="col">Pts Erros</th>
+                                        <th scope="col">Total</th>
                                         <th scope="col">Score</th>
                                         <th scope="col">Status</th>
                                     </tr>
@@ -564,6 +593,17 @@
                                 </table>
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                <section class="gc-section" id="gc-section-relatorios" role="tabpanel" aria-labelledby="gc-tab-relatorios" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Relatórios comerciais</p>
+                        <p class="gc-tab-head__desc">Os conteúdos desta aba foram movidos para <strong>Vendedores</strong>.</p>
+                    </header>
+
+                    <div class="gc-block">
+                        <p class="gc-note">A partir de agora, relatório semanal, relatório mensal e regras de comissão estão centralizados na aba <strong>Vendedores</strong>.</p>
                     </div>
                 </section>
 
