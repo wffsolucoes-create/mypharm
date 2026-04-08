@@ -845,7 +845,7 @@
                             <table class="data-table data-table--sortable" id="tableRotasDetalhes">
                                 <thead>
                                     <tr>
-                                        <th class="th-num" scope="col">#</th>
+                                        <th class="th-sortable th-rota-id-col" data-sort="id" scope="col" title="ID da rota do dia no sistema (rotas_diarias)">ID rota <span class="th-sort-icon" aria-hidden="true"></span></th>
                                         <th class="th-sortable" data-sort="visitador" scope="col" title="Ordenar por visitador">Visitador <span class="th-sort-icon" aria-hidden="true"></span></th>
                                         <th class="th-sortable" data-sort="data_inicio" scope="col" title="Ordenar por data de início">Início <span class="th-sort-icon" aria-hidden="true"></span></th>
                                         <th scope="col">Endereço início</th>
@@ -949,7 +949,7 @@
                             <table class="data-table data-table--sortable" id="tableVisitasPage">
                                 <thead>
                                     <tr>
-                                        <th class="th-num" scope="col">#</th>
+                                        <th class="th-sortable th-id" data-sort="id" scope="col" title="Ordenar por ID">ID <span class="th-sort-icon" aria-hidden="true"></span></th>
                                         <th class="th-sortable" data-sort="visitador" scope="col" title="Ordenar por visitador">Visitador <span class="th-sort-icon" aria-hidden="true"></span></th>
                                         <th class="th-sortable" data-sort="prescritor" scope="col" title="Ordenar por prescritor">Prescritor <span class="th-sort-icon" aria-hidden="true"></span></th>
                                         <th class="th-sortable" data-sort="data_visita" scope="col" title="Ordenar por data">Data <span class="th-sort-icon" aria-hidden="true"></span></th>
@@ -959,7 +959,7 @@
                                         <th class="th-sortable" data-sort="status" scope="col" title="Ordenar por status">Status <span class="th-sort-icon" aria-hidden="true"></span></th>
                                         <th class="th-sortable" data-sort="local" scope="col" title="Ordenar por local">Local <span class="th-sort-icon" aria-hidden="true"></span></th>
                                         <th class="th-sortable" data-sort="reagend" scope="col" title="Ordenar por próximo agendamento">Próx. agend. <span class="th-sort-icon" aria-hidden="true"></span></th>
-                                        <th class="th-actions" scope="col">Relatório</th>
+                                        <th class="th-actions" scope="col">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -1308,9 +1308,16 @@
             <div id="modalDetalheVisitaAdmin" class="modal-overlay" style="display:none; z-index:3000;">
                 <div style="width:min(760px,96vw); max-height:92vh; overflow-y:auto; background:var(--bg-card); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow-lg);">
                     <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:16px 18px; border-bottom:1px solid var(--border);">
-                        <div>
+                        <div style="flex:1; min-width:0;">
                             <h3 style="margin:0; font-size:1.1rem;"><i class="fas fa-clipboard-check" style="margin-right:8px; color:var(--primary);"></i>Detalhes da Visita</h3>
                             <div id="modalDetalheVisitaAdminSub" style="margin-top:4px; color:var(--text-secondary); font-size:0.9rem;">—</div>
+                            <div style="margin-top:12px;">
+                                <button id="detVisitaAdminBtnReprovar" type="button"
+                                    onclick="openReprovarVisitaAdminModalFromDetalhe()"
+                                    style="display:none; padding:9px 14px; border:none; border-radius:10px; background:#EF4444; color:#fff; font-weight:700; cursor:pointer;">
+                                    <i class="fas fa-ban" style="margin-right:6px;"></i>Reprovar visita
+                                </button>
+                            </div>
                         </div>
                         <button type="button" class="modal-close" onclick="closeModalDetalheVisitaAdmin()">&times;</button>
                     </div>
@@ -1351,13 +1358,79 @@
                             <div style="font-size:0.78rem; color:var(--text-secondary); text-transform:uppercase;">Resumo</div>
                             <div id="detVisitaAdminResumo" style="font-weight:600; margin-top:4px; white-space:pre-wrap;">—</div>
                         </div>
+                        <div id="detVisitaAdminMotivoRecusaWrap" style="display:none; padding:10px; border:1px solid var(--border); border-radius:12px; margin-bottom:12px; border-left:4px solid #EF4444;">
+                            <div style="font-size:0.78rem; color:var(--text-secondary); text-transform:uppercase;">Motivo da recusa</div>
+                            <div id="detVisitaAdminMotivoRecusa" style="font-weight:600; margin-top:4px; white-space:pre-wrap; color:var(--text-primary);">—</div>
+                        </div>
+                        <div id="detVisitaAdminImgsWrap" style="display:none; padding:10px; border:1px solid var(--border); border-radius:12px; margin-bottom:12px;">
+                            <div style="font-size:0.78rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:8px;">Imagens da conversa</div>
+                            <div id="detVisitaAdminImgsGrid" style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px;"></div>
+                        </div>
                         <div id="detVisitaAdminGpsWrap" style="display:none; padding:10px; border:1px solid var(--border); border-radius:12px;">
                             <div style="font-size:0.78rem; color:var(--text-secondary); text-transform:uppercase;">Confirmação GPS</div>
                             <div id="detVisitaAdminGpsTxt" style="font-weight:600; margin:4px 0 8px 0;">—</div>
                             <div id="detVisitaAdminMapa" style="height:220px; border-radius:10px; overflow:hidden;"></div>
+                            <p style="margin:8px 0 0; font-size:0.78rem; color:var(--text-secondary);">Dica: clique no pin azul no mapa para ver o endereço (OpenStreetMap).</p>
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Modal: motivo da recusa (admin) -->
+            <div id="modalReprovarVisitaAdmin" class="modal-overlay" style="display:none; z-index:3200;" role="dialog" aria-modal="true" aria-labelledby="modalReprovarVisitaTitulo" onclick="if(event.target===this)closeReprovarVisitaAdminModal()">
+                <div style="width:min(480px,94vw); background:var(--bg-card); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow-lg); overflow:hidden;">
+                    <div style="padding:16px 18px; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+                        <h3 id="modalReprovarVisitaTitulo" style="margin:0; font-size:1.05rem;"><i class="fas fa-ban" style="margin-right:8px; color:#EF4444;"></i>Reprovar visita</h3>
+                        <button type="button" class="modal-close" onclick="closeReprovarVisitaAdminModal()" aria-label="Fechar">&times;</button>
+                    </div>
+                    <div style="padding:16px 18px;">
+                        <p style="margin:0 0 10px; font-size:0.88rem; color:var(--text-secondary); line-height:1.45;">A visita passará para status <strong>Recusada</strong> e não contará nas metas do visitador. O motivo é <strong>opcional</strong>.</p>
+                        <label for="reprovarVisitaMotivoTexto" style="display:block; font-size:0.78rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:6px;">Motivo da recusa <span style="font-weight:500; text-transform:none; color:var(--text-secondary);">(opcional)</span></label>
+                        <textarea id="reprovarVisitaMotivoTexto" rows="5" maxlength="2000" placeholder="Ex.: Evidências inconsistentes, visita duplicada, dados incorretos…"
+                            style="width:100%; box-sizing:border-box; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; resize:vertical; min-height:100px;"></textarea>
+                        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px; flex-wrap:wrap;">
+                            <button type="button" onclick="closeReprovarVisitaAdminModal()"
+                                style="padding:9px 16px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Cancelar</button>
+                            <button type="button" id="reprovarVisitaModalBtnConfirm" onclick="confirmReprovarVisitaAdminModal()"
+                                style="padding:9px 16px; border-radius:10px; border:none; background:#EF4444; color:#fff; font-weight:700; cursor:pointer;">
+                                <i class="fas fa-check" style="margin-right:6px;"></i>Confirmar recusa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: editar motivo da recusa (admin) -->
+            <div id="modalEditarMotivoRecusaAdmin" class="modal-overlay" style="display:none; z-index:3200;" role="dialog" aria-modal="true" aria-labelledby="modalEditarMotivoRecusaTitulo" onclick="if(event.target===this)closeEditarMotivoRecusaAdminModal()">
+                <div style="width:min(480px,94vw); background:var(--bg-card); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow-lg); overflow:hidden;">
+                    <div style="padding:16px 18px; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+                        <h3 id="modalEditarMotivoRecusaTitulo" style="margin:0; font-size:1.05rem;"><i class="fas fa-pen" style="margin-right:8px; color:#d97706;"></i>Editar motivo da recusa</h3>
+                        <button type="button" class="modal-close" onclick="closeEditarMotivoRecusaAdminModal()" aria-label="Fechar">&times;</button>
+                    </div>
+                    <div style="padding:16px 18px;">
+                        <p style="margin:0 0 10px; font-size:0.88rem; color:var(--text-secondary); line-height:1.45;">Atualize ou complemente o texto registrado na recusa. Deixe em branco para remover o motivo.</p>
+                        <label for="editarMotivoRecusaAdminTexto" style="display:block; font-size:0.78rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:6px;">Motivo</label>
+                        <textarea id="editarMotivoRecusaAdminTexto" rows="5" maxlength="2000" placeholder="Descreva o motivo da recusa…"
+                            style="width:100%; box-sizing:border-box; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; resize:vertical; min-height:100px;"></textarea>
+                        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px; flex-wrap:wrap;">
+                            <button type="button" onclick="closeEditarMotivoRecusaAdminModal()"
+                                style="padding:9px 16px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Cancelar</button>
+                            <button type="button" id="editarMotivoRecusaAdminBtnSalvar" onclick="confirmSalvarMotivoRecusaAdminModal()"
+                                style="padding:9px 16px; border-radius:10px; border:none; background:#d97706; color:#fff; font-weight:700; cursor:pointer;">
+                                <i class="fas fa-check" style="margin-right:6px;"></i>Salvar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="detVisitaAdminImgLightbox"
+                style="display:none; position:fixed; inset:0; z-index:3100; background:rgba(0,0,0,0.82); align-items:center; justify-content:center; padding:16px; box-sizing:border-box;"
+                onclick="closeDetalheVisitaAdminImagem(event)">
+                <button type="button" onclick="closeDetalheVisitaAdminImagem(event)"
+                    style="position:absolute; top:16px; right:16px; width:38px; height:38px; border:1px solid rgba(255,255,255,0.25); border-radius:10px; background:rgba(15,23,42,0.65); color:#fff; font-size:1.35rem; cursor:pointer;">&times;</button>
+                <img id="detVisitaAdminImgLightboxEl" src="" alt="Imagem da conversa"
+                    style="max-width:min(96vw,980px); max-height:88vh; border-radius:12px; border:1px solid rgba(255,255,255,0.18); box-shadow:0 20px 60px rgba(0,0,0,0.45); background:#0f172a;">
             </div>
 
             <!-- ===== MODAL: Adicionar Usuário ===== -->

@@ -83,6 +83,167 @@
         .notifications-send-textarea { resize: vertical; min-height: 72px; }
         .notifications-send-btn { display: block; width: 100%; padding: 10px 14px; margin-top: 4px; border: none; border-radius: 8px; background: var(--primary, #3b82f6); color: #fff; font-weight: 600; font-size: 0.9rem; cursor: pointer; box-sizing: border-box; }
         .notifications-send-btn i { margin-right: 6px; }
+        .visita-img-slots {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .visita-img-slot {
+            position: relative;
+            height: 100px;
+            border-radius: 12px;
+            border: 1px dashed var(--border, #cbd5e1);
+            background: linear-gradient(180deg, rgba(148,163,184,0.14), rgba(148,163,184,0.08));
+            color: var(--text-secondary, #64748b);
+            cursor: pointer;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.18s ease;
+        }
+        .visita-img-slot:hover {
+            border-color: var(--primary, #3b82f6);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(2, 6, 23, 0.12);
+        }
+        .visita-img-slot-plus {
+            font-size: 1.55rem;
+            line-height: 1;
+            font-weight: 700;
+        }
+        .visita-img-slot-hint {
+            position: absolute;
+            bottom: 8px;
+            left: 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            opacity: 0.85;
+        }
+        .visita-img-slot.is-processing {
+            border-style: solid;
+            border-color: rgba(59,130,246,0.35);
+            background: var(--bg-body);
+        }
+        .visita-img-slot-processing {
+            font-size: 0.74rem;
+            font-weight: 600;
+            color: var(--text-secondary, #64748b);
+        }
+        .visita-img-slot.is-filled {
+            border-style: solid;
+            border-color: rgba(59,130,246,0.35);
+            background-color: #0f172a;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            color: transparent;
+        }
+        .visita-img-slot-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(15,23,42,0.1) 0%, rgba(15,23,42,0.45) 100%);
+        }
+        .visita-img-slot-chip {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(15,23,42,0.78);
+            color: #fff;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+        .visita-img-slot-remove {
+            position: absolute;
+            top: 7px;
+            right: 7px;
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(15,23,42,0.72);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            z-index: 2;
+        }
+        .visita-img-slot-remove:hover {
+            background: rgba(239,68,68,0.92);
+        }
+        @media (max-width: 700px) {
+            .visita-img-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .visita-img-slot { height: 90px; }
+        }
+        .dv-imagens-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .dv-imagem-thumb {
+            width: 100%;
+            height: 94px;
+            border: 1px solid var(--border, #cbd5e1);
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--bg-body);
+            cursor: pointer;
+            padding: 0;
+        }
+        .dv-imagem-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .dv-imagem-thumb:hover {
+            border-color: var(--primary, #3b82f6);
+            box-shadow: 0 8px 18px rgba(2, 6, 23, 0.12);
+            transform: translateY(-1px);
+        }
+        .dv-imagem-lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 3900;
+            background: rgba(0, 0, 0, 0.82);
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+        .dv-imagem-lightbox img {
+            max-width: min(96vw, 980px);
+            max-height: 88vh;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.18);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+            background: #0f172a;
+        }
+        .dv-imagem-lightbox-close {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            width: 38px;
+            height: 38px;
+            border: 1px solid rgba(255,255,255,0.22);
+            border-radius: 10px;
+            background: rgba(15,23,42,0.65);
+            color: #fff;
+            font-size: 1.35rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+        @media (max-width: 700px) {
+            .dv-imagens-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .dv-imagem-thumb { height: 86px; }
+        }
     </style>
     <style>body{visibility:hidden;}</style>
 </head>
@@ -826,6 +987,65 @@
                     </aside>
                 </div>
             </div>
+
+            <div class="roteiro-visitas-table-card">
+                <div class="roteiro-visitas-table-head">
+                    <div>
+                        <div class="roteiro-visitas-table-title">Visitas no período</div>
+                        <div class="roteiro-visitas-table-sub">Realizadas e <strong>recusadas</strong> entre <strong id="roteiroVisitasPeriodoLabel">—</strong> (somente leitura)</div>
+                    </div>
+                </div>
+                <div class="roteiro-table-responsive">
+                    <table class="roteiro-visitas-data-table" id="roteiroTabelaVisitas" aria-label="Visitas no período">
+                        <thead>
+                            <tr>
+                                <th class="roteiro-th-sortable roteiro-th-id" data-sort="id" scope="col" title="Ordenar por ID">ID <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="visitador" scope="col" title="Ordenar por visitador">Visitador <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="prescritor" scope="col" title="Ordenar por prescritor">Prescritor <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="data_visita" scope="col" title="Ordenar por data">Data <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="inicio" scope="col" title="Ordenar por início">Início <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="fim" scope="col" title="Ordenar por fim">Fim <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="duracao" scope="col" title="Ordenar por duração">Duração <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="status" scope="col" title="Ordenar por status">Status <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="local" scope="col" title="Ordenar por local">Local <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="reagend" scope="col" title="Ordenar por próximo agendamento">Próx. agend. <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-motivo" scope="col">Motivo recusa</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div id="modalRoteiroMotivoRecusa" class="roteiro-motivo-modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="roteiroMotivoRecusaTitulo" onclick="if(event.target===this)closeRoteiroMotivoRecusaModal()">
+                    <div class="roteiro-motivo-modal-box" onclick="event.stopPropagation()">
+                        <div class="roteiro-motivo-modal-head">
+                            <h3 id="roteiroMotivoRecusaTitulo"><i class="fas fa-comment-alt" style="margin-right:8px; color:#F87171;"></i>Motivo da recusa</h3>
+                            <button type="button" class="roteiro-motivo-modal-close" onclick="closeRoteiroMotivoRecusaModal()" aria-label="Fechar">&times;</button>
+                        </div>
+                        <div id="roteiroMotivoRecusaTexto" class="roteiro-motivo-modal-body"></div>
+                        <div class="roteiro-motivo-modal-foot">
+                            <button type="button" class="roteiro-motivo-modal-btn" onclick="closeRoteiroMotivoRecusaModal()">Fechar</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="roteiroVisitasPager" class="roteiro-visitas-pager" style="display:none;" aria-label="Paginação da tabela de visitas">
+                    <span id="roteiroVisitasPagerInfo" class="roteiro-visitas-pager-info"></span>
+                    <div class="roteiro-visitas-pager-nav">
+                        <button type="button" class="roteiro-visitas-pager-btn" id="roteiroVisitasPagerPrev" onclick="roteiroVisitasTablePrevPage()" title="Página anterior">&laquo; Anterior</button>
+                        <span id="roteiroVisitasPagerMeta" class="roteiro-visitas-pager-meta"></span>
+                        <button type="button" class="roteiro-visitas-pager-btn" id="roteiroVisitasPagerNext" onclick="roteiroVisitasTableNextPage()" title="Próxima página">Próxima &raquo;</button>
+                    </div>
+                    <label class="roteiro-visitas-pager-size">
+                        <span class="roteiro-visitas-pager-size-label">Linhas</span>
+                        <select id="roteiroVisitasPageSizeSelect" class="roteiro-visitas-page-size-select" title="Itens por página">
+                            <option value="10">10</option>
+                            <option value="15" selected>15</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </label>
+                </div>
+                <div id="roteiroVisitasEmpty" class="roteiro-visitas-empty" style="display:none;">Nenhuma visita neste período.</div>
+            </div>
         </div>
 
         <!-- Página Relatório de Visitas (oculta por padrão) -->
@@ -1036,6 +1256,10 @@
                     style="padding:8px 16px; border-radius:8px; border:none; background:#EF4444; color:white; cursor:pointer; font-weight:700; font-size:0.8rem;">
                     Finalizar visita
                 </button>
+                <button type="button" id="btnCancelarVisitaAtivaBanner" class="btn-cancelar-visita-banner"
+                    style="padding:8px 16px; border-radius:8px; border:none; background:#F59E0B; color:white; cursor:pointer; font-weight:700; font-size:0.8rem;">
+                    Cancelar visita
+                </button>
             </div>
             <div style="overflow-y:auto; flex:1; padding:0;" id="modalBodyWrapper">
                 <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
@@ -1194,7 +1418,7 @@
                     <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">CEP</label><input type="text" id="edPrescritorCep" placeholder="00000-000" maxlength="9" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
                     <div style="display:grid; grid-template-columns:1fr 80px; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Rua</label><input type="text" id="edPrescritorRua" placeholder="Logradouro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Nº</label><input type="text" id="edPrescritorNumero" placeholder="Nº" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div></div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Bairro</label><input type="text" id="edPrescritorBairro" placeholder="Bairro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Cidade / UF</label><input type="text" id="edPrescritorCidadeUf" placeholder="Cidade - UF" readonly style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-secondary); font-size:0.9rem; box-sizing:border-box;"><input type="hidden" id="edPrescritorCidade"><input type="hidden" id="edPrescritorUf"></div></div>
-                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Local de atendimento</label><select id="edPrescritorLocalAtendimento" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">Selecione</option><option value="Clínica">Clínica</option><option value="Hospital">Hospital</option><option value="Telemedicina">Telemedicina</option><option value="Consultório">Consultório</option><option value="On line">On line</option><option value="Outros">Outros</option></select></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Local de atendimento</label><select id="edPrescritorLocalAtendimento" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">Selecione</option><option value="Clínica">Clínica</option><option value="Hospital">Hospital</option><option value="Telemedicina">Telemedicina</option><option value="Consultório">Consultório</option><option value="On line">On line</option><option value="Assistência">Assistência</option><option value="Outros">Outros</option></select></div>
                     <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">WhatsApp</label><input type="tel" id="edPrescritorWhatsapp" placeholder="(00) 00000-0000" oninput="formatWhatsApp(this)" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
                     <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">E-mail</label><input type="email" id="edPrescritorEmail" placeholder="email@exemplo.com" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
                 </div>
@@ -1341,6 +1565,7 @@
                             <option value="Telemedicina">Telemedicina</option>
                             <option value="Consultório">Consultório</option>
                             <option value="On line">On line</option>
+                            <option value="Assistência">Assistência</option>
                             <option value="Outros">Outros</option>
                         </select>
                     </div>
@@ -1391,6 +1616,23 @@
                     <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Resumo da visita</label>
                     <textarea id="visitaResumo" rows="4" placeholder="Escreva um resumo rápido..."
                         style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none; resize:vertical;"></textarea>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Imagens da conversa (máx. 3)</label>
+                    <input id="visitaImagens" type="file" accept="image/*" onchange="handleVisitaImagensChange()"
+                        style="display:none;">
+                    <div class="visita-img-slots">
+                        <button id="visitaImgSlot0" type="button" onclick="openVisitaImagemPicker(0)"
+                            class="visita-img-slot visita-img-slot--empty">+</button>
+                        <button id="visitaImgSlot1" type="button" onclick="openVisitaImagemPicker(1)"
+                            class="visita-img-slot visita-img-slot--empty">+</button>
+                        <button id="visitaImgSlot2" type="button" onclick="openVisitaImagemPicker(2)"
+                            class="visita-img-slot visita-img-slot--empty">+</button>
+                    </div>
+                    <div id="visitaImagensInfo" style="margin-top:6px; font-size:0.72rem; color:var(--text-secondary);">
+                        Clique nos quadrados para adicionar até 3 imagens.
+                    </div>
                 </div>
 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:6px;">
@@ -1505,6 +1747,11 @@
                     <div id="dvItens" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
                 </div>
 
+                <div id="dvImagensRow" style="display:none; margin-bottom:16px;">
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px;"><i class="fas fa-images" style="margin-right:4px;"></i>Imagens da conversa</div>
+                    <div id="dvImagensGrid" class="dv-imagens-grid"></div>
+                </div>
+
                 <div id="dvReagendRow" style="display:none; margin-bottom:16px;">
                     <div style="padding:14px 16px; border:1px solid rgba(37,99,235,0.3); border-radius:12px; background:rgba(37,99,235,0.08);">
                         <div style="font-size:0.68rem; color:#2563EB; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;"><i class="fas fa-calendar-plus" style="margin-right:6px;"></i>Próxima visita agendada</div>
@@ -1539,6 +1786,11 @@
                 </span>
             </div>
         </div>
+    </div>
+
+    <div id="dvImagemLightbox" class="dv-imagem-lightbox" onclick="closeDvImagemLightbox(event)">
+        <button type="button" class="dv-imagem-lightbox-close" onclick="closeDvImagemLightbox(event)" aria-label="Fechar visualização">&times;</button>
+        <img id="dvImagemLightboxImg" src="" alt="Imagem da conversa">
     </div>
 
     <!-- Modal: Estatísticas do Mapa -->

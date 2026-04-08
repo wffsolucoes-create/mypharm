@@ -1462,21 +1462,17 @@ function renderChartMargemAnual(data) {
     const ctx = document.getElementById('chartMargemAnual');
 
     charts['chartMargemAnual'] = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: data.map(d => d.ano),
             datasets: [{
                 label: 'Margem de Lucro (%)',
                 data: data.map(d => parseFloat(d.margem_pct) || 0),
+                backgroundColor: 'rgba(6, 214, 160, 0.65)',
                 borderColor: '#06D6A0',
-                backgroundColor: 'rgba(6, 214, 160, 0.1)',
-                fill: true,
-                tension: 0.4,
-                pointRadius: 6,
-                pointHoverRadius: 8,
-                pointBackgroundColor: '#06D6A0',
-                pointBorderColor: '#0F1117',
-                pointBorderWidth: 3,
+                borderWidth: 1,
+                borderRadius: 8,
+                maxBarThickness: 56
             }]
         },
         options: {
@@ -1496,36 +1492,27 @@ function renderChartTicketAnual(data) {
     const ctx = document.getElementById('chartTicketAnual');
 
     charts['chartTicketAnual'] = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: data.map(d => d.ano),
             datasets: [
                 {
                     label: 'Ticket Médio (Líq)',
                     data: data.map(d => parseFloat(d.ticket_medio) || 0),
+                    backgroundColor: 'rgba(255, 209, 102, 0.75)',
                     borderColor: '#FFD166',
-                    backgroundColor: 'rgba(255, 209, 102, 0.1)',
-                    fill: false,
-                    tension: 0.4,
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
-                    pointBackgroundColor: '#FFD166',
-                    pointBorderColor: '#0F1117',
-                    pointBorderWidth: 3,
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    maxBarThickness: 44
                 },
                 {
                     label: 'Ticket Bruto',
                     data: data.map(d => parseFloat(d.ticket_bruto) || 0),
+                    backgroundColor: 'rgba(238, 108, 77, 0.75)',
                     borderColor: '#EE6C4D',
-                    backgroundColor: 'rgba(238, 108, 77, 0.1)',
-                    fill: false,
-                    tension: 0.4,
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
-                    pointBackgroundColor: '#EE6C4D',
-                    pointBorderColor: '#0F1117',
-                    pointBorderWidth: 3,
-                    borderDash: [5, 5]
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    maxBarThickness: 44
                 }
             ]
         },
@@ -1576,7 +1563,7 @@ async function loadVisitadoresPage() {
 
 // ============ VISITAS (PÁGINA ADMIN) ============
 const VISITAS_VISITADOR_FILTER_KEY = 'mypharm_visitas_visitador_filter';
-const VISITAS_TABLE_SORT_KEYS = ['visitador', 'prescritor', 'data_visita', 'inicio', 'fim', 'duracao', 'status', 'local', 'reagend'];
+const VISITAS_TABLE_SORT_KEYS = ['id', 'visitador', 'prescritor', 'data_visita', 'inicio', 'fim', 'duracao', 'status', 'local', 'reagend'];
 
 let __visitasTableState = {
     lista: [],
@@ -1586,7 +1573,7 @@ let __visitasTableState = {
     pageSize: 15
 };
 
-const ROTAS_DET_SORT_KEYS = ['visitador', 'data_inicio', 'data_fim', 'status', 'km', 'pontos'];
+const ROTAS_DET_SORT_KEYS = ['id', 'visitador', 'data_inicio', 'data_fim', 'status', 'km', 'pontos'];
 
 let __rotasDetalhesTableState = {
     lista: [],
@@ -1599,6 +1586,12 @@ let __rotasDetalhesTableState = {
 let __visitasRelatorioCache = null;
 let __visitasSemVisitaRowsCache = [];
 let __modalDetalheVisitaAdminMap = null;
+let __detVisitaAdminGeoRevKey = '';
+let __detVisitaAdminGeoRevAddr = '';
+let __detVisitaAdminAtualId = 0;
+let __detVisitaAdminAtualVisitador = '';
+let __reprovarVisitaPending = { id: 0, visitador: '' };
+let __editarMotivoRecusaPending = { id: 0, visitador: '' };
 
 function getVisitasGlobalVisitadorParam() {
     const sel = document.getElementById('visitasGlobalVisitador');
@@ -1669,6 +1662,10 @@ function initVisitasTableControlsOnce() {
 function visitaComparableForSort(v, key) {
     const row = v || {};
     switch (key) {
+        case 'id': {
+            const n = parseInt(row.id, 10);
+            return Number.isFinite(n) ? n : 0;
+        }
         case 'visitador':
             return String(row.visitador || '').toLowerCase();
         case 'prescritor':
@@ -1727,7 +1724,7 @@ function visitasTableSetSort(key) {
         __visitasTableState.sortDir = __visitasTableState.sortDir === 'asc' ? 'desc' : 'asc';
     } else {
         __visitasTableState.sortKey = key;
-        const descFirst = key === 'data_visita' || key === 'inicio' || key === 'fim' || key === 'duracao' || key === 'reagend';
+        const descFirst = key === 'data_visita' || key === 'inicio' || key === 'fim' || key === 'duracao' || key === 'reagend' || key === 'id';
         __visitasTableState.sortDir = descFirst ? 'desc' : 'asc';
     }
     __visitasTableState.page = 1;
@@ -1824,28 +1821,62 @@ function renderVisitasTableView() {
     const start = (p - 1) * pageSize;
     const slice = sorted.slice(start, start + pageSize);
 
-    tbody.innerHTML = slice.map((v, i) => `
-        <tr>
-            <td>${start + i + 1}</td>
-            <td>${escapeHtml((v.visitador || '—').trim())}</td>
-            <td>${escapeHtml((v.prescritor || '—').trim())}</td>
+    const statusNorm = (s) => String(s || '').trim().toLowerCase();
+    const isStatusRecusado = (s) => {
+        const n = statusNorm(s);
+        return n === 'recusada' || n === 'reprovada';
+    };
+
+    tbody.innerHTML = slice.map((v) => {
+        const vid = parseInt(v.id, 10);
+        const idCell = Number.isFinite(vid) ? String(vid) : '—';
+        const stNorm = statusNorm(v.status_visita);
+        let statusBadgeClass = 'visitas-status-badge visitas-status-badge--neutral';
+        if (stNorm === 'realizada') statusBadgeClass = 'visitas-status-badge visitas-status-badge--realizada';
+        else if (isStatusRecusado(v.status_visita)) statusBadgeClass = 'visitas-status-badge visitas-status-badge--recusada';
+        const statusLabel = escapeHtml((v.status_visita || '—').trim());
+        const rowRec = isStatusRecusado(v.status_visita) ? ' visitas-table-row--recusada' : '';
+        const visitadorTit = String(v.visitador || '').replace(/"/g, '&quot;');
+        const prescTit = String(v.prescritor || '').replace(/"/g, '&quot;');
+        return `
+        <tr class="visitas-table-row${rowRec}">
+            <td class="td-id"><span class="visitas-id-cell">${idCell}</span></td>
+            <td title="${visitadorTit}">${escapeHtml((v.visitador || '—').trim())}</td>
+            <td title="${prescTit}">${escapeHtml((v.prescritor || '—').trim())}</td>
             <td>${formatDate(v.data_visita)}</td>
             <td>${formatInicio(v.inicio_visita)}</td>
             <td>${formatTime(v.horario)}</td>
             <td>${formatDuracao(v.duracao_minutos)}</td>
-            <td>${escapeHtml((v.status_visita || '—').trim())}</td>
+            <td><span class="${statusBadgeClass}">${statusLabel}</span></td>
             <td title="${(v.local_visita || '').replace(/"/g, '&quot;')}">${escapeHtml(truncate(v.local_visita, 35))}</td>
             <td>${escapeHtml(formatReagend(v.reagendado_para))}</td>
-            <td>
-                <button type="button"
-                    onclick="openModalDetalheVisitaAdmin(${parseInt(v.id || 0, 10)}, '${String(v.visitador || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')"
-                    style="border:1px solid var(--border); background:var(--bg-card); color:var(--primary); border-radius:8px; padding:4px 8px; cursor:pointer; font-size:0.8rem;"
-                    title="Ver relatório da visita">
-                    <i class="fas fa-clipboard-list"></i> Ver
-                </button>
+            <td class="td-actions">
+                <div class="visitas-actions-cell">
+                    <button type="button" class="visitas-btn-relatorio"
+                        onclick="openModalDetalheVisitaAdmin(${parseInt(v.id || 0, 10)}, '${String(v.visitador || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')"
+                        title="Ver relatório da visita">
+                        <i class="fas fa-clipboard-list"></i>
+                    </button>
+                    ${isStatusRecusado(v.status_visita)
+        ? `<button type="button" class="visitas-btn-editar-motivo"
+                        onclick="openEditarMotivoRecusaAdminFromTable(${vid}, '${String(v.visitador || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')"
+                        title="Editar motivo da recusa">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button type="button" class="visitas-btn-restaurar"
+                        onclick="restaurarVisitaRealizadaAdminFromTable(${vid}, '${String(v.visitador || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')"
+                        title="Marcar como Realizada novamente (corrigir reprovação)">
+                        <i class="fas fa-undo"></i>
+                    </button>`
+        : `<button type="button" class="visitas-btn-reprovar"
+                        onclick="reprovarVisitaAdminFromTable(${vid}, '${String(v.visitador || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')"
+                        title="Reprovar visita">
+                        <i class="fas fa-ban"></i>
+                    </button>`}
+                </div>
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
 
     if (pagerEl) {
         pagerEl.style.display = 'flex';
@@ -2117,6 +2148,10 @@ function rotaDetDateMs(val) {
 function rotasDetComparableForSort(r, key) {
     const row = r || {};
     switch (key) {
+        case 'id': {
+            const n = parseInt(row.id, 10);
+            return Number.isFinite(n) ? n : 0;
+        }
         case 'visitador':
             return String(row.visitador_nome || '').toLowerCase();
         case 'data_inicio':
@@ -2171,7 +2206,7 @@ function rotasDetalhesTableSetSort(key) {
         __rotasDetalhesTableState.sortDir = __rotasDetalhesTableState.sortDir === 'asc' ? 'desc' : 'asc';
     } else {
         __rotasDetalhesTableState.sortKey = key;
-        const descFirst = key === 'data_inicio' || key === 'data_fim' || key === 'km' || key === 'pontos';
+        const descFirst = key === 'id' || key === 'data_inicio' || key === 'data_fim' || key === 'km' || key === 'pontos';
         __rotasDetalhesTableState.sortDir = descFirst ? 'desc' : 'asc';
     }
     __rotasDetalhesTableState.page = 1;
@@ -2251,9 +2286,11 @@ function renderRotasDetalhesView() {
         const endFim = isFin ? (escapeHtml(String(r.local_fim_endereco || '—').trim()) || '—') : '—';
         const statusRaw = String(r.status || '—').trim();
         const statusClass = isFin ? 'status-badge status-badge--ok' : 'status-badge status-badge--warn';
+        const rotaId = parseInt(r.id, 10);
+        const rotaIdCell = Number.isFinite(rotaId) ? String(rotaId) : '—';
         return `
         <tr>
-            <td class="td-center td-index">${start + i + 1}</td>
+            <td class="td-center td-rota-id"><span class="visitas-id-cell">${rotaIdCell}</span></td>
             <td class="td-center td-visitador">${escapeHtml((r.visitador_nome || '—').trim())}</td>
             <td class="td-center td-data">${fmtDt(r.data_inicio)}</td>
             <td class="td-rota-endereco">${endIni}</td>
@@ -2626,13 +2663,128 @@ function renderTableVisitasPage(lista) {
 window.visitasTablePrevPage = visitasTablePrevPage;
 window.visitasTableNextPage = visitasTableNextPage;
 
+function closeReprovarVisitaAdminModal() {
+    const m = document.getElementById('modalReprovarVisitaAdmin');
+    if (m) m.style.display = 'none';
+    __reprovarVisitaPending = { id: 0, visitador: '' };
+    const ta = document.getElementById('reprovarVisitaMotivoTexto');
+    if (ta) ta.value = '';
+    const btn = document.getElementById('reprovarVisitaModalBtnConfirm');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check" style="margin-right:6px;"></i>Confirmar recusa';
+    }
+}
+window.closeReprovarVisitaAdminModal = closeReprovarVisitaAdminModal;
+
+function openReprovarVisitaAdminModal(historicoId, visitadorNome) {
+    const id = parseInt(historicoId, 10);
+    if (!Number.isFinite(id) || id <= 0) return;
+    __reprovarVisitaPending = { id, visitador: String(visitadorNome || '').trim() };
+    const m = document.getElementById('modalReprovarVisitaAdmin');
+    const ta = document.getElementById('reprovarVisitaMotivoTexto');
+    if (ta) ta.value = '';
+    if (m) m.style.display = 'flex';
+    if (ta) setTimeout(() => ta.focus(), 80);
+}
+window.openReprovarVisitaAdminModal = openReprovarVisitaAdminModal;
+
+function openReprovarVisitaAdminModalFromDetalhe() {
+    if (!__detVisitaAdminAtualId) return;
+    openReprovarVisitaAdminModal(__detVisitaAdminAtualId, __detVisitaAdminAtualVisitador);
+}
+window.openReprovarVisitaAdminModalFromDetalhe = openReprovarVisitaAdminModalFromDetalhe;
+
+async function confirmReprovarVisitaAdminModal() {
+    const id = __reprovarVisitaPending.id;
+    if (!id) return;
+    const ta = document.getElementById('reprovarVisitaMotivoTexto');
+    const motivo = (ta && ta.value) ? ta.value.trim() : '';
+    const detWasOpen = (() => {
+        const el = document.getElementById('modalDetalheVisitaAdmin');
+        return el && el.style.display === 'flex';
+    })();
+    const visitadorParaReload = __reprovarVisitaPending.visitador;
+    const btn = document.getElementById('reprovarVisitaModalBtnConfirm');
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="margin-right:6px;"></i>Processando...';
+    }
+    try {
+        const res = await apiPost('reprovar_visita_admin', {
+            historico_id: id,
+            motivo_recusa: motivo ? motivo.slice(0, 2000) : ''
+        });
+        if (!res || !res.success) {
+            alert((res && res.error) ? res.error : 'Não foi possível reprovar a visita.');
+            return;
+        }
+        closeReprovarVisitaAdminModal();
+        await loadVisitasPage();
+        if (detWasOpen) {
+            await openModalDetalheVisitaAdmin(id, visitadorParaReload);
+        }
+    } catch (e) {
+        alert('Erro de conexão ao reprovar a visita.');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml || '<i class="fas fa-check" style="margin-right:6px;"></i>Confirmar recusa';
+        }
+    }
+}
+window.confirmReprovarVisitaAdminModal = confirmReprovarVisitaAdminModal;
+
 function closeModalDetalheVisitaAdmin() {
+    closeReprovarVisitaAdminModal();
+    closeEditarMotivoRecusaAdminModal();
     const modal = document.getElementById('modalDetalheVisitaAdmin');
     if (modal) modal.style.display = 'none';
+    closeDetalheVisitaAdminImagem();
+    const btnRep = document.getElementById('detVisitaAdminBtnReprovar');
+    if (btnRep) btnRep.style.display = 'none';
+    __detVisitaAdminAtualId = 0;
+    __detVisitaAdminAtualVisitador = '';
     if (__modalDetalheVisitaAdminMap) {
         __modalDetalheVisitaAdminMap.remove();
         __modalDetalheVisitaAdminMap = null;
     }
+    __detVisitaAdminGeoRevKey = '';
+    __detVisitaAdminGeoRevAddr = '';
+}
+
+async function __nominatimReverseLatLng(lat, lng) {
+    const url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng);
+    const r = await fetch(url, { headers: { 'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.5' } });
+    if (!r.ok) throw new Error('reverse geocode');
+    const j = await r.json();
+    return (j && j.display_name) ? String(j.display_name) : '';
+}
+
+function __bindDetalheVisitaAdminMarkerPopup(marker, lat, lng) {
+    if (!marker) return;
+    const k = `${Number(lat).toFixed(5)},${Number(lng).toFixed(5)}`;
+    marker.bindPopup('<div style="font-size:0.85rem;color:#64748b">Buscando endereço…</div>', { maxWidth: 320 });
+    marker.on('popupopen', async () => {
+        if (__detVisitaAdminGeoRevKey === k && __detVisitaAdminGeoRevAddr) {
+            marker.setPopupContent('<div style="font-size:0.875rem;line-height:1.35;max-width:280px">' + escapeHtml(__detVisitaAdminGeoRevAddr) + '</div>');
+            return;
+        }
+        marker.setPopupContent('<div style="font-size:0.85rem;color:#64748b">Buscando endereço…</div>');
+        try {
+            const addr = await __nominatimReverseLatLng(lat, lng);
+            __detVisitaAdminGeoRevKey = k;
+            __detVisitaAdminGeoRevAddr = addr || '';
+            marker.setPopupContent(
+                addr
+                    ? '<div style="font-size:0.875rem;line-height:1.35;max-width:280px">' + escapeHtml(addr) + '</div>'
+                    : '<div style="font-size:0.85rem">Endereço não encontrado para este ponto.</div>'
+            );
+        } catch (e) {
+            marker.setPopupContent('<div style="font-size:0.85rem">Não foi possível obter o endereço. Tente de novo.</div>');
+        }
+    });
 }
 
 function __fmtDuracaoMin(min) {
@@ -2643,6 +2795,168 @@ function __fmtDuracaoMin(min) {
     const r = n % 60;
     return r ? `${h}h ${r}min` : `${h}h`;
 }
+
+function openDetalheVisitaAdminImagem(dataUrl) {
+    const box = document.getElementById('detVisitaAdminImgLightbox');
+    const img = document.getElementById('detVisitaAdminImgLightboxEl');
+    if (!box || !img) return;
+    img.src = String(dataUrl || '');
+    box.style.display = 'flex';
+}
+
+function closeDetalheVisitaAdminImagem(ev) {
+    if (ev && ev.target && ev.currentTarget && ev.target !== ev.currentTarget) {
+        const cls = ev.target.classList;
+        if (!(cls && cls.contains('modal-close'))) {
+            const isBtn = String(ev.target.tagName || '').toLowerCase() === 'button';
+            if (!isBtn) return;
+        }
+    }
+    const box = document.getElementById('detVisitaAdminImgLightbox');
+    const img = document.getElementById('detVisitaAdminImgLightboxEl');
+    if (img) img.src = '';
+    if (box) box.style.display = 'none';
+}
+
+function renderDetalheVisitaAdminImagens(imagens) {
+    const wrap = document.getElementById('detVisitaAdminImgsWrap');
+    const grid = document.getElementById('detVisitaAdminImgsGrid');
+    if (!wrap || !grid) return;
+    const lista = Array.isArray(imagens) ? imagens.filter((img) => (
+        img && typeof img.data_url === 'string' && img.data_url.indexOf('data:image/') === 0
+    )) : [];
+    if (!lista.length) {
+        wrap.style.display = 'none';
+        grid.innerHTML = '';
+        return;
+    }
+    wrap.style.display = 'block';
+    grid.innerHTML = lista.map((img, idx) => `
+        <button type="button"
+            onclick="openDetalheVisitaAdminImagem('${String(img.data_url).replace(/'/g, '&#39;')}')"
+            title="${String(img.nome || ('Imagem ' + (idx + 1))).replace(/"/g, '&quot;')}"
+            style="width:100%; height:88px; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--bg-body); cursor:pointer; padding:0;">
+            <img src="${img.data_url}" alt="${String(img.nome || ('Imagem ' + (idx + 1))).replace(/"/g, '&quot;')}"
+                style="width:100%; height:100%; object-fit:cover; display:block;">
+        </button>
+    `).join('');
+}
+
+function reprovarVisitaAdminFromTable(historicoId, visitadorNome) {
+    openReprovarVisitaAdminModal(historicoId, visitadorNome);
+}
+window.reprovarVisitaAdminFromTable = reprovarVisitaAdminFromTable;
+
+async function restaurarVisitaRealizadaAdminFromTable(historicoId, visitadorNome) {
+    const id = parseInt(historicoId, 10);
+    if (!Number.isFinite(id) || id <= 0) return;
+    const ok = confirm('Marcar esta visita como "Realizada" novamente? Ela voltará a contar nas metas e relatórios do visitador.');
+    if (!ok) return;
+    try {
+        const res = await apiPost('restaurar_visita_realizada_admin', { historico_id: id });
+        if (!res || !res.success) {
+            alert((res && res.error) ? res.error : 'Não foi possível restaurar o status.');
+            return;
+        }
+        await loadVisitasPage();
+    } catch (e) {
+        alert('Erro de conexão ao restaurar a visita.');
+    }
+}
+window.restaurarVisitaRealizadaAdminFromTable = restaurarVisitaRealizadaAdminFromTable;
+
+function closeEditarMotivoRecusaAdminModal() {
+    const m = document.getElementById('modalEditarMotivoRecusaAdmin');
+    if (m) m.style.display = 'none';
+    __editarMotivoRecusaPending = { id: 0, visitador: '' };
+    const ta = document.getElementById('editarMotivoRecusaAdminTexto');
+    if (ta) {
+        ta.value = '';
+        ta.disabled = false;
+    }
+    const btn = document.getElementById('editarMotivoRecusaAdminBtnSalvar');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check" style="margin-right:6px;"></i>Salvar';
+    }
+}
+window.closeEditarMotivoRecusaAdminModal = closeEditarMotivoRecusaAdminModal;
+
+async function openEditarMotivoRecusaAdminFromTable(historicoId, visitadorNome) {
+    const id = parseInt(historicoId, 10);
+    if (!Number.isFinite(id) || id <= 0) return;
+    __editarMotivoRecusaPending = { id, visitador: String(visitadorNome || '').trim() };
+    const m = document.getElementById('modalEditarMotivoRecusaAdmin');
+    const ta = document.getElementById('editarMotivoRecusaAdminTexto');
+    if (m) m.style.display = 'flex';
+    if (ta) {
+        ta.value = 'Carregando…';
+        ta.disabled = true;
+    }
+    try {
+        const res = await apiGet('get_detalhe_visita', {
+            historico_id: id,
+            visitador: __editarMotivoRecusaPending.visitador
+        });
+        if (ta) ta.disabled = false;
+        if (res && res.success && res.visita) {
+            if (ta) ta.value = res.visita.motivo_recusa != null ? String(res.visita.motivo_recusa) : '';
+            if (ta) setTimeout(() => ta.focus(), 80);
+        } else {
+            alert((res && res.error) ? res.error : 'Não foi possível carregar o motivo.');
+            closeEditarMotivoRecusaAdminModal();
+        }
+    } catch (e) {
+        if (ta) {
+            ta.disabled = false;
+            ta.value = '';
+        }
+        alert('Erro de conexão ao carregar o motivo da recusa.');
+        closeEditarMotivoRecusaAdminModal();
+    }
+}
+window.openEditarMotivoRecusaAdminFromTable = openEditarMotivoRecusaAdminFromTable;
+
+async function confirmSalvarMotivoRecusaAdminModal() {
+    const id = __editarMotivoRecusaPending.id;
+    if (!id) return;
+    const ta = document.getElementById('editarMotivoRecusaAdminTexto');
+    const motivo = (ta && ta.value) ? ta.value.trim() : '';
+    const detWasOpen = (() => {
+        const el = document.getElementById('modalDetalheVisitaAdmin');
+        return el && el.style.display === 'flex';
+    })();
+    const visitadorParaReload = __editarMotivoRecusaPending.visitador;
+    const btn = document.getElementById('editarMotivoRecusaAdminBtnSalvar');
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="margin-right:6px;"></i>Salvando...';
+    }
+    try {
+        const res = await apiPost('atualizar_motivo_recusa_admin', {
+            historico_id: id,
+            motivo_recusa: motivo ? motivo.slice(0, 2000) : ''
+        });
+        if (!res || !res.success) {
+            alert((res && res.error) ? res.error : 'Não foi possível salvar o motivo.');
+            return;
+        }
+        closeEditarMotivoRecusaAdminModal();
+        await loadVisitasPage();
+        if (detWasOpen) {
+            await openModalDetalheVisitaAdmin(id, visitadorParaReload);
+        }
+    } catch (e) {
+        alert('Erro de conexão ao salvar o motivo.');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml || '<i class="fas fa-check" style="margin-right:6px;"></i>Salvar';
+        }
+    }
+}
+window.confirmSalvarMotivoRecusaAdminModal = confirmSalvarMotivoRecusaAdminModal;
 
 async function openModalDetalheVisitaAdmin(historicoId, visitadorNome) {
     const id = parseInt(historicoId, 10);
@@ -2666,7 +2980,10 @@ async function openModalDetalheVisitaAdmin(historicoId, visitadorNome) {
             return isNaN(x.getTime()) ? String(d) : x.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
         };
         const t5 = (s) => s ? String(s).slice(0, 5) : '—';
-        set('modalDetalheVisitaAdminSub', `${(v.visitador || visitadorNome || '—').toString().trim()}`);
+        const statusNorm = String(v.status_visita || '').trim().toLowerCase();
+        const recusada = (statusNorm === 'recusada' || statusNorm === 'reprovada');
+        const nomeVisitador = (v.visitador || visitadorNome || '—').toString().trim();
+        set('modalDetalheVisitaAdminSub', `Visita #${id} · ${nomeVisitador}`);
         set('detVisitaAdminPrescritor', v.prescritor);
         set('detVisitaAdminStatus', v.status_visita);
         set('detVisitaAdminData', dtBr(v.data_visita));
@@ -2675,6 +2992,31 @@ async function openModalDetalheVisitaAdmin(historicoId, visitadorNome) {
         set('detVisitaAdminDuracao', __fmtDuracaoMin(v.duracao_minutos));
         set('detVisitaAdminLocal', v.local_visita);
         set('detVisitaAdminResumo', v.resumo_visita);
+        const wrapMot = document.getElementById('detVisitaAdminMotivoRecusaWrap');
+        const elMot = document.getElementById('detVisitaAdminMotivoRecusa');
+        const motivoTxt = (v.motivo_recusa != null ? String(v.motivo_recusa) : '').trim();
+        if (wrapMot && elMot) {
+            if (recusada && motivoTxt) {
+                wrapMot.style.display = 'block';
+                elMot.textContent = motivoTxt;
+            } else {
+                wrapMot.style.display = 'none';
+                elMot.textContent = '';
+            }
+        }
+        renderDetalheVisitaAdminImagens(v.imagens_conversa || []);
+        __detVisitaAdminAtualId = id;
+        __detVisitaAdminAtualVisitador = (v.visitador || visitadorNome || '').toString().trim();
+        const btnRep = document.getElementById('detVisitaAdminBtnReprovar');
+        if (btnRep) {
+            if (recusada) {
+                btnRep.style.display = 'none';
+            } else {
+                btnRep.style.display = 'inline-flex';
+                btnRep.disabled = false;
+                btnRep.innerHTML = '<i class="fas fa-ban" style="margin-right:6px;"></i>Reprovar visita';
+            }
+        }
 
         const lat = parseFloat(v.geo_lat);
         const lng = parseFloat(v.geo_lng);
@@ -2687,9 +3029,13 @@ async function openModalDetalheVisitaAdmin(historicoId, visitadorNome) {
                 __modalDetalheVisitaAdminMap.remove();
                 __modalDetalheVisitaAdminMap = null;
             }
+            __detVisitaAdminGeoRevKey = '';
+            __detVisitaAdminGeoRevAddr = '';
             __modalDetalheVisitaAdminMap = L.map('detVisitaAdminMapa', { zoomControl: true }).setView([lat, lng], 16);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(__modalDetalheVisitaAdminMap);
-            L.marker([lat, lng]).addTo(__modalDetalheVisitaAdminMap);
+            const mPin = L.marker([lat, lng]).addTo(__modalDetalheVisitaAdminMap);
+            mPin.bindTooltip('Clique para ver o endereço', { direction: 'top', offset: [0, -8] });
+            __bindDetalheVisitaAdminMarkerPopup(mPin, lat, lng);
             setTimeout(() => __modalDetalheVisitaAdminMap && __modalDetalheVisitaAdminMap.invalidateSize(), 120);
         } else if (gpsWrap) {
             gpsWrap.style.display = 'none';

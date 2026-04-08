@@ -377,7 +377,7 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                 // Visitas M%�s Selecionado (usa m%�s atual quando n%�o filtrado)
                 $mesRefVisitas = $mes ? (int)$mes : (int)date('m');
                 $anoRefVisitas = $mes ? (int)$ano : (int)date('Y');
-                $stmtVisitasMes = $pdo->prepare("SELECT COUNT(*) FROM historico_visitas WHERE data_visita IS NOT NULL AND $visitadorWhereVis AND YEAR(data_visita) = :y AND MONTH(data_visita) = :m");
+                $stmtVisitasMes = $pdo->prepare("SELECT COUNT(*) FROM historico_visitas WHERE data_visita IS NOT NULL AND $visitadorWhereVis AND (status_visita IS NULL OR UPPER(TRIM(status_visita)) <> 'RECUSADA') AND YEAR(data_visita) = :y AND MONTH(data_visita) = :m");
                 $qVMes = ['y' => $anoRefVisitas, 'm' => $mesRefVisitas];
                 if (!$isMyPharm)
                     $qVMes['nome'] = $nome;
@@ -390,6 +390,7 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                     SELECT COUNT(*) FROM historico_visitas 
                     WHERE data_visita IS NOT NULL 
                       AND $visitadorWhereVis 
+                      AND (status_visita IS NULL OR UPPER(TRIM(status_visita)) <> 'RECUSADA')
                       AND YEARWEEK(data_visita, 1) = YEARWEEK(CURDATE(), 1)
                 ");
                 $qVSem = [];
@@ -403,6 +404,7 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                 $stmtVps = $pdo->prepare("
                     SELECT COUNT(*) FROM historico_visitas 
                     WHERE data_visita IS NOT NULL AND $visitadorWhereVis
+                      AND (status_visita IS NULL OR UPPER(TRIM(status_visita)) <> 'RECUSADA')
                       AND YEARWEEK(data_visita, 1) = :yw
                 ");
                 $visitasPorSemana = [];
@@ -424,6 +426,7 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                     $stmtVpsRange = $pdo->prepare("
                         SELECT COUNT(*) FROM historico_visitas
                         WHERE data_visita IS NOT NULL AND $visitadorWhereVis
+                          AND (status_visita IS NULL OR UPPER(TRIM(status_visita)) <> 'RECUSADA')
                           AND data_visita >= :ini AND data_visita <= :fim
                     ");
     
@@ -548,6 +551,7 @@ function dashboardVisitadorDashboardReal(PDO $pdo): void
                     LEFT JOIN visitas_geolocalizacao vg ON vg.historico_id = hv.id
                     WHERE hv.data_visita IS NOT NULL
                       AND " . str_replace('visitador', 'hv.visitador', $visitadorWhereVis) . "
+                      AND (hv.status_visita IS NULL OR UPPER(TRIM(hv.status_visita)) <> 'RECUSADA')
                       AND YEARWEEK(hv.data_visita, 1) = YEARWEEK(CURDATE(), 1)
                     ORDER BY hv.data_visita DESC, hv.horario DESC
                     LIMIT 50
@@ -843,7 +847,7 @@ function dashboardListPedidosVisitador(PDO $pdo): void
     // Se o usuário logado é visitador, usar sempre o nome da sessão (só vê pedidos da sua carteira)
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
     $sessionNome = trim($_SESSION['user_nome'] ?? '');
-    if ($userSetor === 'visitador' && $sessionNome !== '') {
+    if (($userSetor === 'visitador' || strpos($userSetor, 'visitador') !== false) && $sessionNome !== '') {
         $nome = $sessionNome;
     }
     if (!$nome) {
@@ -1133,7 +1137,7 @@ function dashboardListComponentesPrescritor(PDO $pdo): void
     }
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
     $sessionNome = trim($_SESSION['user_nome'] ?? '');
-    if ($userSetor === 'visitador' && $sessionNome !== '') {
+    if (($userSetor === 'visitador' || strpos($userSetor, 'visitador') !== false) && $sessionNome !== '') {
         $nome = $sessionNome;
     }
     if ($nome === '') {
@@ -1221,7 +1225,7 @@ function dashboardEvolucaoPrescritor(PDO $pdo): void
     $ano = (int)($_GET['ano'] ?? date('Y'));
     $nome = trim($_GET['nome'] ?? '');
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
-    if ($userSetor === 'visitador') {
+    if ($userSetor === 'visitador' || strpos($userSetor, 'visitador') !== false) {
         $nome = trim($_SESSION['user_nome'] ?? '');
     }
     if ($prescritor === '') {
@@ -1365,7 +1369,7 @@ function dashboardAnalisePrescritor(PDO $pdo): void
     $ano = (int)($_GET['ano'] ?? date('Y'));
     $nome = trim($_GET['nome'] ?? '');
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
-    if ($userSetor === 'visitador') {
+    if ($userSetor === 'visitador' || strpos($userSetor, 'visitador') !== false) {
         $nome = trim($_SESSION['user_nome'] ?? '');
     }
     if ($prescritor === '') {
@@ -1893,11 +1897,10 @@ function getRelatorioRotaCompleto(PDO $pdo): void
 {
     $dataDe = trim($_GET['data_de'] ?? '');
     $dataAte = trim($_GET['data_ate'] ?? '');
-    $nome = trim($_GET['visitador'] ?? '');
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
-    if ($userSetor === 'visitador' && $nome === '') {
-        $nome = trim($_SESSION['user_nome'] ?? '');
-    }
+    $isPerfilVisitador = ($userSetor === 'visitador' || strpos($userSetor, 'visitador') !== false);
+    // Mesmo critério de visitador_visitas_periodo: visitador logado sempre pela sessão (evita mapa com dados e tabela vazia quando localStorage/GET difere do user_nome).
+    $nome = $isPerfilVisitador ? trim($_SESSION['user_nome'] ?? '') : trim($_GET['visitador'] ?? '');
     if (!$nome) {
         echo json_encode(['error' => 'Visitador não informado.'], JSON_UNESCAPED_UNICODE);
         return;
@@ -1981,6 +1984,7 @@ function getRelatorioRotaCompleto(PDO $pdo): void
             FROM historico_visitas hv
             LEFT JOIN visitas_geolocalizacao vg ON vg.historico_id = hv.id
             WHERE TRIM(hv.visitador) = TRIM(:v) AND hv.data_visita = :dia
+              AND (hv.status_visita IS NULL OR UPPER(TRIM(hv.status_visita)) <> 'RECUSADA')
             ORDER BY hv.inicio_visita ASC
         ");
         $stmtV->execute(['v' => $nome, 'dia' => $diaRota]);
@@ -2073,11 +2077,9 @@ function getVisitasMapaPeriodo(PDO $pdo): void
 {
     $dataDe = trim($_GET['data_de'] ?? '');
     $dataAte = trim($_GET['data_ate'] ?? '');
-    $nome = trim($_GET['visitador'] ?? '');
     $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
-    if ($userSetor === 'visitador' && $nome === '') {
-        $nome = trim($_SESSION['user_nome'] ?? '');
-    }
+    $isPerfilVisitador = ($userSetor === 'visitador' || strpos($userSetor, 'visitador') !== false);
+    $nome = $isPerfilVisitador ? trim($_SESSION['user_nome'] ?? '') : trim($_GET['visitador'] ?? '');
     if (!$nome) {
         echo json_encode(['error' => 'Visitador não informado.', 'visitas' => []], JSON_UNESCAPED_UNICODE);
         return;
@@ -2126,4 +2128,69 @@ function getVisitasMapaPeriodo(PDO $pdo): void
         $visitas = [];
     }
     echo json_encode(['visitas' => $visitas, 'data_de' => $dataDe, 'data_ate' => $dataAte], JSON_UNESCAPED_UNICODE);
+}
+
+/**
+ * Lista de visitas do historico_visitas (período data_de..data_ate).
+ * - Perfil visitador: sempre filtra pela sessão (ignora GET visitador).
+ * - Admin / demais perfis: exige GET visitador (mesmo uso que get_relatorio_rota_completo na pré-visualização).
+ */
+function visitadorVisitasPeriodo(PDO $pdo): void
+{
+    $userSetor = strtolower(trim($_SESSION['user_setor'] ?? ''));
+    $isVisitadorPerfil = ($userSetor === 'visitador' || strpos($userSetor, 'visitador') !== false);
+    $nomeParam = isset($_GET['visitador']) ? trim((string)$_GET['visitador']) : '';
+
+    if ($isVisitadorPerfil) {
+        $nome = trim($_SESSION['user_nome'] ?? '');
+        if ($nome === '') {
+            echo json_encode(['success' => false, 'error' => 'Sessão inválida.', 'visitas' => []], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+    } else {
+        $nome = $nomeParam;
+        if ($nome === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Informe o visitador (parâmetro visitador).', 'visitas' => []], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+    }
+    $dataDe = isset($_GET['data_de']) ? trim((string)$_GET['data_de']) : '';
+    $dataAte = isset($_GET['data_ate']) ? trim((string)$_GET['data_ate']) : '';
+    if ($dataDe === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDe)) {
+        $dataDe = date('Y-m-d');
+    }
+    if ($dataAte === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAte)) {
+        $dataAte = $dataDe;
+    }
+    if ($dataAte < $dataDe) {
+        $dataAte = $dataDe;
+    }
+    $isMyPharm = (strcasecmp($nome, 'My Pharm') === 0);
+    try {
+        $pdo->exec('ALTER TABLE historico_visitas ADD COLUMN motivo_recusa TEXT NULL');
+    } catch (Throwable $e) { /* coluna já existe */ }
+    if ($isMyPharm) {
+        $whereHV = "WHERE hv.data_visita IS NOT NULL
+            AND DATE(hv.data_visita) BETWEEN :data_de AND :data_ate
+            AND (hv.visitador IS NULL OR TRIM(hv.visitador) = '' OR LOWER(TRIM(hv.visitador)) = 'my pharm')";
+        $paramsHV = ['data_de' => $dataDe, 'data_ate' => $dataAte];
+    } else {
+        $whereHV = "WHERE hv.data_visita IS NOT NULL
+            AND DATE(hv.data_visita) BETWEEN :data_de AND :data_ate
+            AND TRIM(COALESCE(hv.visitador, '')) = TRIM(:visitador)";
+        $paramsHV = ['data_de' => $dataDe, 'data_ate' => $dataAte, 'visitador' => $nome];
+    }
+    $stmt = $pdo->prepare("
+        SELECT hv.id, hv.visitador, hv.prescritor, hv.data_visita, hv.horario, hv.inicio_visita,
+            hv.status_visita, hv.local_visita, hv.resumo_visita, hv.reagendado_para, hv.motivo_recusa,
+            TIMESTAMPDIFF(MINUTE, hv.inicio_visita, CONCAT(hv.data_visita, ' ', COALESCE(hv.horario, '00:00:00'))) as duracao_minutos
+        FROM historico_visitas hv
+        $whereHV
+        ORDER BY hv.data_visita DESC, hv.horario DESC
+        LIMIT 2000
+    ");
+    $stmt->execute($paramsHV);
+    $lista = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode(['success' => true, 'visitas' => $lista], JSON_UNESCAPED_UNICODE);
 }

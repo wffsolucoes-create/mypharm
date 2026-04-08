@@ -898,6 +898,292 @@
         }
         .roteiro-tooltip::before { border-top-color: var(--border); }
 
+        /* Tabela de visitas (roteiro — somente leitura, alinhada ao admin) */
+        .roteiro-visitas-table-card {
+            margin-top: 28px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 18px 20px 20px;
+            box-shadow: var(--shadow-sm);
+        }
+        .roteiro-visitas-table-head {
+            margin-bottom: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .roteiro-visitas-table-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .roteiro-visitas-table-sub {
+            margin-top: 4px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+        .roteiro-table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .roteiro-visitas-data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.82rem;
+        }
+        .roteiro-visitas-data-table thead th {
+            text-align: center;
+            vertical-align: middle;
+            padding: 0.65rem 0.45rem;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            background: linear-gradient(180deg, rgba(148,163,184,0.12) 0%, rgba(148,163,184,0.06) 100%);
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .roteiro-visitas-data-table tbody td {
+            text-align: center;
+            vertical-align: middle;
+            padding: 0.55rem 0.4rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        .roteiro-visitas-data-table tbody tr:nth-child(even) {
+            background: rgba(148, 163, 184, 0.06);
+        }
+        [data-theme="light"] .roteiro-visitas-data-table tbody tr:nth-child(even) {
+            background: #f8fafc;
+        }
+        .roteiro-visitas-data-table tbody tr:hover {
+            background: rgba(59, 130, 246, 0.08);
+        }
+        .roteiro-visitas-data-table tbody tr.roteiro-visita-row--recusada {
+            background: rgba(239, 68, 68, 0.12);
+        }
+        .roteiro-visitas-data-table tbody tr.roteiro-visita-row--recusada:hover {
+            background: rgba(239, 68, 68, 0.18);
+        }
+        .roteiro-th-sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+        .roteiro-th-sortable:hover {
+            color: var(--primary);
+        }
+        .roteiro-th-sort-icon {
+            display: inline-block;
+            margin-left: 3px;
+            font-size: 0.6em;
+            opacity: 0.45;
+            vertical-align: middle;
+        }
+        .roteiro-th-sortable.sorted-asc .roteiro-th-sort-icon::after {
+            content: '▲';
+            opacity: 0.95;
+        }
+        .roteiro-th-sortable.sorted-desc .roteiro-th-sort-icon::after {
+            content: '▼';
+            opacity: 0.95;
+        }
+        .roteiro-th-id { width: 3.5rem; }
+        .roteiro-id-cell {
+            display: inline-block;
+            min-width: 2rem;
+            padding: 0.12rem 0.35rem;
+            border-radius: 6px;
+            background: rgba(148, 163, 184, 0.2);
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            font-size: 0.78rem;
+        }
+        .roteiro-status-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .roteiro-status-badge--realizada {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+        .roteiro-status-badge--recusada {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+        .roteiro-status-badge--neutral {
+            background: rgba(148, 163, 184, 0.2);
+            color: var(--text-secondary);
+        }
+        .roteiro-visitas-pager {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+        .roteiro-visitas-pager-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .roteiro-visitas-pager-btn {
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .roteiro-visitas-pager-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        .roteiro-visitas-pager-size {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+        }
+        .roteiro-visitas-page-size-select {
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        .roteiro-visitas-empty {
+            text-align: center;
+            padding: 1.25rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        .roteiro-th-motivo {
+            width: 3.25rem;
+            text-align: center !important;
+            cursor: default !important;
+        }
+        .roteiro-th-motivo:hover {
+            color: inherit !important;
+        }
+        .roteiro-td-motivo {
+            white-space: nowrap;
+        }
+        .roteiro-btn-motivo-recusa {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid rgba(248, 113, 113, 0.45);
+            background: linear-gradient(180deg, rgba(254, 226, 226, 0.35) 0%, rgba(252, 165, 165, 0.2) 100%);
+            color: #f87171;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+        .roteiro-btn-motivo-recusa:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(248, 113, 113, 0.25);
+        }
+        .roteiro-motivo-vazio,
+        .roteiro-motivo-na {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            opacity: 0.75;
+        }
+        .roteiro-motivo-modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 4500;
+            background: rgba(15, 23, 42, 0.55);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+        .roteiro-motivo-modal-box {
+            width: min(520px, 100%);
+            max-height: min(80vh, 480px);
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+        .roteiro-motivo-modal-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .roteiro-motivo-modal-head h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .roteiro-motivo-modal-close {
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+        .roteiro-motivo-modal-body {
+            padding: 16px;
+            overflow-y: auto;
+            flex: 1;
+            font-size: 0.92rem;
+            line-height: 1.5;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .roteiro-motivo-modal-foot {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+        }
+        .roteiro-motivo-modal-btn {
+            padding: 8px 16px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.88rem;
+        }
+
         @media (max-width: 900px) {
             .roteiro-map-layout {
                 flex-direction: column;

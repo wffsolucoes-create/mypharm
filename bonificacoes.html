@@ -140,6 +140,44 @@
             color: var(--text-secondary);
             user-select: none;
         }
+        .bonus-pager {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .bonus-pager-info {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .bonus-pager-controls {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .bonus-pager-btn {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            padding: 7px 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .bonus-pager-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .bonus-pager-size {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            padding: 7px 8px;
+            font-size: 0.8rem;
+        }
         .bonus-modal {
             display: none;
             position: fixed;
@@ -329,6 +367,21 @@
                             </tbody>
                         </table>
                     </div>
+                    <div class="bonus-pager" id="bonusPager" style="display:none;">
+                        <div class="bonus-pager-info" id="bonusPagerInfo">-</div>
+                        <div class="bonus-pager-controls">
+                            <label for="bonusPageSize" class="bonus-pager-info">Linhas</label>
+                            <select id="bonusPageSize" class="bonus-pager-size">
+                                <option value="10">10</option>
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <button id="bonusPagerPrev" type="button" class="bonus-pager-btn">Anterior</button>
+                            <span class="bonus-pager-info" id="bonusPagerMeta">Página 1/1</span>
+                            <button id="bonusPagerNext" type="button" class="bonus-pager-btn">Próxima</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -351,6 +404,8 @@ let __controleData = [];
 let __controleMeta = {};
 let __bonusContext = { prescritor: '', visitador: '' };
 let __sortState = { column: 'saldo_bonificacao', direction: 'desc' };
+let __tablePage = 1;
+let __tablePageSize = 25;
 
 function formatMoney(v) {
     const n = parseFloat(v) || 0;
@@ -439,6 +494,7 @@ function sortControleBy(column) {
         __sortState.column = column;
         __sortState.direction = (column === 'prescritor' || column === 'visitador') ? 'asc' : 'desc';
     }
+    __tablePage = 1;
     renderSortIndicators();
     renderTableControle();
 }
@@ -463,6 +519,11 @@ function renderSortIndicators() {
 }
 function renderTableControle() {
     const body = document.getElementById('tbodyControle');
+    const pagerWrap = document.getElementById('bonusPager');
+    const pagerInfo = document.getElementById('bonusPagerInfo');
+    const pagerMeta = document.getElementById('bonusPagerMeta');
+    const prevBtn = document.getElementById('bonusPagerPrev');
+    const nextBtn = document.getElementById('bonusPagerNext');
     const term = (document.getElementById('buscaPrescritor').value || '').trim().toLowerCase();
     const filtroVisitador = (document.getElementById('filtroVisitador') || {}).value || '';
     const rows = __controleData
@@ -490,9 +551,17 @@ function renderTableControle() {
     });
     if (!rows.length) {
         body.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-secondary);">Sem resultados.</td></tr>';
+        if (pagerWrap) pagerWrap.style.display = 'none';
         return;
     }
-    body.innerHTML = rows.map(it => `
+    const totalRows = rows.length;
+    const totalPages = Math.max(1, Math.ceil(totalRows / __tablePageSize));
+    if (__tablePage > totalPages) __tablePage = totalPages;
+    const startIdx = (__tablePage - 1) * __tablePageSize;
+    const endIdx = Math.min(startIdx + __tablePageSize, totalRows);
+    const pageRows = rows.slice(startIdx, endIdx);
+
+    body.innerHTML = pageRows.map(it => `
         <tr>
             <td>${esc(it.prescritor)}</td>
             <td>${esc(it.visitador || 'My Pharm')}</td>
@@ -510,6 +579,14 @@ function renderTableControle() {
             </td>
         </tr>
     `).join('');
+
+    if (pagerWrap && pagerInfo && pagerMeta && prevBtn && nextBtn) {
+        pagerWrap.style.display = 'flex';
+        pagerInfo.textContent = `Exibindo ${startIdx + 1}-${endIdx} de ${totalRows} registros`;
+        pagerMeta.textContent = `Página ${__tablePage}/${totalPages}`;
+        prevBtn.disabled = __tablePage <= 1;
+        nextBtn.disabled = __tablePage >= totalPages;
+    }
 }
 async function loadBonificacoes() {
     const body = document.getElementById('tbodyControle');
@@ -663,13 +740,51 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSidebar();
     const themeBtn = document.getElementById('bonusThemeToggle');
     if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+    const searchInput = document.getElementById('buscaPrescritor');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            __tablePage = 1;
+            renderTableControle();
+        });
+    }
+    const filtroVisitador = document.getElementById('filtroVisitador');
+    if (filtroVisitador) {
+        filtroVisitador.addEventListener('change', function () {
+            __tablePage = 1;
+            renderTableControle();
+        });
+    }
+    const pageSizeSelect = document.getElementById('bonusPageSize');
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function () {
+            const n = parseInt(pageSizeSelect.value, 10) || 25;
+            __tablePageSize = n > 0 ? n : 25;
+            __tablePage = 1;
+            renderTableControle();
+        });
+    }
+    const prevBtn = document.getElementById('bonusPagerPrev');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', function () {
+            if (__tablePage > 1) {
+                __tablePage--;
+                renderTableControle();
+            }
+        });
+    }
+    const nextBtn = document.getElementById('bonusPagerNext');
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function () {
+            __tablePage++;
+            renderTableControle();
+        });
+    }
     renderSortIndicators();
-    try {
-        const r = await fetch('api.php?action=csrf_token', { credentials: 'include' });
-        const d = await r.json();
-        __csrfToken = d.token || '';
-    } catch (_) {}
     loadBonificacoes();
+    fetch('api.php?action=csrf_token', { credentials: 'include' })
+        .then(r => r.json())
+        .then(d => { __csrfToken = d.token || ''; })
+        .catch(() => {});
 });
 </script>
 </body>

@@ -116,7 +116,7 @@ function bonusInitTables(PDO $pdo): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 }
 
-function bonusShouldRefreshCredits(PDO $pdo, DateTime $now, int $ttlMinutes = 20): bool
+function bonusShouldRefreshCredits(PDO $pdo, DateTime $now, int $ttlMinutes = 120): bool
 {
     $st = $pdo->prepare("SELECT meta_value FROM prescritor_bonus_meta WHERE meta_key = 'last_generation_run' LIMIT 1");
     $st->execute();
@@ -152,27 +152,37 @@ function bonusUpsertCreditsByReference(
     string $refIni,
     string $refFim
 ): void {
+    $fimMaisUm = $refFim;
+    try {
+        $fimMaisUm = (new DateTime($refFim, new DateTimeZone('America/Porto_Velho')))
+            ->modify('+1 day')
+            ->format('Y-m-d');
+    } catch (Throwable $e) {
+        $fimMaisUm = $refFim;
+    }
+
     $sql = "
         SELECT
             pc.nome AS prescritor,
             pc.visitador AS visitador,
-            COALESCE(SUM(
-                CASE
-                    WHEN gp.data_aprovacao IS NOT NULL
-                        AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
-                        AND gp.status_financeiro NOT LIKE '%carrinho%'))
-                        AND DATE(gp.data_aprovacao) BETWEEN :d1 AND :d2
-                    THEN gp.preco_liquido
-                    ELSE 0
-                END
-            ), 0) AS valor_base
+            COALESCE(SUM(gp.preco_liquido), 0) AS valor_base
         FROM prescritores_cadastro pc
         LEFT JOIN gestao_pedidos gp
             ON COALESCE(NULLIF(gp.prescritor, ''), 'My Pharm') = pc.nome
+            AND gp.data_aprovacao IS NOT NULL
+            AND gp.data_aprovacao >= :d1
+            AND gp.data_aprovacao < :d2_next
+            AND (
+                gp.status_financeiro IS NULL
+                OR (
+                    gp.status_financeiro NOT IN ('Recusado', 'Cancelado', 'Orçamento')
+                    AND gp.status_financeiro NOT LIKE '%carrinho%'
+                )
+            )
         GROUP BY pc.nome, pc.visitador
     ";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute(['d1' => $refIni, 'd2' => $refFim]);
+    $stmt->execute(['d1' => $refIni, 'd2_next' => $fimMaisUm]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $ins = $pdo->prepare("
@@ -448,6 +458,16 @@ function bonusGetControleLista(PDO $pdo): array
             FROM prescritor_bonus_debitos
             GROUP BY prescritor
         ) d ON d.prescritor = pc.nome
+        WHERE (
+            LOWER(TRIM(COALESCE(pc.visitador, ''))) LIKE '%aulis%'
+            OR LOWER(TRIM(COALESCE(pc.visitador, ''))) LIKE '%priscila%'
+        )
+          AND (
+              COALESCE(ccur.valor_credito, 0) > 0
+              OR COALESCE(cnext.valor_credito, 0) > 0
+              OR COALESCE(c.total_credito, 0) > 0
+              OR COALESCE(d.total_debito, 0) > 0
+          )
         GROUP BY pc.nome, pc.visitador, ccur.valor_credito, cnext.valor_credito, c.total_credito, d.total_debito
         ORDER BY pc.nome ASC
     ";
@@ -503,7 +523,7 @@ try {
     }
     bonusInitTables($pdo);
     $nowPv = new DateTime('now', new DateTimeZone('America/Porto_Velho'));
-    if (bonusShouldRefreshCredits($pdo, $nowPv, 20)) {
+    if (bonusShouldRefreshCredits($pdo, $nowPv, 120)) {
         bonusGenerateMonthlyCredits($pdo);
         bonusMarkCreditsRefreshed($pdo, $nowPv);
     }
