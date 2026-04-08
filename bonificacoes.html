@@ -128,18 +128,6 @@
             border-color: #f59e0b;
             background: rgba(245, 158, 11, 0.08);
         }
-        .bonus-action-wrap {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-        }
-        .bonus-action-legend {
-            font-size: 0.66rem;
-            line-height: 1;
-            color: var(--text-secondary);
-            user-select: none;
-        }
         .bonus-pager {
             display: flex;
             align-items: center;
@@ -339,15 +327,15 @@
                 <div class="chart-header">
                     <div>
                         <div class="chart-title">Prescritores com bonificação</div>
-                        <div class="chart-subtitle">Use a busca para filtrar e clique em Gerir para abrir o extrato.</div>
+                        <div class="chart-subtitle">Use a busca para filtrar e clique no ícone na coluna Ações.</div>
                     </div>
                 </div>
                 <div class="chart-body" style="padding:14px;">
                     <div class="bonus-toolbar">
-                        <select id="filtroVisitador" class="bonus-filter-select" onchange="renderTableControle()">
+                        <select id="filtroVisitador" class="bonus-filter-select">
                             <option value="">Todos os visitadores</option>
                         </select>
-                        <input id="buscaPrescritor" class="bonus-search" placeholder="Buscar prescritor..." oninput="renderTableControle()">
+                        <input id="buscaPrescritor" class="bonus-search" placeholder="Buscar prescritor...">
                     </div>
                     <div class="bonus-table-wrap">
                         <table class="bonus-table">
@@ -413,6 +401,13 @@ function formatMoney(v) {
 }
 function esc(v) {
     return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+}
+function escAttr(v) {
+    return String(v || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/\r|\n/g, ' ');
 }
 function applyThemeFromStorage() {
     const saved = localStorage.getItem('mypharm_theme') || 'light';
@@ -570,12 +565,9 @@ function renderTableControle() {
             <td class="num bonus-debito">${formatMoney(it.bonificacoes_utilizadas || 0)}</td>
             <td class="num bonus-saldo">${formatMoney(it.saldo_bonificacao || 0)}</td>
             <td style="text-align:center;">
-                <div class="bonus-action-wrap">
-                    <button class="bonus-action-btn" type="button" title="Gerir bonificação" aria-label="Gerir bonificação" onclick="openBonusControlModal('${esc(it.prescritor).replace(/'/g, "\\'")}', '${esc(it.visitador || '').replace(/'/g, "\\'")}')">
-                        <i class="fas fa-file-invoice-dollar"></i>
-                    </button>
-                    <span class="bonus-action-legend">Gerir</span>
-                </div>
+                <button class="bonus-action-btn bonus-open-modal" type="button" title="Detalhes da bonificação" aria-label="Abrir detalhes da bonificação do prescritor" data-prescritor="${escAttr(it.prescritor)}" data-visitador="${escAttr(it.visitador || '')}">
+                    <i class="fas fa-file-invoice-dollar" aria-hidden="true"></i>
+                </button>
             </td>
         </tr>
     `).join('');
@@ -679,18 +671,29 @@ async function openBonusControlModal(prescritor, visitador) {
     const title = document.getElementById('modalBonusControlTitle');
     const body = document.getElementById('modalBonusControlBody');
     title.textContent = `Bônus: ${__bonusContext.prescritor}`;
-    body.innerHTML = '<div style="padding:20px; color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin"></i> Carregando extrato...</div>';
+    body.innerHTML = '<div style="padding:20px; color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin"></i> Carregando...</div>';
     modal.style.display = 'block';
     try {
         const r = await fetch(`api_bonus.php?action=bonus_extrato&prescritor=${encodeURIComponent(__bonusContext.prescritor)}`, { credentials: 'include' });
         const j = await r.json();
-        if (!j || !j.success) throw new Error((j && j.error) ? j.error : 'Falha ao abrir extrato');
+        if (!j || !j.success) throw new Error((j && j.error) ? j.error : 'Falha ao carregar detalhes');
         body.innerHTML = renderExtratoControleHtml(j);
     } catch (e) {
         body.innerHTML = `<div style="padding:20px; color:#ef4444;">${esc(e.message || 'Erro')}</div>`;
     }
 }
 async function registrarDebitoControle() {
+    if (!__csrfToken) {
+        try {
+            const r = await fetch('api.php?action=csrf_token', { credentials: 'include' });
+            const d = await r.json();
+            __csrfToken = (d && d.token) ? d.token : '';
+        } catch (_) {}
+    }
+    if (!__csrfToken) {
+        alert('Não foi possível obter o token de segurança. Atualize a página e tente novamente.');
+        return;
+    }
     const numero_pedido = parseInt((document.getElementById('debPedido') || {}).value || '0', 10) || 0;
     const serie_pedido = parseInt((document.getElementById('debSerie') || {}).value || '0', 10) || 0;
     const valor_debito = parseFloat((document.getElementById('debValor') || {}).value || '0') || 0;
@@ -730,14 +733,19 @@ async function registrarDebitoControle() {
         alert('Erro ao salvar débito.');
     }
 }
-document.addEventListener('click', function (ev) {
-    const modal = document.getElementById('modalBonusControl');
-    if (ev.target === modal) closeBonusControlModal();
-});
 document.addEventListener('DOMContentLoaded', async () => {
     applyThemeFromStorage();
     setUserCard();
     initSidebar();
+    const tableWrap = document.querySelector('#bonusPage .bonus-table-wrap');
+    if (tableWrap) {
+        tableWrap.addEventListener('click', function (ev) {
+            const btn = ev.target.closest('.bonus-open-modal');
+            if (!btn) return;
+            ev.preventDefault();
+            openBonusControlModal(btn.getAttribute('data-prescritor') || '', btn.getAttribute('data-visitador') || '');
+        });
+    }
     const themeBtn = document.getElementById('bonusThemeToggle');
     if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
     const searchInput = document.getElementById('buscaPrescritor');
@@ -780,11 +788,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     renderSortIndicators();
-    loadBonificacoes();
-    fetch('api.php?action=csrf_token', { credentials: 'include' })
-        .then(r => r.json())
-        .then(d => { __csrfToken = d.token || ''; })
-        .catch(() => {});
+    try {
+        const r = await fetch('api.php?action=csrf_token', { credentials: 'include' });
+        const d = await r.json();
+        __csrfToken = (d && d.token) ? d.token : '';
+    } catch (_) {}
+    await loadBonificacoes();
 });
 </script>
 </body>
