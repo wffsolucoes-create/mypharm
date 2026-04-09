@@ -466,7 +466,7 @@ function showApp(nome, tipo, fotoPerfil, setorInformado) {
 
     initPeriodFilter();
     // Restaurar a última aba após F5 (com fallback seguro para dashboard).
-    const allowedPages = ['dashboard', 'faturamento', 'prescritores', 'visitadores', 'visitas', 'clientes', 'produtos', 'equipe', 'insights', 'importar', 'admin'];
+    const allowedPages = ['dashboard', 'faturamento', 'prescritores', 'bonificacoes', 'visitadores', 'visitas', 'clientes', 'produtos', 'equipe', 'insights', 'importar', 'admin'];
     const savedPage = String(localStorage.getItem(MAIN_LAST_PAGE_KEY) || '').trim();
     let pageToOpen = allowedPages.includes(savedPage) ? savedPage : 'dashboard';
     if (pageToOpen === 'admin' && tipo !== 'admin') pageToOpen = 'dashboard';
@@ -624,6 +624,7 @@ function navigateTo(page) {
         'dashboard': 'Dashboard',
         'faturamento': 'Faturamento',
         'prescritores': 'Prescritores',
+        'bonificacoes': 'Bonificações',
         'visitadores': 'Visitadores',
         'visitas': 'Visitas',
         'clientes': 'Clientes',
@@ -1128,6 +1129,7 @@ async function loadPageData(page) {
             case 'dashboard': await loadDashboard(); break;
             case 'faturamento': await loadFaturamento(); break;
             case 'prescritores': await loadPrescritores(); break;
+            case 'bonificacoes': await loadBonificacoesPage(); break;
             case 'clientes': await loadClientes(); break;
             case 'produtos': await loadProdutos(); break;
             case 'equipe': await loadEquipe(); break;
@@ -1547,6 +1549,562 @@ async function loadPrescritores() {
     renderChartVisitadores(visitadoresCarteira);
 }
 
+// ============ BONIFICACOES (MODULO INTERNO INDEX) ============
+let __idxBonusInitialized = false;
+let __idxBonusCsrfToken = '';
+let __idxBonusData = [];
+let __idxBonusMeta = {};
+let __idxBonusContext = { prescritor: '', visitador: '' };
+let __idxBonusSort = { column: 'saldo_bonificacao', direction: 'desc' };
+let __idxBonusPage = 1;
+let __idxBonusPageSize = 25;
+
+function idxBonusFormatMoney(v) {
+    const n = parseFloat(v) || 0;
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function idxBonusEsc(v) {
+    return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+}
+
+function idxBonusEscAttr(v) {
+    return String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/\r|\n/g, ' ');
+}
+
+function idxBonusCloseModal() {
+    const modal = document.getElementById('idxBonusModalControl');
+    if (modal) {
+        modal.classList.remove('is-open');
+        modal.style.display = 'none';
+    }
+}
+window.idxBonusCloseModal = idxBonusCloseModal;
+
+async function idxBonusEnsureCsrf() {
+    if (__idxBonusCsrfToken) return __idxBonusCsrfToken;
+    try {
+        const r = await fetch('api.php?action=csrf_token', { credentials: 'include' });
+        const d = await r.json();
+        __idxBonusCsrfToken = d && d.token ? String(d.token) : '';
+    } catch (e) {
+        __idxBonusCsrfToken = '';
+    }
+    return __idxBonusCsrfToken;
+}
+
+function idxBonusPopulateVisitadorFilter(data) {
+    const select = document.getElementById('idxBonusFiltroVisitador');
+    if (!select) return;
+    const current = select.value || '';
+    const names = Array.from(new Set((data || [])
+        .map((it) => String(it && it.visitador ? it.visitador : 'My Pharm').trim())
+        .filter(Boolean)))
+        .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    select.innerHTML = ['<option value="">Todos os visitadores</option>']
+        .concat(names.map((name) => `<option value="${idxBonusEscAttr(name)}">${idxBonusEsc(name)}</option>`))
+        .join('');
+    if (current && names.includes(current)) select.value = current;
+}
+
+function idxBonusRenderSortIndicators() {
+    const headers = {
+        prescritor: document.getElementById('idxBonusThPrescritor'),
+        visitador: document.getElementById('idxBonusThVisitador'),
+        bonificacao_mes_anterior: document.getElementById('idxBonusThMesAnterior'),
+        bonificacao_mes_atual_a_bonificar: document.getElementById('idxBonusThMesAtual'),
+        bonificacoes_utilizadas: document.getElementById('idxBonusThUtilizadas'),
+        saldo_bonificacao: document.getElementById('idxBonusThSaldo')
+    };
+    Object.keys(headers).forEach((key) => {
+        const el = headers[key];
+        if (!el) return;
+        const base = el.dataset.label || el.textContent.replace(/\s*[▲▼]$/, '').trim();
+        el.dataset.label = base;
+        const isActive = __idxBonusSort.column === key;
+        const arrow = isActive ? (__idxBonusSort.direction === 'asc' ? ' ▲' : ' ▼') : '';
+        el.textContent = base + arrow;
+    });
+}
+
+function idxBonusSortBy(column) {
+    if (__idxBonusSort.column === column) {
+        __idxBonusSort.direction = __idxBonusSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        __idxBonusSort.column = column;
+        __idxBonusSort.direction = (column === 'prescritor' || column === 'visitador') ? 'asc' : 'desc';
+    }
+    __idxBonusPage = 1;
+    idxBonusRenderSortIndicators();
+    idxBonusRenderTable();
+}
+
+function idxBonusRenderTable() {
+    const body = document.getElementById('idxBonusTbodyControle');
+    if (!body) return;
+    const pagerWrap = document.getElementById('idxBonusPager');
+    const pagerInfo = document.getElementById('idxBonusPagerInfo');
+    const pagerMeta = document.getElementById('idxBonusPagerMeta');
+    const prevBtn = document.getElementById('idxBonusPagerPrev');
+    const nextBtn = document.getElementById('idxBonusPagerNext');
+    const term = (document.getElementById('idxBonusBuscaPrescritor')?.value || '').trim().toLowerCase();
+    const filtroVisitador = document.getElementById('idxBonusFiltroVisitador')?.value || '';
+
+    const rows = __idxBonusData
+        .filter((it) => {
+            const nome = String(it.prescritor || '');
+            const visitador = String(it.visitador || 'My Pharm');
+            if (filtroVisitador && visitador !== filtroVisitador) return false;
+            if (term && !nome.toLowerCase().includes(term)) return false;
+            return true;
+        })
+        .slice();
+    rows.sort((a, b) => {
+        const col = __idxBonusSort.column;
+        const dir = __idxBonusSort.direction === 'asc' ? 1 : -1;
+        if (col === 'prescritor' || col === 'visitador') {
+            return String(a[col] || '').localeCompare(String(b[col] || ''), 'pt-BR') * dir;
+        }
+        const va = parseFloat(a[col]) || 0;
+        const vb = parseFloat(b[col]) || 0;
+        if (va === vb) return 0;
+        return (va > vb ? 1 : -1) * dir;
+    });
+
+    if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-secondary);">Sem resultados.</td></tr>';
+        if (pagerWrap) pagerWrap.style.display = 'none';
+        return;
+    }
+
+    const totalRows = rows.length;
+    const totalPages = Math.max(1, Math.ceil(totalRows / __idxBonusPageSize));
+    if (__idxBonusPage > totalPages) __idxBonusPage = totalPages;
+    const startIdx = (__idxBonusPage - 1) * __idxBonusPageSize;
+    const endIdx = Math.min(startIdx + __idxBonusPageSize, totalRows);
+    const pageRows = rows.slice(startIdx, endIdx);
+
+    body.innerHTML = pageRows.map((it) => {
+        const apto = !!it.bonificacao_eligivel;
+        const statusTitle = apto ? 'Marcar como não apto/bloqueado para bonificação' : 'Marcar como apto para bonificação';
+        return `
+        <tr class="${apto ? 'row-apto' : 'row-bloqueado'}">
+            <td>${idxBonusEsc(it.prescritor)}</td>
+            <td>${idxBonusEsc(it.visitador || 'My Pharm')}</td>
+            <td class="num">${idxBonusFormatMoney(it.bonificacao_mes_anterior || 0)}</td>
+            <td class="num">${idxBonusFormatMoney(it.bonificacao_mes_atual_a_bonificar || 0)}</td>
+            <td class="num bonus-debito">${idxBonusFormatMoney(it.bonificacoes_utilizadas || 0)}</td>
+            <td class="num bonus-saldo">${idxBonusFormatMoney(it.saldo_bonificacao || 0)}</td>
+            <td class="idx-bonus-actions-cell">
+                <button class="visitas-btn-relatorio idx-bonus-open-modal" type="button" title="Gerenciar bonificação" aria-label="Gerenciar bonificação" data-prescritor="${idxBonusEscAttr(it.prescritor)}" data-visitador="${idxBonusEscAttr(it.visitador || '')}">
+                    <i class="fas fa-pen-to-square" aria-hidden="true"></i>
+                </button>
+                <button class="visitas-btn-editar-motivo idx-bonus-open-modal" type="button" title="Editar valores de bonificação" aria-label="Editar valores de bonificação" data-focus="resumo" data-prescritor="${idxBonusEscAttr(it.prescritor)}" data-visitador="${idxBonusEscAttr(it.visitador || '')}">
+                    <i class="fas fa-sliders" aria-hidden="true"></i>
+                </button>
+                <button class="${apto ? 'visitas-btn-reprovar' : 'visitas-btn-restaurar'} idx-bonus-toggle-apto" type="button" title="${idxBonusEscAttr(statusTitle)}" aria-label="${idxBonusEscAttr(statusTitle)}" data-prescritor="${idxBonusEscAttr(it.prescritor)}" data-visitador="${idxBonusEscAttr(it.visitador || '')}" data-apto="${apto ? '0' : '1'}">
+                    <i class="fas ${apto ? 'fa-user-slash' : 'fa-user-check'}" aria-hidden="true"></i>
+                </button>
+            </td>
+        </tr>
+    `;
+    }).join('');
+
+    if (pagerWrap && pagerInfo && pagerMeta && prevBtn && nextBtn) {
+        pagerWrap.style.display = 'flex';
+        pagerInfo.textContent = `Exibindo ${startIdx + 1}-${endIdx} de ${totalRows} registros`;
+        pagerMeta.textContent = `Página ${__idxBonusPage}/${totalPages}`;
+        prevBtn.disabled = __idxBonusPage <= 1;
+        nextBtn.disabled = __idxBonusPage >= totalPages;
+    }
+}
+
+function idxBonusUpdateCards(data) {
+    const sum = (key) => data.reduce((acc, it) => acc + (parseFloat(it[key]) || 0), 0);
+    const c1 = document.getElementById('idxBonusCardMesAnterior');
+    const c2 = document.getElementById('idxBonusCardMesAtualBonificar');
+    const c3 = document.getElementById('idxBonusCardUtilizadas');
+    const c4 = document.getElementById('idxBonusCardSaldo');
+    if (c1) c1.textContent = idxBonusFormatMoney(sum('bonificacao_mes_anterior'));
+    if (c2) c2.textContent = idxBonusFormatMoney(sum('bonificacao_mes_atual_a_bonificar'));
+    if (c3) c3.textContent = idxBonusFormatMoney(sum('bonificacoes_utilizadas'));
+    if (c4) c4.textContent = idxBonusFormatMoney(sum('saldo_bonificacao'));
+}
+
+function idxBonusGetAptosForCards() {
+    return (__idxBonusData || []).filter((it) => !!it?.bonificacao_eligivel);
+}
+
+function idxBonusRefreshCardsByAptos() {
+    idxBonusUpdateCards(idxBonusGetAptosForCards());
+}
+
+function idxBonusRenderExtratoHtml(data) {
+    const resumo = data && data.resumo ? data.resumo : {};
+    const creditos = Array.isArray(data.creditos) ? data.creditos : [];
+    const debitos = Array.isArray(data.debitos) ? data.debitos : [];
+    const creditosHtml = creditos.length ? creditos.map((c) => `
+        <tr>
+            <td>${String(c.competencia_mes).padStart(2, '0')}/${c.competencia_ano}</td>
+            <td>${String(c.referencia_mes).padStart(2, '0')}/${c.referencia_ano}</td>
+            <td class="num">${idxBonusFormatMoney(c.valor_base || 0)}</td>
+            <td class="num" style="color:#10b981; font-weight:700;">${idxBonusFormatMoney(c.valor_credito || 0)}</td>
+        </tr>
+    `).join('') : '<tr><td colspan="4" class="bonus-empty">Sem créditos.</td></tr>';
+    const debitosHtml = debitos.length ? debitos.map((d) => `
+        <tr>
+            <td>${idxBonusEsc(d.data_debito || '-')}</td>
+            <td>#${d.numero_pedido || 0}/${d.serie_pedido || 0}</td>
+            <td class="num" style="color:#ef4444; font-weight:700;">${idxBonusFormatMoney(d.valor_debito || 0)}</td>
+            <td>${idxBonusEsc(d.usuario_nome || '-')}</td>
+            <td class="idx-bonus-actions-cell">
+                <button class="visitas-btn-relatorio idx-bonus-edit-debito" type="button" title="Editar bonificação aplicada" aria-label="Editar bonificação aplicada"
+                    data-id="${idxBonusEscAttr(d.id || '')}" data-numero="${idxBonusEscAttr(d.numero_pedido || 0)}" data-serie="${idxBonusEscAttr(d.serie_pedido || 0)}"
+                    data-valor="${idxBonusEscAttr(d.valor_debito || 0)}" data-data="${idxBonusEscAttr(d.data_debito || '')}" data-observacao="${idxBonusEscAttr(d.observacao || '')}">
+                    <i class="fas fa-pen" aria-hidden="true"></i>
+                </button>
+                <button class="visitas-btn-excluir idx-bonus-delete-debito" type="button" title="Excluir bonificação aplicada" aria-label="Excluir bonificação aplicada"
+                    data-id="${idxBonusEscAttr(d.id || '')}">
+                    <i class="fas fa-trash" aria-hidden="true"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('') : '<tr><td colspan="5" class="bonus-empty">Sem débitos.</td></tr>';
+    const hoje = new Date();
+    const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+    return `
+        <div class="bonus-kpi-grid-modal">
+            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-calendar-minus"></i>Bonificação mês anterior</div><div class="bonus-kpi-value-modal">${idxBonusFormatMoney(resumo.bonificacao_mes_anterior || 0)}</div></div>
+            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-calendar-plus"></i>Bonificação mês atual</div><div class="bonus-kpi-value-modal">${idxBonusFormatMoney(resumo.bonificacao_mes_atual_a_bonificar || 0)}</div></div>
+            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-arrow-trend-down"></i>Bonificações utilizadas</div><div class="bonus-kpi-value-modal is-danger">${idxBonusFormatMoney(resumo.bonificacoes_utilizadas || 0)}</div></div>
+            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-wallet"></i>Saldo de bonificação</div><div class="bonus-kpi-value-modal is-warning">${idxBonusFormatMoney(resumo.saldo_bonus || 0)}</div></div>
+        </div>
+        <div class="bonus-panel" id="idxBonusPainelDebito">
+            <h4 class="bonus-panel-title">Registrar débito de bônus</h4>
+            <div class="bonus-form-grid">
+                <div class="bonus-form-field"><label>Nº Pedido</label><input id="idxBonusDebPedido" type="number" min="1"></div>
+                <div class="bonus-form-field"><label>Série</label><input id="idxBonusDebSerie" type="number" min="1"></div>
+                <div class="bonus-form-field"><label>Valor</label><input id="idxBonusDebValor" type="number" min="0.01" step="0.01"></div>
+                <div class="bonus-form-field"><label>Data</label><input id="idxBonusDebData" type="date" value="${hojeStr}"></div>
+            </div>
+            <div class="bonus-form-field bonus-form-full">
+                <label>Observação</label>
+                <input id="idxBonusDebObs" type="text" maxlength="500" placeholder="Opcional">
+            </div>
+            <div class="bonus-form-actions">
+                <button class="bonus-btn-primary" type="button" onclick="idxBonusRegistrarDebito()"><i class="fas fa-save"></i> Salvar débito</button>
+            </div>
+        </div>
+        <div class="bonus-panel" id="idxBonusPainelResumo">
+            <h4 class="bonus-panel-title">Editar valores consolidados</h4>
+            <div class="bonus-form-grid">
+                <div class="bonus-form-field"><label>Bonificação mês anterior</label><input id="idxBonusEditMesAnterior" type="number" min="0" step="0.01" value="${Number(resumo.bonificacao_mes_anterior || 0).toFixed(2)}"></div>
+                <div class="bonus-form-field"><label>Bonificação mês atual</label><input id="idxBonusEditMesAtual" type="number" min="0" step="0.01" value="${Number(resumo.bonificacao_mes_atual_a_bonificar || 0).toFixed(2)}"></div>
+                <div class="bonus-form-field"><label>Bonificações utilizadas</label><input id="idxBonusEditUtilizadas" type="number" min="0" step="0.01" value="${Number(resumo.bonificacoes_utilizadas || 0).toFixed(2)}"></div>
+                <div class="bonus-form-field"><label>Saldo de bonificação</label><input id="idxBonusEditSaldo" type="number" min="0" step="0.01" value="${Number(resumo.saldo_bonus || resumo.saldo_bonificacao || 0).toFixed(2)}"></div>
+            </div>
+            <div class="bonus-form-actions">
+                <button class="bonus-btn-primary" type="button" onclick="idxBonusSalvarResumo()"><i class="fas fa-floppy-disk"></i> Salvar valores</button>
+            </div>
+        </div>
+        <div class="bonus-panel">
+            <h4 class="bonus-panel-title">Histórico de créditos</h4>
+            <div class="bonus-table-modal-wrap">
+                <table class="bonus-table-modal">
+                    <thead><tr><th>Competência</th><th>Ref.</th><th class="num">Base</th><th class="num">Crédito</th></tr></thead>
+                    <tbody>${creditosHtml}</tbody>
+                </table>
+            </div>
+        </div>
+        <div class="bonus-panel">
+            <h4 class="bonus-panel-title">Histórico de utilizações</h4>
+            <div class="bonus-table-modal-wrap">
+                <table class="bonus-table-modal">
+                    <thead><tr><th>Data</th><th>Pedido/Série</th><th class="num">Débito</th><th>Usuário</th><th>Ações</th></tr></thead>
+                    <tbody>${debitosHtml}</tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+async function idxBonusOpenModal(prescritor, visitador, focus = '') {
+    __idxBonusContext = { prescritor: prescritor || '', visitador: visitador || '' };
+    const modal = document.getElementById('idxBonusModalControl');
+    const title = document.getElementById('idxBonusModalTitle');
+    const body = document.getElementById('idxBonusModalBody');
+    if (!modal || !title || !body) return;
+    title.innerHTML = `<i class="fas fa-gift"></i>Bônus: ${idxBonusEsc(__idxBonusContext.prescritor)}`;
+    body.innerHTML = '<div class="bonus-loading"><i class="fas fa-circle-notch fa-spin"></i> Carregando...</div>';
+    modal.style.display = 'flex';
+    modal.classList.add('is-open');
+    try {
+        const r = await fetch(`api_bonus.php?action=bonus_extrato&prescritor=${encodeURIComponent(__idxBonusContext.prescritor)}`, { credentials: 'include' });
+        const j = await r.json();
+        if (!j || !j.success) throw new Error((j && j.error) ? j.error : 'Falha ao carregar detalhes');
+        body.innerHTML = idxBonusRenderExtratoHtml(j);
+        if (focus === 'resumo') {
+            document.getElementById('idxBonusPainelResumo')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    } catch (e) {
+        body.innerHTML = `<div class="bonus-error">${idxBonusEsc(e.message || 'Erro')}</div>`;
+    }
+}
+
+async function idxBonusRegistrarDebito() {
+    const numero_pedido = parseInt(document.getElementById('idxBonusDebPedido')?.value || '0', 10) || 0;
+    const serie_pedido = parseInt(document.getElementById('idxBonusDebSerie')?.value || '0', 10) || 0;
+    const valor_debito = parseFloat(document.getElementById('idxBonusDebValor')?.value || '0') || 0;
+    const data_debito = document.getElementById('idxBonusDebData')?.value || '';
+    const observacao = document.getElementById('idxBonusDebObs')?.value || '';
+    if (numero_pedido <= 0 || serie_pedido <= 0 || valor_debito <= 0 || !data_debito) {
+        uiShow('warning', 'Preencha pedido, série, valor e data para lançar o débito.');
+        return;
+    }
+    const token = await idxBonusEnsureCsrf();
+    if (!token) {
+        uiShow('error', 'Não foi possível obter o token de segurança. Atualize a página e tente novamente.');
+        return;
+    }
+    try {
+        const r = await fetch('api_bonus.php?action=bonus_debito', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+            body: JSON.stringify({
+                csrf_token: token,
+                prescritor: __idxBonusContext.prescritor,
+                visitador: __idxBonusContext.visitador,
+                numero_pedido,
+                serie_pedido,
+                valor_debito,
+                data_debito,
+                observacao
+            })
+        });
+        const j = await r.json();
+        if (!j || !j.success) {
+            uiShow('error', (j && j.error) ? j.error : 'Não foi possível salvar o débito.');
+            return;
+        }
+        await loadBonificacoesPage();
+        await idxBonusOpenModal(__idxBonusContext.prescritor, __idxBonusContext.visitador);
+        uiShow('success', 'Débito de bônus registrado com sucesso.');
+    } catch (e) {
+        uiShow('error', 'Erro ao salvar débito.');
+    }
+}
+window.idxBonusRegistrarDebito = idxBonusRegistrarDebito;
+
+async function idxBonusToggleApto(prescritor, visitador, aptoDestino) {
+    const confirmar = await uiConfirm({
+        title: aptoDestino ? 'Marcar como apto?' : 'Bloquear bonificação?',
+        message: aptoDestino
+            ? 'Este prescritor voltará a ficar elegível para novas bonificações.'
+            : 'Este prescritor ficará não apto e novas bonificações serão bloqueadas.',
+        confirmText: aptoDestino ? 'Marcar apto' : 'Bloquear',
+        cancelText: 'Cancelar',
+        variant: aptoDestino ? 'success' : 'danger',
+    });
+    if (!confirmar) return;
+    const token = await idxBonusEnsureCsrf();
+    if (!token) return uiShow('error', 'Não foi possível obter o token de segurança.');
+    const r = await fetch('api_bonus.php?action=bonus_set_apto', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+        body: JSON.stringify({ csrf_token: token, prescritor, visitador, apto: aptoDestino ? 1 : 0 }),
+    });
+    const j = await r.json();
+    if (!j || !j.success) throw new Error((j && j.error) ? j.error : 'Falha ao atualizar aptidão.');
+    __idxBonusData = (__idxBonusData || []).map((it) => {
+        if (String(it?.prescritor || '') !== String(prescritor || '')) return it;
+        return { ...it, bonificacao_eligivel: !!aptoDestino };
+    });
+    idxBonusRefreshCardsByAptos();
+    idxBonusRenderTable();
+    uiShow('success', aptoDestino ? 'Prescritor marcado como apto.' : 'Prescritor bloqueado para bonificação.');
+}
+
+async function idxBonusSalvarResumo() {
+    const mesAnterior = parseFloat(document.getElementById('idxBonusEditMesAnterior')?.value || '0') || 0;
+    const mesAtual = parseFloat(document.getElementById('idxBonusEditMesAtual')?.value || '0') || 0;
+    const utilizadas = parseFloat(document.getElementById('idxBonusEditUtilizadas')?.value || '0') || 0;
+    const saldo = parseFloat(document.getElementById('idxBonusEditSaldo')?.value || '0') || 0;
+    if (mesAnterior < 0 || mesAtual < 0 || utilizadas < 0 || saldo < 0) {
+        return uiShow('warning', 'Use somente valores positivos para edição do resumo.');
+    }
+    const token = await idxBonusEnsureCsrf();
+    if (!token) return uiShow('error', 'Não foi possível obter o token de segurança.');
+    const r = await fetch('api_bonus.php?action=bonus_update_resumo', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+        body: JSON.stringify({
+            csrf_token: token,
+            prescritor: __idxBonusContext.prescritor,
+            visitador: __idxBonusContext.visitador,
+            bonificacao_mes_anterior: mesAnterior,
+            bonificacao_mes_atual_a_bonificar: mesAtual,
+            bonificacoes_utilizadas: utilizadas,
+            saldo_bonificacao: saldo,
+        }),
+    });
+    const j = await r.json();
+    if (!j || !j.success) return uiShow('error', (j && j.error) ? j.error : 'Falha ao salvar valores.');
+    await loadBonificacoesPage();
+    await idxBonusOpenModal(__idxBonusContext.prescritor, __idxBonusContext.visitador);
+    uiShow('success', 'Valores de bonificação atualizados.');
+}
+window.idxBonusSalvarResumo = idxBonusSalvarResumo;
+
+async function idxBonusEditarDebitoFromButton(btn) {
+    const id = parseInt(btn.getAttribute('data-id') || '0', 10) || 0;
+    const numero_pedido = parseInt(btn.getAttribute('data-numero') || '0', 10) || 0;
+    const serie_pedido = parseInt(btn.getAttribute('data-serie') || '0', 10) || 0;
+    const valor_debito = parseFloat(btn.getAttribute('data-valor') || '0') || 0;
+    const data_debito = btn.getAttribute('data-data') || '';
+    const observacao = btn.getAttribute('data-observacao') || '';
+    document.getElementById('idxBonusDebPedido').value = String(numero_pedido || '');
+    document.getElementById('idxBonusDebSerie').value = String(serie_pedido || '');
+    document.getElementById('idxBonusDebValor').value = String(valor_debito || '');
+    document.getElementById('idxBonusDebData').value = data_debito;
+    document.getElementById('idxBonusDebObs').value = observacao;
+
+    const ok = await uiConfirm({
+        title: 'Salvar edição do lançamento?',
+        message: 'Os dados informados no formulário serão gravados no lançamento selecionado.',
+        confirmText: 'Salvar edição',
+        cancelText: 'Cancelar',
+        variant: 'warning',
+    });
+    if (!ok) return;
+    const token = await idxBonusEnsureCsrf();
+    if (!token) return uiShow('error', 'Não foi possível obter o token de segurança.');
+    const r = await fetch('api_bonus.php?action=bonus_debito_update', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+        body: JSON.stringify({
+            csrf_token: token,
+            id,
+            prescritor: __idxBonusContext.prescritor,
+            numero_pedido: parseInt(document.getElementById('idxBonusDebPedido')?.value || '0', 10) || 0,
+            serie_pedido: parseInt(document.getElementById('idxBonusDebSerie')?.value || '0', 10) || 0,
+            valor_debito: parseFloat(document.getElementById('idxBonusDebValor')?.value || '0') || 0,
+            data_debito: document.getElementById('idxBonusDebData')?.value || '',
+            observacao: document.getElementById('idxBonusDebObs')?.value || '',
+        }),
+    });
+    const j = await r.json();
+    if (!j || !j.success) return uiShow('error', (j && j.error) ? j.error : 'Falha ao editar lançamento.');
+    await loadBonificacoesPage();
+    await idxBonusOpenModal(__idxBonusContext.prescritor, __idxBonusContext.visitador);
+    uiShow('success', 'Lançamento atualizado com sucesso.');
+}
+
+async function idxBonusExcluirDebito(id) {
+    const ok = await uiConfirm({
+        title: 'Excluir bonificação aplicada?',
+        message: 'Esta exclusão não é reversível e removerá o lançamento do histórico.',
+        confirmText: 'Excluir lançamento',
+        cancelText: 'Cancelar',
+        variant: 'danger',
+    });
+    if (!ok) return;
+    const token = await idxBonusEnsureCsrf();
+    if (!token) return uiShow('error', 'Não foi possível obter o token de segurança.');
+    const r = await fetch('api_bonus.php?action=bonus_debito_delete', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+        body: JSON.stringify({ csrf_token: token, id, prescritor: __idxBonusContext.prescritor }),
+    });
+    const j = await r.json();
+    if (!j || !j.success) return uiShow('error', (j && j.error) ? j.error : 'Falha ao excluir lançamento.');
+    await loadBonificacoesPage();
+    await idxBonusOpenModal(__idxBonusContext.prescritor, __idxBonusContext.visitador);
+    uiShow('success', 'Lançamento excluído.');
+}
+
+function initBonificacoesPageOnce() {
+    if (__idxBonusInitialized) return;
+    __idxBonusInitialized = true;
+    document.getElementById('idxBonusThPrescritor')?.addEventListener('click', () => idxBonusSortBy('prescritor'));
+    document.getElementById('idxBonusThVisitador')?.addEventListener('click', () => idxBonusSortBy('visitador'));
+    document.getElementById('idxBonusThMesAnterior')?.addEventListener('click', () => idxBonusSortBy('bonificacao_mes_anterior'));
+    document.getElementById('idxBonusThMesAtual')?.addEventListener('click', () => idxBonusSortBy('bonificacao_mes_atual_a_bonificar'));
+    document.getElementById('idxBonusThUtilizadas')?.addEventListener('click', () => idxBonusSortBy('bonificacoes_utilizadas'));
+    document.getElementById('idxBonusThSaldo')?.addEventListener('click', () => idxBonusSortBy('saldo_bonificacao'));
+    document.getElementById('idxBonusBuscaPrescritor')?.addEventListener('input', () => { __idxBonusPage = 1; idxBonusRenderTable(); });
+    document.getElementById('idxBonusFiltroVisitador')?.addEventListener('change', () => { __idxBonusPage = 1; idxBonusRenderTable(); });
+    document.getElementById('idxBonusPageSize')?.addEventListener('change', (e) => {
+        const n = parseInt(e.target.value, 10) || 25;
+        __idxBonusPageSize = n > 0 ? n : 25;
+        __idxBonusPage = 1;
+        idxBonusRenderTable();
+    });
+    document.getElementById('idxBonusPagerPrev')?.addEventListener('click', () => { if (__idxBonusPage > 1) { __idxBonusPage--; idxBonusRenderTable(); } });
+    document.getElementById('idxBonusPagerNext')?.addEventListener('click', () => { __idxBonusPage++; idxBonusRenderTable(); });
+    document.getElementById('idxBonusTbodyControle')?.addEventListener('click', (ev) => {
+        const openBtn = ev.target.closest('.idx-bonus-open-modal');
+        if (openBtn) {
+            ev.preventDefault();
+            idxBonusOpenModal(openBtn.getAttribute('data-prescritor') || '', openBtn.getAttribute('data-visitador') || '', openBtn.getAttribute('data-focus') || '');
+            return;
+        }
+        const aptoBtn = ev.target.closest('.idx-bonus-toggle-apto');
+        if (aptoBtn) {
+            ev.preventDefault();
+            idxBonusToggleApto(
+                aptoBtn.getAttribute('data-prescritor') || '',
+                aptoBtn.getAttribute('data-visitador') || '',
+                (aptoBtn.getAttribute('data-apto') || '0') === '1'
+            ).catch((e) => uiShow('error', e?.message || 'Falha ao atualizar aptidão.'));
+        }
+    });
+    document.getElementById('idxBonusModalBody')?.addEventListener('click', (ev) => {
+        const editBtn = ev.target.closest('.idx-bonus-edit-debito');
+        if (editBtn) {
+            ev.preventDefault();
+            idxBonusEditarDebitoFromButton(editBtn).catch((e) => uiShow('error', e?.message || 'Falha ao editar lançamento.'));
+            return;
+        }
+        const delBtn = ev.target.closest('.idx-bonus-delete-debito');
+        if (delBtn) {
+            ev.preventDefault();
+            const id = parseInt(delBtn.getAttribute('data-id') || '0', 10) || 0;
+            idxBonusExcluirDebito(id).catch((e) => uiShow('error', e?.message || 'Falha ao excluir lançamento.'));
+        }
+    });
+}
+
+async function loadBonificacoesPage() {
+    initBonificacoesPageOnce();
+    const body = document.getElementById('idxBonusTbodyControle');
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin"></i> Carregando...</td></tr>';
+    try {
+        const r = await fetch('api_bonus.php?action=bonus_controle_lista', { credentials: 'include' });
+        const j = await r.json();
+        if (!j || !j.success) throw new Error((j && j.error) ? j.error : 'Falha ao carregar bonificações');
+        __idxBonusMeta = j.meta || {};
+        __idxBonusData = Array.isArray(j.data) ? j.data : [];
+        idxBonusPopulateVisitadorFilter(__idxBonusData);
+        const meta = document.getElementById('idxBonusMetaPeriodo');
+        if (meta) meta.textContent = `Ref. mês anterior: ${__idxBonusMeta.referencia_mes_anterior_label || '-'} | Competência atual: ${__idxBonusMeta.competencia_mes_atual_label || '-'}`;
+        const th1 = document.getElementById('idxBonusThMesAnterior');
+        const th2 = document.getElementById('idxBonusThMesAtual');
+        if (th1) th1.textContent = `Bonif. ${__idxBonusMeta.referencia_mes_anterior_label || 'mês anterior'}`;
+        if (th2) th2.textContent = `Bonif. ${__idxBonusMeta.competencia_mes_atual_label || 'mês atual'} (a bonificar)`;
+        idxBonusRenderSortIndicators();
+        idxBonusRefreshCardsByAptos();
+        idxBonusRenderTable();
+    } catch (e) {
+        body.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:24px; color:#ef4444;">${idxBonusEsc(e.message || 'Erro ao carregar dados')}</td></tr>`;
+    }
+}
+
 // ============ VISITADORES (NOVA PÁGINA) ============
 async function loadVisitadoresPage() {
     const fp = getFilterParams();
@@ -1592,6 +2150,27 @@ let __detVisitaAdminAtualId = 0;
 let __detVisitaAdminAtualVisitador = '';
 let __reprovarVisitaPending = { id: 0, visitador: '' };
 let __editarMotivoRecusaPending = { id: 0, visitador: '' };
+function uiShow(kind, message) {
+    const ui = window.MyPharmUI;
+    if (ui) {
+        if (kind === 'success') return ui.showSuccess(message);
+        if (kind === 'error') return ui.showError(message);
+        if (kind === 'warning') return ui.showWarning(message);
+        return ui.showInfo(message);
+    }
+    if (kind === 'error') {
+        console.error(message);
+    } else {
+        console.log(message);
+    }
+}
+
+async function uiConfirm(options) {
+    if (window.MyPharmUI && typeof window.MyPharmUI.showConfirm === 'function') {
+        return window.MyPharmUI.showConfirm(options || {});
+    }
+    return window.confirm((options && (options.message || options.description)) || 'Deseja continuar?');
+}
 
 function getVisitasGlobalVisitadorParam() {
     const sel = document.getElementById('visitasGlobalVisitador');
@@ -1777,8 +2356,17 @@ function renderVisitasTableView() {
 
     const formatDate = (d) => {
         if (!d) return '—';
-        const dt = new Date(d);
-        return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('pt-BR');
+        const raw = String(d).trim();
+        const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (m) {
+            const y = parseInt(m[1], 10);
+            const mo = parseInt(m[2], 10) - 1;
+            const day = parseInt(m[3], 10);
+            const dtLocal = new Date(y, mo, day);
+            return isNaN(dtLocal.getTime()) ? raw : dtLocal.toLocaleDateString('pt-BR');
+        }
+        const dt = new Date(raw);
+        return isNaN(dt.getTime()) ? raw : dt.toLocaleDateString('pt-BR');
     };
     const formatTime = (h) => (h ? String(h).slice(0, 5) : '—');
     const formatInicio = (iv) => {
@@ -1873,6 +2461,11 @@ function renderVisitasTableView() {
                         title="Reprovar visita">
                         <i class="fas fa-ban"></i>
                     </button>`}
+                    <button type="button" class="visitas-btn-excluir"
+                        onclick="excluirVisitaAdminFromTable(${vid}, '${String(v.visitador || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')"
+                        title="Excluir visita (irreversível)">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </div>
             </td>
         </tr>`;
@@ -2850,20 +3443,57 @@ window.reprovarVisitaAdminFromTable = reprovarVisitaAdminFromTable;
 async function restaurarVisitaRealizadaAdminFromTable(historicoId, visitadorNome) {
     const id = parseInt(historicoId, 10);
     if (!Number.isFinite(id) || id <= 0) return;
-    const ok = confirm('Marcar esta visita como "Realizada" novamente? Ela voltará a contar nas metas e relatórios do visitador.');
+    const ok = await uiConfirm({
+        title: 'Restaurar visita',
+        message: 'Deseja marcar esta visita como "Realizada" novamente? Ela voltará a contar nas metas e relatórios do visitador.',
+        confirmText: 'Restaurar',
+        cancelText: 'Cancelar',
+        destructive: false
+    });
     if (!ok) return;
     try {
         const res = await apiPost('restaurar_visita_realizada_admin', { historico_id: id });
         if (!res || !res.success) {
-            alert((res && res.error) ? res.error : 'Não foi possível restaurar o status.');
+            uiShow('error', (res && res.error) ? res.error : 'Não foi possível restaurar o status.');
             return;
         }
+        uiShow('success', 'Visita restaurada com sucesso.');
         await loadVisitasPage();
     } catch (e) {
-        alert('Erro de conexão ao restaurar a visita.');
+        uiShow('error', 'Erro de conexão ao restaurar a visita.');
     }
 }
 window.restaurarVisitaRealizadaAdminFromTable = restaurarVisitaRealizadaAdminFromTable;
+
+async function excluirVisitaAdminFromTable(historicoId, visitadorNome) {
+    const id = parseInt(historicoId, 10);
+    if (!Number.isFinite(id) || id <= 0) return;
+    const ok = await uiConfirm({
+        title: 'Excluir visita',
+        message: 'Esta ação não é reversível. A visita e seus dados relacionados serão removidos permanentemente.',
+        confirmText: 'Excluir',
+        cancelText: 'Cancelar',
+        destructive: true
+    });
+    if (!ok) return;
+    try {
+        const res = await apiPost('excluir_visita_admin', { historico_id: id });
+        if (!res || !res.success) {
+            uiShow('error', (res && res.error) ? res.error : 'Não foi possível excluir a visita.');
+            return;
+        }
+        const wasOpen = (() => {
+            const el = document.getElementById('modalDetalheVisitaAdmin');
+            return !!(el && el.style.display === 'flex');
+        })();
+        if (wasOpen) closeModalDetalheVisitaAdmin();
+        uiShow('success', 'Visita excluída com sucesso.');
+        await loadVisitasPage();
+    } catch (e) {
+        uiShow('error', 'Erro de conexão ao excluir a visita.');
+    }
+}
+window.excluirVisitaAdminFromTable = excluirVisitaAdminFromTable;
 
 function closeEditarMotivoRecusaAdminModal() {
     const m = document.getElementById('modalEditarMotivoRecusaAdmin');
@@ -4839,7 +5469,14 @@ async function toggleUserStatus(id) {
 
 // ---- Delete User ----
 async function deleteUser(id, nome) {
-    if (!confirm(`Tem certeza que deseja EXCLUIR o usuário "${nome}"?\n\nEsta ação não pode ser desfeita.`)) {
+    const ok = await uiConfirm({
+        title: 'Excluir usuário',
+        message: `Tem certeza que deseja excluir o usuário "${nome}"? Esta ação não pode ser desfeita.`,
+        confirmText: 'Excluir',
+        cancelText: 'Cancelar',
+        destructive: true
+    });
+    if (!ok) {
         return;
     }
 
@@ -4858,21 +5495,15 @@ async function deleteUser(id, nome) {
 
 // ---- Toast Notification ----
 function showToast(type, message) {
-    const existing = document.querySelector('.toast-notification');
-    if (existing) existing.remove();
-
-    const icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
-    const toast = document.createElement('div');
-    toast.className = `toast-notification ${type}`;
-    toast.innerHTML = `<i class="fas fa-${icon}"></i> ${message}`;
-    document.body.appendChild(toast);
-
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100px)';
-        toast.style.transition = '0.4s ease';
-        setTimeout(() => toast.remove(), 400);
-    }, 3000);
+    if (type === 'success') {
+        uiShow('success', message);
+    } else if (type === 'warning') {
+        uiShow('warning', message);
+    } else if (type === 'info') {
+        uiShow('info', message);
+    } else {
+        uiShow('error', message);
+    }
 }
 
 // ============ Chart Helpers ============

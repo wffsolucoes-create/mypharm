@@ -9,6 +9,7 @@
     <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
     <link rel="apple-touch-icon" href="imagens/IconeMyPharm.png?v=20260402">
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/ui-feedback.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         body { visibility: hidden; }
@@ -171,31 +172,40 @@
             position: fixed;
             inset: 0;
             z-index: 4600;
-            background: rgba(2, 6, 23, 0.62);
+            justify-content: center;
+            align-items: center;
+            background: rgba(2, 6, 23, 0.68);
+            backdrop-filter: blur(4px);
             padding: 20px;
         }
+        .bonus-modal.is-open {
+            display: flex;
+            animation: bonusModalFadeIn 180ms ease;
+        }
         .bonus-modal-box {
-            max-width: 1080px;
-            margin: 0 auto;
+            width: min(1100px, 100%);
             max-height: 92vh;
             overflow: hidden;
             background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 14px;
+            border-radius: 16px;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+            box-shadow: 0 28px 70px rgba(0, 0, 0, 0.35);
+            animation: bonusModalScaleIn 220ms ease;
         }
         .bonus-modal-head {
-            padding: 14px 16px;
+            padding: 16px 18px;
             border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 12px;
+            background: linear-gradient(180deg, rgba(148,163,184,0.09) 0%, rgba(148,163,184,0.02) 100%);
         }
         .bonus-modal-body {
             overflow: auto;
-            padding: 14px 16px;
+            padding: 16px 18px;
         }
         .bonus-close-btn {
             border: none;
@@ -203,6 +213,161 @@
             color: var(--text-secondary);
             font-size: 1.35rem;
             cursor: pointer;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+        }
+        .bonus-close-btn:hover {
+            background: rgba(148, 163, 184, 0.14);
+            color: var(--text-primary);
+        }
+        .bonus-modal-title {
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .bonus-modal-title i { color: #f59e0b; }
+        .bonus-kpi-grid-modal {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .bonus-kpi-card-modal {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-body);
+            padding: 12px;
+        }
+        .bonus-kpi-label-modal {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .bonus-kpi-value-modal {
+            font-size: 1.45rem;
+            font-weight: 800;
+            line-height: 1.1;
+            color: var(--text-primary);
+        }
+        .bonus-kpi-value-modal.is-danger { color: #ef4444; }
+        .bonus-kpi-value-modal.is-warning { color: #f59e0b; }
+        .bonus-panel {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-body);
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .bonus-panel-title {
+            margin: 0 0 10px 0;
+            font-size: 0.98rem;
+            font-weight: 800;
+        }
+        .bonus-form-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .bonus-form-field label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+            font-weight: 700;
+        }
+        .bonus-form-field input {
+            width: 100%;
+            height: 42px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            padding: 0 12px;
+            box-sizing: border-box;
+        }
+        .bonus-form-field input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+        }
+        .bonus-form-full { margin-top: 10px; }
+        .bonus-form-actions {
+            margin-top: 12px;
+            text-align: right;
+        }
+        .bonus-btn-primary {
+            height: 42px;
+            border: 1px solid #1d4ed8;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+            color: #fff;
+            font-weight: 800;
+            padding: 0 18px;
+            cursor: pointer;
+            box-shadow: 0 8px 18px rgba(37,99,235,0.28);
+        }
+        .bonus-btn-primary:hover {
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+        }
+        .bonus-table-modal-wrap {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: auto;
+            background: var(--bg-card);
+        }
+        .bonus-table-modal {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 620px;
+            font-size: 0.84rem;
+        }
+        .bonus-table-modal thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: var(--bg-body);
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            text-align: left;
+            padding: 10px;
+        }
+        .bonus-table-modal td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .bonus-table-modal td.num, .bonus-table-modal th.num { text-align: right; }
+        .bonus-table-modal tbody tr:hover td { background: rgba(148,163,184,0.08); }
+        .bonus-empty {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 12px;
+        }
+        .bonus-loading, .bonus-error {
+            text-align: center;
+            padding: 24px;
+        }
+        .bonus-error { color: #ef4444; }
+        @keyframes bonusModalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes bonusModalScaleIn {
+            from { opacity: 0; transform: translateY(8px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
         .bonus-input {
             width: 100%;
@@ -215,10 +380,20 @@
         }
         @media (max-width: 768px) {
             .bonus-modal { padding: 10px; }
+            .bonus-modal-box { max-height: 94vh; border-radius: 14px; }
+            .bonus-kpi-grid-modal { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .bonus-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 640px) {
+            .bonus-kpi-grid-modal { grid-template-columns: 1fr; }
+            .bonus-form-grid { grid-template-columns: 1fr; }
+            .bonus-form-actions { text-align: stretch; }
+            .bonus-btn-primary { width: 100%; }
         }
     </style>
 </head>
 <body>
+<script defer src="js/ui-feedback.js"></script>
 <script>
     (function () {
         if (!localStorage.getItem('loggedIn')) {
@@ -379,7 +554,7 @@
 <div id="modalBonusControl" class="bonus-modal">
     <div class="bonus-modal-box">
         <div class="bonus-modal-head">
-            <h3 id="modalBonusControlTitle" style="margin:0; font-size:1rem;">Bônus do prescritor</h3>
+            <h3 id="modalBonusControlTitle" class="bonus-modal-title"><i class="fas fa-gift"></i>Bônus do prescritor</h3>
             <button class="bonus-close-btn" onclick="closeBonusControlModal()">&times;</button>
         </div>
         <div id="modalBonusControlBody" class="bonus-modal-body"></div>
@@ -602,7 +777,10 @@ async function loadBonificacoes() {
 }
 function closeBonusControlModal() {
     const modal = document.getElementById('modalBonusControl');
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.classList.remove('is-open');
+        modal.style.display = 'none';
+    }
 }
 function renderExtratoControleHtml(data) {
     const resumo = data && data.resumo ? data.resumo : {};
@@ -610,58 +788,62 @@ function renderExtratoControleHtml(data) {
     const debitos = Array.isArray(data.debitos) ? data.debitos : [];
     const creditosHtml = creditos.length ? creditos.map(c => `
         <tr>
-            <td style="padding:8px; border-bottom:1px solid var(--border);">${String(c.competencia_mes).padStart(2, '0')}/${c.competencia_ano}</td>
-            <td style="padding:8px; border-bottom:1px solid var(--border);">${String(c.referencia_mes).padStart(2, '0')}/${c.referencia_ano}</td>
-            <td style="padding:8px; border-bottom:1px solid var(--border); text-align:right;">${formatMoney(c.valor_base || 0)}</td>
-            <td style="padding:8px; border-bottom:1px solid var(--border); text-align:right; color:#10b981; font-weight:700;">${formatMoney(c.valor_credito || 0)}</td>
+            <td>${String(c.competencia_mes).padStart(2, '0')}/${c.competencia_ano}</td>
+            <td>${String(c.referencia_mes).padStart(2, '0')}/${c.referencia_ano}</td>
+            <td class="num">${formatMoney(c.valor_base || 0)}</td>
+            <td class="num" style="color:#10b981; font-weight:700;">${formatMoney(c.valor_credito || 0)}</td>
         </tr>
-    `).join('') : '<tr><td colspan="4" style="padding:10px; text-align:center; color:var(--text-secondary);">Sem créditos.</td></tr>';
+    `).join('') : '<tr><td colspan="4" class="bonus-empty">Sem créditos.</td></tr>';
     const debitosHtml = debitos.length ? debitos.map(d => `
         <tr>
-            <td style="padding:8px; border-bottom:1px solid var(--border);">${esc(d.data_debito || '-')}</td>
-            <td style="padding:8px; border-bottom:1px solid var(--border);">#${d.numero_pedido || 0}/${d.serie_pedido || 0}</td>
-            <td style="padding:8px; border-bottom:1px solid var(--border); text-align:right; color:#ef4444; font-weight:700;">${formatMoney(d.valor_debito || 0)}</td>
-            <td style="padding:8px; border-bottom:1px solid var(--border);">${esc(d.usuario_nome || '-')}</td>
+            <td>${esc(d.data_debito || '-')}</td>
+            <td>#${d.numero_pedido || 0}/${d.serie_pedido || 0}</td>
+            <td class="num" style="color:#ef4444; font-weight:700;">${formatMoney(d.valor_debito || 0)}</td>
+            <td>${esc(d.usuario_nome || '-')}</td>
         </tr>
-    `).join('') : '<tr><td colspan="4" style="padding:10px; text-align:center; color:var(--text-secondary);">Sem débitos.</td></tr>';
+    `).join('') : '<tr><td colspan="4" class="bonus-empty">Sem débitos.</td></tr>';
     const hoje = new Date();
     const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
     return `
-        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:12px;">
-            <div class="kpi-card"><div class="kpi-label">Bonificação Mês Anterior</div><div class="kpi-value">${formatMoney(resumo.bonificacao_mes_anterior || 0)}</div></div>
-            <div class="kpi-card"><div class="kpi-label">Bonificação Mês Atual (A bonificar)</div><div class="kpi-value">${formatMoney(resumo.bonificacao_mes_atual_a_bonificar || 0)}</div></div>
-            <div class="kpi-card"><div class="kpi-label">Bonificações Utilizadas</div><div class="kpi-value" style="color:#ef4444;">${formatMoney(resumo.bonificacoes_utilizadas || 0)}</div></div>
-            <div class="kpi-card"><div class="kpi-label">Saldo de Bonificação</div><div class="kpi-value bonus-saldo">${formatMoney(resumo.saldo_bonus || 0)}</div></div>
+        <div class="bonus-kpi-grid-modal">
+            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-calendar-minus"></i>Bonificação mês anterior</div><div class="bonus-kpi-value-modal">${formatMoney(resumo.bonificacao_mes_anterior || 0)}</div></div>
+            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-calendar-plus"></i>Bonificação mês atual</div><div class="bonus-kpi-value-modal">${formatMoney(resumo.bonificacao_mes_atual_a_bonificar || 0)}</div></div>
+            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-arrow-trend-down"></i>Bonificações utilizadas</div><div class="bonus-kpi-value-modal is-danger">${formatMoney(resumo.bonificacoes_utilizadas || 0)}</div></div>
+            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-wallet"></i>Saldo de bonificação</div><div class="bonus-kpi-value-modal is-warning">${formatMoney(resumo.saldo_bonus || 0)}</div></div>
         </div>
-        <div class="chart-card" style="margin-bottom:12px; padding:12px;">
-            <h4 style="margin:0 0 10px 0;">Registrar débito de bônus</h4>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px;">
-                <div><label class="kpi-label" style="display:block; margin-bottom:4px;">Nº Pedido</label><input id="debPedido" class="bonus-input" type="number" min="1"></div>
-                <div><label class="kpi-label" style="display:block; margin-bottom:4px;">Série</label><input id="debSerie" class="bonus-input" type="number" min="1"></div>
-                <div><label class="kpi-label" style="display:block; margin-bottom:4px;">Valor</label><input id="debValor" class="bonus-input" type="number" min="0.01" step="0.01"></div>
-                <div><label class="kpi-label" style="display:block; margin-bottom:4px;">Data</label><input id="debData" class="bonus-input" type="date" value="${hojeStr}"></div>
+        <div class="bonus-panel">
+            <h4 class="bonus-panel-title">Registrar débito de bônus</h4>
+            <div class="bonus-form-grid">
+                <div class="bonus-form-field"><label>Nº Pedido</label><input id="debPedido" type="number" min="1"></div>
+                <div class="bonus-form-field"><label>Série</label><input id="debSerie" type="number" min="1"></div>
+                <div class="bonus-form-field"><label>Valor</label><input id="debValor" type="number" min="0.01" step="0.01"></div>
+                <div class="bonus-form-field"><label>Data</label><input id="debData" type="date" value="${hojeStr}"></div>
             </div>
-            <div style="margin-top:8px;">
-                <label class="kpi-label" style="display:block; margin-bottom:4px;">Observação</label>
-                <input id="debObs" class="bonus-input" type="text" maxlength="500" placeholder="Opcional">
+            <div class="bonus-form-field bonus-form-full">
+                <label>Observação</label>
+                <input id="debObs" type="text" maxlength="500" placeholder="Opcional">
             </div>
-            <div style="margin-top:10px; text-align:right;">
-                <button class="topbar-btn" onclick="registrarDebitoControle()"><i class="fas fa-save"></i> Salvar débito</button>
+            <div class="bonus-form-actions">
+                <button class="bonus-btn-primary" onclick="registrarDebitoControle()"><i class="fas fa-save"></i> Salvar débito</button>
             </div>
         </div>
-        <div class="chart-card" style="margin-bottom:12px; padding:12px;">
-            <h4 style="margin:0 0 8px 0;">Histórico de créditos</h4>
-            <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
-                <thead><tr><th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Competência</th><th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Ref.</th><th style="text-align:right; padding:8px; border-bottom:1px solid var(--border);">Base</th><th style="text-align:right; padding:8px; border-bottom:1px solid var(--border);">Crédito</th></tr></thead>
-                <tbody>${creditosHtml}</tbody>
-            </table>
+        <div class="bonus-panel">
+            <h4 class="bonus-panel-title">Histórico de créditos</h4>
+            <div class="bonus-table-modal-wrap">
+                <table class="bonus-table-modal">
+                    <thead><tr><th>Competência</th><th>Ref.</th><th class="num">Base</th><th class="num">Crédito</th></tr></thead>
+                    <tbody>${creditosHtml}</tbody>
+                </table>
+            </div>
         </div>
-        <div class="chart-card" style="padding:12px;">
-            <h4 style="margin:0 0 8px 0;">Histórico de utilizações</h4>
-            <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
-                <thead><tr><th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Data</th><th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Pedido/Série</th><th style="text-align:right; padding:8px; border-bottom:1px solid var(--border);">Débito</th><th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Usuário</th></tr></thead>
-                <tbody>${debitosHtml}</tbody>
-            </table>
+        <div class="bonus-panel">
+            <h4 class="bonus-panel-title">Histórico de utilizações</h4>
+            <div class="bonus-table-modal-wrap">
+                <table class="bonus-table-modal">
+                    <thead><tr><th>Data</th><th>Pedido/Série</th><th class="num">Débito</th><th>Usuário</th></tr></thead>
+                    <tbody>${debitosHtml}</tbody>
+                </table>
+            </div>
         </div>
     `;
 }
@@ -671,15 +853,16 @@ async function openBonusControlModal(prescritor, visitador) {
     const title = document.getElementById('modalBonusControlTitle');
     const body = document.getElementById('modalBonusControlBody');
     title.textContent = `Bônus: ${__bonusContext.prescritor}`;
-    body.innerHTML = '<div style="padding:20px; color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin"></i> Carregando...</div>';
-    modal.style.display = 'block';
+    body.innerHTML = '<div class="bonus-loading"><i class="fas fa-circle-notch fa-spin"></i> Carregando...</div>';
+    modal.style.display = 'flex';
+    modal.classList.add('is-open');
     try {
         const r = await fetch(`api_bonus.php?action=bonus_extrato&prescritor=${encodeURIComponent(__bonusContext.prescritor)}`, { credentials: 'include' });
         const j = await r.json();
         if (!j || !j.success) throw new Error((j && j.error) ? j.error : 'Falha ao carregar detalhes');
         body.innerHTML = renderExtratoControleHtml(j);
     } catch (e) {
-        body.innerHTML = `<div style="padding:20px; color:#ef4444;">${esc(e.message || 'Erro')}</div>`;
+        body.innerHTML = `<div class="bonus-error">${esc(e.message || 'Erro')}</div>`;
     }
 }
 async function registrarDebitoControle() {

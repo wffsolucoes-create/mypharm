@@ -3101,6 +3101,43 @@ try {
             echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
             break;
         }
+        case 'excluir_visita_admin': {
+            if ($isVisitadorSetor) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Acesso negado.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($input)) {
+                $input = [];
+            }
+            $historicoId = (int)($input['historico_id'] ?? 0);
+            if ($historicoId <= 0) {
+                echo json_encode(['success' => false, 'error' => 'ID da visita inválido.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+
+            try {
+                $stmtImg = $pdo->prepare("DELETE FROM historico_visitas_imagens WHERE historico_id = :id");
+                $stmtImg->execute(['id' => $historicoId]);
+            } catch (Throwable $e) {
+                // Compatibilidade: tabela pode não existir em bases antigas.
+            }
+
+            $stmt = $pdo->prepare("
+                DELETE FROM historico_visitas
+                WHERE id = :id
+                  AND data_visita IS NOT NULL
+                LIMIT 1
+            ");
+            $stmt->execute(['id' => $historicoId]);
+            if ($stmt->rowCount() <= 0) {
+                echo json_encode(['success' => false, 'error' => 'Visita não encontrada para exclusão.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
+            break;
+        }
         case 'atualizar_motivo_recusa_admin': {
             if ($isVisitadorSetor) {
                 http_response_code(403);

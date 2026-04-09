@@ -2815,8 +2815,17 @@ function getThemeStorageKeyVisitador() {
 
             var formatDate = function (d) {
                 if (!d) return '—';
-                var dt = new Date(d);
-                return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('pt-BR');
+                var raw = String(d).trim();
+                var m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                if (m) {
+                    var y = parseInt(m[1], 10);
+                    var mo = parseInt(m[2], 10) - 1;
+                    var day = parseInt(m[3], 10);
+                    var dtLocal = new Date(y, mo, day);
+                    return isNaN(dtLocal.getTime()) ? raw : dtLocal.toLocaleDateString('pt-BR');
+                }
+                var dt = new Date(raw);
+                return isNaN(dt.getTime()) ? raw : dt.toLocaleDateString('pt-BR');
             };
             var formatTime = function (h) { return h ? String(h).slice(0, 5) : '—'; };
             var formatInicio = function (iv) {
@@ -2945,6 +2954,12 @@ function getThemeStorageKeyVisitador() {
             if (!dt) return '—';
             return String(dt).replace('T', ' ').slice(11, 16) || '—';
         }
+        function roteiroLocalDateToYmd(d) {
+            var y = d.getFullYear();
+            var m = String(d.getMonth() + 1).padStart(2, '0');
+            var day = String(d.getDate()).padStart(2, '0');
+            return y + '-' + m + '-' + day;
+        }
         async function loadRoteiroVisitas() {
             var deEl = document.getElementById('roteiroDataDe');
             var ateEl = document.getElementById('roteiroDataAte');
@@ -2956,7 +2971,7 @@ function getThemeStorageKeyVisitador() {
             var detalhesEl = document.getElementById('roteiroDetalhes');
             var periodoLabel = document.getElementById('roteiroVisitasPeriodoLabel');
             if (!deEl || !ateEl) return;
-            var dataDe = deEl.value || new Date().toISOString().slice(0, 10);
+            var dataDe = deEl.value || roteiroLocalDateToYmd(new Date());
             var dataAte = ateEl.value || dataDe;
             if (periodoLabel) periodoLabel.textContent = roteiroFmtDataIsoPt(dataDe) + ' – ' + roteiroFmtDataIsoPt(dataAte);
             initRoteiroVisitasTableOnce();
@@ -3667,15 +3682,263 @@ function getThemeStorageKeyVisitador() {
         }
 
         var __paginaPrescritoresList = [];
+        var __bonusPrescritorContext = { prescritor: '', visitador: '' };
+        var __bonusCsrfToken = '';
+        var __paginaPrescritoresFilterBound = false;
+
+        function paginaPrescritoresLocalDateToYmd(d) {
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        function getPaginaPrescritoresPeriodo() {
+            var deEl = document.getElementById('paginaPrescritoresDataDe');
+            var ateEl = document.getElementById('paginaPrescritoresDataAte');
+            var hoje = new Date();
+            var primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            if (deEl && !deEl.value) deEl.value = paginaPrescritoresLocalDateToYmd(primeiroDiaMes);
+            if (ateEl && !ateEl.value) ateEl.value = paginaPrescritoresLocalDateToYmd(hoje);
+            var dataDe = deEl ? String(deEl.value || '').trim() : '';
+            var dataAte = ateEl ? String(ateEl.value || '').trim() : '';
+            if (dataDe && dataAte && dataAte < dataDe) {
+                dataAte = dataDe;
+                if (ateEl) ateEl.value = dataAte;
+            }
+            return { data_de: dataDe, data_ate: dataAte };
+        }
+
+        function bindPaginaPrescritoresFiltrosOnce() {
+            if (__paginaPrescritoresFilterBound) return;
+            __paginaPrescritoresFilterBound = true;
+            var deEl = document.getElementById('paginaPrescritoresDataDe');
+            var ateEl = document.getElementById('paginaPrescritoresDataAte');
+            var btnAtualizar = document.getElementById('paginaPrescritoresBtnAtualizar');
+            if (deEl) deEl.onchange = function () { loadPaginaPrescritores(); };
+            if (ateEl) ateEl.onchange = function () { loadPaginaPrescritores(); };
+            if (btnAtualizar) btnAtualizar.onclick = function () { loadPaginaPrescritores(); };
+        }
+
+        function bonusMoney(v) {
+            var n = parseFloat(v) || 0;
+            return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        function bonusEsc(v) {
+            return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        }
+
+        function bonusWarn(message) {
+            if (window.MyPharmUI && typeof window.MyPharmUI.showWarning === 'function') {
+                window.MyPharmUI.showWarning(message);
+                return;
+            }
+            // Fallback não nativo para manter padrão sem alert().
+            var id = 'visitadorBonusWarnToast';
+            var el = document.getElementById(id);
+            if (!el) {
+                el = document.createElement('div');
+                el.id = id;
+                el.style.position = 'fixed';
+                el.style.right = '16px';
+                el.style.bottom = '16px';
+                el.style.zIndex = '99999';
+                el.style.padding = '10px 14px';
+                el.style.borderRadius = '10px';
+                el.style.background = '#fef3c7';
+                el.style.color = '#92400e';
+                el.style.border = '1px solid #fde68a';
+                el.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.18)';
+                el.style.fontSize = '0.86rem';
+                el.style.fontWeight = '600';
+                document.body.appendChild(el);
+            }
+            el.textContent = message;
+            el.style.display = 'block';
+            clearTimeout(el.__hideTimer);
+            el.__hideTimer = setTimeout(function () { el.style.display = 'none'; }, 2600);
+        }
+
+        async function fetchBonusElegibilidadeLote(items) {
+            var arr = Array.isArray(items) ? items : [];
+            if (!arr.length) return {};
+            try {
+                var r = await fetch('api_bonus.php?action=bonus_resumo_lote', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prescritores: arr })
+                });
+                var j = await r.json();
+                if (!j || !j.success || !j.resumo) return {};
+                return j.resumo || {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function syncPrescritorBonusStatus(nome, elegivel) {
+            var target = String(nome || '').trim().toLowerCase();
+            if (!target) return;
+            (__paginaPrescritoresList || []).forEach(function (p) {
+                if (String((p && p.prescritor) || '').trim().toLowerCase() === target) {
+                    p.apto_bonificacao = !!elegivel;
+                }
+            });
+        }
+
+        async function ensureBonusCsrfToken() {
+            if (__bonusCsrfToken) return __bonusCsrfToken;
+            try {
+                var r = await fetch('api.php?action=csrf_token', { credentials: 'include' });
+                var d = await r.json();
+                __bonusCsrfToken = d && d.token ? String(d.token) : '';
+            } catch (e) {
+                __bonusCsrfToken = '';
+            }
+            return __bonusCsrfToken;
+        }
+
+        function closeBonusPrescritorModal() {
+            var modal = document.getElementById('modalBonusPrescritor');
+            if (modal) {
+                modal.classList.remove('is-open');
+                modal.style.display = 'none';
+            }
+        }
+        window.closeBonusPrescritorModal = closeBonusPrescritorModal;
+
+        function renderBonusPrescritorBody(data) {
+            var resumo = data && data.resumo ? data.resumo : {};
+            var creditos = Array.isArray(data && data.creditos) ? data.creditos : [];
+            var debitos = Array.isArray(data && data.debitos) ? data.debitos : [];
+            var hoje = new Date();
+            var hojeStr = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
+
+            var creditosHtml = creditos.length ? creditos.map(function (c) {
+                return '<tr>' +
+                    '<td>' + bonusEsc(String(c.competencia_mes).padStart(2, '0') + '/' + c.competencia_ano) + '</td>' +
+                    '<td>' + bonusEsc(String(c.referencia_mes).padStart(2, '0') + '/' + c.referencia_ano) + '</td>' +
+                    '<td class="num">' + bonusMoney(c.valor_base || 0) + '</td>' +
+                    '<td class="num" style="color:#10b981; font-weight:700;">' + bonusMoney(c.valor_credito || 0) + '</td>' +
+                    '</tr>';
+            }).join('') : '<tr><td colspan="4" class="bonus-empty">Sem créditos.</td></tr>';
+
+            var debitosHtml = debitos.length ? debitos.map(function (d) {
+                return '<tr>' +
+                    '<td>' + bonusEsc(d.data_debito || '-') + '</td>' +
+                    '<td>#' + bonusEsc((d.numero_pedido || 0) + '/' + (d.serie_pedido || 0)) + '</td>' +
+                    '<td class="num" style="color:#ef4444; font-weight:700;">' + bonusMoney(d.valor_debito || 0) + '</td>' +
+                    '<td>' + bonusEsc(d.usuario_nome || '-') + '</td>' +
+                    '</tr>';
+            }).join('') : '<tr><td colspan="4" class="bonus-empty">Sem débitos.</td></tr>';
+
+            return '' +
+                '<div class="bonus-kpi-grid">' +
+                    '<div class="bonus-kpi-card"><div class="bonus-kpi-label"><i class="fas fa-calendar-minus"></i>Bonificação mês anterior</div><div class="bonus-kpi-value">' + bonusMoney(resumo.bonificacao_mes_anterior || 0) + '</div></div>' +
+                    '<div class="bonus-kpi-card"><div class="bonus-kpi-label"><i class="fas fa-calendar-plus"></i>Bonificação mês atual</div><div class="bonus-kpi-value">' + bonusMoney(resumo.bonificacao_mes_atual_a_bonificar || 0) + '</div></div>' +
+                    '<div class="bonus-kpi-card"><div class="bonus-kpi-label"><i class="fas fa-arrow-trend-down"></i>Bonificações utilizadas</div><div class="bonus-kpi-value is-danger">' + bonusMoney(resumo.bonificacoes_utilizadas || 0) + '</div></div>' +
+                    '<div class="bonus-kpi-card"><div class="bonus-kpi-label"><i class="fas fa-wallet"></i>Saldo de bonificação</div><div class="bonus-kpi-value is-warning">' + bonusMoney(resumo.saldo_bonus || 0) + '</div></div>' +
+                '</div>' +
+                '<div class="bonus-panel bonus-section">' +
+                    '<h4 class="bonus-panel-title">Aplicar bonificação (registrar débito)</h4>' +
+                    '<div class="bonus-form-grid">' +
+                        '<div class="bonus-form-field"><label>Nº Pedido</label><input id="bonusDebPedido" type="number" min="1"></div>' +
+                        '<div class="bonus-form-field"><label>Série</label><input id="bonusDebSerie" type="number" min="1"></div>' +
+                        '<div class="bonus-form-field"><label>Valor</label><input id="bonusDebValor" type="number" min="0.01" step="0.01"></div>' +
+                        '<div class="bonus-form-field"><label>Data</label><input id="bonusDebData" type="date" value="' + hojeStr + '"></div>' +
+                    '</div>' +
+                    '<div class="bonus-form-field bonus-form-full"><label>Observação</label><input id="bonusDebObs" type="text" maxlength="500" placeholder="Opcional"></div>' +
+                    '<div class="bonus-form-actions"><button type="button" onclick="salvarBonusDebitoPrescritor()" class="bonus-btn-primary"><i class="fas fa-save" style="margin-right:6px;"></i>Salvar débito</button></div>' +
+                '</div>' +
+                '<div class="bonus-panel bonus-section">' +
+                    '<h4 class="bonus-panel-title">Histórico de créditos</h4>' +
+                    '<div class="bonus-table-wrap"><table class="bonus-table"><thead><tr><th>Competência</th><th>Ref.</th><th class="num">Base</th><th class="num">Crédito</th></tr></thead><tbody>' + creditosHtml + '</tbody></table></div>' +
+                '</div>' +
+                '<div class="bonus-panel">' +
+                    '<h4 class="bonus-panel-title">Histórico de utilizações</h4>' +
+                    '<div class="bonus-table-wrap"><table class="bonus-table"><thead><tr><th>Data</th><th>Pedido/Série</th><th class="num">Débito</th><th>Usuário</th></tr></thead><tbody>' + debitosHtml + '</tbody></table></div>' +
+                '</div>';
+        }
+
+        async function openBonusPrescritorModal(prescritorNome) {
+            var nome = String(prescritorNome || '').trim();
+            if (!nome) return;
+            __bonusPrescritorContext = { prescritor: nome, visitador: currentVisitadorName || localStorage.getItem('userName') || '' };
+            var modal = document.getElementById('modalBonusPrescritor');
+            var title = document.getElementById('modalBonusPrescritorTitle');
+            var body = document.getElementById('modalBonusPrescritorBody');
+            if (!modal || !title || !body) return;
+            title.innerHTML = '<i class="fas fa-gift"></i>Bônus: ' + bonusEsc(nome);
+            body.innerHTML = '<div class="bonus-modal-loading"><i class="fas fa-spinner fa-spin"></i> Carregando bonificação...</div>';
+            modal.style.display = 'flex';
+            modal.classList.add('is-open');
+            try {
+                var r = await fetch('api_bonus.php?action=bonus_extrato&prescritor=' + encodeURIComponent(nome), { credentials: 'include' });
+                var j = await r.json();
+                if (!j || !j.success) throw new Error((j && j.error) ? j.error : 'Falha ao carregar bonificação');
+                body.innerHTML = renderBonusPrescritorBody(j);
+            } catch (e) {
+                body.innerHTML = '<div class="bonus-error"><i class="fas fa-exclamation-circle" style="margin-right:8px;"></i>' + bonusEsc((e && e.message) ? e.message : 'Erro ao carregar bonificação') + '</div>';
+            }
+        }
+        window.openBonusPrescritorModal = openBonusPrescritorModal;
+
+        async function salvarBonusDebitoPrescritor() {
+            var numero_pedido = parseInt((document.getElementById('bonusDebPedido') || {}).value || '0', 10) || 0;
+            var serie_pedido = parseInt((document.getElementById('bonusDebSerie') || {}).value || '0', 10) || 0;
+            var valor_debito = parseFloat((document.getElementById('bonusDebValor') || {}).value || '0') || 0;
+            var data_debito = (document.getElementById('bonusDebData') || {}).value || '';
+            var observacao = (document.getElementById('bonusDebObs') || {}).value || '';
+            if (numero_pedido <= 0 || serie_pedido <= 0 || valor_debito <= 0 || !data_debito) {
+                alert('Preencha pedido, série, valor e data para aplicar a bonificação.');
+                return;
+            }
+            var token = await ensureBonusCsrfToken();
+            if (!token) {
+                alert('Não foi possível obter token de segurança. Atualize a página e tente novamente.');
+                return;
+            }
+            try {
+                var r = await fetch('api_bonus.php?action=bonus_debito', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': token
+                    },
+                    body: JSON.stringify({
+                        csrf_token: token,
+                        prescritor: __bonusPrescritorContext.prescritor,
+                        visitador: __bonusPrescritorContext.visitador,
+                        numero_pedido: numero_pedido,
+                        serie_pedido: serie_pedido,
+                        valor_debito: valor_debito,
+                        data_debito: data_debito,
+                        observacao: observacao
+                    })
+                });
+                var j = await r.json();
+                if (!j || !j.success) {
+                    alert((j && j.error) ? j.error : 'Não foi possível aplicar bonificação.');
+                    return;
+                }
+                await openBonusPrescritorModal(__bonusPrescritorContext.prescritor);
+            } catch (e) {
+                alert('Erro ao aplicar bonificação.');
+            }
+        }
+        window.salvarBonusDebitoPrescritor = salvarBonusDebitoPrescritor;
 
         async function loadPaginaPrescritores() {
             var tbody = document.getElementById('paginaPrescritoresTbody');
             if (!tbody) return;
-            var anoAtual = (new Date().getFullYear()).toString();
+            bindPaginaPrescritoresFiltrosOnce();
+            var periodo = getPaginaPrescritoresPeriodo();
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>';
             try {
                 var visitador = currentVisitadorName || localStorage.getItem('userName') || '';
-                var params = { visitador: visitador, ano: anoAtual };
+                var params = { visitador: visitador };
+                if (periodo.data_de) params.data_de = periodo.data_de;
+                if (periodo.data_ate) params.data_ate = periodo.data_ate;
                 var list = await apiGet('all_prescritores', params) || [];
                 var contatos = {};
                 try { contatos = await apiGet('get_prescritor_contatos') || {}; } catch (e) {}
@@ -3688,12 +3951,25 @@ function getThemeStorageKeyVisitador() {
                         valor_aprovado: p.valor_aprovado ?? p.total_aprovado ?? 0,
                         total_pedidos: p.total_pedidos ?? p.qtd_aprovados ?? 0,
                         valor_recusado: p.valor_recusado ?? p.total_recusado ?? 0,
-                        qtd_recusados: p.qtd_recusados ?? 0
+                        qtd_recusados: p.qtd_recusados ?? 0,
+                        apto_bonificacao: true
                     };
                 });
+                try {
+                    var bonusPayload = __paginaPrescritoresList.map(function (p) {
+                        return { prescritor: p.prescritor || '', visitador: visitador || '' };
+                    });
+                    var resumoBonus = await fetchBonusElegibilidadeLote(bonusPayload);
+                    __paginaPrescritoresList.forEach(function (p) {
+                        var rs = resumoBonus[p.prescritor] || null;
+                        if (rs && typeof rs.bonificacao_eligivel !== 'undefined') {
+                            p.apto_bonificacao = !!rs.bonificacao_eligivel;
+                        }
+                    });
+                } catch (e) {}
                 renderPaginaPrescritores();
                 var searchEl = document.getElementById('searchPrescritoresPage');
-                if (searchEl) searchEl.oninput = renderPaginaPrescritores;
+                if (searchEl) searchEl.oninput = function () { __paginaPrescritoresPage = 1; renderPaginaPrescritores(); };
             } catch (e) {
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:48px 24px; color:var(--danger); font-size:0.9rem;"><i class="fas fa-exclamation-circle" style="margin-right:8px;"></i>Erro ao carregar prescritores.</td></tr>';
             }
@@ -3790,6 +4066,7 @@ function getThemeStorageKeyVisitador() {
                 var qtdAprov = (p.total_pedidos != null && p.total_pedidos !== '') ? parseInt(p.total_pedidos, 10) : 0;
                 var valorRecusado = (p.valor_recusado != null && p.valor_recusado !== '') ? fmtMoney(p.valor_recusado) : '—';
                 var qtdRec = (p.qtd_recusados != null && p.qtd_recusados !== '') ? parseInt(p.qtd_recusados, 10) : 0;
+                var aptoBonificacao = p.apto_bonificacao !== false;
                 var btnWa = waNum
                     ? '<a href="https://wa.me/' + esc(waNum) + '" target="_blank" rel="noopener noreferrer" class="prescritores-btn" style="color:#25D366; text-decoration:none; padding:6px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); display:inline-flex; align-items:center; justify-content:center;" title="Enviar mensagem no WhatsApp"><i class="fab fa-whatsapp"></i></a>'
                     : '<button type="button" class="prescritores-btn btn-whatsapp-prescritor-page" data-nome="' + esc(nome) + '" title="Cadastrar WhatsApp para enviar mensagem" style="color:var(--text-secondary); padding:6px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); cursor:pointer;"><i class="fab fa-whatsapp"></i></button>';
@@ -3804,6 +4081,7 @@ function getThemeStorageKeyVisitador() {
                     '<button type="button" class="prescritores-btn btn-pedidos-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista de todos os pedidos (aprovados + recusados)"><i class="fas fa-list-alt"></i></button>' +
                     '<button type="button" class="prescritores-btn prescritores-btn-editar btn-editar-prescritor-page" data-nome="' + esc(nome) + '" title="Editar prescritor"><i class="fas fa-user-edit"></i></button>' +
                     '<button type="button" class="prescritores-btn prescritores-btn-relatorio btn-relatorio-visitas-prescritor-page" data-nome="' + esc(nome) + '" title="Relatório de visitas"><i class="fas fa-clipboard-list"></i></button>' +
+                    '<button type="button" class="prescritores-btn btn-bonus-prescritor-page ' + (aptoBonificacao ? '' : 'prescritores-btn-bonus-bloqueado') + '" data-nome="' + esc(nome) + '" data-apto-bonificacao="' + (aptoBonificacao ? '1' : '0') + '" title="' + (aptoBonificacao ? 'Bonificação' : 'Prescritor bloqueado para bonificação') + '" style="color:' + (aptoBonificacao ? '#f59e0b' : '#dc2626') + ';"' + (aptoBonificacao ? '' : ' aria-disabled="true"') + '><i class="fas fa-gift"></i></button>' +
                     '<button type="button" class="prescritores-btn prescritores-btn-aprovados btn-aprovados-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista dos pedidos aprovados (valor verde acima)"><i class="fas fa-check"></i></button>' +
                     '<button type="button" class="prescritores-btn prescritores-btn-recusados btn-recusados-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista dos pedidos recusados (valor vermelho acima)"><i class="fas fa-times"></i></button>' +
                     '<button type="button" class="prescritores-btn btn-componentes-aprovados-prescritor-page" data-nome="' + esc(nome) + '" title="Ver lista de componentes aprovados"><i class="fas fa-atom" style="color:var(--success);"></i></button>' +
@@ -3873,6 +4151,29 @@ function getThemeStorageKeyVisitador() {
                 btn.onclick = function () {
                     var nome = btn.getAttribute('data-nome');
                     if (typeof openRelatorioVisitasPrescritorModal === 'function') openRelatorioVisitasPrescritorModal(nome);
+                };
+            });
+            tbody.querySelectorAll('.btn-bonus-prescritor-page').forEach(function (btn) {
+                btn.onclick = async function () {
+                    var nome = btn.getAttribute('data-nome');
+                    var visitador = currentVisitadorName || localStorage.getItem('userName') || '';
+                    var resumo = await fetchBonusElegibilidadeLote([{ prescritor: nome, visitador: visitador }]);
+                    var rs = resumo && resumo[nome] ? resumo[nome] : null;
+                    var aptoNow = rs && typeof rs.bonificacao_eligivel !== 'undefined'
+                        ? !!rs.bonificacao_eligivel
+                        : (btn.getAttribute('data-apto-bonificacao') || '1') === '1';
+                    syncPrescritorBonusStatus(nome, aptoNow);
+
+                    btn.setAttribute('data-apto-bonificacao', aptoNow ? '1' : '0');
+                    btn.classList.toggle('prescritores-btn-bonus-bloqueado', !aptoNow);
+                    btn.style.color = aptoNow ? '#f59e0b' : '#dc2626';
+                    btn.title = aptoNow ? 'Bonificação' : 'Prescritor bloqueado para bonificação';
+
+                    if (!aptoNow) {
+                        bonusWarn('Prescritor não apto a bonificar');
+                        return;
+                    }
+                    if (typeof openBonusPrescritorModal === 'function') openBonusPrescritorModal(nome);
                 };
             });
             tbody.querySelectorAll('.btn-analises-prescritor-page').forEach(function (btn) {

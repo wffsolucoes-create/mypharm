@@ -72,6 +72,37 @@ function bonusCanDebit(string $setor, string $tipo): bool
         || strpos($s, 'vendedor') !== false;
 }
 
+function bonusGetStatusMap(PDO $pdo, array $prescritores): array
+{
+    $names = [];
+    foreach ($prescritores as $p) {
+        $v = trim((string)$p);
+        if ($v !== '') $names[] = $v;
+    }
+    $names = array_values(array_unique($names));
+    if (!$names) return [];
+    $chunks = array_chunk($names, 300);
+    $out = [];
+    foreach ($chunks as $chunk) {
+        $ph = [];
+        $params = [];
+        foreach ($chunk as $i => $name) {
+            $k = ':p' . $i;
+            $ph[] = $k;
+            $params[$k] = $name;
+        }
+        $sql = "SELECT prescritor, apto, observacao, atualizado_em, atualizado_por_nome
+                FROM prescritor_bonus_status
+                WHERE prescritor IN (" . implode(',', $ph) . ")";
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $out[(string)$r['prescritor']] = $r;
+        }
+    }
+    return $out;
+}
+
 function bonusInitTables(PDO $pdo): void
 {
     $pdo->exec("CREATE TABLE IF NOT EXISTS prescritor_bonus_creditos_mensais (
@@ -113,6 +144,18 @@ function bonusInitTables(PDO $pdo): void
         meta_key VARCHAR(120) PRIMARY KEY,
         meta_value VARCHAR(255) NULL,
         atualizado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS prescritor_bonus_status (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        prescritor VARCHAR(255) NOT NULL,
+        apto TINYINT(1) NOT NULL DEFAULT 1,
+        observacao VARCHAR(500) NULL,
+        atualizado_por_id INT NULL,
+        atualizado_por_nome VARCHAR(255) NULL,
+        atualizado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_prescritor (prescritor(120)),
+        INDEX idx_apto (apto)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 }
 
@@ -283,6 +326,7 @@ function bonusGetResumoForNames(PDO $pdo, array $prescritores): array
     }
     $clean = array_values(array_unique($clean));
     if ($clean === []) return $result;
+    $statusMap = bonusGetStatusMap($pdo, $clean);
 
     $chunkSize = 200;
     foreach (array_chunk($clean, $chunkSize) as $chunk) {
@@ -321,13 +365,21 @@ function bonusGetResumoForNames(PDO $pdo, array $prescritores): array
         $st->execute($chunkNorm);
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $key = trim((string)$r['prescritor']);
+            $baseElegivel = bonusIsEligibleVisitador((string)($r['visitador'] ?? ''));
+            $status = $statusMap[$key] ?? null;
+            $elegivel = $baseElegivel;
+            if (is_array($status) && array_key_exists('apto', $status)) {
+                $elegivel = ((int)$status['apto'] === 1);
+            }
             $payload = [
                 'prescritor' => $key,
                 'visitador' => (string)($r['visitador'] ?? ''),
-                'bonificacao_eligivel' => bonusIsEligibleVisitador((string)($r['visitador'] ?? '')),
+                'bonificacao_eligivel' => $elegivel,
                 'saldo_bonus' => (float)($r['saldo'] ?? 0),
                 'total_credito' => (float)($r['total_credito'] ?? 0),
                 'total_debito' => (float)($r['total_debito'] ?? 0),
+                'status_apto_manual' => is_array($status) ? ((int)($status['apto'] ?? 1)) : null,
+                'status_observacao' => is_array($status) ? (string)($status['observacao'] ?? '') : '',
             ];
             $result[$key] = $payload;
 
@@ -478,11 +530,17 @@ function bonusGetControleLista(PDO $pdo): array
         'next_ano' => $nextAno,
         'next_mes' => $nextMes,
     ]);
+    $fetched = $st->fetchAll(PDO::FETCH_ASSOC);
+    $statusMap = bonusGetStatusMap($pdo, array_map(static fn($x) => (string)($x['prescritor'] ?? ''), $fetched));
     $rows = [];
-    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    foreach ($fetched as $r) {
         $visitador = (string)($r['visitador'] ?? '');
-        if (!bonusIsEligibleVisitador($visitador)) {
-            continue;
+        $prescritor = (string)($r['prescritor'] ?? '');
+        $baseElegivel = bonusIsEligibleVisitador($visitador);
+        $status = $statusMap[$prescritor] ?? null;
+        $elegivel = $baseElegivel;
+        if (is_array($status) && array_key_exists('apto', $status)) {
+            $elegivel = ((int)$status['apto'] === 1);
         }
         $creditoMesAnterior = round((float)($r['bonificacao_mes_anterior'] ?? 0), 2);
         $aBonificarMesAtual = round((float)($r['bonificacao_mes_atual_a_bonificar'] ?? 0), 2);
@@ -494,12 +552,15 @@ function bonusGetControleLista(PDO $pdo): array
             continue;
         }
         $rows[] = [
-            'prescritor' => (string)($r['prescritor'] ?? ''),
+            'prescritor' => $prescritor,
             'visitador' => $visitador,
             'bonificacao_mes_anterior' => $creditoMesAnterior,
             'bonificacao_mes_atual_a_bonificar' => $aBonificarMesAtual,
             'bonificacoes_utilizadas' => round($totalDebito, 2),
             'saldo_bonificacao' => $saldo,
+            'bonificacao_eligivel' => $elegivel,
+            'status_apto_manual' => is_array($status) ? ((int)($status['apto'] ?? 1)) : null,
+            'status_observacao' => is_array($status) ? (string)($status['observacao'] ?? '') : '',
             'referencia_mes_anterior_label' => $refMesLabel,
             'competencia_mes_atual_label' => $compMesLabel,
         ];
@@ -667,6 +728,275 @@ if ($action === 'bonus_debito') {
         'message' => 'Débito de bônus registrado com sucesso.',
         'saldo_atualizado' => round($novoSaldo, 2),
     ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($action === 'bonus_set_apto') {
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Método inválido.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $setor = (string)($_SESSION['user_setor'] ?? '');
+    $tipo = (string)($_SESSION['user_tipo'] ?? '');
+    if (!bonusCanDebit($setor, $tipo)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Perfil sem permissão para alterar aptidão de bônus.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    $csrfToken = trim((string)($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($payload['csrf_token'] ?? '')));
+    if (!validateCsrfToken($csrfToken)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Token CSRF inválido.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $prescritor = trim((string)($payload['prescritor'] ?? ''));
+    $apto = (int)($payload['apto'] ?? 1) === 1 ? 1 : 0;
+    $observacao = trim((string)($payload['observacao'] ?? ''));
+    if ($prescritor === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Prescritor é obrigatório.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $st = $pdo->prepare("
+        INSERT INTO prescritor_bonus_status (prescritor, apto, observacao, atualizado_por_id, atualizado_por_nome, atualizado_em)
+        VALUES (:prescritor, :apto, :observacao, :uid, :unome, NOW())
+        ON DUPLICATE KEY UPDATE
+            apto = VALUES(apto),
+            observacao = VALUES(observacao),
+            atualizado_por_id = VALUES(atualizado_por_id),
+            atualizado_por_nome = VALUES(atualizado_por_nome),
+            atualizado_em = NOW()
+    ");
+    $st->execute([
+        'prescritor' => $prescritor,
+        'apto' => $apto,
+        'observacao' => ($observacao !== '' ? $observacao : null),
+        'uid' => (int)($_SESSION['user_id'] ?? 0),
+        'unome' => trim((string)($_SESSION['user_nome'] ?? 'Usuário')),
+    ]);
+    echo json_encode([
+        'success' => true,
+        'message' => $apto === 1 ? 'Prescritor marcado como apto para bonificação.' : 'Prescritor bloqueado para novas bonificações.',
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($action === 'bonus_update_resumo') {
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Método inválido.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $setor = (string)($_SESSION['user_setor'] ?? '');
+    $tipo = (string)($_SESSION['user_tipo'] ?? '');
+    if (!bonusCanDebit($setor, $tipo)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Perfil sem permissão para editar valores de bônus.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    $csrfToken = trim((string)($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($payload['csrf_token'] ?? '')));
+    if (!validateCsrfToken($csrfToken)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Token CSRF inválido.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $prescritor = trim((string)($payload['prescritor'] ?? ''));
+    $visitador = trim((string)($payload['visitador'] ?? ''));
+    $valorMesAnterior = round((float)($payload['bonificacao_mes_anterior'] ?? 0), 2);
+    $valorMesAtual = round((float)($payload['bonificacao_mes_atual_a_bonificar'] ?? 0), 2);
+    $utilizadasInformadas = isset($payload['bonificacoes_utilizadas']);
+    $valorUtilizadas = round((float)($payload['bonificacoes_utilizadas'] ?? 0), 2);
+    $saldoInformado = isset($payload['saldo_bonificacao']);
+    $valorSaldo = round((float)($payload['saldo_bonificacao'] ?? 0), 2);
+    if ($prescritor === '' || $valorMesAnterior < 0 || $valorMesAtual < 0) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Dados inválidos para atualização do resumo.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $tz = new DateTimeZone('America/Porto_Velho');
+    $now = new DateTime('now', $tz);
+    $prev = (clone $now)->modify('first day of last month');
+    $next = (clone $now)->modify('first day of next month');
+    $curAno = (int)$now->format('Y');
+    $curMes = (int)$now->format('n');
+    $nextAno = (int)$next->format('Y');
+    $nextMes = (int)$next->format('n');
+    $prevAno = (int)$prev->format('Y');
+    $prevMes = (int)$prev->format('n');
+
+    $upsertCredito = $pdo->prepare("
+        INSERT INTO prescritor_bonus_creditos_mensais
+            (prescritor, visitador, competencia_ano, competencia_mes, referencia_ano, referencia_mes, valor_base, percentual, valor_credito, gerado_em, atualizado_em)
+        VALUES
+            (:prescritor, :visitador, :comp_ano, :comp_mes, :ref_ano, :ref_mes, 0, 0.2000, :valor_credito, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+            visitador = VALUES(visitador),
+            referencia_ano = VALUES(referencia_ano),
+            referencia_mes = VALUES(referencia_mes),
+            valor_credito = VALUES(valor_credito),
+            atualizado_em = NOW()
+    ");
+    $visitadorSave = $visitador !== '' ? $visitador : null;
+    $upsertCredito->execute([
+        'prescritor' => $prescritor,
+        'visitador' => $visitadorSave,
+        'comp_ano' => $curAno,
+        'comp_mes' => $curMes,
+        'ref_ano' => $prevAno,
+        'ref_mes' => $prevMes,
+        'valor_credito' => $valorMesAnterior,
+    ]);
+    $upsertCredito->execute([
+        'prescritor' => $prescritor,
+        'visitador' => $visitadorSave,
+        'comp_ano' => $nextAno,
+        'comp_mes' => $nextMes,
+        'ref_ano' => $curAno,
+        'ref_mes' => $curMes,
+        'valor_credito' => $valorMesAtual,
+    ]);
+
+    $resumoAtual = bonusGetResumoForNames($pdo, [$prescritor]);
+    $totalCredito = isset($resumoAtual[$prescritor]) ? (float)$resumoAtual[$prescritor]['total_credito'] : 0.0;
+    $totalDebito = isset($resumoAtual[$prescritor]) ? (float)$resumoAtual[$prescritor]['total_debito'] : 0.0;
+
+    $targetDebito = $totalDebito;
+    if ($saldoInformado) {
+        $targetDebito = round($totalCredito - $valorSaldo, 2);
+    } elseif ($utilizadasInformadas) {
+        $targetDebito = $valorUtilizadas;
+    }
+    if ($saldoInformado || $utilizadasInformadas) {
+        $ajuste = round($targetDebito - $totalDebito, 2);
+        if (abs($ajuste) >= 0.01) {
+            $insAdj = $pdo->prepare("
+                INSERT INTO prescritor_bonus_debitos
+                    (prescritor, visitador, numero_pedido, serie_pedido, valor_debito, data_debito, usuario_id, usuario_nome, observacao, criado_em)
+                VALUES
+                    (:prescritor, :visitador, 0, 0, :valor, :data_debito, :uid, :unome, :obs, NOW())
+            ");
+            $insAdj->execute([
+                'prescritor' => $prescritor,
+                'visitador' => $visitadorSave,
+                'valor' => $ajuste,
+                'data_debito' => $now->format('Y-m-d'),
+                'uid' => (int)($_SESSION['user_id'] ?? 0),
+                'unome' => trim((string)($_SESSION['user_nome'] ?? 'Usuário')),
+                'obs' => 'Ajuste administrativo de bonificação',
+            ]);
+        }
+    }
+    $novo = bonusGetExtrato($pdo, $prescritor);
+    echo json_encode(['success' => true, 'message' => 'Resumo de bonificação atualizado.', 'data' => $novo], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($action === 'bonus_debito_update') {
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Método inválido.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $setor = (string)($_SESSION['user_setor'] ?? '');
+    $tipo = (string)($_SESSION['user_tipo'] ?? '');
+    if (!bonusCanDebit($setor, $tipo)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Perfil sem permissão para editar lançamento.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    $csrfToken = trim((string)($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($payload['csrf_token'] ?? '')));
+    if (!validateCsrfToken($csrfToken)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Token CSRF inválido.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $id = (int)($payload['id'] ?? 0);
+    $prescritor = trim((string)($payload['prescritor'] ?? ''));
+    $numeroPedido = (int)($payload['numero_pedido'] ?? 0);
+    $seriePedido = (int)($payload['serie_pedido'] ?? 0);
+    $valorDebito = round((float)($payload['valor_debito'] ?? 0), 2);
+    $dataDebito = trim((string)($payload['data_debito'] ?? ''));
+    $observacao = trim((string)($payload['observacao'] ?? ''));
+    if ($id <= 0 || $prescritor === '' || $valorDebito <= 0 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDebito)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Dados inválidos para edição do lançamento.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $curSt = $pdo->prepare("SELECT valor_debito FROM prescritor_bonus_debitos WHERE id = :id AND prescritor = :p LIMIT 1");
+    $curSt->execute(['id' => $id, 'p' => $prescritor]);
+    $cur = $curSt->fetch(PDO::FETCH_ASSOC);
+    if (!$cur) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => 'Lançamento não encontrado.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $currentValor = (float)($cur['valor_debito'] ?? 0);
+    $resumo = bonusGetResumoForNames($pdo, [$prescritor]);
+    $totalCredito = isset($resumo[$prescritor]) ? (float)$resumo[$prescritor]['total_credito'] : 0.0;
+    $totalDebito = isset($resumo[$prescritor]) ? (float)$resumo[$prescritor]['total_debito'] : 0.0;
+    $novoTotalDebito = $totalDebito - $currentValor + $valorDebito;
+    if ($novoTotalDebito - $totalCredito > 0.0001) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Valor do lançamento excede saldo disponível.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $upd = $pdo->prepare("
+        UPDATE prescritor_bonus_debitos
+        SET numero_pedido = :numero_pedido,
+            serie_pedido = :serie_pedido,
+            valor_debito = :valor_debito,
+            data_debito = :data_debito,
+            observacao = :observacao
+        WHERE id = :id AND prescritor = :prescritor
+    ");
+    $upd->execute([
+        'numero_pedido' => $numeroPedido,
+        'serie_pedido' => $seriePedido,
+        'valor_debito' => $valorDebito,
+        'data_debito' => $dataDebito,
+        'observacao' => ($observacao !== '' ? $observacao : null),
+        'id' => $id,
+        'prescritor' => $prescritor,
+    ]);
+    echo json_encode(['success' => true, 'message' => 'Lançamento atualizado com sucesso.'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($action === 'bonus_debito_delete') {
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Método inválido.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $setor = (string)($_SESSION['user_setor'] ?? '');
+    $tipo = (string)($_SESSION['user_tipo'] ?? '');
+    if (!bonusCanDebit($setor, $tipo)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Perfil sem permissão para excluir lançamento.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    $csrfToken = trim((string)($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($payload['csrf_token'] ?? '')));
+    if (!validateCsrfToken($csrfToken)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Token CSRF inválido.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $id = (int)($payload['id'] ?? 0);
+    $prescritor = trim((string)($payload['prescritor'] ?? ''));
+    if ($id <= 0 || $prescritor === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Dados inválidos para exclusão.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $del = $pdo->prepare("DELETE FROM prescritor_bonus_debitos WHERE id = :id AND prescritor = :prescritor");
+    $del->execute(['id' => $id, 'prescritor' => $prescritor]);
+    echo json_encode(['success' => true, 'message' => 'Lançamento excluído com sucesso.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 

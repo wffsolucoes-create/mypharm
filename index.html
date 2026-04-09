@@ -11,6 +11,7 @@
     <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
     <link rel="apple-touch-icon" href="imagens/IconeMyPharm.png?v=20260402">
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/ui-feedback.css">
     <link rel="stylesheet" href="css/login.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -465,7 +466,7 @@
                     <i class="fas fa-user-md"></i>
                     <span>Prescritores</span>
                 </a>
-                <a class="nav-item" href="bonificacoes.html" target="_blank" rel="noopener noreferrer">
+                <a class="nav-item" data-page="bonificacoes" onclick="navigateTo('bonificacoes')">
                     <i class="fas fa-gift"></i>
                     <span>Bonificações</span>
                 </a>
@@ -1089,6 +1090,93 @@
                 </div>
             </div>
 
+            <!-- ==================== BONIFICACOES PAGE ==================== -->
+            <div id="page-bonificacoes" class="section-page">
+                <div class="page-content">
+                    <div class="chart-card" style="margin-bottom:14px;">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Painel de bonificação</div>
+                                <div class="chart-subtitle" id="idxBonusMetaPeriodo">Carregando período...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-label">Bonificação Mês Anterior</div>
+                            <div class="kpi-value" id="idxBonusCardMesAnterior">R$ 0,00</div>
+                            <div class="kpi-sub">Crédito disponível no mês atual</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Bonificação Mês Atual</div>
+                            <div class="kpi-value" id="idxBonusCardMesAtualBonificar">R$ 0,00</div>
+                            <div class="kpi-sub">Valor gerado para o próximo mês</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Bonificações Utilizadas</div>
+                            <div class="kpi-value" id="idxBonusCardUtilizadas">R$ 0,00</div>
+                            <div class="kpi-sub">Total de débitos lançados</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Saldo de Bonificação</div>
+                            <div class="kpi-value bonus-saldo" id="idxBonusCardSaldo">R$ 0,00</div>
+                            <div class="kpi-sub">Saldo restante por prescritor</div>
+                        </div>
+                    </div>
+
+                    <div class="chart-card" style="margin-top:14px;">
+                        <div class="chart-header">
+                            <div>
+                                <div class="chart-title">Prescritores com bonificação</div>
+                                <div class="chart-subtitle">Use a busca para filtrar e clique no ícone na coluna Ações.</div>
+                            </div>
+                        </div>
+                        <div class="chart-body" style="padding:14px;">
+                            <div class="bonus-toolbar">
+                                <select id="idxBonusFiltroVisitador" class="bonus-filter-select">
+                                    <option value="">Todos os visitadores</option>
+                                </select>
+                                <input id="idxBonusBuscaPrescritor" class="bonus-search" placeholder="Buscar prescritor...">
+                            </div>
+                            <div class="bonus-table-wrap">
+                                <table class="bonus-table">
+                                    <thead>
+                                    <tr>
+                                        <th id="idxBonusThPrescritor" class="sortable">Prescritor</th>
+                                        <th id="idxBonusThVisitador" class="sortable">Visitador</th>
+                                        <th class="num sortable" id="idxBonusThMesAnterior">Bonif. mês anterior</th>
+                                        <th class="num sortable" id="idxBonusThMesAtual">Bonif. mês atual (a bonificar)</th>
+                                        <th class="num sortable" id="idxBonusThUtilizadas">Bonificações utilizadas</th>
+                                        <th class="num sortable" id="idxBonusThSaldo">Saldo de bonificação</th>
+                                        <th style="width:120px; text-align:center;">Ações</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="idxBonusTbodyControle">
+                                    <tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin"></i> Carregando...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="bonus-pager" id="idxBonusPager" style="display:none;">
+                                <div class="bonus-pager-info" id="idxBonusPagerInfo">-</div>
+                                <div class="bonus-pager-controls">
+                                    <label for="idxBonusPageSize" class="bonus-pager-info">Linhas</label>
+                                    <select id="idxBonusPageSize" class="bonus-pager-size">
+                                        <option value="10">10</option>
+                                        <option value="25" selected>25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                    <button id="idxBonusPagerPrev" type="button" class="bonus-pager-btn">Anterior</button>
+                                    <span class="bonus-pager-info" id="idxBonusPagerMeta">Página 1/1</span>
+                                    <button id="idxBonusPagerNext" type="button" class="bonus-pager-btn">Próxima</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- ==================== CLIENTES PAGE ==================== -->
             <div id="page-clientes" class="section-page">
                 <div class="page-content">
@@ -1433,6 +1521,17 @@
                     style="max-width:min(96vw,980px); max-height:88vh; border-radius:12px; border:1px solid rgba(255,255,255,0.18); box-shadow:0 20px 60px rgba(0,0,0,0.45); background:#0f172a;">
             </div>
 
+            <!-- Modal Bonificações (módulo interno da index) -->
+            <div id="idxBonusModalControl" class="bonus-modal">
+                <div class="bonus-modal-box">
+                    <div class="bonus-modal-head">
+                        <h3 id="idxBonusModalTitle" class="bonus-modal-title"><i class="fas fa-gift"></i>Bônus do prescritor</h3>
+                        <button class="bonus-close-btn" onclick="idxBonusCloseModal()">&times;</button>
+                    </div>
+                    <div id="idxBonusModalBody" class="bonus-modal-body"></div>
+                </div>
+            </div>
+
             <!-- ===== MODAL: Adicionar Usuário ===== -->
             <div class="modal-overlay" id="modalAddUser" style="display:none;">
                 <div class="modal-content">
@@ -1713,6 +1812,7 @@
         })();
     </script>
     <!-- defer: executa após Chart.js/Leaflet (também defer no <head>), nesta ordem -->
+    <script defer src="js/ui-feedback.js"></script>
     <script defer src="js/app.js?v=20260401-dashboard-periodo"></script>
 </body>
 
