@@ -269,6 +269,15 @@
         return { labels: evoLabels, datasets: evoDatasets };
     }
 
+    function gcOpenVendedorPage(vendedoraNome) {
+        var nome = String(vendedoraNome || '').trim();
+        var url = 'vendedor.html';
+        if (nome) {
+            url += '?vendedora=' + encodeURIComponent(nome);
+        }
+        window.location.href = url;
+    }
+
     var GC_VEND_EVO_CHART_KEYS = ['vendEvolucao', 'vendEvolucaoAprov', 'vendEvolucaoRej'];
 
     function gcVendEvoPrimeiroChartComSeries() {
@@ -2717,6 +2726,19 @@
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
+                    onClick: function (evt, elements) {
+                        if (!elements || !elements.length) return;
+                        var idx = elements[0].index;
+                        if (typeof idx !== 'number' || idx < 0 || idx >= equipe.length) return;
+                        var nome = String((equipe[idx] && equipe[idx].atendente) || '').trim();
+                        gcOpenVendedorPage(nome);
+                    },
+                    onHover: function (evt, elements) {
+                        var canvas = evt && evt.native ? evt.native.target : null;
+                        if (canvas && canvas.style) {
+                            canvas.style.cursor = (elements && elements.length) ? 'pointer' : 'default';
+                        }
+                    },
                     plugins: {
                         legend: { display: false },
                         tooltip: {

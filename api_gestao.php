@@ -607,13 +607,27 @@ function handleVendedorDashboardGestao(PDO $pdo): void
     try {
         $stDur = $pdo->prepare("
             SELECT
-                COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS vendedor,
-                ROUND(AVG(TIMESTAMPDIFF(MINUTE, gp.data_orcamento, gp.data_aprovacao)), 0) AS duracao_media_min
-            FROM gestao_pedidos gp
-            WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
-              AND gp.data_orcamento IS NOT NULL AND gp.data_aprovacao IS NOT NULL
-              AND {$approvedCase}
-            GROUP BY COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
+                base.vendedor,
+                ROUND(AVG(TIMESTAMPDIFF(MINUTE, base.data_orcamento_ref, base.data_aprovacao_ref)), 0) AS duracao_media_min
+            FROM (
+                SELECT
+                    COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS vendedor,
+                    gp.ano_referencia,
+                    gp.numero_pedido,
+                    MIN(gp.data_orcamento) AS data_orcamento_ref,
+                    MIN(gp.data_aprovacao) AS data_aprovacao_ref
+                FROM gestao_pedidos gp
+                WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
+                  AND gp.data_orcamento IS NOT NULL
+                  AND gp.data_aprovacao IS NOT NULL
+                  AND gp.data_aprovacao >= gp.data_orcamento
+                  AND {$approvedCase}
+                GROUP BY
+                    COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)'),
+                    gp.ano_referencia,
+                    gp.numero_pedido
+            ) base
+            GROUP BY base.vendedor
         ");
         $stDur->execute(['de' => $dataDe, 'ate' => $dataAte]);
         foreach ($stDur->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
@@ -1478,13 +1492,27 @@ function handleTvCorridaVendedores(PDO $pdo): void
     try {
         $stDur = $pdo->prepare("
             SELECT
-                COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS vendedor,
-                ROUND(AVG(TIMESTAMPDIFF(MINUTE, gp.data_orcamento, gp.data_aprovacao)), 0) AS duracao_media_min
-            FROM gestao_pedidos gp
-            WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
-              AND gp.data_orcamento IS NOT NULL AND gp.data_aprovacao IS NOT NULL
-              AND {$approvedCase}
-            GROUP BY COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)')
+                base.vendedor,
+                ROUND(AVG(TIMESTAMPDIFF(MINUTE, base.data_orcamento_ref, base.data_aprovacao_ref)), 0) AS duracao_media_min
+            FROM (
+                SELECT
+                    COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') AS vendedor,
+                    gp.ano_referencia,
+                    gp.numero_pedido,
+                    MIN(gp.data_orcamento) AS data_orcamento_ref,
+                    MIN(gp.data_aprovacao) AS data_aprovacao_ref
+                FROM gestao_pedidos gp
+                WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
+                  AND gp.data_orcamento IS NOT NULL
+                  AND gp.data_aprovacao IS NOT NULL
+                  AND gp.data_aprovacao >= gp.data_orcamento
+                  AND {$approvedCase}
+                GROUP BY
+                    COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)'),
+                    gp.ano_referencia,
+                    gp.numero_pedido
+            ) base
+            GROUP BY base.vendedor
         ");
         $stDur->execute(['de' => $dataDe, 'ate' => $dataAte]);
         foreach ($stDur->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {

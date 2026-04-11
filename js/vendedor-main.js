@@ -216,6 +216,7 @@
         currentPedido: null
     };
     let currentSession = null;
+    let forcedVendedoraView = '';
     let perdasSearchDebounce = null;
     const vendedorPedidosState = {
         list: [],
@@ -227,6 +228,29 @@
         dataDe: '',
         dataAte: ''
     };
+
+    function getForcedVendedoraFromUrl() {
+        try {
+            var qs = new URLSearchParams(window.location.search || '');
+            var nome = String(qs.get('vendedora') || qs.get('vendedor') || '').trim();
+            return nome;
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function getDashboardVendedoraName(session) {
+        var sessionTipo = String((session && session.tipo) || '').trim().toLowerCase();
+        if (sessionTipo === 'admin' && forcedVendedoraView) {
+            return forcedVendedoraView;
+        }
+        return (session && session.nome) ? String(session.nome).trim() : (localStorage.getItem('userName') || 'Vendedor').trim();
+    }
+
+    function getAdminVendedoraApiParam(session) {
+        var sessionTipo = String((session && session.tipo) || '').trim().toLowerCase();
+        return (sessionTipo === 'admin' && forcedVendedoraView) ? forcedVendedoraView : '';
+    }
 
     function sortVendedorPedidosList(list, col, dir) {
         const d = dir === 'asc' ? 1 : -1;
@@ -434,9 +458,11 @@
         if (dataAteEl && !dataAteEl.value) dataAteEl.value = vendedorPedidosState.dataAte;
 
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>';
+        const apiVendedora = getAdminVendedoraApiParam(currentSession);
         const resp = await apiGet('vendedor_pedidos_lista', {
             data_de: (dataDeEl && dataDeEl.value) ? dataDeEl.value : vendedorPedidosState.dataDe,
-            data_ate: (dataAteEl && dataAteEl.value) ? dataAteEl.value : vendedorPedidosState.dataAte
+            data_ate: (dataAteEl && dataAteEl.value) ? dataAteEl.value : vendedorPedidosState.dataAte,
+            vendedor: apiVendedora
         });
         if (!resp || resp.success === false) {
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--danger); font-size:0.9rem;"><i class="fas fa-exclamation-circle" style="margin-right:8px;"></i>Erro ao carregar pedidos.</td></tr>';
@@ -813,9 +839,11 @@
         const range = (perdasState.dataDe && perdasState.dataAte)
             ? { data_de: perdasState.dataDe, data_ate: perdasState.dataAte }
             : currentMonthRange();
+        const apiVendedora = getAdminVendedoraApiParam(currentSession);
         const data = await apiGet('vendedor_pedidos_lista', {
             data_de: range.data_de,
-            data_ate: range.data_ate
+            data_ate: range.data_ate,
+            vendedor: apiVendedora
         });
         if (!data || data.success === false) {
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Erro ao carregar pedidos perdidos.</td></tr>';
@@ -1208,7 +1236,7 @@
 
     async function loadMetas(session) {
         hideError();
-        const nome = (session && session.nome) ? String(session.nome).trim() : (localStorage.getItem('userName') || 'Vendedor').trim();
+        const nome = getDashboardVendedoraName(session);
         setText('vdUserName', nome);
         setText('vdAvatar', nome ? nome.charAt(0).toUpperCase() : 'V');
 
@@ -1274,13 +1302,24 @@
         var perdaPontos = Math.max(0, 100 - scoreTotal);
         var qtdAprovados = me ? Number(me.total_deals_ganhos || me.linhas_aprovadas || 0) : 0;
         var qtdReprovados = me ? Number(me.total_deals_perdidos || me.linhas_perdidas || 0) : 0;
+        var baseConversaoPedidos = qtdAprovados + qtdReprovados;
+        var taxaConversaoPedidos = baseConversaoPedidos > 0
+            ? (qtdAprovados / baseConversaoPedidos) * 100
+            : null;
         var valorAprovado = faturamento_mes;
         var valorReprovado = me ? Number(me.valor_rejeitado || 0) : 0;
         var ticketMedioAprovado = qtdAprovados > 0 ? (valorAprovado / qtdAprovados) : 0;
         var ticketMedioReprovado = qtdReprovados > 0 ? (valorReprovado / qtdReprovados) : 0;
-        setText('vdTaxaConversao', taxaConvLinhas != null && !isNaN(taxaConvLinhas) && me && ((me.linhas_aprovadas || 0) > 0 || (me.linhas_orcamento || 0) > 0 || (me.linhas_perdidas || 0) > 0)
-            ? formatPercent(taxaConvLinhas)
-            : formatPercent(pctMeta));
+        // Regra de exibição alinhada com o subtítulo do card: aprovados x recus./carrinho.
+        setText('vdTaxaConversao',
+            taxaConversaoPedidos != null && !isNaN(taxaConversaoPedidos)
+                ? formatPercent(taxaConversaoPedidos)
+                : (
+                    taxaConvLinhas != null && !isNaN(taxaConvLinhas) && me && ((me.linhas_aprovadas || 0) > 0 || (me.linhas_orcamento || 0) > 0 || (me.linhas_perdidas || 0) > 0)
+                        ? formatPercent(taxaConvLinhas)
+                        : formatPercent(pctMeta)
+                )
+        );
         if (me && (me.linhas_aprovadas > 0 || me.linhas_orcamento > 0 || me.linhas_perdidas > 0)) {
             const aprovDist = Number(me.total_deals_ganhos || me.linhas_aprovadas || 0);
             const perdDist = Number(me.total_deals_perdidos || me.linhas_perdidas || 0);
@@ -1637,6 +1676,7 @@
 
     document.addEventListener('DOMContentLoaded', async function () {
         loadSavedTheme();
+        forcedVendedoraView = getForcedVendedoraFromUrl();
         const session = await enforceVendedorAccess();
         if (!session) {
             var loader = document.getElementById('vdLoadingOverlay');
