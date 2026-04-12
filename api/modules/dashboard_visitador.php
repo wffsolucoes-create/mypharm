@@ -2292,27 +2292,14 @@ function dashboardListPedidosAdminPeriodo(
         DATE(gpad.dt_apr)
     )";
 
-    // Se expandRecusados, busca recusados/carrinho sem restrição de data rigorosa
-    if ($expandRecusados) {
-        // Apenas :ini é usado na query expandida — não incluir :fim (PDO falha com param não usado quando emulation=off)
-        $paramsR = ['ini' => $ini];
-        $whereR = "i.ano_referencia >= YEAR(:ini) - 1
-            AND $statusRecusadoSql";
-    } else {
-        // Alinhado ao vendedor_pedidos_lista: período por data do item OU por fallback (gestão/subquery).
-        $paramsR = ['ini' => $ini, 'fim' => $fim];
-        $paramsR['ini_item'] = $ini;
-        $paramsR['fim_item'] = $fim;
-        $whereR = "i.ano_referencia BETWEEN YEAR(:ini) AND YEAR(:fim)
-            AND $statusRecusadoSql
-            AND (
-                DATE($dataRefExpr) BETWEEN :ini AND :fim
-                OR (
-                    NULLIF(NULLIF(i.data, ''), '0000-00-00') IS NOT NULL
-                    AND DATE(i.data) BETWEEN :ini_item AND :fim_item
-                )
-            ) ";
-    }
+    // Recusados/carrinho: sempre filtra pelo período usando i.data (data do orçamento)
+    // Usar literais para YEAR() evita named-param duplicado que causa erro no PDO com emulation=off
+    $yIniLit = (int) substr($ini, 0, 4);
+    $yFimLit = (int) substr($fim, 0, 4);
+    $paramsR = ['ini' => $ini, 'fim' => $fim];
+    $whereR = "i.ano_referencia BETWEEN $yIniLit AND $yFimLit
+        AND $statusRecusadoSql
+        AND DATE(COALESCE(NULLIF(NULLIF(i.data, ''), '0000-00-00'), DATE($dataRefExpr))) BETWEEN :ini AND :fim";
     $joinVisit = '';
     if ($visitadorCarteira !== '') {
         $joinVisit = ' INNER JOIN prescritores_cadastro pc2
@@ -2387,18 +2374,14 @@ function dashboardListPedidosAdminPeriodo(
     }
 
     // Fonte adicional: reprovados frequentemente só em gestao_pedidos (CSV gestão), não em itens_orcamentos_pedidos.
-    $whereRG = "(gp.status_financeiro IN ('Recusado', 'Cancelado', $orcEncoded) OR gp.status_financeiro LIKE '%carrinho%')";
-    if ($expandRecusados) {
-        // Apenas :ini é usado — montar params mínimos para evitar erro de parâmetro não usado
-        $paramsRG = ['ini' => $ini];
-        if (!empty($paramsA['viscar'])) $paramsRG['viscar'] = $paramsA['viscar'];
-        if (!empty($paramsA['pfa'])) $paramsRG['pfa'] = $paramsA['pfa'];
-        if (!empty($paramsA['vfa'])) $paramsRG['vfa'] = $paramsA['vfa'];
-        $whereRG .= ' AND gp.ano_referencia >= YEAR(:ini) - 1';
-    } else {
-        $paramsRG = $paramsA;
-        $whereRG .= ' AND DATE(COALESCE(gp.data_aprovacao, gp.data_orcamento)) BETWEEN :ini AND :fim';
-    }
+    // Sempre filtra pelo período usando data_orcamento como referência para recusados
+    $paramsRG = ['ini' => $ini, 'fim' => $fim];
+    if (!empty($paramsA['viscar'])) $paramsRG['viscar'] = $paramsA['viscar'];
+    if (!empty($paramsA['pfa'])) $paramsRG['pfa'] = $paramsA['pfa'];
+    if (!empty($paramsA['vfa'])) $paramsRG['vfa'] = $paramsA['vfa'];
+    $whereRG = "(gp.status_financeiro IN ('Recusado', 'Cancelado', $orcEncoded) OR gp.status_financeiro LIKE '%carrinho%')
+        AND gp.ano_referencia BETWEEN $yIniLit AND $yFimLit
+        AND DATE(COALESCE(gp.data_orcamento, gp.data_aprovacao)) BETWEEN :ini AND :fim";
     if ($visitadorCarteira !== '') {
         $whereRG .= ' AND TRIM(COALESCE(pc.visitador, \'\')) = TRIM(:viscar) ';
     }
