@@ -470,8 +470,21 @@
         }
         const aprov = Array.isArray(resp.aprovados) ? resp.aprovados : [];
         const rec = Array.isArray(resp.recusados_carrinho) ? resp.recusados_carrinho : [];
-        vendedorPedidosState.list = aprov.map(function (p) { return { ...p, tipo: 'Aprovado' }; })
-            .concat(rec.map(function (p) { return { ...p, tipo: 'Recusado' }; }));
+        vendedorPedidosState.list = aprov.map(function (p) { return { ...p, tipo: 'Aprovado' }; }).concat(
+            rec.map(function (p) {
+                const st = String(p.status_origem || '').toLowerCase();
+                const tipo =
+                    st.indexOf('carrinho') !== -1
+                        ? 'No carrinho'
+                        : st.indexOf('recusad') !== -1 ||
+                            st.indexOf('cancelad') !== -1 ||
+                            st.indexOf('orçamento') !== -1 ||
+                            st.indexOf('orcamento') !== -1
+                          ? 'Recusado'
+                          : 'No carrinho';
+                return { ...p, tipo: tipo };
+            })
+        );
         vendedorPedidosState.page = 1;
         vendedorPedidosState.expanded = {};
         renderVendedorPedidos();

@@ -2011,6 +2011,30 @@ body.gc-compact-ui .gc-rd-motivos-wrap {
     background: linear-gradient(90deg, #2563eb, #1d4ed8);
 }
 
+#gc-section-relatorios .gc-pedidos-vd-card--accent-neutral::before {
+    background: linear-gradient(90deg, #2563eb, #1d4ed8);
+}
+
+#gc-section-relatorios .gc-pedidos-vd-card--accent-success::before {
+    background: linear-gradient(90deg, #059669, #047857);
+}
+
+#gc-section-relatorios .gc-pedidos-vd-card--accent-danger::before {
+    background: linear-gradient(90deg, #dc2626, #b91c1c);
+}
+
+#gc-section-relatorios .gc-pedidos-vd-card--accent-danger-soft::before {
+    background: linear-gradient(90deg, #e11d48, #be123c);
+}
+
+#gc-section-relatorios .gc-pedidos-vd-card-sublabel {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-top: 8px;
+    line-height: 1.35;
+}
+
 #gc-section-relatorios .gc-pedidos-vd-card-label {
     font-size: 0.72rem;
     font-weight: 700;

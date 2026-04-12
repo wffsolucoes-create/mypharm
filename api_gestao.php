@@ -58,6 +58,7 @@ $allowedActions = [
     'gestao_comercial_comissao_regras_get',
     'gestao_comercial_comissao_regras_salvar',
     'gestao_comercial_vendas_relatorio',
+    'gestao_comercial_pedidos_visitador_style',
     'gestao_rd_metricas',
     'gestao_rejeitados_rd',
     'vendedor_dashboard_rd',
@@ -1787,6 +1788,50 @@ function handleVendedorPedidosLista(PDO $pdo): void
     $stRec = $pdo->prepare($sqlRecusados);
     $stRec->execute(['de' => $dataDe, 'ate' => $dataAte, 'vend' => $vendedor]);
     $recusados = $stRec->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    // Mesma linha da gestão comercial: reprovados que existem só em gestao_pedidos (sem linha em itens com status recusado).
+    $recMap = [];
+    foreach ($recusados as $r) {
+        $k = (int) ($r['numero_pedido'] ?? 0) . '_' . (int) ($r['serie_pedido'] ?? 0);
+        $recMap[$k] = $r;
+    }
+    $sqlRecGestao = "
+        SELECT
+            MAX(gp.ano_referencia) AS ano_referencia,
+            CAST(gp.numero_pedido AS CHAR) AS numero_pedido,
+            CAST(COALESCE(gp.serie_pedido, 0) AS CHAR) AS serie_pedido,
+            NULL AS data_aprovacao,
+            DATE(MAX(COALESCE(gp.data_orcamento, gp.data_aprovacao))) AS data_orcamento,
+            COALESCE(NULLIF(TRIM(MAX(gp.prescritor)), ''), '(Sem prescritor)') AS prescritor,
+            COALESCE(NULLIF(TRIM(MAX(gp.cliente)), ''), '(Sem cliente)') AS cliente,
+            '' AS contato,
+            ROUND(COALESCE(SUM(gp.preco_liquido), 0), 2) AS valor,
+            LOWER(TRIM(MAX(COALESCE(gp.status_financeiro, '')))) AS status_origem
+        FROM gestao_pedidos gp
+        WHERE (
+                gp.status_financeiro IN ('Recusado', 'Cancelado', CONCAT('Or', CHAR(231), 'amento'))
+                OR gp.status_financeiro LIKE '%carrinho%'
+            )
+          AND DATE(COALESCE(gp.data_aprovacao, gp.data_orcamento)) BETWEEN :de AND :ate
+          AND COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') = :vend
+        GROUP BY gp.numero_pedido, gp.serie_pedido
+        ORDER BY MAX(gp.data_orcamento) DESC, gp.numero_pedido DESC, gp.serie_pedido DESC
+        LIMIT 5000
+    ";
+    try {
+        $stRg = $pdo->prepare($sqlRecGestao);
+        $stRg->execute(['de' => $dataDe, 'ate' => $dataAte, 'vend' => $vendedor]);
+        foreach ($stRg->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $k = (int) ($row['numero_pedido'] ?? 0) . '_' . (int) ($row['serie_pedido'] ?? 0);
+            if (isset($recMap[$k])) {
+                continue;
+            }
+            $recMap[$k] = $row;
+        }
+    } catch (Throwable $e) {
+        /* mantém só itens */
+    }
+    $recusados = array_values($recMap);
 
     echo json_encode([
         'success' => true,
