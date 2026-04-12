@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/ui-feedback.css">
-    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260411-relatorios-refactor">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260411-topbar-period">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body class="gc-compact-ui">
@@ -81,6 +81,19 @@
                     </div>
                 </div>
                 <div class="topbar-right">
+                    <div class="gc-topbar-period-wrap">
+                        <span class="gc-topbar-period-label">Período</span>
+                        <div class="gc-topbar-period-inputs">
+                            <label class="gc-topbar-date-label" for="gcDataDe">De</label>
+                            <input type="date" id="gcDataDe" class="gc-filter-date-input" autocomplete="off" title="Data inicial">
+                            <span class="gc-topbar-period-sep">até</span>
+                            <label class="gc-topbar-date-label" for="gcDataAte">Até</label>
+                            <input type="date" id="gcDataAte" class="gc-filter-date-input" autocomplete="off" title="Data final">
+                        </div>
+                    </div>
+                    <button type="button" id="gcApplyFiltersBtn" class="gc-filter-btn" title="Atualizar dados">
+                        <i class="fas fa-sync-alt" aria-hidden="true"></i>
+                    </button>
                     <button type="button" class="topbar-btn" id="gcThemeBtn" title="Alternar tema claro/escuro" aria-label="Alternar tema claro ou escuro" aria-pressed="false">
                         <i class="fas fa-circle-half-stroke" aria-hidden="true"></i>
                     </button>
@@ -91,21 +104,6 @@
             </div>
 
             <main id="gcMain" class="page-content gc-analytics" tabindex="-1">
-                <fieldset class="gc-filters">
-                    <legend class="gc-filters-legend">Período do relatório</legend>
-                    <div class="gc-filters-row">
-                        <label>Data inicial
-                            <input type="date" id="gcDataDe" autocomplete="off" aria-describedby="gcFiltersHint">
-                        </label>
-                        <label>Data final
-                            <input type="date" id="gcDataAte" autocomplete="off" aria-describedby="gcFiltersHint">
-                        </label>
-                        <button type="button" id="gcApplyFiltersBtn" class="gc-filter-btn" aria-describedby="gcFiltersHint">
-                            <i class="fas fa-sync-alt" aria-hidden="true"></i> Atualizar dados
-                        </button>
-                    </div>
-                    <p id="gcFiltersHint" class="gc-filters-hint">Os gráficos e tabelas refletem pedidos e movimentos no intervalo acima.</p>
-                </fieldset>
                 <section class="gc-section" id="gc-section-executivo" role="tabpanel" aria-labelledby="gc-tab-executivo" aria-hidden="true">
                     <header class="gc-tab-head">
                         <p class="gc-tab-head__kicker">Painel executivo</p>
