@@ -2096,13 +2096,44 @@
             const p = n.split('.');
             return 'R$ ' + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + p[1];
         };
-        const cardValor = document.getElementById('gcPedidosRelCardValor');
-        const cardQty = document.getElementById('gcPedidosRelCardQtd');
+        let sumValorAprov = 0;
+        let sumValorReprov = 0;
+        let sumValorRecusados = 0;
+        let qtdLinhasRecusado = 0;
+        groupedList.forEach(function (g) {
+            (g.rows || []).forEach(function (r) {
+                const t = String(r.tipo || '');
+                const v = parseFloat(r.valor) || 0;
+                if (t === 'Aprovado') {
+                    sumValorAprov += v;
+                }
+                if (t === 'Recusado' || t === 'No carrinho') {
+                    sumValorReprov += v;
+                }
+                if (t === 'Recusado') {
+                    sumValorRecusados += v;
+                    qtdLinhasRecusado += 1;
+                }
+            });
+        });
         const totalValor = groupedList.reduce(function (acc, p) {
             return acc + (parseFloat(p.valor) || 0);
         }, 0);
+        const cardValor = document.getElementById('gcPedidosRelCardValor');
+        const cardQty = document.getElementById('gcPedidosRelCardQtd');
+        const cardValorAprov = document.getElementById('gcPedidosRelCardValorAprov');
+        const cardValorReprov = document.getElementById('gcPedidosRelCardValorReprov');
+        const cardValorRecusados = document.getElementById('gcPedidosRelCardValorRecusados');
+        const cardQtdRecusados = document.getElementById('gcPedidosRelCardQtdRecusados');
         if (cardValor) cardValor.textContent = fmtBr(totalValor);
         if (cardQty) cardQty.textContent = groupedList.length + ' pedido' + (groupedList.length !== 1 ? 's' : '');
+        if (cardValorAprov) cardValorAprov.textContent = fmtBr(sumValorAprov);
+        if (cardValorReprov) cardValorReprov.textContent = fmtBr(sumValorReprov);
+        if (cardValorRecusados) cardValorRecusados.textContent = fmtBr(sumValorRecusados);
+        if (cardQtdRecusados) {
+            cardQtdRecusados.textContent =
+                String(qtdLinhasRecusado) + ' série' + (qtdLinhasRecusado !== 1 ? 's' : '');
+        }
         const esc = function (x) {
             return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
         };
@@ -2173,13 +2204,17 @@
                     const n = p.numero_pedido;
                     const s = p.serie_pedido;
                     const sNum = s === null || s === undefined || s === '' ? 0 : s;
+                    const anoRow =
+                        p.ano_referencia != null && String(p.ano_referencia).trim() !== ''
+                            ? String(p.ano_referencia).trim()
+                            : String(anoRef);
                     html +=
                         '<tr role="button" tabindex="0" onclick="gcOpenModalDetalhePedidoGc(' +
                         n +
                         ',' +
                         sNum +
                         ',\'' +
-                        String(anoRef).replace(/'/g, "\\'") +
+                        anoRow.replace(/'/g, "\\'") +
                         '\')" style="cursor:pointer;background:rgba(148,163,184,0.02);" title="Ver detalhes da série">';
                     html += '<td style="padding-left:36px;color:var(--text-secondary);">↳ ' + esc(p.numero_pedido) + '</td>';
                     html += '<td>' + esc(serieStr(p)) + '</td>';
@@ -2272,6 +2307,22 @@
         const totalValor = groupedList.reduce(function (acc, g) {
             return acc + (parseFloat(g.valor) || 0);
         }, 0);
+        let sumAprovP = 0;
+        let sumReprovP = 0;
+        let sumRecP = 0;
+        let qtdRecP = 0;
+        groupedList.forEach(function (g) {
+            (g.rows || []).forEach(function (r) {
+                const t = String(r.tipo || '');
+                const v = parseFloat(r.valor) || 0;
+                if (t === 'Aprovado') sumAprovP += v;
+                if (t === 'Recusado' || t === 'No carrinho') sumReprovP += v;
+                if (t === 'Recusado') {
+                    sumRecP += v;
+                    qtdRecP += 1;
+                }
+            });
+        });
         let linhas = '';
         groupedList.forEach(function (g) {
             const cor = g.tipo === 'Aprovado' ? '#059669' : g.tipo === 'Recusado' ? '#dc2626' : '#111827';
@@ -2319,6 +2370,16 @@
             '</p>' +
             '<p style="font-size:0.9rem;"><strong>Total:</strong> ' +
             esc(fmtMoneyP(totalValor)) +
+            '</p>' +
+            '<p style="font-size:0.85rem;color:#444;">' +
+            '<strong>Valor aprovado:</strong> ' +
+            esc(fmtMoneyP(sumAprovP)) +
+            ' · <strong>Valor reprovado:</strong> ' +
+            esc(fmtMoneyP(sumReprovP)) +
+            ' · <strong>Valor (recusados):</strong> ' +
+            esc(fmtMoneyP(sumRecP)) +
+            ' · <strong>Qtd. séries recusadas:</strong> ' +
+            esc(String(qtdRecP)) +
             '</p>' +
             '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;"><thead><tr>' +
             '<th style="border:1px solid #ccc;padding:6px;">Nº</th><th style="border:1px solid #ccc;padding:6px;">Séries</th>' +
@@ -2378,7 +2439,19 @@
             .concat(
                 rec.map(function (p) {
                     const st = String(p.tipo_listagem || p.status_financeiro || '').toLowerCase();
-                    const tipo = st.indexOf('recusad') !== -1 ? 'Recusado' : 'No carrinho';
+                    let tipo = 'Recusado';
+                    if (st.indexOf('carrinho') !== -1) {
+                        tipo = 'No carrinho';
+                    } else if (
+                        st.indexOf('recusad') !== -1
+                        || st.indexOf('cancelad') !== -1
+                        || st.indexOf('orçamento') !== -1
+                        || st.indexOf('orcamento') !== -1
+                    ) {
+                        tipo = 'Recusado';
+                    } else {
+                        tipo = 'No carrinho';
+                    }
                     return Object.assign({}, p, { tipo: tipo });
                 })
             );
@@ -3873,6 +3946,12 @@
                 tab.classList.add('active');
                 if (tab.getAttribute('role') === 'tab') {
                     tab.setAttribute('aria-selected', 'true');
+                }
+                // Update page title based on selected section
+                const titleEl = document.getElementById('gcPageTitle');
+                if (titleEl) {
+                    const span = tab.querySelector('span');
+                    if (span) titleEl.textContent = span.textContent;
                 }
                 const section = document.getElementById(`gc-section-${target}`);
                 if (section) {
