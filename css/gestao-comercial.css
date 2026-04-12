@@ -2778,6 +2778,331 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     font-size: 0.88rem;
 }
 
+/* ===== RESPONSIVIDADE MOBILE/TABLET ===== */
+
+/* Mobile menu button */
+#gcMobileMenuBtn {
+    display: none;
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 101;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary);
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition), box-shadow var(--transition);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+#gcMobileMenuBtn:hover {
+    background: #2563eb;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+#gcMobileMenuBtn:active {
+    transform: scale(0.95);
+}
+
+/* Tablet - 768px e abaixo */
+@media (max-width: 768px) {
+    #gcMobileMenuBtn {
+        display: flex;
+    }
+
+    .sidebar {
+        transform: translateX(-100%);
+        width: var(--sidebar-width);
+        transition: transform var(--transition);
+        z-index: 100;
+        border-left: none;
+        position: fixed;
+        height: 100vh;
+        top: 0;
+        left: 0;
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+    }
+
+    .app-layout {
+        margin-top: 0;
+    }
+
+    .main-content {
+        margin-left: 0 !important;
+    }
+
+    /* Adjust topbar for mobile menu button */
+    .topbar {
+        margin-left: 60px;
+        flex-wrap: wrap;
+    }
+
+    .topbar-left {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .topbar-left h1 {
+        font-size: 1.3rem;
+        margin: 0;
+    }
+
+    .gc-topbar-subtitle {
+        font-size: 0.75rem;
+        margin-top: 2px;
+    }
+
+    .topbar-right {
+        width: 100%;
+        margin-top: 8px;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .gc-topbar-period-wrap {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 8px;
+    }
+
+    .gc-topbar-period-inputs {
+        width: 100%;
+    }
+
+    .gc-filter-date-input {
+        max-width: 100%;
+        flex: 1;
+        min-width: 100px;
+    }
+
+    /* Sections responsive */
+    .gc-section {
+        padding: 12px;
+    }
+
+    .gc-filter-panel {
+        padding: 12px;
+    }
+
+    .gc-filter-panel__label {
+        font-size: 0.85rem;
+    }
+
+    .gc-vendedor-tabs {
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .gc-vendedor-tabs button {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        flex: 1;
+        min-width: 100px;
+    }
+
+    /* Cards layout */
+    .gc-quick-kpis {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 8px;
+    }
+
+    .gc-kpi-card {
+        padding: 12px;
+    }
+
+    .gc-kpi-card__icon {
+        font-size: 1.8rem;
+        margin-bottom: 8px;
+    }
+
+    .gc-kpi-card__label {
+        font-size: 0.75rem;
+    }
+
+    .gc-kpi-card__value {
+        font-size: 1rem;
+    }
+
+    /* Charts responsive */
+    .gc-chart-panel {
+        padding: 12px;
+    }
+
+    .gc-chart-container {
+        max-height: 250px;
+    }
+
+    /* Tables responsive */
+    .gc-table {
+        font-size: 0.85rem;
+    }
+
+    .gc-table th,
+    .gc-table td {
+        padding: 8px 10px;
+    }
+
+    /* Modal responsive */
+    .gc-modal {
+        width: 95vw;
+        max-width: 95vw;
+        max-height: 90vh;
+        border-radius: 12px;
+    }
+
+    .gc-modal-header {
+        padding: 12px;
+    }
+
+    .gc-modal-title {
+        font-size: 1.1rem;
+    }
+
+    .gc-modal-body {
+        padding: 12px;
+        max-height: calc(90vh - 100px);
+        overflow-y: auto;
+    }
+
+    /* Filters responsive */
+    .gc-pedidos-vd-filters-row--main {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .gc-pedidos-vd-filter-box {
+        padding: 8px;
+    }
+
+    .gc-pedidos-vd-filter-box select,
+    .gc-pedidos-vd-filter-box input {
+        font-size: 0.9rem;
+        padding: 8px;
+    }
+
+    /* Button groups */
+    .gc-filter-btn,
+    .gc-action-btn {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+
+    .gc-btn-group {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .gc-btn-group button {
+        width: 100%;
+    }
+}
+
+/* Smartphones - 480px e abaixo */
+@media (max-width: 480px) {
+    #gcMobileMenuBtn {
+        width: 40px;
+        height: 40px;
+        top: 12px;
+        left: 12px;
+        font-size: 1rem;
+    }
+
+    .topbar {
+        margin-left: 54px;
+        padding: 8px;
+    }
+
+    .topbar-left h1 {
+        font-size: 1.1rem;
+    }
+
+    .gc-topbar-subtitle {
+        font-size: 0.7rem;
+        display: none;
+    }
+
+    .topbar-right {
+        margin-top: 4px;
+    }
+
+    .gc-section {
+        padding: 8px;
+    }
+
+    .gc-filter-panel {
+        padding: 8px;
+    }
+
+    .gc-vendedor-tabs button {
+        padding: 6px 8px;
+        font-size: 0.8rem;
+        min-width: 80px;
+    }
+
+    .gc-quick-kpis {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 6px;
+    }
+
+    .gc-kpi-card {
+        padding: 10px;
+    }
+
+    .gc-kpi-card__icon {
+        font-size: 1.5rem;
+        margin-bottom: 6px;
+    }
+
+    .gc-kpi-card__label {
+        font-size: 0.7rem;
+    }
+
+    .gc-kpi-card__value {
+        font-size: 0.95rem;
+    }
+
+    .gc-chart-container {
+        max-height: 200px;
+    }
+
+    .gc-table {
+        font-size: 0.8rem;
+    }
+
+    .gc-table th,
+    .gc-table td {
+        padding: 6px 8px;
+    }
+
+    .gc-pedidos-vd-filters-row--main {
+        gap: 6px;
+    }
+
+    .gc-filter-btn,
+    .gc-action-btn {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+
+    .gc-modal {
+        width: 98vw;
+        max-width: 98vw;
+        margin: 0 auto;
+    }
+}
+
 .gc-comissao-select--ano {
     min-width: 5.2rem;
 }

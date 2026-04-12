@@ -4143,6 +4143,25 @@
             });
         }
 
+        // Mobile menu handler
+        const gcMobileMenuBtn = document.getElementById('gcMobileMenuBtn');
+        if (gcMobileMenuBtn && gcSidebar) {
+            gcMobileMenuBtn.addEventListener('click', function () {
+                gcSidebar.classList.toggle('open');
+                gcMobileMenuBtn.setAttribute('aria-expanded', gcSidebar.classList.contains('open'));
+            });
+            // Close menu when clicking on a link
+            const navItems = gcSidebar.querySelectorAll('.nav-item');
+            navItems.forEach(function (item) {
+                item.addEventListener('click', function () {
+                    if (window.innerWidth <= 768) {
+                        gcSidebar.classList.remove('open');
+                        gcMobileMenuBtn.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            });
+        }
+
         bindTabs();
         syncThemeToggleAria();
     }
