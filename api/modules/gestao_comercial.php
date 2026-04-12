@@ -39,6 +39,9 @@ function handleGestaoComercialModuleAction(string $action, PDO $pdo): void
             case 'gestao_comercial_vendas_relatorio':
                 gestaoComercialVendasRelatorio($pdo);
                 return;
+            case 'gestao_comercial_pedidos_visitador_style':
+                gestaoComercialPedidosVisitadorStyle($pdo);
+                return;
             default:
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'AÃ§Ã£o de gestÃ£o comercial desconhecida'], JSON_UNESCAPED_UNICODE);
@@ -414,6 +417,69 @@ function gestaoComercialVendasRelatorio(PDO $pdo): void
         'limit' => $limit,
         'rows' => $rows,
     ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+/**
+ * Mesmo formato de list_pedidos_visitador (aprovados + recusados/carrinho) para a aba Relatórios (admin).
+ */
+function gestaoComercialPedidosVisitadorStyle(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    require_once __DIR__ . '/dashboard_visitador.php';
+    [$startObj, $endObj] = gcDateRangeFromInput();
+    $ini = $startObj->format('Y-m-d');
+    $fim = $endObj->format('Y-m-d');
+    $visitador = trim((string)($_GET['visitador_carteira'] ?? ''));
+    $visitador = $visitador !== '' ? $visitador : null;
+    $prescritor = trim((string)($_GET['prescritor'] ?? ''));
+    $vendedor = trim((string)($_GET['vendedor'] ?? ''));
+    // Debug: expandir busca de recusados/carrinho sem restrição de data tão rígida
+    $out = dashboardListPedidosAdminPeriodo(
+        $pdo,
+        $ini,
+        $fim,
+        $visitador,
+        $prescritor !== '' ? $prescritor : null,
+        $vendedor !== '' ? $vendedor : null,
+        true // incluir recusados/carrinho expandido
+    );
+    $baseParams = ['ini' => $ini, 'fim' => $fim];
+    $sqlPres = "
+        SELECT DISTINCT COALESCE(NULLIF(TRIM(gp.prescritor),''), 'My Pharm') AS nome
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        ORDER BY nome ASC
+        LIMIT 500
+    ";
+    $sqlVend = "
+        SELECT DISTINCT COALESCE(NULLIF(TRIM(gp.atendente),''), '(Sem vendedor)') AS nome
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        ORDER BY nome ASC
+        LIMIT 500
+    ";
+    $prescritores = [];
+    foreach (gcTryFetchAll($pdo, $sqlPres, $baseParams) as $r) {
+        $n = trim((string)($r['nome'] ?? ''));
+        if ($n !== '') {
+            $prescritores[] = $n;
+        }
+    }
+    $vendedores = [];
+    foreach (gcTryFetchAll($pdo, $sqlVend, $baseParams) as $r) {
+        $n = trim((string)($r['nome'] ?? ''));
+        if ($n !== '') {
+            $vendedores[] = $n;
+        }
+    }
+    echo json_encode(array_merge([
+        'success' => true,
+        'periodo' => ['data_de' => $ini, 'data_ate' => $fim],
+        'prescritores_opcao' => $prescritores,
+        'vendedores_opcao' => $vendedores,
+    ], $out), JSON_UNESCAPED_UNICODE);
     exit;
 }
 

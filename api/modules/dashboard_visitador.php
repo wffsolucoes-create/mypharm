@@ -2194,3 +2194,200 @@ function visitadorVisitasPeriodo(PDO $pdo): void
     $lista = $stmt->fetchAll(PDO::FETCH_ASSOC);
     echo json_encode(['success' => true, 'visitas' => $lista], JSON_UNESCAPED_UNICODE);
 }
+
+/**
+ * Lista pedidos (aprovados + recusados/carrinho) para admin/gestão comercial no intervalo de datas,
+ * no mesmo formato de list_pedidos_visitador (linhas por série/produto para agrupamento no front).
+ *
+ * @param  string|null  $visitadorCarteira  filtra pela carteira em prescritores_cadastro (TRIM); null ou '' = todos
+ * @param  string|null  $prescritorLike     LIKE em prescritor (gestão / itens)
+ * @param  string|null  $vendedorLike       LIKE em gp.atendente (apenas aprovados)
+ * @return array{aprovados: list<array>, recusados_carrinho: list<array>, visitadores_opcao: list<string>}
+ */
+function dashboardListPedidosAdminPeriodo(
+    PDO $pdo,
+    string $ini,
+    string $fim,
+    ?string $visitadorCarteira,
+    ?string $prescritorLike,
+    ?string $vendedorLike,
+    bool $expandRecusados = false
+): array {
+    $escLike = static function (string $literal): string {
+        $s = str_replace('\\', '\\\\', $literal);
+
+        return str_replace(['%', '_'], ['\\%', '\\_'], $s);
+    };
+
+    $visitadorCarteira = $visitadorCarteira !== null ? trim($visitadorCarteira) : '';
+    $prescritorLike = $prescritorLike !== null ? trim($prescritorLike) : '';
+    $vendedorLike = $vendedorLike !== null ? trim($vendedorLike) : '';
+
+    $paramsA = ['ini' => $ini, 'fim' => $fim];
+    $orcEncoded = "CONCAT('Or', CHAR(231), 'amento')";
+    $whereA = "DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        AND gp.data_aprovacao IS NOT NULL
+        AND (gp.status_financeiro IS NULL OR (gp.status_financeiro NOT IN ('Recusado', 'Cancelado', $orcEncoded) AND (gp.status_financeiro NOT LIKE '%carrinho%')))";
+
+    $joinPc = 'LEFT JOIN prescritores_cadastro pc ON COALESCE(NULLIF(TRIM(gp.prescritor),\'\'), \'My Pharm\') = pc.nome';
+    if ($visitadorCarteira !== '') {
+        $whereA .= ' AND TRIM(COALESCE(pc.visitador, \'\')) = TRIM(:viscar) ';
+        $paramsA['viscar'] = $visitadorCarteira;
+    }
+    if ($prescritorLike !== '') {
+        $whereA .= ' AND COALESCE(NULLIF(TRIM(gp.prescritor),\'\'), \'My Pharm\') LIKE :pfa ';
+        $paramsA['pfa'] = '%' . $escLike($prescritorLike) . '%';
+    }
+    if ($vendedorLike !== '') {
+        $whereA .= ' AND COALESCE(NULLIF(TRIM(gp.atendente),\'\'), \'(Sem vendedor)\') LIKE :vfa ';
+        $paramsA['vfa'] = '%' . $escLike($vendedorLike) . '%';
+    }
+
+    $sqlA = "
+        SELECT gp.numero_pedido, gp.serie_pedido, gp.data_aprovacao, gp.data_orcamento,
+               COALESCE(NULLIF(TRIM(gp.prescritor),''), 'My Pharm') as prescritor,
+               COALESCE(NULLIF(TRIM(gp.cliente),''), gp.paciente, '-') as cliente,
+               gp.preco_liquido as valor
+        FROM gestao_pedidos gp
+        $joinPc
+        WHERE $whereA
+        ORDER BY gp.data_aprovacao DESC, gp.numero_pedido DESC, gp.serie_pedido DESC
+        LIMIT 15000
+    ";
+    $aprovados = [];
+    try {
+        $st = $pdo->prepare($sqlA);
+        $st->execute($paramsA);
+        $aprovados = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        $aprovados = [];
+    }
+
+    $subDataItem = "(SELECT MAX(x.data) FROM itens_orcamentos_pedidos x
+        WHERE x.numero = i.numero AND x.ano_referencia = i.ano_referencia)";
+    $joinGpad = '
+        LEFT JOIN (
+            SELECT numero_pedido, ano_referencia,
+                MAX(data_orcamento) AS dt_orc,
+                MAX(data_aprovacao) AS dt_apr
+            FROM gestao_pedidos
+            GROUP BY numero_pedido, ano_referencia
+        ) gpad ON gpad.numero_pedido = i.numero AND gpad.ano_referencia = i.ano_referencia
+    ';
+    $statusRecusadoSql = "(LOWER(TRIM(COALESCE(i.status,''))) IN ('recusado', 'no carrinho') OR TRIM(COALESCE(i.status,'')) IN ('Recusado', 'No carrinho'))";
+    $dataRefExpr = "COALESCE(
+        NULLIF(NULLIF(i.data, ''), '0000-00-00'),
+        DATE($subDataItem),
+        DATE(gpad.dt_orc),
+        DATE(gpad.dt_apr)
+    )";
+
+    $paramsR = ['ini' => $ini, 'fim' => $fim];
+    // Se expandRecusados, busca recusados/carrinho sem restrição de data rigorosa
+    if ($expandRecusados) {
+        $whereR = "i.ano_referencia >= YEAR(:ini) - 1
+            AND $statusRecusadoSql";
+    } else {
+        $whereR = "i.ano_referencia BETWEEN YEAR(:ini) AND YEAR(:fim)
+            AND $statusRecusadoSql
+            AND DATE($dataRefExpr) BETWEEN :ini AND :fim ";
+    }
+    $joinVisit = '';
+    if ($visitadorCarteira !== '') {
+        $joinVisit = ' INNER JOIN prescritores_cadastro pc2
+            ON UPPER(TRIM(COALESCE(NULLIF(TRIM(i.prescritor),\'\'), \'My Pharm\'))) = UPPER(TRIM(pc2.nome))
+            AND TRIM(COALESCE(pc2.visitador, \'\')) = TRIM(:viscar2) ';
+        $paramsR['viscar2'] = $visitadorCarteira;
+    }
+    if ($prescritorLike !== '') {
+        $whereR .= ' AND COALESCE(NULLIF(TRIM(i.prescritor),\'\'), \'My Pharm\') LIKE :pfr ';
+        $paramsR['pfr'] = '%' . $escLike($prescritorLike) . '%';
+    }
+
+    $sqlR = "
+        SELECT i.numero as numero_pedido, i.serie as serie_pedido,
+               NULL as data_aprovacao,
+               COALESCE(DATE($subDataItem), DATE(MAX(gpad.dt_orc)), DATE(MAX(gpad.dt_apr))) as data_orcamento,
+               COALESCE(NULLIF(TRIM(MAX(i.prescritor)),''), 'My Pharm') as prescritor,
+               COALESCE(MAX(NULLIF(TRIM(i.paciente),'')), '-') as cliente,
+               SUM(i.valor_liquido) as valor,
+               MAX(CASE WHEN LOWER(TRIM(COALESCE(i.status,''))) LIKE 'recusad%' THEN 'Recusado' ELSE 'No carrinho' END) as status_financeiro
+        FROM itens_orcamentos_pedidos i
+        $joinGpad
+        $joinVisit
+        WHERE $whereR
+        GROUP BY i.numero, i.serie, COALESCE(NULLIF(TRIM(i.prescritor),''), 'My Pharm')
+        ORDER BY i.numero DESC, i.serie DESC
+        LIMIT 8000
+    ";
+    $recRows = [];
+    try {
+        $stR = $pdo->prepare($sqlR);
+        $stR->execute($paramsR);
+        $recRows = $stR->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        $recRows = [];
+    }
+
+    $recusadosMap = [];
+    foreach ($recRows as $row) {
+        $k = (int)($row['numero_pedido'] ?? 0) . '_' . (int)($row['serie_pedido'] ?? 0);
+        $dNew = trim((string)($row['data_orcamento'] ?? ''));
+        $okNew = ($dNew !== '' && strpos($dNew, '0000-00-00') !== 0);
+        if (!isset($recusadosMap[$k])) {
+            $recusadosMap[$k] = $row;
+        } else {
+            $dOld = trim((string)($recusadosMap[$k]['data_orcamento'] ?? ''));
+            $okOld = ($dOld !== '' && strpos($dOld, '0000-00-00') !== 0);
+            if (!$okOld && $okNew) {
+                $recusadosMap[$k] = $row;
+            }
+        }
+    }
+    $recusados_carrinho = array_values($recusadosMap);
+
+    $normalizarData = static function (array &$row): void {
+        foreach (['data_aprovacao', 'data_orcamento'] as $campo) {
+            if (!empty($row[$campo]) && preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$row[$campo])) {
+                $row[$campo] = substr((string)$row[$campo], 0, 19);
+            }
+        }
+    };
+    foreach ($aprovados as &$r) {
+        $normalizarData($r);
+    }
+    unset($r);
+    foreach ($recusados_carrinho as &$r) {
+        $normalizarData($r);
+        $st = strtolower(trim((string)($r['status_financeiro'] ?? '')));
+        $r['tipo_listagem'] = (strpos($st, 'recusad') !== false) ? 'Recusado' : 'No carrinho';
+    }
+    unset($r);
+
+    $visitadores_opcao = [];
+    try {
+        $stV = $pdo->query("
+            SELECT DISTINCT TRIM(pc.visitador) AS nome
+            FROM prescritores_cadastro pc
+            WHERE TRIM(COALESCE(pc.visitador, '')) <> ''
+            ORDER BY nome ASC
+            LIMIT 400
+        ");
+        if ($stV) {
+            while ($z = $stV->fetch(PDO::FETCH_ASSOC)) {
+                $n = trim((string)($z['nome'] ?? ''));
+                if ($n !== '') {
+                    $visitadores_opcao[] = $n;
+                }
+            }
+        }
+    } catch (Throwable $e) {
+        $visitadores_opcao = [];
+    }
+
+    return [
+        'aprovados' => $aprovados,
+        'recusados_carrinho' => $recusados_carrinho,
+        'visitadores_opcao' => $visitadores_opcao,
+    ];
+}
