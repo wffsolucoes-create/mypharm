@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/ui-feedback.css">
-    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260411-relatorios-layout-improved">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260411-pedidos-kpi-cards">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body class="gc-compact-ui">
@@ -39,7 +39,7 @@
                     </button>
                     <button type="button" class="nav-item gc-menu-item active" role="tab" id="gc-tab-vendedores" data-section="vendedores" aria-selected="true" aria-controls="gc-section-vendedores">
                         <i class="fas fa-users" aria-hidden="true"></i>
-                        <span>Vendedores</span>
+                        <span>Equipe Comercial</span>
                     </button>
                     <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-relatorios" data-section="relatorios" aria-selected="false" aria-controls="gc-section-relatorios">
                         <i class="fas fa-table-list" aria-hidden="true"></i>
@@ -666,13 +666,31 @@
                             </div>
 
                             <div class="gc-pedidos-vd-cards" id="gcPedidosRelCards">
-                                <div class="gc-pedidos-vd-card">
+                                <div class="gc-pedidos-vd-card gc-pedidos-vd-card--accent-neutral">
                                     <div class="gc-pedidos-vd-card-label">Total em R$ (filtrado)</div>
                                     <div class="gc-pedidos-vd-card-value" id="gcPedidosRelCardValor">R$ 0,00</div>
                                 </div>
-                                <div class="gc-pedidos-vd-card">
+                                <div class="gc-pedidos-vd-card gc-pedidos-vd-card--accent-success">
+                                    <div class="gc-pedidos-vd-card-label">Valor aprovado</div>
+                                    <div class="gc-pedidos-vd-card-value" id="gcPedidosRelCardValorAprov">R$ 0,00</div>
+                                </div>
+                                <div class="gc-pedidos-vd-card gc-pedidos-vd-card--accent-danger" title="Soma das linhas com status Recusado ou No carrinho">
+                                    <div class="gc-pedidos-vd-card-label">Valor reprovado</div>
+                                    <div class="gc-pedidos-vd-card-value" id="gcPedidosRelCardValorReprov">R$ 0,00</div>
+                                    <div class="gc-pedidos-vd-card-sublabel">Recusado + no carrinho</div>
+                                </div>
+                                <div class="gc-pedidos-vd-card gc-pedidos-vd-card--accent-danger-soft" title="Somente linhas com status Recusado">
+                                    <div class="gc-pedidos-vd-card-label">Valor (recusados)</div>
+                                    <div class="gc-pedidos-vd-card-value" id="gcPedidosRelCardValorRecusados">R$ 0,00</div>
+                                    <div class="gc-pedidos-vd-card-sublabel">Apenas status Recusado</div>
+                                </div>
+                                <div class="gc-pedidos-vd-card gc-pedidos-vd-card--accent-neutral">
                                     <div class="gc-pedidos-vd-card-label">Pedidos (grupos)</div>
                                     <div class="gc-pedidos-vd-card-value" id="gcPedidosRelCardQtd">0 pedidos</div>
+                                </div>
+                                <div class="gc-pedidos-vd-card gc-pedidos-vd-card--accent-danger-soft">
+                                    <div class="gc-pedidos-vd-card-label">Quantidade (recusados)</div>
+                                    <div class="gc-pedidos-vd-card-value" id="gcPedidosRelCardQtdRecusados">0</div>
                                 </div>
                             </div>
                             <p class="gc-api-inline-msg" id="gcPedidosRelMsg" hidden></p>
@@ -845,6 +863,6 @@
     </div>
 
     <script defer src="js/ui-feedback.js"></script>
-    <script defer src="js/gestao-comercial.js?v=20260410-pedidos-relatorio"></script>
+    <script defer src="js/gestao-comercial.js?v=20260411-pedidos-kpi-cards"></script>
 </body>
 </html>
