@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/ui-feedback.css">
-    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260412-responsive-mobile">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260414-comissoes-layout">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body class="gc-compact-ui">
@@ -44,6 +44,10 @@
                     <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-relatorios" data-section="relatorios" aria-selected="false" aria-controls="gc-section-relatorios">
                         <i class="fas fa-table-list" aria-hidden="true"></i>
                         <span>Relatórios</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-comissoes" data-section="comissoes" aria-selected="false" aria-controls="gc-section-comissoes">
+                        <i class="fas fa-right-left" aria-hidden="true"></i>
+                        <span>Comissões (transferências)</span>
                     </button>
                     <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-erros" data-section="erros" aria-selected="false" aria-controls="gc-section-erros">
                         <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
@@ -713,6 +717,56 @@
                     </div>
                 </section>
 
+                <section class="gc-section" id="gc-section-comissoes" role="tabpanel" aria-labelledby="gc-tab-comissoes" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Gerenciamento de comissões</p>
+                        <p class="gc-tab-head__desc">Solicitações de <strong>transferência de comissão</strong> entre consultoras (ex.: aprovação indevida). Ao <strong>aprovar</strong>, o registro fica como aprovado para auditoria e folha; a consultora solicitante é a beneficiária e a contraparte é a origem do valor.</p>
+                    </header>
+                    <div class="gc-block gc-ct-block">
+                        <div class="gc-ct-toolbar">
+                            <div class="gc-ct-toolbar__intro">
+                                <h3 class="gc-ct-toolbar__title"><i class="fas fa-right-left" aria-hidden="true"></i> Transferências entre consultoras</h3>
+                                <p class="gc-ct-toolbar__hint">Filtre por status e use <strong>Atualizar</strong> para recarregar a fila.</p>
+                            </div>
+                            <div class="gc-ct-toolbar__controls">
+                                <label class="gc-ct-label">Status
+                                    <select id="gcComissaoTransferFiltroStatus" class="gc-filter-select gc-ct-select" aria-label="Filtrar por status">
+                                        <option value="todas">Todas</option>
+                                        <option value="pendente" selected>Pendentes</option>
+                                        <option value="aprovada">Aprovadas</option>
+                                        <option value="recusada">Recusadas</option>
+                                        <option value="cancelada">Canceladas (pela consultora)</option>
+                                    </select>
+                                </label>
+                                <button type="button" class="gc-filter-btn gc-ct-btn-refresh" id="gcComissaoTransferAtualizarBtn">
+                                    <i class="fas fa-rotate-right" aria-hidden="true"></i> Atualizar
+                                </button>
+                            </div>
+                        </div>
+                        <p class="gc-ct-msg" id="gcComissaoTransferMsg" role="status" aria-live="polite" hidden></p>
+                        <div class="gc-table-wrap gc-comissao-transfer-wrap">
+                            <table class="gc-table gc-table--prod gc-ct-table" id="gcComissaoTransferTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" class="gc-ct-th-id">ID</th>
+                                        <th scope="col">Solicitante (recebe)</th>
+                                        <th scope="col">Contraparte (origem)</th>
+                                        <th scope="col" class="gc-ct-th-num">Valor</th>
+                                        <th scope="col" class="gc-ct-th-ref">Ref.</th>
+                                        <th scope="col" class="gc-ct-th-num">Nº pedido</th>
+                                        <th scope="col" class="gc-ct-th-num">Série</th>
+                                        <th scope="col">Motivo</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col" class="gc-ct-th-date">Data</th>
+                                        <th scope="col" class="gc-ct-th-acoes">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcComissaoTransferTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="gc-section" id="gc-section-erros" role="tabpanel" aria-labelledby="gc-tab-erros" aria-hidden="true">
                     <header class="gc-tab-head">
                         <p class="gc-tab-head__kicker">Controle de erros</p>
@@ -857,6 +911,6 @@
     </div>
 
     <script defer src="js/ui-feedback.js"></script>
-    <script defer src="js/gestao-comercial.js?v=20260411-pedidos-reprov-gestao"></script>
+    <script defer src="js/gestao-comercial.js?v=20260414-comissoes-layout"></script>
 </body>
 </html>

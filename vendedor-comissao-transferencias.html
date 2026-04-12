@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#E63946">
+    <title>Transferência de comissão | MyPharm</title>
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/visitador-inline.css">
+    <link rel="stylesheet" href="css/visitador.css">
+    <link rel="stylesheet" href="css/vendedor.css?v=20260326cards11">
+    <link rel="stylesheet" href="css/vendedor-comissao-transfer.css?v=20260414">
+    <style>body { visibility: hidden; }</style>
+</head>
+<body>
+    <script>!(function(){if(!localStorage.getItem('loggedIn')){window.location.replace('index.html');return;}document.body.style.visibility='visible';})();</script>
+    <div id="vdLoadingOverlay" role="status" aria-live="polite" aria-label="Carregando">
+        <div class="vd-spinner"></div>
+        <span class="vd-loading-text">Carregando...</span>
+    </div>
+    <div id="vdApp" style="display:none;">
+        <header>
+            <div class="brand">
+                <div class="logo-container">
+                    <img src="imagens/logoMypharm.png?v=20260402" alt="MyPharm">
+                </div>
+                <div class="brand-text-col">
+                    <span class="brand-title">Portal Alta Performance</span>
+                    <span class="brand-subtitle">Vendas & Conversão</span>
+                </div>
+            </div>
+            <nav class="visitador-nav" aria-label="Menu principal">
+                <a href="vendedor.html" class="visitador-nav-link">
+                    <i class="fas fa-chart-line"></i><span class="d-none-mobile">Gestão Geral</span>
+                </a>
+                <a href="vendedor-pedidos.html" class="visitador-nav-link">
+                    <i class="fas fa-list-alt"></i><span class="d-none-mobile">Pedidos</span>
+                </a>
+                <a href="vendedor-comissao-transferencias.html" class="visitador-nav-link active">
+                    <i class="fas fa-hand-holding-usd"></i><span class="d-none-mobile">Comissão</span>
+                </a>
+            </nav>
+            <div class="user-menu">
+                <div class="theme-toggle" id="vdThemeBtn" title="Alternar tema">
+                    <div class="theme-toggle-knob">
+                        <i class="fas fa-sun icon-sun"></i>
+                        <i class="fas fa-moon icon-moon"></i>
+                    </div>
+                </div>
+                <div class="notifications-wrap">
+                    <button type="button" class="btn-notifications" id="btnNotifications" onclick="toggleNotificationsPanel(event)" title="Mensagens e notificações" aria-label="Notificações">
+                        <span class="btn-notifications-icon" aria-hidden="true"><i class="fas fa-bell"></i></span>
+                        <span class="notifications-badge" id="notificationsBadge" style="display:none;">0</span>
+                    </button>
+                    <div class="notifications-backdrop" id="notificationsBackdrop" onclick="closeNotificationsPanel()" aria-hidden="true"></div>
+                    <div class="notifications-panel" id="notificationsPanel">
+                        <div class="notifications-panel-header">
+                            <span><i class="fas fa-bell"></i> Mensagens e alertas</span>
+                            <button type="button" class="notifications-panel-close" onclick="closeNotificationsPanel()" aria-label="Fechar">&times;</button>
+                        </div>
+                        <div class="notifications-body">
+                            <div class="notifications-list" id="notificationsListAll">
+                                <div class="notifications-empty" id="notificationsEmptyAll">
+                                    <i class="fas fa-inbox"></i>
+                                    <p>Nenhuma mensagem no momento.</p>
+                                </div>
+                            </div>
+                            <div class="notifications-send-wrap">
+                                <label class="notifications-send-label">Enviar mensagem para usuário</label>
+                                <select id="notifParaUsuarioSelect" class="notifications-send-select"></select>
+                                <textarea id="notifMensagemUsuarioInput" class="notifications-send-textarea" placeholder="Sua mensagem..." rows="3"></textarea>
+                                <button type="button" id="btnEnviarMsgUsuario" class="notifications-send-btn" onclick="enviarMensagemUsuarioUI()"><i class="fas fa-paper-plane"></i> Enviar para usuário</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="user-profile">
+                    <div class="avatar-wrap" id="avatarWrap" title="Clique para alterar foto de perfil">
+                        <div class="avatar" id="vdAvatar">V</div>
+                        <img class="avatar-img" id="userAvatarImg" src="" alt="" style="display:none;">
+                        <input type="file" id="inputFotoPerfil" accept="image/*" style="display:none;">
+                    </div>
+                    <div class="d-none-mobile" style="cursor:pointer;" onclick="openMeuPerfilModal()">
+                        <div id="vdUserName" style="font-weight:600; font-size:0.95rem;">Vendedor</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Meu Painel</div>
+                    </div>
+                </div>
+                <button class="btn-logout" id="vdLogoutBtn">
+                    <i class="fas fa-sign-out-alt"></i> <span class="d-none-mobile">Sair</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="dashboard-container">
+            <div class="vdct-page">
+
+                <div class="vdct-page-header">
+                    <div class="vdct-page-header__text">
+                        <h1 class="vdct-page-title"><i class="fas fa-right-left"></i> Transferência de comissão</h1>
+                        <p class="vdct-page-subtitle">Use este formulário <strong>somente</strong> quando existir <strong>pedido aprovado em nome de outra consultora</strong> (comissão que deveria ser sua). Você é sempre a <strong>beneficiária</strong>; em seguida indique a consultora de <strong>origem</strong> que consta na aprovação.</p>
+                    </div>
+                    <div class="date-badge" id="vdPeriodoInfo">—</div>
+                </div>
+
+                <div id="vdCtRoot">
+
+                    <!-- Card: Nova solicitação -->
+                    <div class="vdct-card">
+                        <div class="vdct-card__header">
+                            <span class="vdct-card__icon"><i class="fas fa-file-signature"></i></span>
+                            <div>
+                                <h2 class="vdct-card__title">Nova solicitação</h2>
+                                <p class="vdct-card__subtitle">Preencha o <strong>número e a série do pedido</strong> que foi <strong>aprovado por outra consultora</strong>, o valor da comissão em disputa, a referência de mês/ano se souber e, no campo abaixo, explique o contexto com pelo menos 10 caracteres (prescritor, data do orçamento ou qualquer detalhe que ajude a gestão).</p>
+                            </div>
+                        </div>
+                        <div class="vdct-form-grid">
+                            <div class="vdct-field">
+                                <label class="vdct-field__label" for="vdCtContraparte">Consultora de origem</label>
+                                <select class="vdct-field__input" id="vdCtContraparte"></select>
+                            </div>
+                            <div class="vdct-field">
+                                <label class="vdct-field__label" for="vdCtNumeroPedido">Nº do pedido</label>
+                                <input class="vdct-field__input" type="text" id="vdCtNumeroPedido" inputmode="numeric" placeholder="Ex.: 62437" autocomplete="off">
+                            </div>
+                            <div class="vdct-field vdct-field--small">
+                                <label class="vdct-field__label" for="vdCtSeriePedido">Série</label>
+                                <input class="vdct-field__input" type="text" id="vdCtSeriePedido" inputmode="numeric" placeholder="0 ou 1" autocomplete="off" value="0">
+                            </div>
+                            <div class="vdct-field vdct-field--small">
+                                <label class="vdct-field__label" for="vdCtValor">Valor (R$)</label>
+                                <input class="vdct-field__input" type="text" id="vdCtValor" inputmode="decimal" placeholder="150,00" autocomplete="off">
+                            </div>
+                            <div class="vdct-field vdct-field--small">
+                                <label class="vdct-field__label" for="vdCtRefMes">Mês ref.</label>
+                                <select class="vdct-field__input" id="vdCtRefMes"></select>
+                            </div>
+                            <div class="vdct-field vdct-field--small">
+                                <label class="vdct-field__label" for="vdCtRefAno">Ano ref.</label>
+                                <select class="vdct-field__input" id="vdCtRefAno"></select>
+                            </div>
+                            <div class="vdct-field vdct-field--full">
+                                <label class="vdct-field__label" for="vdCtMotivo">Motivo / detalhes</label>
+                                <textarea class="vdct-field__input vdct-field__textarea" id="vdCtMotivo" rows="4" placeholder="Descreva: em qual situação o pedido foi aprovado pela outra consultora, por que o atendimento era seu (ex.: orçamento e follow-up feitos por você) e qualquer informação adicional para a análise."></textarea>
+                            </div>
+                        </div>
+                        <div id="vdCtFormMsg" class="vdct-msg" style="display:none;"></div>
+                        <div class="vdct-actions">
+                            <button type="button" class="vdct-btn vdct-btn--primary" id="vdCtEnviar">
+                                <i class="fas fa-paper-plane"></i> Enviar solicitação
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Card: Minhas solicitações -->
+                    <div class="vdct-card">
+                        <div class="vdct-card__header vdct-card__header--between">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span class="vdct-card__icon"><i class="fas fa-list-check"></i></span>
+                                <div>
+                                    <h2 class="vdct-card__title">Minhas solicitações</h2>
+                                    <p class="vdct-card__subtitle">Inclui registros em que você é a beneficiária e solicitações pendentes em que foi indicada como origem.</p>
+                                </div>
+                            </div>
+                            <button type="button" class="vdct-btn vdct-btn--secondary" id="vdCtAtualizar">
+                                <i class="fas fa-rotate-right"></i> Atualizar
+                            </button>
+                        </div>
+                        <div class="vdct-table-wrap">
+                            <table class="vdct-table">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Papel</th>
+                                        <th>Outra parte</th>
+                                        <th>Valor</th>
+                                        <th>Pedido / série</th>
+                                        <th>Ref.</th>
+                                        <th>Status</th>
+                                        <th>Motivo</th>
+                                        <th>Gestão</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vdCtTbody">
+                                    <tr><td colspan="10" class="vdct-table__empty">Carregando…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="vd-error" id="vdError" style="display:none;"></div>
+            </div>
+        </main>
+    </div>
+    <script src="js/vendedor-main.js?v=20260412-comissao-transfer"></script>
+    <script src="js/vendedor-comissao-transfer.js?v=20260414"></script>
+</body>
+</html>
