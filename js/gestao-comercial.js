@@ -166,6 +166,9 @@
     let gcDashboardData = null;
     let gcNomesVendedores = [];
     let gcLoading = false;
+    let gcVendasRelOffset = 0;
+    const GC_VENDAS_REL_LIMIT = 200;
+    let gcVendasRelatoriosUiBound = false;
     let gcApplyBtnHtml = null;
     const gcChartInstances = {};
     /** Contexto dos gráficos comparativos de meses (toolbar + redesenho). */
@@ -1859,6 +1862,161 @@
         return out;
     }
 
+    function gcIsRelatoriosTabActive() {
+        const sec = document.getElementById('gc-section-relatorios');
+        return !!(sec && sec.classList.contains('active'));
+    }
+
+    function gcSetVendasRelatorioMsg(text) {
+        const el = document.getElementById('gcVendasRelMsg');
+        if (!el) return;
+        const t = (text || '').trim();
+        if (!t) {
+            el.textContent = '';
+            el.hidden = true;
+            return;
+        }
+        el.textContent = t;
+        el.hidden = false;
+    }
+
+    function gcFillVendasRelSelect(id, names, currentVal) {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const cur = currentVal != null ? String(currentVal) : String(sel.value || '');
+        const list = Array.isArray(names) ? names.slice() : [];
+        sel.innerHTML =
+            '<option value="">Todos</option>' +
+            list
+                .map(function (n) {
+                    const s = String(n);
+                    return `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`;
+                })
+                .join('');
+        const has = Array.from(sel.options).some(function (o) {
+            return o.value === cur;
+        });
+        if (has) sel.value = cur;
+    }
+
+    function gcRenderVendasRelatorioRows(rows, append) {
+        const body = document.getElementById('gcVendasRelTbody');
+        if (!body) return;
+        const list = Array.isArray(rows) ? rows : [];
+        if (!append) body.innerHTML = '';
+        if (!list.length && !append) {
+            body.innerHTML = '<tr><td colspan="12">Nenhuma linha no período com os filtros atuais.</td></tr>';
+            return;
+        }
+        if (!list.length) return;
+        const html = list.map(function (r) {
+            const num = r.numero_pedido != null && r.numero_pedido !== '' ? String(r.numero_pedido) : '—';
+            const ser = r.serie_pedido != null && r.serie_pedido !== '' ? String(r.serie_pedido) : '';
+            const ped = ser ? num + '/' + ser : num;
+            return `<tr>
+                <td>${escapeHtml(String(r.data_aprovacao || '—'))}</td>
+                <td>${escapeHtml(String(r.data_orcamento || '—'))}</td>
+                <td>${escapeHtml(ped)}</td>
+                <td>${escapeHtml(String(r.ano_referencia != null ? r.ano_referencia : '—'))}</td>
+                <td>${escapeHtml(gcDisplayConsultoraName(String(r.vendedor || '—')))}</td>
+                <td>${escapeHtml(String(r.prescritor || '—'))}</td>
+                <td>${escapeHtml(String(r.cliente || '—'))}</td>
+                <td>${escapeHtml(String(r.produto || '—'))}</td>
+                <td class="gc-num">${escapeHtml(String(r.quantidade != null ? r.quantidade : '—'))}</td>
+                <td class="gc-num">${escapeHtml(formatMoney(r.preco_liquido))}</td>
+                <td class="gc-num">${escapeHtml(formatMoney(r.preco_custo))}</td>
+                <td>${escapeHtml(String(r.status_financeiro || '—'))}</td>
+            </tr>`;
+        }).join('');
+        if (append && body.firstChild && body.firstChild.textContent && body.firstChild.textContent.indexOf('Nenhuma linha') !== -1) {
+            body.innerHTML = '';
+        }
+        body.insertAdjacentHTML('beforeend', html);
+    }
+
+    function gcUpdateVendasRelatorioResumo(total, exibindo) {
+        const tEl = document.getElementById('gcVendasRelTotal');
+        const eEl = document.getElementById('gcVendasRelExibindo');
+        if (tEl) tEl.textContent = Number(total || 0).toLocaleString('pt-BR');
+        if (eEl) eEl.textContent = Number(exibindo || 0).toLocaleString('pt-BR');
+        const btn = document.getElementById('gcVendasRelCarregarMaisBtn');
+        if (btn) {
+            const more = Number(exibindo || 0) < Number(total || 0);
+            btn.style.display = more ? '' : 'none';
+        }
+    }
+
+    async function gcLoadVendasRelatorio(opts) {
+        opts = opts || {};
+        const append = !!opts.append;
+        const body = document.getElementById('gcVendasRelTbody');
+        if (!body) return;
+        if (!append) {
+            gcVendasRelOffset = 0;
+            body.innerHTML = '<tr><td colspan="12">Carregando…</td></tr>';
+        } else {
+            const loadRow = '<tr class="gc-vendas-rel-loading-row"><td colspan="12">Carregando mais…</td></tr>';
+            body.insertAdjacentHTML('beforeend', loadRow);
+        }
+        gcSetVendasRelatorioMsg('');
+        const presEl = document.getElementById('gcVendasRelPrescritor');
+        const vendEl = document.getElementById('gcVendasRelVendedor');
+        const params = Object.assign({}, gcGetCurrentDateRangeParams(), {
+            offset: String(gcVendasRelOffset),
+            limit: String(GC_VENDAS_REL_LIMIT)
+        });
+        const pv = presEl ? String(presEl.value || '').trim() : '';
+        const vv = vendEl ? String(vendEl.value || '').trim() : '';
+        if (pv) params.prescritor = pv;
+        if (vv) params.vendedor = vv;
+        let data;
+        try {
+            data = await apiGet('gestao_comercial_vendas_relatorio', params);
+        } catch (e) {
+            data = { success: false, error: 'Falha na requisição.' };
+        }
+        if (append) {
+            const lr = body.querySelector('tr.gc-vendas-rel-loading-row');
+            if (lr) lr.remove();
+        }
+        if (!data || data.success !== true) {
+            if (!append) {
+                body.innerHTML = '<tr><td colspan="12">Não foi possível carregar o relatório.</td></tr>';
+            }
+            gcSetVendasRelatorioMsg((data && data.error) ? String(data.error) : 'Erro ao carregar vendas.');
+            gcUpdateVendasRelatorioResumo(0, 0);
+            return;
+        }
+        const total = Number(data.total || 0);
+        const rows = Array.isArray(data.rows) ? data.rows : [];
+        const presCur = presEl ? presEl.value : '';
+        const vendCur = vendEl ? vendEl.value : '';
+        if (!append) {
+            gcFillVendasRelSelect('gcVendasRelPrescritor', data.prescritores_opcao || [], presCur);
+            gcFillVendasRelSelect('gcVendasRelVendedor', data.vendedores_opcao || [], vendCur);
+        }
+        gcRenderVendasRelatorioRows(rows, append);
+        gcVendasRelOffset += rows.length;
+        gcUpdateVendasRelatorioResumo(total, gcVendasRelOffset);
+    }
+
+    function gcEnsureVendasRelatorioUiBind() {
+        if (gcVendasRelatoriosUiBound) return;
+        gcVendasRelatoriosUiBound = true;
+        const buscar = document.getElementById('gcVendasRelBuscarBtn');
+        if (buscar) {
+            buscar.addEventListener('click', function () {
+                gcLoadVendasRelatorio({ append: false }).catch(function () {});
+            });
+        }
+        const mais = document.getElementById('gcVendasRelCarregarMaisBtn');
+        if (mais) {
+            mais.addEventListener('click', function () {
+                gcLoadVendasRelatorio({ append: true }).catch(function () {});
+            });
+        }
+    }
+
     function gcRenderErrosRows(rows) {
         const body = document.getElementById('gcErrosTbody');
         if (!body) return;
@@ -2055,6 +2213,9 @@
             renderRelatorios(data);
         } finally {
             setGcLoading(false);
+            if (gcIsRelatoriosTabActive()) {
+                gcLoadVendasRelatorio({ append: false }).catch(function () {});
+            }
         }
     }
 
@@ -3117,6 +3278,10 @@
                         if (gcDashboardData) renderVendedorTabCharts(gcDashboardData);
                     });
                 }
+                if (target === 'relatorios') {
+                    gcEnsureVendasRelatorioUiBind();
+                    gcLoadVendasRelatorio({ append: false }).catch(function () {});
+                }
             });
         });
     }
@@ -3175,6 +3340,8 @@
                 }
             });
         }
+
+        gcEnsureVendasRelatorioUiBind();
 
         const applyBtn = document.getElementById('gcApplyFiltersBtn');
         if (applyBtn) {

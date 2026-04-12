@@ -1878,6 +1878,71 @@ body.gc-compact-ui .gc-rd-motivos-wrap {
     text-align: center;
 }
 
+#gcVendasRelTable th.gc-num,
+#gcVendasRelTable td.gc-num {
+    text-align: right;
+}
+
+.gc-note--tight {
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+
+.gc-vendas-rel-filtros__row {
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.gc-vendas-rel-filtros__row label {
+    min-width: 200px;
+    flex: 1 1 220px;
+}
+
+.gc-vendas-rel-filtros__actions {
+    flex: 0 0 auto;
+    padding-bottom: 2px;
+}
+
+.gc-vendas-rel-resumo {
+    margin-top: 4px;
+    margin-bottom: 12px;
+}
+
+.gc-vendas-rel-footer {
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
+}
+
+.gc-filter-btn.gc-filter-btn--secondary {
+    background: var(--bg-muted, #f1f5f9);
+    color: var(--text, #1e293b);
+    border: 1px solid var(--border, #e2e8f0);
+}
+
+.gc-filter-btn.gc-filter-btn--secondary:hover {
+    border-color: var(--border-hover, #cbd5e1);
+    background: var(--bg-card, #fff);
+}
+
+.gc-api-inline-msg.gc-vendas-rel-msg {
+    color: var(--danger, #b91c1c);
+    font-size: 0.88rem;
+    margin: 0 0 10px;
+}
+
+#gcVendasRelTable th:nth-child(7),
+#gcVendasRelTable td:nth-child(7),
+#gcVendasRelTable th:nth-child(8),
+#gcVendasRelTable td:nth-child(8) {
+    text-align: left;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Produtividade por consultora: alinhamento central por coluna */
 #gcVendEquipeTable th,
 #gcVendEquipeTable td,

@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/ui-feedback.css">
-    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260401-todos-btn-sm">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260410-vendas-relatorio">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body class="gc-compact-ui">
@@ -622,11 +622,62 @@
                 <section class="gc-section" id="gc-section-relatorios" role="tabpanel" aria-labelledby="gc-tab-relatorios" aria-hidden="true">
                     <header class="gc-tab-head">
                         <p class="gc-tab-head__kicker">Relatórios comerciais</p>
-                        <p class="gc-tab-head__desc">Os conteúdos desta aba foram movidos para <strong>Vendedores</strong>.</p>
+                        <p class="gc-tab-head__desc">Linhas de <strong>gestão de pedidos</strong> aprovadas no período global (datas no topo). Filtre por prescritor e vendedor; use <strong>Carregar mais</strong> para paginar.</p>
                     </header>
 
-                    <div class="gc-block">
-                        <p class="gc-note">A partir de agora, relatório semanal, relatório mensal e regras de comissão estão centralizados na aba <strong>Vendedores</strong>.</p>
+                    <div class="gc-block gc-block--vendas-relatorio">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-receipt"></i></span> Todas as vendas (detalhamento)</h3>
+                        <p class="gc-note gc-note--tight">O período segue <strong>Data inicial</strong> e <strong>Data final</strong> do cartão &quot;Período do relatório&quot; acima. Comissões e relatórios semanais/mensais continuam na aba <strong>Vendedores</strong>.</p>
+                        <div class="gc-filter-panel gc-vendas-rel-filtros">
+                            <div class="gc-filters-row gc-vendas-rel-filtros__row">
+                                <label>Prescritor
+                                    <select id="gcVendasRelPrescritor" aria-label="Filtrar por prescritor">
+                                        <option value="">Todos</option>
+                                    </select>
+                                </label>
+                                <label>Vendedor
+                                    <select id="gcVendasRelVendedor" aria-label="Filtrar por vendedor">
+                                        <option value="">Todos</option>
+                                    </select>
+                                </label>
+                                <div class="gc-vendas-rel-filtros__actions">
+                                    <button type="button" class="gc-filter-btn" id="gcVendasRelBuscarBtn">
+                                        <i class="fas fa-magnifying-glass" aria-hidden="true"></i> Aplicar filtros
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gc-quick-kpis gc-vendas-rel-resumo" role="list" aria-label="Resumo da listagem">
+                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Linhas no período</span><strong id="gcVendasRelTotal">—</strong></div>
+                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Exibindo</span><strong id="gcVendasRelExibindo">—</strong></div>
+                        </div>
+                        <p class="gc-api-inline-msg gc-vendas-rel-msg" id="gcVendasRelMsg" hidden></p>
+                        <div class="gc-table-wrap gc-table-wrap--scroll">
+                            <table class="gc-table gc-table--prod" id="gcVendasRelTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Aprovação</th>
+                                        <th scope="col">Orçamento</th>
+                                        <th scope="col">Pedido</th>
+                                        <th scope="col">Ano ref.</th>
+                                        <th scope="col">Vendedor</th>
+                                        <th scope="col">Prescritor</th>
+                                        <th scope="col">Cliente</th>
+                                        <th scope="col">Produto</th>
+                                        <th scope="col" class="gc-num">Qtd</th>
+                                        <th scope="col" class="gc-num">Líquido</th>
+                                        <th scope="col" class="gc-num">Custo</th>
+                                        <th scope="col">Status fin.</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcVendasRelTbody"></tbody>
+                            </table>
+                        </div>
+                        <div class="gc-vendas-rel-footer">
+                            <button type="button" class="gc-filter-btn gc-filter-btn--secondary" id="gcVendasRelCarregarMaisBtn" style="display:none;">
+                                <i class="fas fa-arrow-down" aria-hidden="true"></i> Carregar mais
+                            </button>
+                        </div>
                     </div>
                 </section>
 
@@ -723,6 +774,6 @@
     </div>
 
     <script defer src="js/ui-feedback.js"></script>
-    <script defer src="js/gestao-comercial.js?v=20260401-tooltip-pedidos"></script>
+    <script defer src="js/gestao-comercial.js?v=20260410-vendas-relatorio"></script>
 </body>
 </html>

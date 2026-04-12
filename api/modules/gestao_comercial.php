@@ -36,6 +36,9 @@ function handleGestaoComercialModuleAction(string $action, PDO $pdo): void
             case 'gestao_comercial_comissao_regras_salvar':
                 gestaoComercialComissaoRegrasSalvar($pdo);
                 return;
+            case 'gestao_comercial_vendas_relatorio':
+                gestaoComercialVendasRelatorio($pdo);
+                return;
             default:
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'AÃ§Ã£o de gestÃ£o comercial desconhecida'], JSON_UNESCAPED_UNICODE);
@@ -307,6 +310,111 @@ function gcAssertAdminSession(): void
         echo json_encode(['success' => false, 'error' => 'Acesso restrito ao administrador.'], JSON_UNESCAPED_UNICODE);
         exit;
     }
+}
+
+/** Escapa texto para usar em LIKE (\\, %, _). */
+function gcEscapeSqlLike(string $literal): string
+{
+    $s = str_replace('\\', '\\\\', $literal);
+
+    return str_replace(['%', '_'], ['\\%', '\\_'], $s);
+}
+
+/**
+ * Listagem de linhas de gestao_pedidos no período, com filtros opcionais por prescritor e vendedor (atendente).
+ * Paginação: offset + limit (máx. 400).
+ */
+function gestaoComercialVendasRelatorio(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    [$startObj, $endObj] = gcDateRangeFromInput();
+    $ini = $startObj->format('Y-m-d');
+    $fim = $endObj->format('Y-m-d');
+    $prescritor = trim((string)($_GET['prescritor'] ?? ''));
+    $vendedor = trim((string)($_GET['vendedor'] ?? ''));
+    $offset = max(0, (int)($_GET['offset'] ?? 0));
+    $limit = safeLimit((int)($_GET['limit'] ?? 200), 1, 400);
+
+    $baseParams = ['ini' => $ini, 'fim' => $fim];
+    $where = 'DATE(gp.data_aprovacao) BETWEEN :ini AND :fim';
+    $listParams = $baseParams;
+    if ($prescritor !== '') {
+        $where .= ' AND COALESCE(NULLIF(TRIM(gp.prescritor),\'\'), \'My Pharm\') LIKE :pf';
+        $listParams['pf'] = '%' . gcEscapeSqlLike($prescritor) . '%';
+    }
+    if ($vendedor !== '') {
+        $where .= ' AND COALESCE(NULLIF(TRIM(gp.atendente),\'\'), \'(Sem vendedor)\') LIKE :vf';
+        $listParams['vf'] = '%' . gcEscapeSqlLike($vendedor) . '%';
+    }
+
+    $sqlPres = "
+        SELECT DISTINCT COALESCE(NULLIF(TRIM(gp.prescritor),''), 'My Pharm') AS nome
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        ORDER BY nome ASC
+        LIMIT 500
+    ";
+    $sqlVend = "
+        SELECT DISTINCT COALESCE(NULLIF(TRIM(gp.atendente),''), '(Sem vendedor)') AS nome
+        FROM gestao_pedidos gp
+        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
+        ORDER BY nome ASC
+        LIMIT 500
+    ";
+
+    $prescritores = [];
+    foreach (gcTryFetchAll($pdo, $sqlPres, $baseParams) as $r) {
+        $n = trim((string)($r['nome'] ?? ''));
+        if ($n !== '') {
+            $prescritores[] = $n;
+        }
+    }
+    $vendedores = [];
+    foreach (gcTryFetchAll($pdo, $sqlVend, $baseParams) as $r) {
+        $n = trim((string)($r['nome'] ?? ''));
+        if ($n !== '') {
+            $vendedores[] = $n;
+        }
+    }
+
+    $countSql = "SELECT COUNT(*) AS c FROM gestao_pedidos gp WHERE {$where}";
+    $total = (int)(gcFetchRow($pdo, $countSql, $listParams)['c'] ?? 0);
+
+    $sqlRows = "
+        SELECT
+            gp.id,
+            DATE_FORMAT(gp.data_aprovacao, '%Y-%m-%d %H:%i') AS data_aprovacao,
+            DATE_FORMAT(gp.data_orcamento, '%Y-%m-%d %H:%i') AS data_orcamento,
+            gp.numero_pedido,
+            gp.serie_pedido,
+            gp.ano_referencia,
+            COALESCE(NULLIF(TRIM(gp.atendente),''), '(Sem vendedor)') AS vendedor,
+            COALESCE(NULLIF(TRIM(gp.prescritor),''), 'My Pharm') AS prescritor,
+            COALESCE(NULLIF(TRIM(gp.cliente),''), NULLIF(TRIM(gp.paciente),''), '(Sem cliente)') AS cliente,
+            COALESCE(NULLIF(TRIM(gp.produto),''), '(Sem produto)') AS produto,
+            gp.quantidade,
+            ROUND(COALESCE(gp.preco_liquido, 0), 2) AS preco_liquido,
+            ROUND(COALESCE(gp.preco_custo, 0), 2) AS preco_custo,
+            COALESCE(NULLIF(TRIM(gp.status_financeiro),''), '—') AS status_financeiro
+        FROM gestao_pedidos gp
+        WHERE {$where}
+        ORDER BY gp.data_aprovacao DESC, gp.numero_pedido DESC, gp.serie_pedido DESC, gp.id DESC
+        LIMIT {$limit} OFFSET {$offset}
+    ";
+    $rows = gcTryFetchAll($pdo, $sqlRows, $listParams);
+
+    echo json_encode([
+        'success' => true,
+        'periodo' => ['data_de' => $ini, 'data_ate' => $fim],
+        'prescritores_opcao' => $prescritores,
+        'vendedores_opcao' => $vendedores,
+        'total' => $total,
+        'offset' => $offset,
+        'limit' => $limit,
+        'rows' => $rows,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 function gestaoComercialErrosLista(PDO $pdo): void
