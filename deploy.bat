@@ -1,12 +1,13 @@
 @echo off
 cd /d "%~dp0"
 
-git add .
+git add -A
 if errorlevel 1 (
     echo ERRO: Falha ao adicionar arquivos.
     pause
     exit /b 1
 )
+echo Arquivos adicionados ao staging.
 
 set /p MSG="Mensagem do commit (Enter para 'atualizacao'): "
 if "%MSG%"=="" set MSG=atualizacao
@@ -17,6 +18,7 @@ if errorlevel 1 (
     pause
     exit /b 0
 )
+echo Commit criado: %MSG%
 
 git push
 if errorlevel 1 (
@@ -26,7 +28,28 @@ if errorlevel 1 (
 )
 
 echo.
-echo Push para o GitHub concluido com sucesso!
+echo Deploy para o GitHub concluido com sucesso!
+echo.
+echo Salvando informacoes do deploy no arquivo de log...
+
+:: Criar diretório de logs se não existir
+if not exist "deploy-logs" mkdir deploy-logs
+
+:: Log com timestamp
+for /f "tokens=2-4 delims=/ " %%a in ('date /t') do (set mydate=%%c-%%a-%%b)
+for /f "tokens=1-2 delims=/:" %%a in ('time /t') do (set mytime=%%a-%%b)
+set logfile=deploy-logs\deploy_%mydate%_%mytime%.log
+
+echo [%mydate% %mytime%] Commit: %MSG% >> "%logfile%"
+echo [%mydate% %mytime%] Branch: >> "%logfile%"
+
+for /f %%i in ('git rev-parse --abbrev-ref HEAD') do echo %%i >> "%logfile%"
+echo [%mydate% %mytime%] Ultimo hash: >> "%logfile%"
+
+for /f %%i in ('git rev-parse HEAD') do echo %%i >> "%logfile%"
+echo. >> "%logfile%"
+
+echo Log salvo em: %logfile%
 echo.
 echo Se no hPanel a Hostinger tiver "Deploy por Git" ligado a ESTE repo e ao
 echo branch correto (ex.: master), o servidor costuma atualizar sozinho em
