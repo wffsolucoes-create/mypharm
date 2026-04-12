@@ -2292,13 +2292,15 @@ function dashboardListPedidosAdminPeriodo(
         DATE(gpad.dt_apr)
     )";
 
-    $paramsR = ['ini' => $ini, 'fim' => $fim];
     // Se expandRecusados, busca recusados/carrinho sem restrição de data rigorosa
     if ($expandRecusados) {
+        // Apenas :ini é usado na query expandida — não incluir :fim (PDO falha com param não usado quando emulation=off)
+        $paramsR = ['ini' => $ini];
         $whereR = "i.ano_referencia >= YEAR(:ini) - 1
             AND $statusRecusadoSql";
     } else {
         // Alinhado ao vendedor_pedidos_lista: período por data do item OU por fallback (gestão/subquery).
+        $paramsR = ['ini' => $ini, 'fim' => $fim];
         $paramsR['ini_item'] = $ini;
         $paramsR['fim_item'] = $fim;
         $whereR = "i.ano_referencia BETWEEN YEAR(:ini) AND YEAR(:fim)
@@ -2385,11 +2387,16 @@ function dashboardListPedidosAdminPeriodo(
     }
 
     // Fonte adicional: reprovados frequentemente só em gestao_pedidos (CSV gestão), não em itens_orcamentos_pedidos.
-    $paramsRG = $paramsA;
     $whereRG = "(gp.status_financeiro IN ('Recusado', 'Cancelado', $orcEncoded) OR gp.status_financeiro LIKE '%carrinho%')";
     if ($expandRecusados) {
+        // Apenas :ini é usado — montar params mínimos para evitar erro de parâmetro não usado
+        $paramsRG = ['ini' => $ini];
+        if (!empty($paramsA['viscar'])) $paramsRG['viscar'] = $paramsA['viscar'];
+        if (!empty($paramsA['pfa'])) $paramsRG['pfa'] = $paramsA['pfa'];
+        if (!empty($paramsA['vfa'])) $paramsRG['vfa'] = $paramsA['vfa'];
         $whereRG .= ' AND gp.ano_referencia >= YEAR(:ini) - 1';
     } else {
+        $paramsRG = $paramsA;
         $whereRG .= ' AND DATE(COALESCE(gp.data_aprovacao, gp.data_orcamento)) BETWEEN :ini AND :fim';
     }
     if ($visitadorCarteira !== '') {
