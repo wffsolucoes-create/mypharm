@@ -130,6 +130,15 @@
     transform: translateY(8px) scale(0.98);
     animation: mpPopIn 200ms ease forwards;
 }
+.mp-modal.mp-modal--danger {
+    border-color: #fecaca;
+    box-shadow: 0 24px 60px rgba(127, 29, 29, 0.18), 0 0 0 1px rgba(220, 38, 38, 0.12);
+    background: linear-gradient(180deg, #fffafa 0%, #ffffff 52%);
+}
+.mp-modal.mp-modal--warning {
+    border-color: #fed7aa;
+    box-shadow: 0 24px 60px rgba(154, 52, 18, 0.12), 0 0 0 1px rgba(234, 88, 12, 0.1);
+}
 
 .mp-modal-head {
     display: flex;
@@ -164,6 +173,10 @@
     color: var(--mp-neutral-700);
     font-size: 0.95rem;
     line-height: 1.52;
+    white-space: pre-line;
+}
+.mp-modal--danger .mp-modal-title {
+    color: #7f1d1d;
 }
 
 .mp-modal-actions {
@@ -200,6 +213,10 @@
     box-shadow: 0 10px 24px rgba(220, 38, 38, 0.24);
 }
 .mp-btn-danger:hover { background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%); }
+.mp-btn-danger:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.35);
+}
 .mp-btn-primary {
     background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
     color: #fff;

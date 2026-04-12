@@ -7,6 +7,7 @@
 function handleGestaoComercialModuleAction(string $action, PDO $pdo): void
 {
     try {
+        gcVendedorasPerfilInitFromUsuarios($pdo);
         switch ($action) {
             case 'gestao_comercial_dashboard':
                 gestaoComercialDashboard($pdo);
@@ -28,6 +29,12 @@ function handleGestaoComercialModuleAction(string $action, PDO $pdo): void
                 return;
             case 'gestao_comercial_erros_tipos_distintos':
                 gestaoComercialErrosTiposDistintos($pdo);
+                return;
+            case 'gestao_comercial_comissao_regras_get':
+                gestaoComercialComissaoRegrasGet($pdo);
+                return;
+            case 'gestao_comercial_comissao_regras_salvar':
+                gestaoComercialComissaoRegrasSalvar($pdo);
                 return;
             default:
                 http_response_code(400);
@@ -80,6 +87,120 @@ function gestaoComercialListaVendedores(PDO $pdo): void
         $nomes = [];
     }
     echo json_encode(['success' => true, 'nomes' => $nomes], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function gestaoComercialComissaoRegrasGet(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    $ano = isset($_GET['ano']) ? (int)$_GET['ano'] : 0;
+    $mes = isset($_GET['mes']) ? (int)$_GET['mes'] : 0;
+    if ($ano < 2000 || $ano > 2100 || $mes < 1 || $mes > 12) {
+        [, $endObj] = gcDateRangeFromInput();
+        $end = $endObj->format('Y-m-d');
+        $ano = (int)date('Y', strtotime($end));
+        $mes = (int)date('n', strtotime($end));
+    }
+    gcEnsureComissaoRegrasMesTable($pdo);
+    $stored = gcComissaoRegrasLoadMerged($pdo, $ano, $mes);
+    echo json_encode([
+        'success' => true,
+        'ano' => $ano,
+        'mes' => $mes,
+        'regras_salvas_no_mes' => gcComissaoRegrasExists($pdo, $ano, $mes),
+        'payload' => $stored,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function gestaoComercialComissaoRegrasSalvar(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    $body = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($body)) {
+        $body = [];
+    }
+    $ano = (int)($body['ano'] ?? 0);
+    $mes = (int)($body['mes'] ?? 0);
+    if ($ano < 2000 || $ano > 2100 || $mes < 1 || $mes > 12) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Informe ano e mês válidos.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $trimStr = static function ($v, int $maxLen): string {
+        $s = trim((string)$v);
+        if (function_exists('mb_strlen') && mb_strlen($s) > $maxLen) {
+            return mb_substr($s, 0, $maxLen);
+        }
+        if (strlen($s) > $maxLen) {
+            return substr($s, 0, $maxLen);
+        }
+
+        return $s;
+    };
+    $fi = [];
+    foreach ($body['faixas_individuais'] ?? [] as $r) {
+        if (!is_array($r)) {
+            continue;
+        }
+        $fi[] = [
+            'meta_pct_faixa' => $trimStr($r['meta_pct_faixa'] ?? '', 120),
+            'intervalo' => $trimStr($r['intervalo'] ?? '', 500),
+            'comissao_percentual' => (float)($r['comissao_percentual'] ?? 0),
+            'meta_min' => (float)($r['meta_min'] ?? 0),
+            'meta_max' => array_key_exists('meta_max', $r) && $r['meta_max'] !== '' && $r['meta_max'] !== null
+                ? (float)$r['meta_max'] : null,
+        ];
+    }
+    $fg = [];
+    foreach ($body['faixas_grupo'] ?? [] as $r) {
+        if (!is_array($r)) {
+            continue;
+        }
+        $fg[] = [
+            'faixa_receita' => $trimStr($r['faixa_receita'] ?? '', 500),
+            'percentual' => (float)($r['percentual'] ?? 0),
+            'rev_min' => (float)($r['rev_min'] ?? 0),
+            'rev_max' => array_key_exists('rev_max', $r) && $r['rev_max'] !== '' && $r['rev_max'] !== null
+                ? (float)$r['rev_max'] : null,
+        ];
+    }
+    $pb = [];
+    foreach ($body['premios_score'] ?? [] as $r) {
+        if (!is_array($r)) {
+            continue;
+        }
+        $pb[] = [
+            'regra' => $trimStr($r['regra'] ?? '', 500),
+            'premio' => (float)($r['premio'] ?? 0),
+            'meta_op' => $trimStr($r['meta_op'] ?? '>=', 4),
+            'meta_val' => (float)($r['meta_val'] ?? 100),
+            'score_op' => $trimStr($r['score_op'] ?? '>', 4),
+            'score_val' => (float)($r['score_val'] ?? 85),
+        ];
+    }
+    $toSave = [
+        'v' => 1,
+        'faixas_individuais' => $fi,
+        'faixas_grupo' => $fg,
+        'premios_score' => $pb,
+    ];
+    $err = gcComissaoValidateStoredForPersist($toSave);
+    if ($err !== null) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => $err], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    try {
+        gcComissaoRegrasPersist($pdo, $ano, $mes, $toSave, (int)($_SESSION['user_id'] ?? 0));
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao gravar regras.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    echo json_encode(['success' => true, 'ano' => $ano, 'mes' => $mes], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -278,6 +399,11 @@ function gestaoComercialErrosSalvar(PDO $pdo): void
     if ($vendedor === '' || $tipoErro === '') {
         http_response_code(422);
         echo json_encode(['success' => false, 'error' => 'Vendedora e tipo do erro são obrigatórios.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if (!gcIsAllowedVendedora($vendedor)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Consultora não cadastrada com setor Vendedor no sistema.'], JSON_UNESCAPED_UNICODE);
         exit;
     }
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataErro)) {
@@ -621,6 +747,7 @@ function gestaoComercialErrosImportarCsv(PDO $pdo): void
 {
     header('Content-Type: application/json; charset=utf-8');
     gcAssertAdminSession();
+    gcVendedorasPerfilInitFromUsuarios($pdo);
     gcEnsureControleErrosTable($pdo);
 
     $csv = '';
@@ -836,31 +963,60 @@ function gcNormName(string $v): string
     return $v ?? '';
 }
 
+/**
+ * Carrega mapa de vendedoras permitidas no painel comercial a partir de usuarios.setor = vendedor (função na operação, não confundir com tipo de acesso admin/usuário).
+ * Chamado no início de cada ação do módulo (handleGestaoComercialModuleAction).
+ */
+function gcVendedorasPerfilInitFromUsuarios(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    $map = [];
+    $canon = [];
+    try {
+        $rows = gcTryFetchAll($pdo, "
+            SELECT TRIM(nome) AS nome
+            FROM usuarios
+            WHERE LOWER(TRIM(COALESCE(setor, ''))) = 'vendedor'
+              AND COALESCE(ativo, 1) = 1
+              AND TRIM(COALESCE(nome, '')) != ''
+            ORDER BY TRIM(nome) ASC
+        ", []);
+        foreach ($rows as $r) {
+            $n = trim((string)($r['nome'] ?? ''));
+            if ($n === '') {
+                continue;
+            }
+            $k = gcNormName($n);
+            if ($k === '') {
+                continue;
+            }
+            $map[$k] = true;
+            if (!isset($canon[$k])) {
+                $canon[$k] = $n;
+            }
+        }
+    } catch (Throwable $e) {
+        $map = [];
+        $canon = [];
+    }
+    $GLOBALS['_gc_vendedor_perfil_map'] = $map;
+    $GLOBALS['_gc_vendedor_perfil_canon'] = $canon;
+}
+
 function gcAllowedVendedorasMap(): array
 {
-    static $map = null;
-    if ($map !== null) return $map;
-    $allow = [
-        'Nailena',
-        'Mariana',
-        'Jessica Vitoria',
-        'Carla',
-        'Nereida',
-        'Giovanna',
-        'Clara Leticia',
-        'Ananda Reis',
-        'Micaela',
-    ];
-    $map = [];
-    foreach ($allow as $n) {
-        $map[gcNormName($n)] = true;
-    }
-    return $map;
+    $m = $GLOBALS['_gc_vendedor_perfil_map'] ?? null;
+
+    return is_array($m) ? $m : [];
 }
 
 /**
- * Unifica grafias (ex.: "Clara", "Clara Leticia") para o nome canÃ´nico da equipe,
- * evitando que o mesmo consultor apareÃ§a vÃ¡rias vezes nos grÃ¡ficos e KPIs.
+ * Unifica grafias (ex.: "Clara", "Clara Leticia") para o nome cadastrado em usuarios (setor Vendedor),
+ * evitando que o mesmo consultor apareça várias vezes nos gráficos e KPIs.
  */
 function gcCanonicalVendedoraNome(string $nome): string
 {
@@ -868,33 +1024,34 @@ function gcCanonicalVendedoraNome(string $nome): string
     if ($nome === '') {
         return '';
     }
-    $canonList = [
-        'Clara Leticia', 'Ananda Reis', 'Nailena', 'Mariana', 'Jessica Vitoria',
-        'Carla', 'Nereida', 'Giovanna', 'Micaela',
-    ];
+    $canon = $GLOBALS['_gc_vendedor_perfil_canon'] ?? [];
+    if (!is_array($canon)) {
+        $canon = [];
+    }
     $nk = gcNormName($nome);
-    foreach ($canonList as $c) {
-        if (gcNormName($c) === $nk) {
-            return $c;
-        }
+    if ($nk !== '' && isset($canon[$nk])) {
+        return (string)$canon[$nk];
     }
     $parts = preg_split('/\s+/', $nk, 2);
     $first = $parts[0] ?? '';
-    $firstToFull = [
-        'clara' => 'Clara Leticia',
-        'ananda' => 'Ananda Reis',
-        'jessica' => 'Jessica Vitoria',
-        'nailena' => 'Nailena',
-        'mariana' => 'Mariana',
-        'carla' => 'Carla',
-        'nereida' => 'Nereida',
-        'giovanna' => 'Giovanna',
-        'micaela' => 'Micaela',
-        'vitoria' => 'Jessica Vitoria',
-    ];
-    if ($first !== '' && isset($firstToFull[$first])) {
-        return $firstToFull[$first];
+    if ($first !== '') {
+        $hit = null;
+        foreach ($canon as $knDb => $disp) {
+            $pdb = preg_split('/\s+/', (string)$knDb, 2);
+            $fdb = $pdb[0] ?? '';
+            if ($fdb === $first) {
+                if ($hit !== null) {
+                    $hit = null;
+                    break;
+                }
+                $hit = (string)$disp;
+            }
+        }
+        if ($hit !== null) {
+            return $hit;
+        }
     }
+
     return $nome;
 }
 
@@ -1218,67 +1375,348 @@ function gcEvolucaoMensalVendedoresPayload(PDO $pdo, string $approvedGp, array $
     return $out;
 }
 
-/** Alinhado a api_gestao handleVendedorDashboardGestao â€” comissÃ£o individual por % da meta. */
-function gcCalcComissaoIndividualPct(float $percentualMeta): float
+/** Tabela de regras de comissão por calendário (ano/mês). */
+function gcEnsureComissaoRegrasMesTable(PDO $pdo): void
 {
-    if ($percentualMeta >= 110.0) {
-        return 2.0;
-    }
-    if ($percentualMeta >= 100.0) {
-        return 1.8;
-    }
-    if ($percentualMeta >= 90.0) {
-        return 1.3;
-    }
-    if ($percentualMeta >= 70.0) {
-        return 1.0;
-    }
-    return 0.5;
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS gestao_comissao_regras_mes (
+            ano SMALLINT NOT NULL,
+            mes TINYINT NOT NULL,
+            payload_json LONGTEXT NOT NULL,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            updated_by INT NULL,
+            PRIMARY KEY (ano, mes)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
 }
 
-/** Faixa de comissÃ£o extra por faturamento do grupo (receita aprovada no perÃ­odo, soma da equipe). */
-function gcCalcComissaoGrupoPct(float $receitaGrupo): float
-{
-    if ($receitaGrupo >= 370000.0) {
-        return 2.5;
-    }
-    if ($receitaGrupo >= 350000.0) {
-        return 2.0;
-    }
-    if ($receitaGrupo >= 320000.0) {
-        return 1.5;
-    }
-    return 0.0;
-}
-
-/** Regras estÃ¡ticas de comissÃ£o individual (painel comercial). */
-function gcRelatorioFaixasComissaoIndividual(): array
+/** JSON padrão (regras fixas anteriores) + campos numéricos para cálculo. */
+function gcComissaoRegrasDefaultStored(): array
 {
     return [
-        ['meta_pct_faixa' => 'AtÃ© 69%', 'intervalo' => 'AtÃ© R$ 40.709,00', 'comissao_percentual' => 0.5],
-        ['meta_pct_faixa' => '70% a 89%', 'intervalo' => 'R$ 40.710,00 a R$ 52.510,00', 'comissao_percentual' => 1.0],
-        ['meta_pct_faixa' => '90% a 99%', 'intervalo' => 'R$ 52.511,00 a R$ 58.409,00', 'comissao_percentual' => 1.3],
-        ['meta_pct_faixa' => '100% a 109%', 'intervalo' => 'R$ 59.000,00 a R$ 64.309,00', 'comissao_percentual' => 1.8],
-        ['meta_pct_faixa' => '110%+', 'intervalo' => 'Acima de R$ 70.000,00', 'comissao_percentual' => 2.0],
+        'v' => 1,
+        'faixas_individuais' => [
+            ['meta_pct_faixa' => 'Até 69%', 'intervalo' => 'Até R$ 40.709,00', 'comissao_percentual' => 0.5, 'meta_min' => 0.0, 'meta_max' => 69.999999],
+            ['meta_pct_faixa' => '70% a 89%', 'intervalo' => 'R$ 40.710,00 a R$ 52.510,00', 'comissao_percentual' => 1.0, 'meta_min' => 70.0, 'meta_max' => 89.999999],
+            ['meta_pct_faixa' => '90% a 99%', 'intervalo' => 'R$ 52.511,00 a R$ 58.409,00', 'comissao_percentual' => 1.3, 'meta_min' => 90.0, 'meta_max' => 99.999999],
+            ['meta_pct_faixa' => '100% a 109%', 'intervalo' => 'R$ 59.000,00 a R$ 64.309,00', 'comissao_percentual' => 1.8, 'meta_min' => 100.0, 'meta_max' => 109.999999],
+            ['meta_pct_faixa' => '110%+', 'intervalo' => 'Acima de R$ 70.000,00', 'comissao_percentual' => 2.0, 'meta_min' => 110.0, 'meta_max' => null],
+        ],
+        'faixas_grupo' => [
+            ['faixa_receita' => 'Abaixo de R$ 320.000', 'percentual' => 0.0, 'rev_min' => 0.0, 'rev_max' => 319999.99],
+            ['faixa_receita' => 'R$ 320.000 a R$ 349.999', 'percentual' => 1.5, 'rev_min' => 320000.0, 'rev_max' => 349999.99],
+            ['faixa_receita' => 'R$ 350.000 a R$ 369.999', 'percentual' => 2.0, 'rev_min' => 350000.0, 'rev_max' => 369999.99],
+            ['faixa_receita' => 'Acima de R$ 370.000', 'percentual' => 2.5, 'rev_min' => 370000.0, 'rev_max' => null],
+        ],
+        'premios_score' => [
+            ['regra' => 'Ultrapassa meta + score acima de 95', 'premio' => 400.0, 'meta_op' => '>', 'meta_val' => 100.0, 'score_op' => '>', 'score_val' => 95.0],
+            ['regra' => 'Bate meta + score acima de 85', 'premio' => 200.0, 'meta_op' => '>=', 'meta_val' => 100.0, 'score_op' => '>', 'score_val' => 85.0],
+        ],
     ];
 }
 
-/** Regras estÃ¡ticas de comissÃ£o grupo (painel comercial). */
-function gcRelatorioFaixasComissaoGrupo(): array
+function gcComissaoOpValid(string $op): bool
 {
-    return [
-        ['faixa_receita' => 'R$ 320.000 a R$ 349.999', 'percentual' => 1.5],
-        ['faixa_receita' => 'R$ 350.000 a R$ 369.999', 'percentual' => 2.0],
-        ['faixa_receita' => 'Acima de R$ 370.000', 'percentual' => 2.5],
-    ];
+    return in_array($op, ['>=', '>', '<=', '<'], true);
+}
+
+function gcComissaoCmp(float $a, string $op, float $b): bool
+{
+    return match ($op) {
+        '>=' => $a >= $b - 1e-9,
+        '>' => $a > $b + 1e-9,
+        '<=' => $a <= $b + 1e-9,
+        '<' => $a < $b - 1e-9,
+        default => false,
+    };
 }
 
 /**
- * Bloco "RelatÃ³rios" (Semanal, Mensal e ComissÃ£o) para aba dedicada.
- * Usa exclusivamente dados do banco no perÃ­odo filtrado.
+ * @return array{individual: list<array>, grupo: list<array>, bonus: list<array>}
  */
-function gcBuildRelatoriosComerciais(PDO $pdo, string $start, string $end, string $approvedGp, array $vendedores): array
+function gcComissaoStoredToNorm(array $stored): array
 {
+    $def = gcComissaoRegrasDefaultStored();
+    $fi = $stored['faixas_individuais'] ?? $def['faixas_individuais'];
+    $fg = $stored['faixas_grupo'] ?? $def['faixas_grupo'];
+    $pb = $stored['premios_score'] ?? $def['premios_score'];
+    $individual = [];
+    foreach (is_array($fi) ? $fi : [] as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $individual[] = [
+            'meta_min' => (float)($row['meta_min'] ?? 0),
+            'meta_max' => array_key_exists('meta_max', $row) && $row['meta_max'] !== null && $row['meta_max'] !== ''
+                ? (float)$row['meta_max'] : null,
+            'pct' => (float)($row['comissao_percentual'] ?? 0),
+        ];
+    }
+    if (!$individual) {
+        foreach ($def['faixas_individuais'] as $row) {
+            $individual[] = [
+                'meta_min' => (float)($row['meta_min'] ?? 0),
+                'meta_max' => $row['meta_max'] ?? null,
+                'pct' => (float)($row['comissao_percentual'] ?? 0),
+            ];
+        }
+    }
+    $grupo = [];
+    foreach (is_array($fg) ? $fg : [] as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $grupo[] = [
+            'rev_min' => (float)($row['rev_min'] ?? 0),
+            'rev_max' => array_key_exists('rev_max', $row) && $row['rev_max'] !== null && $row['rev_max'] !== ''
+                ? (float)$row['rev_max'] : null,
+            'pct' => (float)($row['percentual'] ?? 0),
+        ];
+    }
+    if (!$grupo) {
+        foreach ($def['faixas_grupo'] as $row) {
+            $grupo[] = [
+                'rev_min' => (float)($row['rev_min'] ?? 0),
+                'rev_max' => $row['rev_max'] ?? null,
+                'pct' => (float)($row['percentual'] ?? 0),
+            ];
+        }
+    }
+    $bonus = [];
+    foreach (is_array($pb) ? $pb : [] as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $metaOp = trim((string)($row['meta_op'] ?? '>='));
+        $scoreOp = trim((string)($row['score_op'] ?? '>'));
+        if (!gcComissaoOpValid($metaOp)) {
+            $metaOp = '>=';
+        }
+        if (!gcComissaoOpValid($scoreOp)) {
+            $scoreOp = '>';
+        }
+        $bonus[] = [
+            'premio' => (float)($row['premio'] ?? 0),
+            'meta_op' => $metaOp,
+            'meta_val' => (float)($row['meta_val'] ?? 100),
+            'score_op' => $scoreOp,
+            'score_val' => (float)($row['score_val'] ?? 85),
+        ];
+    }
+    if (!$bonus) {
+        foreach ($def['premios_score'] as $row) {
+            $bonus[] = [
+                'premio' => (float)($row['premio'] ?? 0),
+                'meta_op' => (string)($row['meta_op'] ?? '>='),
+                'meta_val' => (float)($row['meta_val'] ?? 100),
+                'score_op' => (string)($row['score_op'] ?? '>'),
+                'score_val' => (float)($row['score_val'] ?? 85),
+            ];
+        }
+    }
+    return ['individual' => $individual, 'grupo' => $grupo, 'bonus' => $bonus];
+}
+
+function gcIndividualPctFromNorm(float $pctMeta, array $tiers): float
+{
+    if (!$tiers) {
+        return 0.0;
+    }
+    $sorted = $tiers;
+    usort($sorted, static function (array $a, array $b): int {
+        return ($b['meta_min'] <=> $a['meta_min']);
+    });
+    foreach ($sorted as $t) {
+        if ($pctMeta + 1e-9 < $t['meta_min']) {
+            continue;
+        }
+        if ($t['meta_max'] !== null && $pctMeta > $t['meta_max'] + 1e-6) {
+            continue;
+        }
+        return (float)$t['pct'];
+    }
+    $last = $sorted[count($sorted) - 1];
+
+    return (float)($last['pct'] ?? 0.0);
+}
+
+function gcGrupoPctFromNorm(float $receita, array $tiers): float
+{
+    if (!$tiers) {
+        return 0.0;
+    }
+    $sorted = $tiers;
+    usort($sorted, static function (array $a, array $b): int {
+        return ($b['rev_min'] <=> $a['rev_min']);
+    });
+    foreach ($sorted as $t) {
+        if ($receita + 1e-9 < $t['rev_min']) {
+            continue;
+        }
+        if ($t['rev_max'] !== null && $receita > $t['rev_max'] + 0.01) {
+            continue;
+        }
+        return (float)$t['pct'];
+    }
+    $last = $sorted[count($sorted) - 1];
+
+    return (float)($last['pct'] ?? 0.0);
+}
+
+function gcBonusPremioFromNorm(float $pctMetaSemanal, float $score, array $rules): float
+{
+    foreach ($rules as $r) {
+        if (!gcComissaoCmp($pctMetaSemanal, $r['meta_op'], $r['meta_val'])) {
+            continue;
+        }
+        if (!gcComissaoCmp($score, $r['score_op'], $r['score_val'])) {
+            continue;
+        }
+        return (float)$r['premio'];
+    }
+
+    return 0.0;
+}
+
+function gcComissaoRegrasLoadMerged(PDO $pdo, int $ano, int $mes): array
+{
+    gcEnsureComissaoRegrasMesTable($pdo);
+    $def = gcComissaoRegrasDefaultStored();
+    if ($ano < 2000 || $ano > 2100 || $mes < 1 || $mes > 12) {
+        return $def;
+    }
+    try {
+        $st = $pdo->prepare('SELECT payload_json FROM gestao_comissao_regras_mes WHERE ano = :a AND mes = :m LIMIT 1');
+        $st->execute(['a' => $ano, 'm' => $mes]);
+        $raw = $st->fetchColumn();
+        if ($raw === false || $raw === null || $raw === '') {
+            return $def;
+        }
+        $decoded = json_decode((string)$raw, true);
+        if (!is_array($decoded)) {
+            return $def;
+        }
+        $merged = $def;
+        if (isset($decoded['faixas_individuais']) && is_array($decoded['faixas_individuais'])) {
+            $merged['faixas_individuais'] = $decoded['faixas_individuais'];
+        }
+        if (isset($decoded['faixas_grupo']) && is_array($decoded['faixas_grupo'])) {
+            $merged['faixas_grupo'] = $decoded['faixas_grupo'];
+        }
+        if (isset($decoded['premios_score']) && is_array($decoded['premios_score'])) {
+            $merged['premios_score'] = $decoded['premios_score'];
+        }
+
+        return $merged;
+    } catch (Throwable $e) {
+        return $def;
+    }
+}
+
+function gcComissaoRegrasPersist(PDO $pdo, int $ano, int $mes, array $stored, int $userId): void
+{
+    gcEnsureComissaoRegrasMesTable($pdo);
+    $json = json_encode($stored, JSON_UNESCAPED_UNICODE);
+    if ($json === false) {
+        throw new RuntimeException('Falha ao serializar regras de comissão.');
+    }
+    $st = $pdo->prepare('
+        INSERT INTO gestao_comissao_regras_mes (ano, mes, payload_json, updated_by)
+        VALUES (:a, :m, :p, :u)
+        ON DUPLICATE KEY UPDATE payload_json = VALUES(payload_json), updated_by = VALUES(updated_by)
+    ');
+    $st->execute(['a' => $ano, 'm' => $mes, 'p' => $json, 'u' => $userId > 0 ? $userId : null]);
+}
+
+function gcComissaoRegrasExists(PDO $pdo, int $ano, int $mes): bool
+{
+    try {
+        $st = $pdo->prepare('SELECT 1 FROM gestao_comissao_regras_mes WHERE ano = :a AND mes = :m LIMIT 1');
+        $st->execute(['a' => $ano, 'm' => $mes]);
+
+        return (bool)$st->fetchColumn();
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+function gcComissaoValidateStoredForPersist(array $s): ?string
+{
+    $fi = $s['faixas_individuais'] ?? null;
+    $fg = $s['faixas_grupo'] ?? null;
+    $pb = $s['premios_score'] ?? null;
+    if (!is_array($fi) || count($fi) < 1 || count($fi) > 20) {
+        return 'faixas_individuais: envie entre 1 e 20 linhas.';
+    }
+    if (!is_array($fg) || count($fg) < 1 || count($fg) > 20) {
+        return 'faixas_grupo: envie entre 1 e 20 linhas.';
+    }
+    if (!is_array($pb) || count($pb) < 1 || count($pb) > 15) {
+        return 'premios_score: envie entre 1 e 15 linhas.';
+    }
+    foreach ($fi as $r) {
+        if (!is_array($r) || !isset($r['meta_min'], $r['comissao_percentual'])) {
+            return 'Cada faixa individual precisa de meta_min e comissao_percentual.';
+        }
+    }
+    foreach ($fg as $r) {
+        if (!is_array($r) || !isset($r['rev_min'], $r['percentual'])) {
+            return 'Cada faixa de grupo precisa de rev_min e percentual.';
+        }
+    }
+    foreach ($pb as $r) {
+        if (!is_array($r) || !isset($r['premio'], $r['meta_op'], $r['meta_val'], $r['score_op'], $r['score_val'])) {
+            return 'Cada prêmio precisa de premio, meta_op, meta_val, score_op e score_val.';
+        }
+        if (!gcComissaoOpValid((string)$r['meta_op']) || !gcComissaoOpValid((string)$r['score_op'])) {
+            return 'Operadores inválidos (use >=, >, <= ou <).';
+        }
+    }
+
+    return null;
+}
+
+/** Alinhado a api_gestao handleVendedorDashboardGestao — comissão individual por % da meta. */
+function gcCalcComissaoIndividualPct(float $percentualMeta, ?array $comissaoStored = null): float
+{
+    $stored = is_array($comissaoStored) ? $comissaoStored : gcComissaoRegrasDefaultStored();
+    $norm = gcComissaoStoredToNorm($stored);
+
+    return gcIndividualPctFromNorm($percentualMeta, $norm['individual']);
+}
+
+/** Faixa de comissão extra por faturamento do grupo (receita aprovada no período, soma da equipe). */
+function gcCalcComissaoGrupoPct(float $receitaGrupo, ?array $comissaoStored = null): float
+{
+    $stored = is_array($comissaoStored) ? $comissaoStored : gcComissaoRegrasDefaultStored();
+    $norm = gcComissaoStoredToNorm($stored);
+
+    return gcGrupoPctFromNorm($receitaGrupo, $norm['grupo']);
+}
+
+/** Regras estáticas de comissão individual (painel comercial). */
+function gcRelatorioFaixasComissaoIndividual(): array
+{
+    return gcComissaoRegrasDefaultStored()['faixas_individuais'];
+}
+
+/** Regras estáticas de comissão grupo (painel comercial). */
+function gcRelatorioFaixasComissaoGrupo(): array
+{
+    return gcComissaoRegrasDefaultStored()['faixas_grupo'];
+}
+
+/**
+ * Bloco "Relatórios" (Semanal, Mensal e Comissão) para aba dedicada.
+ * Usa exclusivamente dados do banco no período filtrado.
+ */
+function gcBuildRelatoriosComerciais(PDO $pdo, string $start, string $end, string $approvedGp, array $vendedores, ?array $comissaoStored = null): array
+{
+    $stored = is_array($comissaoStored) ? $comissaoStored : gcComissaoRegrasDefaultStored();
+    $norm = gcComissaoStoredToNorm($stored);
+    $anoRegrasRef = (int)date('Y', strtotime($end));
+    $mesRegrasRef = (int)date('n', strtotime($end));
+
     $vendByNorm = [];
     foreach ($vendedores as $v) {
         $nome = trim((string)($v['atendente'] ?? ''));
@@ -1388,8 +1826,6 @@ function gcBuildRelatoriosComerciais(PDO $pdo, string $start, string $end, strin
         $errosPtsMap[$nk] = (float)($errosPtsMap[$nk] ?? 0) + (float)($r['pts'] ?? 0);
     }
 
-    $bonusMetaScore85 = 200.0;
-    $bonusUltrapassaScore95 = 400.0;
     $rowsSemanal = [];
     $rowsMensal = [];
     $totSem1 = 0.0; $totSem2 = 0.0; $totSem3 = 0.0; $totSem4 = 0.0; $totReceita = 0.0;
@@ -1428,16 +1864,11 @@ function gcBuildRelatoriosComerciais(PDO $pdo, string $start, string $end, strin
         $pErros = max(0.0, min(20.0, round(20.0 - $pontosDescontados, 2)));
         $score = round($pFat + $pConv + $pErros + $crm, 2);
         $status = $score >= 80 ? 'Muito Bom' : ($score >= 65 ? 'Bom' : ($score >= 50 ? 'Plano de Ação' : 'Crítico'));
-        $ci = (float)gcCalcComissaoIndividualPct($pctMetaSemanal);
+        $ci = (float)gcCalcComissaoIndividualPct($pctMetaSemanal, $stored);
         $cg = (float)($v['comissao_pct_grupo'] ?? 0);
         $ct = round($ci + $cg, 2);
         $comissao = round($receitaBaseSemanal * ($ct / 100), 2);
-        $bonus = 0.0;
-        if ($pctMetaSemanal > 100 && $score > 95) {
-            $bonus = $bonusUltrapassaScore95;
-        } elseif ($pctMetaSemanal >= 100 && $score > 85) {
-            $bonus = $bonusMetaScore85;
-        }
+        $bonus = gcBonusPremioFromNorm($pctMetaSemanal, $score, $norm['bonus']);
         $comissaoComBonus = round($comissao + $bonus, 2);
         $totSem1 += $s1; $totSem2 += $s2; $totSem3 += $s3; $totSem4 += $s4; $totReceita += $receita;
 
@@ -1496,12 +1927,11 @@ function gcBuildRelatoriosComerciais(PDO $pdo, string $start, string $end, strin
         ],
         'mensal' => ['linhas' => $rowsMensal],
         'comissao' => [
-            'faixas_individuais' => gcRelatorioFaixasComissaoIndividual(),
-            'faixas_grupo' => gcRelatorioFaixasComissaoGrupo(),
-            'premios_score' => [
-                ['regra' => 'Bate meta + score acima de 85', 'premio' => 200],
-                ['regra' => 'Ultrapassa meta + score acima de 95', 'premio' => 400],
-            ],
+            'regras_ref' => ['ano' => $anoRegrasRef, 'mes' => $mesRegrasRef],
+            'regras_salvas_no_mes' => gcComissaoRegrasExists($pdo, $anoRegrasRef, $mesRegrasRef),
+            'faixas_individuais' => $stored['faixas_individuais'] ?? [],
+            'faixas_grupo' => $stored['faixas_grupo'] ?? [],
+            'premios_score' => $stored['premios_score'] ?? [],
         ],
     ];
 }
@@ -1530,18 +1960,25 @@ function gcEnsureVendedorPerdasAcoesTableGc(PDO $pdo): void
 
 function gcDisplayConsultoraNamePhp(string $nome): string
 {
+    $canon = $GLOBALS['_gc_vendedor_perfil_canon'] ?? [];
+    if (is_array($canon)) {
+        $k = gcNormName($nome);
+        if ($k !== '' && isset($canon[$k])) {
+            return (string)$canon[$k];
+        }
+    }
     $map = [
         'ananda reis' => 'Ananda Reis',
         'carla' => 'Carla',
         'clara leticia' => 'Clara Letícia',
         'giovanna' => 'Giovanna',
         'jessica vitoria' => 'Jéssica Vitória',
-        'mariana' => 'Mariana',
         'micaela' => 'Micaela',
         'nailena' => 'Nailena',
         'nereida' => 'Nereida',
     ];
     $k = gcNormName($nome);
+
     return $map[$k] ?? $nome;
 }
 
@@ -1560,7 +1997,7 @@ function gcBuildResumoErrosPayload(PDO $pdo, string $ini, string $fim): array
         $st = $pdo->query("
             SELECT TRIM(nome) AS nome, COALESCE(meta_mensal, 0) AS meta_mensal
             FROM usuarios
-            WHERE LOWER(TRIM(COALESCE(setor, ''))) LIKE '%vendedor%'
+            WHERE LOWER(TRIM(COALESCE(setor, ''))) = 'vendedor'
               AND COALESCE(ativo, 1) = 1
         ");
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $mr) {
@@ -1645,15 +2082,13 @@ function gcBuildResumoErrosPayload(PDO $pdo, string $ini, string $fim): array
     }
 
     $norms = array_keys(gcAllowedVendedorasMap());
+    $canonByNorm = $GLOBALS['_gc_vendedor_perfil_canon'] ?? [];
+    if (!is_array($canonByNorm)) {
+        $canonByNorm = [];
+    }
     $equipe = [];
     foreach ($norms as $nk) {
-        $nomeCanon = '';
-        foreach (['Clara Leticia', 'Ananda Reis', 'Nailena', 'Mariana', 'Jessica Vitoria', 'Carla', 'Nereida', 'Giovanna', 'Micaela'] as $cand) {
-            if (gcNormName($cand) === $nk) {
-                $nomeCanon = $cand;
-                break;
-            }
-        }
+        $nomeCanon = (string)($canonByNorm[$nk] ?? '');
         if ($nomeCanon === '') {
             continue;
         }
@@ -2201,7 +2636,6 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
             ['faixa' => 'R$ 1 mil a 2 mil', 'clientes' => 0, 'receita' => 0.0],
             ['faixa' => 'Acima de R$ 2 mil', 'clientes' => 0, 'receita' => 0.0],
         ],
-        'top_clientes_perda' => [],
     ];
 
     $formulasMargem = [];
@@ -2233,9 +2667,12 @@ function gestaoComercialDashboardRdOnly(PDO $pdo): void
     $ticketPrescritor = array_slice($ticketPrescritor, 0, 20);
 
     $approvedGpRd = gcApprovedCase('gp');
+    $anoComissaoRegrasRd = (int)date('Y', strtotime($end));
+    $mesComissaoRegrasRd = (int)date('n', strtotime($end));
+    $comissaoStoredMesRd = gcComissaoRegrasLoadMerged($pdo, $anoComissaoRegrasRd, $mesComissaoRegrasRd);
     $evolucaoMensalVendedores = gcEvolucaoMensalVendedoresPayload($pdo, $approvedGpRd, $equipe);
     $evolucaoMensalAprovRej = gcEvolucaoMensalAprovRejPayload($pdo, $approvedGpRd, $equipe);
-    $relatoriosComerciais = gcBuildRelatoriosComerciais($pdo, $start, $end, $approvedGpRd, $equipe);
+    $relatoriosComerciais = gcBuildRelatoriosComerciais($pdo, $start, $end, $approvedGpRd, $equipe, $comissaoStoredMesRd);
 
     $crescimento = [
         'receita_mes'                     => round($receitaMes, 2),
@@ -2419,6 +2856,9 @@ function gestaoComercialDashboard(PDO $pdo): void
     [$startObj, $endObj, $periodType] = gcDateRangeFromInput();
     $start = $startObj->format('Y-m-d');
     $end = $endObj->format('Y-m-d');
+    $anoComissaoRegras = (int)date('Y', strtotime($end));
+    $mesComissaoRegras = (int)date('n', strtotime($end));
+    $comissaoStoredMes = gcComissaoRegrasLoadMerged($pdo, $anoComissaoRegras, $mesComissaoRegras);
     $prevStart = $startObj->modify('-1 month')->format('Y-m-d');
     $prevEnd = $endObj->modify('-1 month')->format('Y-m-d');
     $lyStart = $startObj->modify('-1 year')->format('Y-m-d');
@@ -2648,15 +3088,17 @@ function gestaoComercialDashboard(PDO $pdo): void
             COALESCE(u.setor, '') AS setor,
             COALESCE(u.ativo, 1) AS ativo
         FROM usuarios u
-        WHERE LOWER(TRIM(COALESCE(u.setor, ''))) LIKE '%vendedor%'
+        WHERE LOWER(TRIM(COALESCE(u.setor, ''))) = 'vendedor'
+          AND COALESCE(u.ativo, 1) = 1
         ORDER BY TRIM(u.nome) ASC
     ");
     $vendedoresCadastrados = [];
     foreach ($usuariosSetor as $u) {
         $nomeUsr = trim((string)($u['nome'] ?? ''));
-        if ($nomeUsr === '') continue;
-        $setorNorm = gcNormName((string)($u['setor'] ?? ''));
-        if (strpos($setorNorm, 'vendedor') !== false && gcIsAllowedVendedora($nomeUsr)) {
+        if ($nomeUsr === '') {
+            continue;
+        }
+        if (gcIsAllowedVendedora($nomeUsr)) {
             $vendedoresCadastrados[] = [
                 'nome' => $nomeUsr,
                 'ativo' => (int)($u['ativo'] ?? 1),
@@ -2757,12 +3199,12 @@ function gestaoComercialDashboard(PDO $pdo): void
         $stMetaV = $pdo->query("
             SELECT TRIM(nome) AS nome, COALESCE(meta_mensal, 0) AS meta_mensal
             FROM usuarios
-            WHERE LOWER(TRIM(COALESCE(setor, ''))) LIKE '%vendedor%'
+            WHERE LOWER(TRIM(COALESCE(setor, ''))) = 'vendedor'
               AND COALESCE(ativo, 1) = 1
         ");
         foreach ($stMetaV->fetchAll(PDO::FETCH_ASSOC) ?: [] as $mr) {
             $nm = trim((string)($mr['nome'] ?? ''));
-            if ($nm === '') {
+            if ($nm === '' || !gcIsAllowedVendedora($nm)) {
                 continue;
             }
             $metaPorNorm[gcNormName($nm)] = (float)($mr['meta_mensal'] ?? 0);
@@ -2775,7 +3217,7 @@ function gestaoComercialDashboard(PDO $pdo): void
     foreach ($vendedores as $vv) {
         $receitaGrupoVend += (float)($vv['receita'] ?? 0);
     }
-    $comissaoGrupoPctVend = gcCalcComissaoGrupoPct($receitaGrupoVend);
+    $comissaoGrupoPctVend = gcCalcComissaoGrupoPct($receitaGrupoVend, $comissaoStoredMes);
 
     foreach ($vendedores as &$vnd) {
         $norm = gcNormName((string)($vnd['atendente'] ?? ''));
@@ -2785,7 +3227,7 @@ function gestaoComercialDashboard(PDO $pdo): void
         }
         $receita = (float)($vnd['receita'] ?? 0);
         $pctMeta = $meta > 0 ? round(($receita / $meta) * 100, 2) : 0.0;
-        $ci = gcCalcComissaoIndividualPct($pctMeta);
+        $ci = gcCalcComissaoIndividualPct($pctMeta, $comissaoStoredMes);
         $ct = round($ci + $comissaoGrupoPctVend, 2);
         $vnd['meta_mensal'] = round($meta, 2);
         $vnd['percentual_meta'] = $pctMeta;
@@ -3023,24 +3465,6 @@ function gestaoComercialDashboard(PDO $pdo): void
     }
     unset($ft);
 
-    $topClientesPerda = gcTryFetchAll($pdo, "
-        SELECT
-            COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)') AS cliente,
-            COUNT(*) AS qtd_rejeicoes,
-            COALESCE(SUM(gp.preco_liquido), 0) AS valor_rejeitado
-        FROM gestao_pedidos gp
-        WHERE DATE(gp.data_aprovacao) BETWEEN :ini AND :fim
-          AND NOT ({$approvedGp})
-        GROUP BY COALESCE(NULLIF(TRIM(gp.cliente), ''), '(Sem cliente)')
-        ORDER BY COALESCE(SUM(gp.preco_liquido), 0) DESC, COUNT(*) DESC
-        LIMIT {$limit}
-    ", ['ini' => $start, 'fim' => $end]);
-    foreach ($topClientesPerda as &$tcp) {
-        $tcp['qtd_rejeicoes'] = (int)($tcp['qtd_rejeicoes'] ?? 0);
-        $tcp['valor_rejeitado'] = round((float)($tcp['valor_rejeitado'] ?? 0), 2);
-    }
-    unset($tcp);
-
     $clientesAnalise = [
         'mix_novos_recorrentes' => [
             'novos' => $novosClientes,
@@ -3049,7 +3473,6 @@ function gestaoComercialDashboard(PDO $pdo): void
             'receita_recorrentes' => round($receitaRecorrentes, 2),
         ],
         'faixa_ticket' => $faixasTicket,
-        'top_clientes_perda' => $topClientesPerda,
     ];
 
     $tzPv = new DateTimeZone('America/Porto_Velho');
@@ -3445,7 +3868,7 @@ function gestaoComercialDashboard(PDO $pdo): void
 
     $evolucaoMensalVendedores = gcEvolucaoMensalVendedoresPayload($pdo, $approvedGp, $vendedores);
     $evolucaoMensalAprovRej = gcEvolucaoMensalAprovRejPayload($pdo, $approvedGp, $vendedores);
-    $relatoriosComerciais = gcBuildRelatoriosComerciais($pdo, $start, $end, $approvedGp, $vendedores);
+    $relatoriosComerciais = gcBuildRelatoriosComerciais($pdo, $start, $end, $approvedGp, $vendedores, $comissaoStoredMes);
 
     $payload = [
         'success' => true,

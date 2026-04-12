@@ -86,7 +86,7 @@
         if (!overlay || !icon || !title || !desc || !actions) return Promise.resolve(false);
 
         var cfg = opts || {};
-        var kind = cfg.kind || 'info';
+        var kind = cfg.kind || cfg.variant || (cfg.destructive ? 'danger' : 'info');
         var titleTxt = cfg.title || 'Mensagem';
         var descTxt = cfg.description || '';
         var cancelTxt = cfg.cancelText || 'Cancelar';
@@ -99,6 +99,16 @@
             danger: 'fa-triangle-exclamation'
         };
         var iconKind = kind === 'danger' ? 'danger' : kind;
+
+        var modalBox = overlay.querySelector('.mp-modal');
+        if (modalBox) {
+            modalBox.classList.remove('mp-modal--danger', 'mp-modal--warning');
+            if (kind === 'danger') {
+                modalBox.classList.add('mp-modal--danger');
+            } else if (kind === 'warning') {
+                modalBox.classList.add('mp-modal--warning');
+            }
+        }
 
         icon.className = 'mp-modal-icon mp-' + iconKind;
         icon.innerHTML = '<i class="fas ' + (iconMap[kind] || iconMap.info) + '"></i>';
@@ -124,6 +134,9 @@
 
         return new Promise(function (resolve) {
             var done = function (ok) {
+                if (modalBox) {
+                    modalBox.classList.remove('mp-modal--danger', 'mp-modal--warning');
+                }
                 overlay.classList.remove('is-open');
                 overlay.setAttribute('aria-hidden', 'true');
                 document.removeEventListener('keydown', onKey);
@@ -178,7 +191,7 @@
         showConfirm: function (opts) {
             var cfg = opts || {};
             return modal({
-                kind: cfg.kind || (cfg.destructive ? 'danger' : 'info'),
+                kind: cfg.kind || cfg.variant || (cfg.destructive ? 'danger' : 'info'),
                 title: cfg.title || 'Confirmar ação',
                 description: cfg.message || cfg.description || 'Deseja continuar?',
                 confirmText: cfg.confirmText || 'Confirmar',

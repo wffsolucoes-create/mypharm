@@ -1041,7 +1041,6 @@
             'clara leticia': 'Clara Letícia',
             'giovanna': 'Giovanna',
             'jessica vitoria': 'Jéssica Vitória',
-            'mariana': 'Mariana',
             'micaela': 'Micaela',
             'nailena': 'Nailena',
             'nereida': 'Nereida'
@@ -1496,6 +1495,326 @@
         }).join('');
     }
 
+    function gcNomeMesPt(m) {
+        var nomes = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+        var i = Number(m) - 1;
+        return (i >= 0 && i < 12) ? nomes[i] : String(m);
+    }
+
+    function gcComissaoOpOptionsHtml(selectedOp) {
+        var ops = ['>=', '>', '<=', '<'];
+        var s = String(selectedOp || '>=');
+        return ops.map(function (op) {
+            return '<option value="' + escapeHtml(op) + '"' + (op === s ? ' selected' : '') + '>' + escapeHtml(op) + '</option>';
+        }).join('');
+    }
+
+    var gcComissaoSaveBound = false;
+    /** Mês cujos dados estão atualmente nas tabelas (após dashboard ou Carregar). */
+    var gcComissaoTabelasRef = { ano: 0, mes: 0 };
+    /** Se há regras salvas no banco para o mês atualmente mostrado nas tabelas. */
+    var gcComissaoEditorSalvasCached = false;
+    var gcComissaoSelInited = false;
+    /** Campos das tabelas bloqueados até clicar em Editar. */
+    var gcComissaoEditMode = false;
+
+    function gcInitComissaoRegrasSelectorsOnce(centerYear) {
+        if (gcComissaoSelInited) return;
+        gcComissaoSelInited = true;
+        var cy = Number(centerYear) || new Date().getFullYear();
+        var mesSel = document.getElementById('gcComissaoRegrasMes');
+        var anoSel = document.getElementById('gcComissaoRegrasAno');
+        if (!mesSel || !anoSel) return;
+        mesSel.innerHTML = '';
+        for (var m = 1; m <= 12; m++) {
+            var o = document.createElement('option');
+            o.value = String(m);
+            o.textContent = gcNomeMesPt(m);
+            mesSel.appendChild(o);
+        }
+        anoSel.innerHTML = '';
+        for (var y = cy - 5; y <= cy + 3; y++) {
+            var o2 = document.createElement('option');
+            o2.value = String(y);
+            o2.textContent = String(y);
+            anoSel.appendChild(o2);
+        }
+    }
+
+    function gcSetComissaoEditorAnoMes(ano, mes) {
+        var mesSel = document.getElementById('gcComissaoRegrasMes');
+        var anoSel = document.getElementById('gcComissaoRegrasAno');
+        if (!mesSel || !anoSel) return;
+        var m = Math.max(1, Math.min(12, Number(mes) || 1));
+        var y = Number(ano);
+        if (!y || y < 2000) y = new Date().getFullYear();
+        var hasY = false;
+        for (var i = 0; i < anoSel.options.length; i++) {
+            if (Number(anoSel.options[i].value) === y) { hasY = true; break; }
+        }
+        if (!hasY) {
+            var vals = [];
+            for (var j = 0; j < anoSel.options.length; j++) vals.push(Number(anoSel.options[j].value));
+            vals.push(y);
+            vals.sort(function (a, b) { return a - b; });
+            anoSel.innerHTML = '';
+            vals.forEach(function (yy) {
+                var op = document.createElement('option');
+                op.value = String(yy);
+                op.textContent = String(yy);
+                anoSel.appendChild(op);
+            });
+        }
+        anoSel.value = String(y);
+        mesSel.value = String(m);
+    }
+
+    function gcApplyComissaoRegrasEditMode(edit) {
+        gcComissaoEditMode = !!edit;
+        var wrap = document.getElementById('gcComissaoRegrasTablesWrap');
+        if (wrap) {
+            wrap.setAttribute('data-edit-mode', edit ? 'true' : 'false');
+        }
+        if (wrap) {
+            wrap.querySelectorAll('.gc-comissao-inp').forEach(function (el) {
+                el.disabled = !edit;
+            });
+        }
+        var btnSal = document.getElementById('gcComissaoRegrasSalvarBtn');
+        if (btnSal) btnSal.disabled = !edit;
+        var lbl = document.getElementById('gcComissaoModoLabel');
+        if (lbl) {
+            lbl.textContent = edit ? 'Modo edição' : 'Visualização';
+            lbl.classList.toggle('is-editing', edit);
+        }
+        var btnEd = document.getElementById('gcComissaoRegrasEditarBtn');
+        if (btnEd) {
+            btnEd.innerHTML = edit
+                ? '<i class="fas fa-eye" aria-hidden="true"></i> Só visualizar'
+                : '<i class="fas fa-pen-to-square" aria-hidden="true"></i> Editar';
+            btnEd.setAttribute('aria-pressed', edit ? 'true' : 'false');
+        }
+    }
+
+    function gcGetComissaoEditorAnoMes() {
+        var mesSel = document.getElementById('gcComissaoRegrasMes');
+        var anoSel = document.getElementById('gcComissaoRegrasAno');
+        if (!mesSel || !anoSel) return { ano: 0, mes: 0 };
+        return { ano: Number(anoSel.value) || 0, mes: Number(mesSel.value) || 0 };
+    }
+
+    function gcFillComissaoTabelas(com) {
+        var comissao = com && typeof com === 'object' ? com : {};
+        var indBody = document.getElementById('gcRelComissaoIndTbody');
+        if (indBody) {
+            var indRows = Array.isArray(comissao.faixas_individuais) ? comissao.faixas_individuais : [];
+            indBody.innerHTML = indRows.length
+                ? indRows.map(function (r) {
+                    var mmx = r.meta_max === null || r.meta_max === undefined || r.meta_max === '' ? '' : String(r.meta_max);
+                    return `<tr>
+                        <td><input type="text" class="gc-rel-crm-input gc-comissao-inp" style="width:100%;min-width:88px;" value="${escapeHtml(String(r.meta_pct_faixa || ''))}" aria-label="Rótulo faixa percentual meta"></td>
+                        <td><input type="text" class="gc-rel-crm-input gc-comissao-inp" style="width:100%;min-width:120px;" value="${escapeHtml(String(r.intervalo || ''))}" aria-label="Descrição faixa em R$"></td>
+                        <td class="gc-num"><input type="number" step="any" class="gc-rel-crm-input gc-comissao-inp" style="width:5.2rem;" value="${escapeHtml(String(Number(r.meta_min ?? 0)))}" aria-label="Meta mínima em percentual"></td>
+                        <td class="gc-num"><input type="number" step="any" class="gc-rel-crm-input gc-comissao-inp" style="width:5.2rem;" value="${escapeHtml(mmx)}" aria-label="Meta máxima em percentual (vazio = sem teto)" title="Vazio = sem limite superior"></td>
+                        <td class="gc-num"><input type="number" step="any" class="gc-rel-crm-input gc-comissao-inp" style="width:4.2rem;" value="${escapeHtml(String(Number(r.comissao_percentual || 0)))}" aria-label="Comissão percentual"></td>
+                    </tr>`;
+                }).join('')
+                : '<tr><td colspan="5">Sem regras cadastradas.</td></tr>';
+        }
+        var grpBody = document.getElementById('gcRelComissaoGrupoTbody');
+        if (grpBody) {
+            var grpRows = Array.isArray(comissao.faixas_grupo) ? comissao.faixas_grupo : [];
+            grpBody.innerHTML = grpRows.length
+                ? grpRows.map(function (r) {
+                    var rvmx = r.rev_max === null || r.rev_max === undefined || r.rev_max === '' ? '' : String(r.rev_max);
+                    return `<tr>
+                        <td><input type="text" class="gc-rel-crm-input gc-comissao-inp" style="width:100%;min-width:120px;" value="${escapeHtml(String(r.faixa_receita || ''))}" aria-label="Descrição faixa grupo"></td>
+                        <td class="gc-num"><input type="number" step="any" class="gc-rel-crm-input gc-comissao-inp" style="width:6.5rem;" value="${escapeHtml(String(Number(r.rev_min ?? 0)))}" aria-label="Receita mínima do grupo R$"></td>
+                        <td class="gc-num"><input type="number" step="any" class="gc-rel-crm-input gc-comissao-inp" style="width:6.5rem;" value="${escapeHtml(rvmx)}" aria-label="Receita máxima R$ (vazio = sem teto)" title="Vazio = sem limite superior"></td>
+                        <td class="gc-num"><input type="number" step="any" class="gc-rel-crm-input gc-comissao-inp" style="width:3.8rem;" value="${escapeHtml(String(Number(r.percentual || 0)))}" aria-label="Percentual comissão grupo"></td>
+                    </tr>`;
+                }).join('')
+                : '<tr><td colspan="4">Sem regras cadastradas.</td></tr>';
+        }
+        var premBody = document.getElementById('gcRelComissaoPremioTbody');
+        if (premBody) {
+            var premRows = Array.isArray(comissao.premios_score) ? comissao.premios_score : [];
+            premBody.innerHTML = premRows.length
+                ? premRows.map(function (r) {
+                    var mo = String(r.meta_op || '>=');
+                    var so = String(r.score_op || '>');
+                    return `<tr>
+                        <td><input type="text" class="gc-rel-crm-input gc-comissao-inp" style="width:100%;min-width:140px;" value="${escapeHtml(String(r.regra || ''))}" aria-label="Texto da regra de bônus"></td>
+                        <td class="gc-num"><input type="number" step="any" class="gc-rel-crm-input gc-comissao-inp" style="width:5.5rem;" value="${escapeHtml(String(Number(r.premio || 0)))}" aria-label="Valor do prêmio R$"></td>
+                        <td><select class="gc-rel-crm-input gc-comissao-inp" style="min-width:3.2rem;padding:4px;" aria-label="Comparador percentual meta">${gcComissaoOpOptionsHtml(mo)}</select></td>
+                        <td class="gc-num"><input type="number" step="any" class="gc-rel-crm-input gc-comissao-inp" style="width:3.8rem;" value="${escapeHtml(String(Number(r.meta_val ?? 100)))}" aria-label="Referência percentual meta"></td>
+                        <td><select class="gc-rel-crm-input gc-comissao-inp" style="min-width:3.2rem;padding:4px;" aria-label="Comparador score">${gcComissaoOpOptionsHtml(so)}</select></td>
+                        <td class="gc-num"><input type="number" step="any" class="gc-rel-crm-input gc-comissao-inp" style="width:3.8rem;" value="${escapeHtml(String(Number(r.score_val ?? 0)))}" aria-label="Referência score"></td>
+                    </tr>`;
+                }).join('')
+                : '<tr><td colspan="6">Sem regras cadastradas.</td></tr>';
+        }
+    }
+
+    function gcUpdateComissaoRefHint() {
+        var wrap = document.getElementById('gcComissaoRegrasRefText');
+        if (!wrap) return;
+        var com = gcDashboardData && gcDashboardData.relatorios_comerciais && gcDashboardData.relatorios_comerciais.comissao ? gcDashboardData.relatorios_comerciais.comissao : {};
+        var ref = com.regras_ref || {};
+        wrap.innerHTML = '';
+        if (!ref.ano || !ref.mes) return;
+        var ed = gcGetComissaoEditorAnoMes();
+        var p1 = document.createElement('p');
+        p1.className = 'gc-comissao-hint__p';
+        p1.textContent = 'Cálculos do relatório (semanal, mensal, % equipe): ' + gcNomeMesPt(ref.mes) + ' de ' + ref.ano + (com.regras_salvas_no_mes ? ' (regras salvas no banco).' : ' (padrão do sistema até salvar).');
+        var p2 = document.createElement('p');
+        p2.className = 'gc-comissao-hint__p';
+        var tablesMatchSel = gcComissaoTabelasRef.ano === ed.ano && gcComissaoTabelasRef.mes === ed.mes;
+        var sameSel = ed.ano === ref.ano && ed.mes === ref.mes;
+        if (!tablesMatchSel) {
+            p2.textContent = 'Selecionado ' + gcNomeMesPt(ed.mes) + ' de ' + ed.ano + ' — clique Carregar para trazer as regras desse mês nas tabelas. O relatório continua usando ' + gcNomeMesPt(ref.mes) + ' de ' + ref.ano + ' (data Até).';
+        } else if (sameSel) {
+            p2.textContent = 'Tabelas: mesmo mês dos cálculos. Altere ano/mês e use Carregar para editar outro mês civil sem mudar o filtro.';
+        } else {
+            p2.textContent = 'Tabelas: ' + gcNomeMesPt(ed.mes) + ' de ' + ed.ano + (gcComissaoEditorSalvasCached ? ' (regras salvas).' : ' (padrão).') + ' — o relatório e a equipe ainda usam ' + gcNomeMesPt(ref.mes) + ' de ' + ref.ano + ' até ajustar a data Até.';
+        }
+        wrap.appendChild(p1);
+        wrap.appendChild(p2);
+    }
+
+    async function gcCarregarComissaoRegrasEditor() {
+        var msg = document.getElementById('gcComissaoRegrasSalvarMsg');
+        var ed = gcGetComissaoEditorAnoMes();
+        if (!ed.ano || !ed.mes) {
+            if (msg) msg.textContent = 'Selecione ano e mês.';
+            return;
+        }
+        if (msg) msg.textContent = 'Carregando...';
+        var res = await apiGet('gestao_comercial_comissao_regras_get', { ano: String(ed.ano), mes: String(ed.mes) });
+        if (res && res.success && res.payload) {
+            gcComissaoEditorSalvasCached = !!res.regras_salvas_no_mes;
+            gcComissaoTabelasRef = { ano: Number(res.ano) || ed.ano, mes: Number(res.mes) || ed.mes };
+            gcFillComissaoTabelas(res.payload);
+            gcApplyComissaoRegrasEditMode(false);
+            gcUpdateComissaoRefHint();
+            if (msg) msg.textContent = '';
+        } else {
+            if (msg) msg.textContent = (res && res.error) ? String(res.error) : 'Não foi possível carregar.';
+        }
+    }
+
+    function gcParseNumInput(v) {
+        if (v === null || v === undefined) return NaN;
+        var t = String(v).trim().replace(/\s/g, '').replace(',', '.');
+        if (t === '') return NaN;
+        return Number(t);
+    }
+
+    function gcReadComissaoPayloadFromDom() {
+        var faixas_individuais = [];
+        document.querySelectorAll('#gcRelComissaoIndTbody tr').forEach(function (tr) {
+            var tds = tr.querySelectorAll('td');
+            if (tds.length < 5) return;
+            var meta_pct_faixa = tds[0].querySelector('input') ? tds[0].querySelector('input').value : '';
+            var intervalo = tds[1].querySelector('input') ? tds[1].querySelector('input').value : '';
+            var meta_min = gcParseNumInput(tds[2].querySelector('input') ? tds[2].querySelector('input').value : '0');
+            var maxRaw = tds[3].querySelector('input') ? String(tds[3].querySelector('input').value).trim() : '';
+            var metaMaxParsed = maxRaw === '' ? null : gcParseNumInput(maxRaw);
+            var comissao_percentual = gcParseNumInput(tds[4].querySelector('input') ? tds[4].querySelector('input').value : '0');
+            faixas_individuais.push({
+                meta_pct_faixa: meta_pct_faixa,
+                intervalo: intervalo,
+                meta_min: Number.isFinite(meta_min) ? meta_min : 0,
+                meta_max: metaMaxParsed === null ? null : (Number.isFinite(metaMaxParsed) ? metaMaxParsed : null),
+                comissao_percentual: Number.isFinite(comissao_percentual) ? comissao_percentual : 0
+            });
+        });
+        var faixas_grupo = [];
+        document.querySelectorAll('#gcRelComissaoGrupoTbody tr').forEach(function (tr) {
+            var tds = tr.querySelectorAll('td');
+            if (tds.length < 4) return;
+            var faixa_receita = tds[0].querySelector('input') ? tds[0].querySelector('input').value : '';
+            var rev_min = gcParseNumInput(tds[1].querySelector('input') ? tds[1].querySelector('input').value : '0');
+            var maxRevRaw = tds[2].querySelector('input') ? String(tds[2].querySelector('input').value).trim() : '';
+            var revMaxParsed = maxRevRaw === '' ? null : gcParseNumInput(maxRevRaw);
+            var percentual = gcParseNumInput(tds[3].querySelector('input') ? tds[3].querySelector('input').value : '0');
+            faixas_grupo.push({
+                faixa_receita: faixa_receita,
+                rev_min: Number.isFinite(rev_min) ? rev_min : 0,
+                rev_max: revMaxParsed === null ? null : (Number.isFinite(revMaxParsed) ? revMaxParsed : null),
+                percentual: Number.isFinite(percentual) ? percentual : 0
+            });
+        });
+        var premios_score = [];
+        document.querySelectorAll('#gcRelComissaoPremioTbody tr').forEach(function (tr) {
+            var tds = tr.querySelectorAll('td');
+            if (tds.length < 6) return;
+            var regra = tds[0].querySelector('input') ? tds[0].querySelector('input').value : '';
+            var premio = gcParseNumInput(tds[1].querySelector('input') ? tds[1].querySelector('input').value : '0');
+            var meta_op = tds[2].querySelector('select') ? tds[2].querySelector('select').value : '>=';
+            var meta_val = gcParseNumInput(tds[3].querySelector('input') ? tds[3].querySelector('input').value : '0');
+            var score_op = tds[4].querySelector('select') ? tds[4].querySelector('select').value : '>';
+            var score_val = gcParseNumInput(tds[5].querySelector('input') ? tds[5].querySelector('input').value : '0');
+            premios_score.push({
+                regra: regra,
+                premio: Number.isFinite(premio) ? premio : 0,
+                meta_op: meta_op,
+                meta_val: Number.isFinite(meta_val) ? meta_val : 0,
+                score_op: score_op,
+                score_val: Number.isFinite(score_val) ? score_val : 0
+            });
+        });
+        return { faixas_individuais: faixas_individuais, faixas_grupo: faixas_grupo, premios_score: premios_score };
+    }
+
+    async function gcSalvarComissaoRegrasDoMes() {
+        var msg = document.getElementById('gcComissaoRegrasSalvarMsg');
+        var ed = gcGetComissaoEditorAnoMes();
+        var ano = ed.ano;
+        var mes = ed.mes;
+        if (!ano || !mes) {
+            if (msg) msg.textContent = 'Selecione ano e mês.';
+            return;
+        }
+        if (!gcComissaoEditMode) {
+            if (msg) msg.textContent = 'Clique em Editar para habilitar alterações e salvar.';
+            return;
+        }
+        var edTab = gcComissaoTabelasRef;
+        if (edTab.ano !== ano || edTab.mes !== mes) {
+            if (msg) msg.textContent = 'Clique Carregar para alinhar as tabelas ao mês selecionado antes de salvar.';
+            return;
+        }
+        var part = gcReadComissaoPayloadFromDom();
+        var body = { ano: ano, mes: mes, faixas_individuais: part.faixas_individuais, faixas_grupo: part.faixas_grupo, premios_score: part.premios_score };
+        if (msg) msg.textContent = 'Salvando...';
+        var res = await apiPost('gestao_comercial_comissao_regras_salvar', body);
+        if (res && res.success) {
+            if (msg) msg.textContent = 'Salvo.';
+            await loadDashboardData();
+        } else {
+            if (msg) msg.textContent = (res && res.error) ? String(res.error) : 'Falha ao salvar.';
+        }
+    }
+
+    function gcEnsureComissaoRegrasSaveBind() {
+        if (gcComissaoSaveBound) return;
+        gcComissaoSaveBound = true;
+        var btn = document.getElementById('gcComissaoRegrasSalvarBtn');
+        if (btn) btn.addEventListener('click', function () { gcSalvarComissaoRegrasDoMes(); });
+        var btnCar = document.getElementById('gcComissaoRegrasCarregarBtn');
+        if (btnCar) btnCar.addEventListener('click', function () { gcCarregarComissaoRegrasEditor(); });
+        var btnEd = document.getElementById('gcComissaoRegrasEditarBtn');
+        if (btnEd) btnEd.addEventListener('click', function () { gcApplyComissaoRegrasEditMode(!gcComissaoEditMode); });
+        var mesSel = document.getElementById('gcComissaoRegrasMes');
+        var anoSel = document.getElementById('gcComissaoRegrasAno');
+        function onSelChange() {
+            gcUpdateComissaoRefHint();
+        }
+        if (mesSel) mesSel.addEventListener('change', onSelChange);
+        if (anoSel) anoSel.addEventListener('change', onSelChange);
+    }
+
     function renderRelatorios(data) {
         const bloco = data?.relatorios_comerciais || {};
         const semanal = bloco?.semanal || {};
@@ -1520,45 +1839,15 @@
         gcRenderRelatorioSemanal(semanal?.linhas || []);
         gcRenderRelatorioMensal(mensal?.linhas || []);
 
-        const indBody = document.getElementById('gcRelComissaoIndTbody');
-        if (indBody) {
-            const indRows = Array.isArray(comissao?.faixas_individuais) ? comissao.faixas_individuais : [];
-            indBody.innerHTML = indRows.length
-                ? indRows.map(function (r) {
-                    return `<tr>
-                        <td>${escapeHtml(String(r.meta_pct_faixa || ''))}</td>
-                        <td>${escapeHtml(String(r.intervalo || ''))}</td>
-                        <td class="gc-num">${Number(r.comissao_percentual || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%</td>
-                    </tr>`;
-                }).join('')
-                : '<tr><td colspan="3">Sem regras cadastradas.</td></tr>';
-        }
-
-        const grpBody = document.getElementById('gcRelComissaoGrupoTbody');
-        if (grpBody) {
-            const grpRows = Array.isArray(comissao?.faixas_grupo) ? comissao.faixas_grupo : [];
-            grpBody.innerHTML = grpRows.length
-                ? grpRows.map(function (r) {
-                    return `<tr>
-                        <td>${escapeHtml(String(r.faixa_receita || ''))}</td>
-                        <td class="gc-num">${Number(r.percentual || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%</td>
-                    </tr>`;
-                }).join('')
-                : '<tr><td colspan="2">Sem regras cadastradas.</td></tr>';
-        }
-
-        const premBody = document.getElementById('gcRelComissaoPremioTbody');
-        if (premBody) {
-            const premRows = Array.isArray(comissao?.premios_score) ? comissao.premios_score : [];
-            premBody.innerHTML = premRows.length
-                ? premRows.map(function (r) {
-                    return `<tr>
-                        <td>${escapeHtml(String(r.regra || ''))}</td>
-                        <td class="gc-num">${formatMoney(r.premio || 0)}</td>
-                    </tr>`;
-                }).join('')
-                : '<tr><td colspan="2">Sem regras cadastradas.</td></tr>';
-        }
+        gcEnsureComissaoRegrasSaveBind();
+        var refC = comissao && comissao.regras_ref ? comissao.regras_ref : {};
+        gcInitComissaoRegrasSelectorsOnce(Number(refC.ano) || new Date().getFullYear());
+        gcSetComissaoEditorAnoMes(Number(refC.ano) || new Date().getFullYear(), Number(refC.mes) || (new Date().getMonth() + 1));
+        gcComissaoEditorSalvasCached = !!comissao.regras_salvas_no_mes;
+        gcComissaoTabelasRef = { ano: Number(refC.ano) || 0, mes: Number(refC.mes) || 0 };
+        gcFillComissaoTabelas(comissao);
+        gcApplyComissaoRegrasEditMode(false);
+        gcUpdateComissaoRefHint();
     }
 
     function gcGetCurrentDateRangeParams() {
@@ -1711,9 +2000,9 @@
             { id: 'gcVendEquipeTbody', cols: 12, emptyText: 'Sem dados no período selecionado.' },
             { id: 'gcRelSemanalTbody', cols: 10, emptyText: 'Sem dados no período selecionado.' },
             { id: 'gcRelMensalTbody', cols: 15, emptyText: 'Sem dados no período selecionado.' },
-            { id: 'gcRelComissaoIndTbody', cols: 3, emptyText: 'Sem regras cadastradas.' },
-            { id: 'gcRelComissaoGrupoTbody', cols: 2, emptyText: 'Sem regras cadastradas.' },
-            { id: 'gcRelComissaoPremioTbody', cols: 2, emptyText: 'Sem regras cadastradas.' },
+            { id: 'gcRelComissaoIndTbody', cols: 5, emptyText: 'Sem regras cadastradas.' },
+            { id: 'gcRelComissaoGrupoTbody', cols: 4, emptyText: 'Sem regras cadastradas.' },
+            { id: 'gcRelComissaoPremioTbody', cols: 6, emptyText: 'Sem regras cadastradas.' },
             { id: 'gcErrosTbody', cols: 8, emptyText: 'Sem erros registrados no período selecionado.' }
         ];
         tbodies.forEach(function (cfg) {
@@ -1760,7 +2049,6 @@
             await gcLoadErrosTiposDistintos();
             gcNomesVendedores = Array.isArray(data.lista_vendedores_nomes) ? data.lista_vendedores_nomes : [];
             renderExecutivo(data);
-            renderFinanceiroKpis(data);
             renderGcCharts(data);
             renderVendedoresTabs(data, gcNomesVendedores);
             renderVendedores(data);
@@ -1832,41 +2120,6 @@
             var el = document.getElementById(id);
             if (el) el.textContent = quickMap[id];
         });
-    }
-
-    function renderFinanceiroKpis(data) {
-        var fin = data?.financeiro_aplicado || {};
-        var rec = fin.receita || {};
-        var cus = fin.custos || {};
-        var rent = fin.rentabilidade || {};
-        var cx = fin.caixa || {};
-        var map = {
-            gcFinFatBruto: formatMoney(rec.faturamento_bruto ?? 0),
-            gcFinFatLiq: formatMoney(rec.faturamento_liquido ?? 0),
-            gcFinCmv: formatMoney(cus.cmv ?? 0),
-            gcFinCustoVenda: cus.custo_variavel_por_venda != null ? formatMoney(cus.custo_variavel_por_venda) : '—',
-            gcFinCustoAtend: cus.custo_por_atendimento != null ? formatMoney(cus.custo_por_atendimento) : '—',
-            gcFinMargem: rent.margem_bruta != null ? formatPercent(rent.margem_bruta) : '—',
-            gcFinLucro: formatMoney(rent.lucro_operacional ?? 0),
-        };
-        Object.keys(map).forEach(function (id) {
-            var el = document.getElementById(id);
-            if (el) el.textContent = map[id];
-        });
-        var notasEl = document.getElementById('gcFinNotas');
-        if (notasEl) {
-            var n = fin.notas && fin.notas.campos_nulos ? fin.notas.campos_nulos : '';
-            notasEl.textContent = n || 'Indicadores dependentes de marketing/financeiro podem aparecer como —.';
-        }
-        var l1 = document.getElementById('gcFinCaixaLinha1');
-        var l2 = document.getElementById('gcFinCaixaLinha2');
-        var l3 = document.getElementById('gcFinCaixaLinha3');
-        if (l1) l1.textContent = 'Prazo médio de recebimento: ' + (cx.prazo_medio_recebimento != null ? cx.prazo_medio_recebimento : '—');
-        if (l2) l2.textContent = 'Índice de inadimplência: ' + (cx.indice_inadimplencia != null ? cx.indice_inadimplencia : '—');
-        if (l3) {
-            l3.textContent = 'Taxa de antecipação: ' + (cx.taxa_antecipacao != null ? cx.taxa_antecipacao : '—')
-                + ' · Fluxo projetado (3 meses): ' + (cx.fluxo_projetado_3_meses != null ? cx.fluxo_projetado_3_meses : '—');
-        }
     }
 
     function gargaloFunilLabel(key) {
@@ -2211,15 +2464,9 @@
             ticks: { color: col.muted },
             grid: { color: col.grid }
         };
-        var c = data?.crescimento || {};
-        var r = data?.rentabilidade || {};
-        var fin = data?.financeiro_aplicado || {};
         var fun = data?.funil_comercial || {};
         var intel = data?.inteligencia_comercial || {};
         var canaisFull = Array.isArray(data?.performance_canal) ? data.performance_canal : [];
-        var receita = Number(c.receita_mes || 0);
-        var cmv = Number(fin.custos?.cmv || 0);
-        var lucro = Number(r.lucro_operacional || 0);
 
         /* —— Vendas: macro funil + gargalo —— */
         var gargaloEl = document.getElementById('gcVendasGargalo');
@@ -2321,7 +2568,6 @@
             };
         });
 
-        var canaisFull = Array.isArray(data?.performance_canal) ? data.performance_canal : [];
         gcEnsureChart('vendasCanais', 'gcChartVendasCanais', function () {
             return {
                 type: 'bar',
@@ -2365,7 +2611,6 @@
             };
         });
 
-        var intel = data?.inteligencia_comercial || {};
         var topClientes = Array.isArray(intel.top_clientes_receita) ? intel.top_clientes_receita.slice(0, 20) : [];
         gcEnsureChart('vendasTopQtd', 'gcChartVendasTopProdQtd', function () {
             return {
@@ -2602,89 +2847,10 @@
             };
         });
 
-        var clientesPerda = Array.isArray(clientesAnalise.top_clientes_perda) ? clientesAnalise.top_clientes_perda.slice(0, 20) : [];
-        gcEnsureChart('vendasClientesPerda', 'gcChartVendasClientesPerda', function () {
-            return {
-                type: 'bar',
-                data: {
-                    labels: clientesPerda.length ? clientesPerda.map(function (x) { return String(x.cliente || '').slice(0, 28); }) : ['Sem dados'],
-                    datasets: [{
-                        label: 'Valor rejeitado',
-                        data: clientesPerda.length ? clientesPerda.map(function (x) { return Number(x.valor_rejeitado || 0); }) : [0],
-                        backgroundColor: col.danger,
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function (ctx) {
-                                    var row = clientesPerda[ctx.dataIndex] || {};
-                                    var qtd = Number(row.qtd_rejeicoes || 0).toLocaleString('pt-BR');
-                                    return formatMoney(ctx.parsed.x) + ' · ' + qtd + ' rejeições';
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: Object.assign({}, commonAxis, {
-                            ticks: {
-                                color: col.muted,
-                                callback: function (v) { return Number(v).toLocaleString('pt-BR', { notation: 'compact' }); }
-                            }
-                        }),
-                        y: { ticks: { color: col.muted, font: { size: 9 } }, grid: { display: false } }
-                    }
-                }
-            };
-        });
-
         var cmp = intel.comparativo_vendas_dia_a_dia || { labels: [], series: [], meta: {} };
         gcSetupComparativoVendasMesMes(cmp, col, commonAxis);
         var cmpPed = intel.comparativo_pedidos_dia_a_dia || { labels: [], series: [], meta: {} };
         gcSetupComparativoPedidosMesMes(cmpPed, col, commonAxis);
-
-        /* —— Financeiro —— */
-        gcEnsureChart('finResumo', 'gcChartFinResumo', function () {
-            return {
-                type: 'bar',
-                data: {
-                    labels: ['Faturamento', 'CMV', 'Lucro operacional'],
-                    datasets: [{
-                        data: [receita, cmv, lucro],
-                        backgroundColor: [col.primary, col.danger, col.success],
-                        borderRadius: 10
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function (ctx) { return formatMoney(ctx.parsed.y); }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: { ticks: { color: col.muted } },
-                        y: Object.assign({}, commonAxis, {
-                            beginAtZero: true,
-                            ticks: {
-                                color: col.muted,
-                                callback: function (v) { return Number(v).toLocaleString('pt-BR', { notation: 'compact' }); }
-                            }
-                        })
-                    }
-                }
-            };
-        });
     }
 
     function renderVendedorTabCharts(data) {
@@ -2941,7 +3107,7 @@
                     section.classList.add('active');
                     section.setAttribute('aria-hidden', 'false');
                 }
-                if (target === 'vendas' || target === 'financeiro') {
+                if (target === 'vendas') {
                     requestAnimationFrame(function () {
                         ensureGcBackgroundCharts();
                     });
@@ -2968,7 +3134,7 @@
                 tab = '';
             }
         }
-        const valid = ['executivo', 'vendas', 'vendedores', 'relatorios', 'erros', 'financeiro', 'reuniao'];
+        const valid = ['executivo', 'vendas', 'vendedores', 'relatorios', 'erros'];
         if (valid.indexOf(tab) === -1 || tab === 'erros') {
             return;
         }

@@ -36,6 +36,12 @@
                 grid-template-columns: 1fr;
             }
         }
+        #bonusPage .bonus-table tbody td .bonus-action-btn {
+            width: 32px;
+            height: 32px;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
         .bonus-toolbar {
             display: flex;
             gap: 10px;
@@ -476,25 +482,24 @@
             </div>
 
             <div class="kpi-grid">
-                <div class="kpi-card">
-                    <div class="kpi-label">Bonificação Mês Anterior</div>
-                    <div class="kpi-value" id="cardMesAnterior">R$ 0,00</div>
-                    <div class="kpi-sub">Crédito disponível no mês atual</div>
+                <div class="kpi-card idx-bonus-kpi-a-utilizar">
+                    <div class="kpi-label">Bonificação a utilizar</div>
+                    <div class="kpi-value" id="cardAUtilizar">R$ 0,00</div>
+                    <div class="kpi-sub">Só soma créditos já aprovados; aumenta ao fechar o mês de referência</div>
                 </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">Bonificação Mês Atual</div>
-                    <div class="kpi-value" id="cardMesAtualBonificar">R$ 0,00</div>
-                    <div class="kpi-sub">Valor gerado para o próximo mês</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">Bonificações Utilizadas</div>
+                <div class="kpi-card idx-bonus-kpi-utilizada">
+                    <div class="kpi-label">Bonificação utilizada</div>
                     <div class="kpi-value" id="cardUtilizadas">R$ 0,00</div>
-                    <div class="kpi-sub">Total de débitos lançados</div>
+                    <div class="kpi-sub">Utilizações confirmadas</div>
                 </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">Saldo de Bonificação</div>
+                <div class="kpi-card idx-bonus-kpi-saldo">
+                    <div class="kpi-label">Saldo de bonificação</div>
                     <div class="kpi-value bonus-saldo" id="cardSaldo">R$ 0,00</div>
-                    <div class="kpi-sub">Saldo restante por prescritor</div>
+                    <div class="kpi-sub">A utilizar − utilizada</div>
+                </div>
+                <div class="kpi-card idx-bonus-kpi-abonif">
+                    <div class="kpi-label">A bonificar</div>
+                    <div class="kpi-value" id="cardMesAtualBonificar">R$ 0,00</div>
                 </div>
             </div>
 
@@ -502,15 +507,34 @@
                 <div class="chart-header">
                     <div>
                         <div class="chart-title">Prescritores com bonificação</div>
-                        <div class="chart-subtitle">Use a busca para filtrar e clique no ícone na coluna Ações.</div>
+                        <div class="chart-subtitle">Use a busca para filtrar. Gerencie a bonificação pelo ícone de presente; ajuste a reserva administrativa (%) quando precisar.</div>
                     </div>
                 </div>
                 <div class="chart-body" style="padding:14px;">
-                    <div class="bonus-toolbar">
-                        <select id="filtroVisitador" class="bonus-filter-select">
-                            <option value="">Todos os visitadores</option>
-                        </select>
-                        <input id="buscaPrescritor" class="bonus-search" placeholder="Buscar prescritor...">
+                    <div class="bonus-toolbar idx-bonus-toolbar-layout">
+                        <div class="idx-bonus-toolbar-row idx-bonus-toolbar-row--filtros">
+                            <select id="filtroVisitador" class="bonus-filter-select" aria-label="Filtrar por visitador">
+                                <option value="">Todos os visitadores</option>
+                            </select>
+                            <input id="buscaPrescritor" class="bonus-search" type="search" placeholder="Buscar prescritor..." autocomplete="off" aria-label="Buscar prescritor">
+                        </div>
+                        <div class="idx-bonus-toolbar-row idx-bonus-toolbar-row--admin">
+                            <div class="idx-bonus-toolbar-card" title="Recalcula a coluna A bonificar para todos de uma vez. Fechar mês grava o valor já exibido em A bonificar, sem reaplicar este %.">
+                                <span class="idx-bonus-toolbar-card-label">Desconto universal (%)</span>
+                                <div class="idx-bonus-toolbar-card-body">
+                                    <input type="number" id="bonusGlobalPctInput" min="0" max="100" step="0.5" value="20" inputmode="decimal" aria-label="Percentual de desconto universal">
+                                    <button type="button" class="topbar-btn" id="bonusGlobalPctSave" title="Atualizar A bonificar em massa com este %">Salvar</button>
+                                </div>
+                            </div>
+                            <div class="idx-bonus-toolbar-card idx-bonus-toolbar-card--fechar" title="Use o mês/ano da coluna Ref. (vendas). Só é possível aprovar após o último dia civil desse mês (ex.: 04/2026 a partir de 01/05).">
+                                <span class="idx-bonus-toolbar-card-label">Aprovar mês (ref. vendas)</span>
+                                <div class="idx-bonus-toolbar-card-body">
+                                    <input type="number" id="bonusFecharAno" class="idx-bonus-fechar-ano-input" min="2000" max="2100" placeholder="Ano" aria-label="Ano de referência das vendas a aprovar">
+                                    <input type="number" id="bonusFecharMes" class="idx-bonus-fechar-mes-input" min="1" max="12" placeholder="Mês" aria-label="Mês de referência das vendas a aprovar">
+                                    <button type="button" class="bonus-btn-primary" id="bonusFecharMesBtn" title="Aprovar créditos desse mês de referência e integrar à carteira"><i class="fas fa-lock"></i> Fechar mês</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="bonus-table-wrap">
                         <table class="bonus-table">
@@ -518,15 +542,16 @@
                             <tr>
                                 <th id="thPrescritor" class="sortable" onclick="sortControleBy('prescritor')">Prescritor</th>
                                 <th id="thVisitador" class="sortable" onclick="sortControleBy('visitador')">Visitador</th>
-                                <th class="num sortable" id="thMesAnterior" onclick="sortControleBy('bonificacao_mes_anterior')">Bonif. mês anterior</th>
-                                <th class="num sortable" id="thMesAtual" onclick="sortControleBy('bonificacao_mes_atual_a_bonificar')">Bonif. mês atual (a bonificar)</th>
-                                <th class="num sortable" id="thUtilizadas" onclick="sortControleBy('bonificacoes_utilizadas')">Bonificações utilizadas</th>
-                                <th class="num sortable" id="thSaldo" onclick="sortControleBy('saldo_bonificacao')">Saldo de bonificação</th>
-                                <th style="width:120px; text-align:center;">Ações</th>
+                                <th class="num sortable idx-bonus-th-a-utilizar" id="thAUtilizar" onclick="sortControleBy('bonificacao_a_utilizar')" title="Carteira: apenas créditos aprovados (fechados).">Bonificação a utilizar</th>
+                                <th class="num sortable idx-bonus-th-utilizada" id="thUtilizadas" onclick="sortControleBy('bonificacoes_utilizadas')">Bonificação utilizada</th>
+                                <th class="num sortable idx-bonus-th-saldo" id="thSaldo" onclick="sortControleBy('saldo_bonificacao')" title="Saldo = carteira consolidada − utilizada.">Saldo de bonificação</th>
+                                <th class="num sortable" id="thABonificar" onclick="sortControleBy('bonificacao_mes_atual_a_bonificar')">A bonificar</th>
+                                <th class="num sortable" id="thReserva" onclick="sortControleBy('admin_desconto_proximo_percent')" title="Reserva administrativa (sobre a comissão).">% reserva</th>
+                                <th style="min-width:188px; width:1%; text-align:center; white-space:nowrap;">Ações</th>
                             </tr>
                             </thead>
                             <tbody id="tbodyControle">
-                            <tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin"></i> Carregando...</td></tr>
+                            <tr><td colspan="8" style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin"></i> Carregando...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -561,12 +586,44 @@
     </div>
 </div>
 
+<div id="modalBonusDesconto" class="bonus-modal" style="display:none;">
+    <div class="bonus-modal-box bonus-modal-compact">
+        <div class="bonus-modal-head">
+            <h3 class="bonus-modal-title"><i class="fas fa-percent"></i> Reserva administrativa</h3>
+            <button type="button" class="bonus-close-btn" onclick="closeBonusDescontoModal()">&times;</button>
+        </div>
+        <div class="bonus-modal-body">
+            <p id="bonusModalDescontoNome" class="bonus-modal-desconto-nome" aria-live="polite"></p>
+            <p class="bonus-modal-desconto-intro">Percentual apenas deste prescritor.</p>
+            <p id="bonusDescontoFechadaNote" class="bonus-desconto-fechada-note" style="display:none;">Projeção já fechada: prévia só informativa (comissão × %).</p>
+            <div id="bonusDescontoPreview" class="bonus-desconto-preview" aria-live="polite">
+                <div class="bonus-desconto-preview-row"><span>Valor de vendas (base pedidos)</span><strong id="bonusDescontoVendas">—</strong></div>
+                <div class="bonus-desconto-preview-row"><span>Comissão (<span id="bonusDescontoComissaoPctLabel">—</span>% sobre vendas)</span><strong id="bonusDescontoComissao">—</strong></div>
+                <div class="bonus-desconto-preview-row"><span>Com reserva atual (<span id="bonusDescontoPctAtualLabel">—</span>% sobre a comissão)</span><strong id="bonusDescontoLiqAtual">—</strong></div>
+                <div class="bonus-desconto-preview-row bonus-desconto-preview-row--novo"><span>Com reserva do campo (<span id="bonusDescontoPctNovoLabel">—</span>% sobre a comissão)</span><strong id="bonusDescontoLiqNovo">—</strong></div>
+            </div>
+            <div class="bonus-desconto-field">
+                <label for="bonusDescontoPctInput">Desconto / reserva</label>
+                <div class="bonus-desconto-input-group">
+                    <input type="number" id="bonusDescontoPctInput" min="0" max="100" step="0.5" value="20" inputmode="decimal" aria-describedby="bonusDescontoPctHint">
+                    <span class="bonus-desconto-suffix" aria-hidden="true">%</span>
+                </div>
+                <p id="bonusDescontoPctHint" class="bonus-desconto-hint">0 a 100 sobre a comissão deste prescritor. Atualiza «A bonificar» na projeção aberta. Fechados não mudam.</p>
+            </div>
+        </div>
+        <div class="bonus-modal-foot">
+            <button type="button" class="topbar-btn" onclick="closeBonusDescontoModal()">Cancelar</button>
+            <button type="button" class="bonus-btn-primary" onclick="salvarBonusDescontoAdmin()"><i class="fas fa-floppy-disk"></i> Salvar</button>
+        </div>
+    </div>
+</div>
+
 <script>
 let __csrfToken = '';
 let __controleData = [];
 let __controleMeta = {};
 let __bonusContext = { prescritor: '', visitador: '' };
-let __sortState = { column: 'saldo_bonificacao', direction: 'desc' };
+let __sortState = { column: 'bonificacao_a_utilizar', direction: 'desc' };
 let __tablePage = 1;
 let __tablePageSize = 25;
 
@@ -632,7 +689,8 @@ function setUserCard() {
 }
 function updateCards(data) {
     const sum = (key) => data.reduce((acc, it) => acc + (parseFloat(it[key]) || 0), 0);
-    document.getElementById('cardMesAnterior').textContent = formatMoney(sum('bonificacao_mes_anterior'));
+    const elA = document.getElementById('cardAUtilizar');
+    if (elA) elA.textContent = formatMoney(sum('bonificacao_a_utilizar'));
     document.getElementById('cardMesAtualBonificar').textContent = formatMoney(sum('bonificacao_mes_atual_a_bonificar'));
     document.getElementById('cardUtilizadas').textContent = formatMoney(sum('bonificacoes_utilizadas'));
     document.getElementById('cardSaldo').textContent = formatMoney(sum('saldo_bonificacao'));
@@ -672,8 +730,8 @@ function renderSortIndicators() {
     const headers = {
         prescritor: document.getElementById('thPrescritor'),
         visitador: document.getElementById('thVisitador'),
-        bonificacao_mes_anterior: document.getElementById('thMesAnterior'),
-        bonificacao_mes_atual_a_bonificar: document.getElementById('thMesAtual'),
+        bonificacao_a_utilizar: document.getElementById('thAUtilizar'),
+        bonificacao_mes_atual_a_bonificar: document.getElementById('thABonificar'),
         bonificacoes_utilizadas: document.getElementById('thUtilizadas'),
         saldo_bonificacao: document.getElementById('thSaldo')
     };
@@ -720,7 +778,7 @@ function renderTableControle() {
         return (va > vb ? 1 : -1) * dir;
     });
     if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-secondary);">Sem resultados.</td></tr>';
+        body.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--text-secondary);">Sem resultados.</td></tr>';
         if (pagerWrap) pagerWrap.style.display = 'none';
         return;
     }
@@ -731,21 +789,35 @@ function renderTableControle() {
     const endIdx = Math.min(startIdx + __tablePageSize, totalRows);
     const pageRows = rows.slice(startIdx, endIdx);
 
-    body.innerHTML = pageRows.map(it => `
+    body.innerHTML = pageRows.map(function (it) {
+        const aUtil = parseFloat(it.bonificacao_a_utilizar);
+        const pctRow = Number(it.admin_desconto_proximo_percent != null ? it.admin_desconto_proximo_percent : 20);
+        const vendasRes = parseFloat(it.admin_reserva_valor_vendas);
+        const vendasOk = Number.isFinite(vendasRes) ? vendasRes : 0;
+        const comissaoRes = parseFloat(it.admin_reserva_comissao_bruto);
+        const comissaoOk = Number.isFinite(comissaoRes) ? comissaoRes : 0;
+        const pctComRow = Number(it.admin_reserva_pct_comissao_vendas != null ? it.admin_reserva_pct_comissao_vendas : 20);
+        const resFech = !!it.admin_reserva_projecao_fechada;
+        return `
         <tr>
             <td>${esc(it.prescritor)}</td>
             <td>${esc(it.visitador || 'My Pharm')}</td>
-            <td class="num">${formatMoney(it.bonificacao_mes_anterior || 0)}</td>
+            <td class="num idx-bonus-col-a-utilizar">${formatMoney(Number.isFinite(aUtil) ? aUtil : 0)}</td>
+            <td class="num bonus-debito idx-bonus-col-utilizada">${formatMoney(it.bonificacoes_utilizadas || 0)}</td>
+            <td class="num bonus-saldo idx-bonus-col-saldo">${formatMoney(it.saldo_bonificacao || 0)}</td>
             <td class="num">${formatMoney(it.bonificacao_mes_atual_a_bonificar || 0)}</td>
-            <td class="num bonus-debito">${formatMoney(it.bonificacoes_utilizadas || 0)}</td>
-            <td class="num bonus-saldo">${formatMoney(it.saldo_bonificacao || 0)}</td>
-            <td style="text-align:center;">
-                <button class="bonus-action-btn bonus-open-modal" type="button" title="Detalhes da bonificação" aria-label="Abrir detalhes da bonificação do prescritor" data-prescritor="${escAttr(it.prescritor)}" data-visitador="${escAttr(it.visitador || '')}">
-                    <i class="fas fa-file-invoice-dollar" aria-hidden="true"></i>
+            <td class="num">${bonusFmtPctLabel(pctRow)}%</td>
+            <td style="text-align:center; display:flex; gap:5px; justify-content:center; flex-wrap:nowrap; white-space:nowrap;">
+                <button class="bonus-action-btn bonus-open-modal" type="button" title="Gerenciar bonificação" aria-label="Gerenciar bonificação do prescritor (extrato, créditos e débitos)" data-prescritor="${escAttr(it.prescritor)}" data-visitador="${escAttr(it.visitador || '')}">
+                    <i class="fas fa-gift" aria-hidden="true"></i>
+                </button>
+                <button class="bonus-action-btn bonus-admin-desconto" type="button" title="Reserva administrativa (% sobre a comissão da competência em projeção)" aria-label="Ajustar percentual de reserva administrativa" data-prescritor="${escAttr(it.prescritor)}" data-pct="${pctRow}" data-reserva-vendas="${vendasOk}" data-reserva-comissao="${comissaoOk}" data-reserva-pct-comissao="${pctComRow}" data-reserva-fechada="${resFech ? '1' : '0'}">
+                    <i class="fas fa-percent" aria-hidden="true"></i>
                 </button>
             </td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
 
     if (pagerWrap && pagerInfo && pagerMeta && prevBtn && nextBtn) {
         pagerWrap.style.display = 'flex';
@@ -757,22 +829,44 @@ function renderTableControle() {
 }
 async function loadBonificacoes() {
     const body = document.getElementById('tbodyControle');
-    body.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin"></i> Carregando...</td></tr>';
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin"></i> Carregando...</td></tr>';
     try {
-        const r = await fetch('api_bonus.php?action=bonus_controle_lista', { credentials: 'include' });
+        const r = await fetch(`api_bonus.php?action=bonus_controle_lista&_=${Date.now()}`, {
+            credentials: 'include',
+            cache: 'no-store',
+        });
         const j = await r.json();
         if (!j || !j.success) throw new Error((j && j.error) ? j.error : 'Falha ao carregar bonificações');
         __controleMeta = j.meta || {};
         __controleData = Array.isArray(j.data) ? j.data : [];
+        __tablePage = 1;
         populateVisitadorFilter(__controleData);
-        document.getElementById('metaPeriodo').textContent = `Ref. mês anterior: ${__controleMeta.referencia_mes_anterior_label || '-'} | Competência atual: ${__controleMeta.competencia_mes_atual_label || '-'}`;
-        document.getElementById('thMesAnterior').textContent = `Bonif. ${__controleMeta.referencia_mes_anterior_label || 'mês anterior'}`;
-        document.getElementById('thMesAtual').textContent = `Bonif. ${__controleMeta.competencia_mes_atual_label || 'mês atual'} (a bonificar)`;
+        document.getElementById('metaPeriodo').textContent = `Competência em projeção (a bonificar): ${__controleMeta.competencia_mes_atual_label || '-'}`;
+        const sug = __controleMeta.referencia_fechamento_sugerida || __controleMeta.competencia_fechamento_sugerida;
+        const fa = document.getElementById('bonusFecharAno');
+        const fm = document.getElementById('bonusFecharMes');
+        if (sug && fa && fm && (!fa.value || !fm.value)) {
+            fa.value = String(sug.ano || '');
+            fm.value = String(sug.mes || '');
+        }
+        const gInp = document.getElementById('bonusGlobalPctInput');
+        if (gInp) gInp.value = '20';
+        try {
+            const rCfg = await fetch(`api_bonus.php?action=bonus_config_get&_=${Date.now()}`, {
+                credentials: 'include',
+                cache: 'no-store',
+            });
+            const jCfg = await rCfg.json();
+            if (jCfg && jCfg.success && gInp) {
+                const cfgPct = parseFloat(jCfg.percentual_desconto_admin);
+                gInp.value = String(Number.isFinite(cfgPct) ? cfgPct : 20);
+            }
+        } catch (_) {}
         renderSortIndicators();
         updateCards(__controleData);
         renderTableControle();
     } catch (e) {
-        body.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:24px; color:#ef4444;">${esc(e.message || 'Erro ao carregar dados')}</td></tr>`;
+        body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px; color:#ef4444;">${esc(e.message || 'Erro ao carregar dados')}</td></tr>`;
     }
 }
 function closeBonusControlModal() {
@@ -782,18 +876,231 @@ function closeBonusControlModal() {
         modal.style.display = 'none';
     }
 }
+function closeBonusDescontoModal() {
+    const modal = document.getElementById('modalBonusDesconto');
+    if (modal) {
+        modal.classList.remove('is-open');
+        modal.style.display = 'none';
+        delete modal.dataset.prescritor;
+        delete modal.dataset.reservaVendas;
+        delete modal.dataset.reservaComissao;
+        delete modal.dataset.reservaPctComissao;
+        delete modal.dataset.reservaFechada;
+        delete modal.dataset.pctInicial;
+    }
+    const nomeEl = document.getElementById('bonusModalDescontoNome');
+    if (nomeEl) nomeEl.textContent = '';
+    const note = document.getElementById('bonusDescontoFechadaNote');
+    if (note) note.style.display = 'none';
+}
+function bonusFmtPctLabel(v) {
+    var n = parseFloat(v);
+    if (!Number.isFinite(n)) return '—';
+    var r = Math.round(n * 100) / 100;
+    return String(r).replace('.', ',');
+}
+function bonusLiquidoReservaPreview(bruto, pct) {
+    var b = parseFloat(bruto) || 0;
+    var p = Math.max(0, Math.min(100, parseFloat(pct) || 0));
+    if (b <= 0) return null;
+    var liq = Math.round(b * (1 - p / 100) * 100) / 100;
+    return liq < 0 ? 0 : liq;
+}
+/** Só permite aprovar após o último dia civil do mês (data local; o servidor valida em America/Porto_Velho). */
+function bonusMesCivilJaEncerrouLocal(ano, mes) {
+    if (ano < 2000 || mes < 1 || mes > 12) {
+        return { ok: true };
+    }
+    function pad(n) {
+        return String(n).padStart(2, '0');
+    }
+    var last = new Date(ano, mes, 0);
+    var lastStr = last.getFullYear() + '-' + pad(last.getMonth() + 1) + '-' + pad(last.getDate());
+    var now = new Date();
+    var nowStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+    if (nowStr > lastStr) {
+        return { ok: true };
+    }
+    var ultimoBr = pad(last.getDate()) + '/' + pad(last.getMonth() + 1) + '/' + last.getFullYear();
+    var lib = new Date(ano, mes, 1);
+    var ref = pad(mes) + '/' + ano;
+    var libBr = pad(lib.getDate()) + '/' + pad(lib.getMonth() + 1) + '/' + lib.getFullYear();
+    return {
+        ok: false,
+        message:
+            'Não é possível aprovar o período ' +
+            ref +
+            ' enquanto o mês civil correspondente não tiver terminado (último dia ' +
+            ultimoBr +
+            '). Liberado a partir de ' +
+            libBr +
+            '.',
+    };
+}
+function bonusUpdateDescontoPreview() {
+    var modal = document.getElementById('modalBonusDesconto');
+    var inp = document.getElementById('bonusDescontoPctInput');
+    var vendas = parseFloat(modal && modal.dataset ? modal.dataset.reservaVendas || '0' : '0') || 0;
+    var comissao = parseFloat(modal && modal.dataset ? modal.dataset.reservaComissao || '0' : '0') || 0;
+    var pctCom = parseFloat(modal && modal.dataset ? modal.dataset.reservaPctComissao || '20' : '20');
+    var pctComOk = Number.isFinite(pctCom) ? pctCom : 20;
+    var pctIni = parseFloat(modal && modal.dataset ? modal.dataset.pctInicial || '20' : '20');
+    var pctIniOk = Number.isFinite(pctIni) ? Math.max(0, Math.min(100, pctIni)) : 20;
+    var pctNovo = parseFloat(inp && inp.value ? inp.value : '0');
+    if (!Number.isFinite(pctNovo)) pctNovo = 0;
+    pctNovo = Math.max(0, Math.min(100, pctNovo));
+    var elV = document.getElementById('bonusDescontoVendas');
+    var elCP = document.getElementById('bonusDescontoComissaoPctLabel');
+    var elC = document.getElementById('bonusDescontoComissao');
+    var elPA = document.getElementById('bonusDescontoPctAtualLabel');
+    var elLA = document.getElementById('bonusDescontoLiqAtual');
+    var elPN = document.getElementById('bonusDescontoPctNovoLabel');
+    var elLN = document.getElementById('bonusDescontoLiqNovo');
+    if (!elV || !elCP || !elC || !elPA || !elLA || !elPN || !elLN) return;
+    elV.textContent = vendas > 0 ? formatMoney(vendas) : '—';
+    elCP.textContent = bonusFmtPctLabel(pctComOk);
+    elC.textContent = comissao > 0 ? formatMoney(comissao) : '—';
+    if (comissao <= 0) {
+        elPA.textContent = '—';
+        elLA.textContent = '—';
+        elPN.textContent = bonusFmtPctLabel(pctNovo);
+        elLN.textContent = '—';
+        return;
+    }
+    elPA.textContent = bonusFmtPctLabel(pctIniOk);
+    var liqA = bonusLiquidoReservaPreview(comissao, pctIniOk);
+    elLA.textContent = liqA != null ? formatMoney(liqA) : '—';
+    elPN.textContent = bonusFmtPctLabel(pctNovo);
+    var liqN = bonusLiquidoReservaPreview(comissao, pctNovo);
+    elLN.textContent = liqN != null ? formatMoney(liqN) : '—';
+}
+function openBonusDescontoModal(prescritor, pct, extras) {
+    var modal = document.getElementById('modalBonusDesconto');
+    var inp = document.getElementById('bonusDescontoPctInput');
+    if (!modal || !inp) return;
+    var ex = extras && typeof extras === 'object' ? extras : {};
+    var vendas = Number.isFinite(Number(ex.vendas)) ? Number(ex.vendas) : 0;
+    var comissao = Number.isFinite(Number(ex.comissao)) ? Number(ex.comissao) : 0;
+    var pctComissao = Number.isFinite(Number(ex.pctComissaoVendas)) ? Number(ex.pctComissaoVendas) : 20;
+    var fechada = !!ex.fechada;
+    modal.dataset.prescritor = prescritor || '';
+    modal.dataset.reservaVendas = String(vendas);
+    modal.dataset.reservaComissao = String(comissao);
+    modal.dataset.reservaPctComissao = String(pctComissao);
+    modal.dataset.reservaFechada = fechada ? '1' : '0';
+    var nomeEl = document.getElementById('bonusModalDescontoNome');
+    if (nomeEl) {
+        nomeEl.textContent = prescritor ? String(prescritor) : '—';
+    }
+    var n = parseFloat(pct);
+    var pctOk = Number.isFinite(n) ? n : 20;
+    inp.value = String(pctOk);
+    modal.dataset.pctInicial = String(pctOk);
+    var note = document.getElementById('bonusDescontoFechadaNote');
+    if (note) note.style.display = fechada ? 'block' : 'none';
+    bonusUpdateDescontoPreview();
+    modal.style.display = 'flex';
+    modal.classList.add('is-open');
+    setTimeout(function () { inp.focus(); }, 80);
+}
+async function salvarBonusDescontoAdmin() {
+    const modal = document.getElementById('modalBonusDesconto');
+    const inp = document.getElementById('bonusDescontoPctInput');
+    const prescritor = modal && modal.dataset ? (modal.dataset.prescritor || '') : '';
+    let pct = parseFloat(inp && inp.value ? inp.value : '20');
+    if (!Number.isFinite(pct)) pct = 20;
+    pct = Math.max(0, Math.min(100, pct));
+    if (!prescritor) {
+        alert('Prescritor não identificado.');
+        return;
+    }
+    if (!__csrfToken) {
+        alert('Token de segurança indisponível. Atualize a página.');
+        return;
+    }
+    try {
+        const r = await fetch('api_bonus.php?action=bonus_admin_desconto_set', {
+            method: 'POST',
+            credentials: 'include',
+            cache: 'no-store',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': __csrfToken },
+            body: JSON.stringify({ csrf_token: __csrfToken, prescritor: prescritor, desconto_percent: pct }),
+        });
+        var j = null;
+        try { j = await r.json(); } catch (_) { j = null; }
+        if (r.status === 401) {
+            alert((j && j.error) || 'Sessão expirada. Faça login novamente.');
+            return;
+        }
+        if (r.status === 403) {
+            __csrfToken = '';
+            alert((j && j.error) || 'Acesso negado. Atualize a página e tente de novo.');
+            return;
+        }
+        if (!j || !j.success) {
+            alert((j && j.error) ? j.error : 'Falha ao salvar percentual.');
+            return;
+        }
+        closeBonusDescontoModal();
+        await loadBonificacoes();
+        const msgOk = 'Reserva administrativa salva. «% reserva» e «A bonificar» deste prescritor foram atualizados conforme o percentual individual.';
+        if (window.MyPharmUI && window.MyPharmUI.showSuccess) {
+            window.MyPharmUI.showSuccess(msgOk);
+        } else {
+            alert(msgOk);
+        }
+    } catch (_) {
+        alert('Erro ao salvar percentual.');
+    }
+}
+function bonusCreditoRowValores(c) {
+    const st = String(c.credito_status || '').toLowerCase();
+    const isFechado = st === 'fechado';
+    const brutoSnap = Number(c.valor_bruto_snapshot);
+    const cred = Number(c.valor_credito) || 0;
+    const liqConsRaw = c.valor_liquido_consolidado;
+    const liqCons = liqConsRaw != null && liqConsRaw !== '' ? Number(liqConsRaw) : null;
+    const liquido = isFechado && liqCons != null && Number.isFinite(liqCons) ? liqCons : cred;
+    let bruto = Number.isFinite(brutoSnap) && brutoSnap > 0 ? brutoSnap : 0;
+    if (bruto <= 0 && liquido > 0) {
+        bruto = liquido;
+    }
+    let desconto = bruto - liquido;
+    if (!Number.isFinite(desconto) || desconto < 0) {
+        desconto = 0;
+    }
+    const pct = c.pct_desconto_admin_aplicado != null && c.pct_desconto_admin_aplicado !== ''
+        ? Number(c.pct_desconto_admin_aplicado) : null;
+    const pctOk = pct != null && Number.isFinite(pct);
+    const descontoFmt = desconto > 0 || pctOk
+        ? formatMoney(desconto) + (pctOk ? ' <span style="color:var(--text-secondary);font-weight:500;">(' + pct + '%)</span>' : '')
+        : '—';
+    return { bruto: bruto, liquido: liquido, descontoFmt: descontoFmt, st: st };
+}
+function bonusCreditoStatusLabel(st) {
+    if (st === 'fechado') return 'Aprovado';
+    if (st === 'aberto') return 'Em aberto';
+    return 'Em aberto';
+}
 function renderExtratoControleHtml(data) {
     const resumo = data && data.resumo ? data.resumo : {};
     const creditos = Array.isArray(data.creditos) ? data.creditos : [];
     const debitos = Array.isArray(data.debitos) ? data.debitos : [];
-    const creditosHtml = creditos.length ? creditos.map(c => `
+    const creditosHtml = creditos.length ? creditos.map(function (c) {
+        const rv = bonusCreditoRowValores(c);
+        const stLabel = bonusCreditoStatusLabel(rv.st);
+        const stClass = rv.st === 'fechado' ? 'idx-bonus-cred-status-aprov' : 'idx-bonus-cred-status-aberto';
+        return `
         <tr>
             <td>${String(c.competencia_mes).padStart(2, '0')}/${c.competencia_ano}</td>
             <td>${String(c.referencia_mes).padStart(2, '0')}/${c.referencia_ano}</td>
             <td class="num">${formatMoney(c.valor_base || 0)}</td>
-            <td class="num" style="color:#10b981; font-weight:700;">${formatMoney(c.valor_credito || 0)}</td>
-        </tr>
-    `).join('') : '<tr><td colspan="4" class="bonus-empty">Sem créditos.</td></tr>';
+            <td class="num">${formatMoney(rv.bruto)}</td>
+            <td class="num" style="color:#b45309;font-weight:600;">${rv.descontoFmt}</td>
+            <td class="num" style="color:#10b981; font-weight:700;">${formatMoney(rv.liquido)}</td>
+            <td><span class="${stClass}">${esc(stLabel)}</span></td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="7" class="bonus-empty">Sem créditos.</td></tr>';
     const debitosHtml = debitos.length ? debitos.map(d => `
         <tr>
             <td>${esc(d.data_debito || '-')}</td>
@@ -804,12 +1111,13 @@ function renderExtratoControleHtml(data) {
     `).join('') : '<tr><td colspan="4" class="bonus-empty">Sem débitos.</td></tr>';
     const hoje = new Date();
     const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+    const aUtilR = resumo.bonificacao_a_utilizar != null ? resumo.bonificacao_a_utilizar : resumo.total_credito;
     return `
         <div class="bonus-kpi-grid-modal">
-            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-calendar-minus"></i>Bonificação mês anterior</div><div class="bonus-kpi-value-modal">${formatMoney(resumo.bonificacao_mes_anterior || 0)}</div></div>
-            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-calendar-plus"></i>Bonificação mês atual</div><div class="bonus-kpi-value-modal">${formatMoney(resumo.bonificacao_mes_atual_a_bonificar || 0)}</div></div>
-            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-arrow-trend-down"></i>Bonificações utilizadas</div><div class="bonus-kpi-value-modal is-danger">${formatMoney(resumo.bonificacoes_utilizadas || 0)}</div></div>
-            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-wallet"></i>Saldo de bonificação</div><div class="bonus-kpi-value-modal is-warning">${formatMoney(resumo.saldo_bonus || 0)}</div></div>
+            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-piggy-bank"></i>Bonificação a utilizar</div><div class="bonus-kpi-value-modal">${formatMoney(aUtilR || 0)}</div></div>
+            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-arrow-trend-down"></i>Bonificação utilizada</div><div class="bonus-kpi-value-modal is-danger">${formatMoney(resumo.bonificacoes_utilizadas || 0)}</div></div>
+            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-wallet"></i>Saldo de bonificação</div><div class="bonus-kpi-value-modal is-warning">${formatMoney(resumo.saldo_bonus || resumo.saldo_bonificacao || 0)}</div></div>
+            <div class="bonus-kpi-card-modal"><div class="bonus-kpi-label-modal"><i class="fas fa-hourglass-half"></i>A bonificar</div><div class="bonus-kpi-value-modal">${formatMoney(resumo.bonificacao_mes_atual_a_bonificar || 0)}</div></div>
         </div>
         <div class="bonus-panel">
             <h4 class="bonus-panel-title">Registrar débito de bônus</h4>
@@ -827,11 +1135,11 @@ function renderExtratoControleHtml(data) {
                 <button class="bonus-btn-primary" onclick="registrarDebitoControle()"><i class="fas fa-save"></i> Salvar débito</button>
             </div>
         </div>
-        <div class="bonus-panel">
-            <h4 class="bonus-panel-title">Histórico de créditos</h4>
+        <div class="bonus-panel" id="bonusPainelCreditos">
+            <h4 class="bonus-panel-title">Histórico de créditos (mês a mês)</h4>
             <div class="bonus-table-modal-wrap">
                 <table class="bonus-table-modal">
-                    <thead><tr><th>Competência</th><th>Ref.</th><th class="num">Base</th><th class="num">Crédito</th></tr></thead>
+                    <thead><tr><th>Competência</th><th>Ref.</th><th class="num">Base vendas</th><th class="num">Valor bruto</th><th class="num">Desconto</th><th class="num">Líquido</th><th>Status</th></tr></thead>
                     <tbody>${creditosHtml}</tbody>
                 </table>
             </div>
@@ -847,7 +1155,7 @@ function renderExtratoControleHtml(data) {
         </div>
     `;
 }
-async function openBonusControlModal(prescritor, visitador) {
+async function openBonusControlModal(prescritor, visitador, focus = '') {
     __bonusContext = { prescritor: prescritor || '', visitador: visitador || '' };
     const modal = document.getElementById('modalBonusControl');
     const title = document.getElementById('modalBonusControlTitle');
@@ -861,6 +1169,10 @@ async function openBonusControlModal(prescritor, visitador) {
         const j = await r.json();
         if (!j || !j.success) throw new Error((j && j.error) ? j.error : 'Falha ao carregar detalhes');
         body.innerHTML = renderExtratoControleHtml(j);
+        if (focus === 'creditos') {
+            const elCred = document.getElementById('bonusPainelCreditos');
+            if (elCred) requestAnimationFrame(() => elCred.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        }
     } catch (e) {
         body.innerHTML = `<div class="bonus-error">${esc(e.message || 'Erro')}</div>`;
     }
@@ -923,12 +1235,156 @@ document.addEventListener('DOMContentLoaded', async () => {
     const tableWrap = document.querySelector('#bonusPage .bonus-table-wrap');
     if (tableWrap) {
         tableWrap.addEventListener('click', function (ev) {
+            const dsc = ev.target.closest('.bonus-admin-desconto');
+            if (dsc) {
+                ev.preventDefault();
+                openBonusDescontoModal(
+                    dsc.getAttribute('data-prescritor') || '',
+                    parseFloat(dsc.getAttribute('data-pct') || '20'),
+                    {
+                        vendas: parseFloat(dsc.getAttribute('data-reserva-vendas') || '0') || 0,
+                        comissao: parseFloat(dsc.getAttribute('data-reserva-comissao') || '0') || 0,
+                        pctComissaoVendas: parseFloat(dsc.getAttribute('data-reserva-pct-comissao') || '20') || 20,
+                        fechada: (dsc.getAttribute('data-reserva-fechada') || '') === '1'
+                    }
+                );
+                return;
+            }
             const btn = ev.target.closest('.bonus-open-modal');
             if (!btn) return;
             ev.preventDefault();
-            openBonusControlModal(btn.getAttribute('data-prescritor') || '', btn.getAttribute('data-visitador') || '');
+            openBonusControlModal(
+                btn.getAttribute('data-prescritor') || '',
+                btn.getAttribute('data-visitador') || '',
+                btn.getAttribute('data-focus') || ''
+            );
         });
     }
+    document.getElementById('bonusDescontoPctInput')?.addEventListener('input', bonusUpdateDescontoPreview);
+    document.getElementById('bonusGlobalPctSave')?.addEventListener('click', async function () {
+        const btn = document.getElementById('bonusGlobalPctSave');
+        const inp = document.getElementById('bonusGlobalPctInput');
+        let pct = parseFloat(inp && inp.value ? inp.value : '20');
+        if (!Number.isFinite(pct)) pct = 20;
+        pct = Math.max(0, Math.min(100, pct));
+        if (!__csrfToken) {
+            try {
+                const r = await fetch('api.php?action=csrf_token', { credentials: 'include' });
+                const d = await r.json();
+                __csrfToken = (d && d.token) ? d.token : '';
+            } catch (_) {}
+        }
+        if (!__csrfToken) {
+            alert('Token de segurança indisponível.');
+            return;
+        }
+        const prevDisabled = btn && btn.disabled;
+        const prevText = btn && btn.textContent;
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Atualizando…';
+        }
+        try {
+            const r = await fetch('api_bonus.php?action=bonus_config_set', {
+                method: 'POST',
+                credentials: 'include',
+                cache: 'no-store',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': __csrfToken },
+                body: JSON.stringify({ csrf_token: __csrfToken, percentual_desconto_admin: pct }),
+            });
+            const j = await r.json();
+            if (!j || !j.success) throw new Error((j && j.error) ? j.error : 'Falha ao salvar.');
+            if (inp) inp.value = String(j.percentual_desconto_admin ?? pct);
+            alert(j.message || 'Desconto universal salvo.');
+            await loadBonificacoes();
+        } catch (e) {
+            alert(e.message || 'Erro ao salvar desconto universal.');
+        } finally {
+            if (btn) {
+                btn.disabled = !!prevDisabled;
+                btn.textContent = prevText || 'Salvar';
+            }
+        }
+    });
+    document.getElementById('bonusFecharMesBtn')?.addEventListener('click', async function () {
+        const y = parseInt((document.getElementById('bonusFecharAno') || {}).value || '0', 10) || 0;
+        const m = parseInt((document.getElementById('bonusFecharMes') || {}).value || '0', 10) || 0;
+        if (y < 2000 || m < 1 || m > 12) {
+            alert('Informe ano e mês de referência das vendas (1–12), como na coluna Ref. do histórico de créditos.');
+            return;
+        }
+        var calGate = bonusMesCivilJaEncerrouLocal(y, m);
+        if (!calGate.ok) {
+            alert(calGate.message);
+            return;
+        }
+        const refLabel = String(m).padStart(2, '0') + '/' + y;
+        const confirmOpts = {
+            title: 'Aprovar mês de referência (vendas)?',
+            message:
+                'ATENÇÃO: ao confirmar, o sistema grava alterações permanentes no banco de dados.\n\n' +
+                'Serão consolidados os créditos cuja coluna Ref. for ' + refLabel + ': o valor exibido em «A bonificar» será gravado (sem recalcular pelo desconto universal), o status passará a Aprovado e a carteira será atualizada.\n\n' +
+                'Se este período já estiver aprovado, nada será alterado no banco e você verá apenas um aviso.',
+            confirmText: 'Aprovar e gravar no banco',
+            cancelText: 'Cancelar',
+            kind: 'danger',
+            destructive: true
+        };
+        var ok = false;
+        if (window.MyPharmUI && typeof window.MyPharmUI.showConfirm === 'function') {
+            ok = await window.MyPharmUI.showConfirm(confirmOpts);
+        } else {
+            ok = window.confirm(confirmOpts.message.replace(/\n\n/g, '\n'));
+        }
+        if (!ok) return;
+        if (!__csrfToken) {
+            try {
+                const r = await fetch('api.php?action=csrf_token', { credentials: 'include' });
+                const d = await r.json();
+                __csrfToken = (d && d.token) ? d.token : '';
+            } catch (_) {}
+        }
+        if (!__csrfToken) {
+            alert('Token de segurança indisponível. Atualize a página e tente de novo.');
+            return;
+        }
+        function bonusToast(kind, msg) {
+            if (window.MyPharmUI) {
+                if (kind === 'success' && window.MyPharmUI.showSuccess) return window.MyPharmUI.showSuccess(msg);
+                if (kind === 'error' && window.MyPharmUI.showError) return window.MyPharmUI.showError(msg);
+                if (kind === 'warning' && window.MyPharmUI.showWarning) return window.MyPharmUI.showWarning(msg);
+                if (window.MyPharmUI.showInfo) return window.MyPharmUI.showInfo(msg);
+            }
+            alert(msg);
+        }
+        try {
+            const r = await fetch('api_bonus.php?action=bonus_fechar_mes', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': __csrfToken },
+                body: JSON.stringify({ csrf_token: __csrfToken, referencia_ano: y, referencia_mes: m }),
+            });
+            var j = null;
+            try { j = await r.json(); } catch (_) { j = null; }
+            if (r.status === 401) {
+                return bonusToast('error', (j && j.error) || 'Sessão expirada. Faça login novamente.');
+            }
+            if (r.status === 403) {
+                return bonusToast('error', (j && j.error) || 'Acesso negado (403). Atualize a página (token) ou verifique permissão. Mês já aprovado costuma vir com aviso, não 403.');
+            }
+            if (!j || !j.success) {
+                throw new Error((j && j.error) ? j.error : (r.status >= 400 ? 'Falha no fechamento (HTTP ' + r.status + ').' : 'Falha no fechamento.'));
+            }
+            if (j.ja_aprovado) {
+                bonusToast('warning', j.message || ('O mês de referência ' + refLabel + ' já estava aprovado. Nenhuma alteração foi gravada no banco.'));
+            } else {
+                bonusToast('success', j.message || 'Fechamento concluído e gravado no banco.');
+            }
+            await loadBonificacoes();
+        } catch (e) {
+            bonusToast('error', e.message || 'Erro no fechamento.');
+        }
+    });
     const themeBtn = document.getElementById('bonusThemeToggle');
     if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
     const searchInput = document.getElementById('buscaPrescritor');

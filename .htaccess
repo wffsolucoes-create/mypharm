@@ -48,7 +48,8 @@ Options -Indexes
 # ----- Headers de segurança para páginas HTML -----
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
-    Header always set X-Frame-Options "DENY"
+    # SAMEORIGIN: permite embed na mesma origem (ex.: gestao-comercial no index); DENY bloqueava iframe mesmo local.
+    Header always set X-Frame-Options "SAMEORIGIN"
     Header always set X-XSS-Protection "1; mode=block"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     Header always set Permissions-Policy "geolocation=(self), camera=(), microphone=()"

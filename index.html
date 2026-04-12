@@ -474,7 +474,7 @@
                     <i class="fas fa-user-tie"></i>
                     <span>Visitadores</span>
                 </a>
-                <a class="nav-item admin-only-nav" href="gestao-comercial.html" target="_blank" rel="noopener" style="display:none;">
+                <a class="nav-item admin-only-nav" href="gestao-comercial.html" style="display:none;">
                     <i class="fas fa-briefcase"></i>
                     <span>Gestão Comercial</span>
                 </a>
@@ -1103,25 +1103,24 @@
                     </div>
 
                     <div class="kpi-grid">
-                        <div class="kpi-card">
-                            <div class="kpi-label">Bonificação Mês Anterior</div>
-                            <div class="kpi-value" id="idxBonusCardMesAnterior">R$ 0,00</div>
-                            <div class="kpi-sub">Crédito disponível no mês atual</div>
+                        <div class="kpi-card idx-bonus-kpi-a-utilizar">
+                            <div class="kpi-label">Bonificação a utilizar</div>
+                            <div class="kpi-value" id="idxBonusCardAUtilizar">R$ 0,00</div>
+                            <div class="kpi-sub">Só soma créditos já aprovados (fechados); aumenta ao fechar o mês de referência</div>
                         </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label">Bonificação Mês Atual</div>
-                            <div class="kpi-value" id="idxBonusCardMesAtualBonificar">R$ 0,00</div>
-                            <div class="kpi-sub">Valor gerado para o próximo mês</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label">Bonificações Utilizadas</div>
+                        <div class="kpi-card idx-bonus-kpi-utilizada">
+                            <div class="kpi-label">Bonificação utilizada</div>
                             <div class="kpi-value" id="idxBonusCardUtilizadas">R$ 0,00</div>
-                            <div class="kpi-sub">Total de débitos lançados</div>
+                            <div class="kpi-sub">Total de utilizações confirmadas (débitos)</div>
                         </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label">Saldo de Bonificação</div>
+                        <div class="kpi-card idx-bonus-kpi-saldo">
+                            <div class="kpi-label">Saldo de bonificação</div>
                             <div class="kpi-value bonus-saldo" id="idxBonusCardSaldo">R$ 0,00</div>
-                            <div class="kpi-sub">Saldo restante por prescritor</div>
+                            <div class="kpi-sub">A utilizar − utilizada (não inclui “a bonificar” em aberto)</div>
+                        </div>
+                        <div class="kpi-card idx-bonus-kpi-abonif">
+                            <div class="kpi-label">A bonificar</div>
+                            <div class="kpi-value" id="idxBonusCardMesAtualBonificar">R$ 0,00</div>
                         </div>
                     </div>
 
@@ -1129,15 +1128,34 @@
                         <div class="chart-header">
                             <div>
                                 <div class="chart-title">Prescritores com bonificação</div>
-                                <div class="chart-subtitle">Use a busca para filtrar e clique no ícone na coluna Ações.</div>
+                                <div class="chart-subtitle">Use a busca para filtrar. Ações: gerenciar bonificação, reserva administrativa (%) e apto/bloqueio.</div>
                             </div>
                         </div>
                         <div class="chart-body" style="padding:14px;">
-                            <div class="bonus-toolbar">
-                                <select id="idxBonusFiltroVisitador" class="bonus-filter-select">
-                                    <option value="">Todos os visitadores</option>
-                                </select>
-                                <input id="idxBonusBuscaPrescritor" class="bonus-search" placeholder="Buscar prescritor...">
+                            <div class="bonus-toolbar idx-bonus-admin-bar idx-bonus-toolbar-layout">
+                                <div class="idx-bonus-toolbar-row idx-bonus-toolbar-row--filtros">
+                                    <select id="idxBonusFiltroVisitador" class="bonus-filter-select" aria-label="Filtrar por visitador">
+                                        <option value="">Todos os visitadores</option>
+                                    </select>
+                                    <input id="idxBonusBuscaPrescritor" class="bonus-search" type="search" placeholder="Buscar prescritor..." autocomplete="off" aria-label="Buscar prescritor">
+                                </div>
+                                <div class="idx-bonus-toolbar-row idx-bonus-toolbar-row--admin">
+                                    <div class="idx-bonus-toolbar-card" title="Percentual padrão (quem não tem reserva individual). Recalcula A bonificar na projeção aberta com esse %. Quem tem override por prescritor usa o % dele. Ao fechar o mês, grava o valor exibido em A bonificar.">
+                                        <span class="idx-bonus-toolbar-card-label">Desconto universal (%)</span>
+                                        <div class="idx-bonus-toolbar-card-body">
+                                            <input type="number" id="idxBonusGlobalPctInput" min="0" max="100" step="0.5" value="20" inputmode="decimal" aria-label="Percentual de desconto universal">
+                                            <button type="button" class="topbar-btn" id="idxBonusGlobalPctSave" title="Atualizar A bonificar em massa com este %">Salvar</button>
+                                        </div>
+                                    </div>
+                                    <div class="idx-bonus-toolbar-card idx-bonus-toolbar-card--fechar" title="Use o mesmo mês/ano da coluna Ref. (vendas). Só é possível aprovar após o último dia civil desse mês (ex.: 04/2026 a partir de 01/05).">
+                                        <span class="idx-bonus-toolbar-card-label">Aprovar mês (ref. vendas)</span>
+                                        <div class="idx-bonus-toolbar-card-body">
+                                            <input type="number" id="idxBonusFecharAno" class="idx-bonus-fechar-ano-input" min="2000" max="2100" step="1" placeholder="Ano" aria-label="Ano de referência das vendas a aprovar">
+                                            <input type="number" id="idxBonusFecharMes" class="idx-bonus-fechar-mes-input" min="1" max="12" step="1" placeholder="Mês" aria-label="Mês de referência das vendas a aprovar (1–12)">
+                                            <button type="button" class="bonus-btn-primary" id="idxBonusFecharMesBtn" title="Congela o valor atual de A bonificar (não recalcula pelo desconto universal). Passa a integrar a carteira."><i class="fas fa-lock"></i> Fechar mês</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="bonus-table-wrap">
                                 <table class="bonus-table">
@@ -1145,15 +1163,16 @@
                                     <tr>
                                         <th id="idxBonusThPrescritor" class="sortable">Prescritor</th>
                                         <th id="idxBonusThVisitador" class="sortable">Visitador</th>
-                                        <th class="num sortable" id="idxBonusThMesAnterior">Bonif. mês anterior</th>
-                                        <th class="num sortable" id="idxBonusThMesAtual">Bonif. mês atual (a bonificar)</th>
-                                        <th class="num sortable" id="idxBonusThUtilizadas">Bonificações utilizadas</th>
-                                        <th class="num sortable" id="idxBonusThSaldo">Saldo de bonificação</th>
-                                        <th style="width:120px; text-align:center;">Ações</th>
+                                        <th class="num sortable idx-bonus-th-a-utilizar" id="idxBonusThAUtilizar" title="Carteira: apenas créditos com status Aprovado (competência fechada).">Bonificação a utilizar</th>
+                                        <th class="num sortable idx-bonus-th-utilizada" id="idxBonusThUtilizadas">Bonificação utilizada</th>
+                                        <th class="num sortable idx-bonus-th-saldo" id="idxBonusThSaldo" title="Saldo = carteira consolidada − utilizada.">Saldo de bonificação</th>
+                                        <th class="num sortable" id="idxBonusThABonificar">A bonificar</th>
+                                        <th class="num sortable" id="idxBonusThReserva" title="Reserva administrativa (sobre a comissão; fechamento).">% reserva</th>
+                                        <th style="min-width:188px; width:1%; text-align:center; white-space:nowrap;">Ações</th>
                                     </tr>
                                     </thead>
                                     <tbody id="idxBonusTbodyControle">
-                                    <tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin"></i> Carregando...</td></tr>
+                                    <tr><td colspan="8" style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin"></i> Carregando...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -1529,6 +1548,38 @@
                         <button class="bonus-close-btn" onclick="idxBonusCloseModal()">&times;</button>
                     </div>
                     <div id="idxBonusModalBody" class="bonus-modal-body"></div>
+                </div>
+            </div>
+
+            <div id="idxBonusModalDesconto" class="bonus-modal" style="display:none;">
+                <div class="bonus-modal-box bonus-modal-compact">
+                    <div class="bonus-modal-head">
+                        <h3 class="bonus-modal-title"><i class="fas fa-percent"></i> Reserva administrativa</h3>
+                        <button type="button" class="bonus-close-btn" onclick="idxBonusCloseDescontoModal()">&times;</button>
+                    </div>
+                    <div class="bonus-modal-body">
+                        <p id="idxBonusModalDescontoNome" class="bonus-modal-desconto-nome" aria-live="polite"></p>
+                        <p class="bonus-modal-desconto-intro">Percentual apenas deste prescritor.</p>
+                        <p id="idxBonusDescontoFechadaNote" class="bonus-desconto-fechada-note" style="display:none;">Projeção já fechada: prévia só informativa (comissão × %).</p>
+                        <div id="idxBonusDescontoPreview" class="bonus-desconto-preview" aria-live="polite">
+                            <div class="bonus-desconto-preview-row"><span>Valor de vendas (base pedidos)</span><strong id="idxBonusDescontoVendas">—</strong></div>
+                            <div class="bonus-desconto-preview-row"><span>Comissão (<span id="idxBonusDescontoComissaoPctLabel">—</span>% sobre vendas)</span><strong id="idxBonusDescontoComissao">—</strong></div>
+                            <div class="bonus-desconto-preview-row"><span>Com reserva atual (<span id="idxBonusDescontoPctAtualLabel">—</span>% sobre a comissão)</span><strong id="idxBonusDescontoLiqAtual">—</strong></div>
+                            <div class="bonus-desconto-preview-row bonus-desconto-preview-row--novo"><span>Com reserva do campo (<span id="idxBonusDescontoPctNovoLabel">—</span>% sobre a comissão)</span><strong id="idxBonusDescontoLiqNovo">—</strong></div>
+                        </div>
+                        <div class="bonus-desconto-field">
+                            <label for="idxBonusDescontoPctInput">Desconto / reserva</label>
+                            <div class="bonus-desconto-input-group">
+                                <input type="number" id="idxBonusDescontoPctInput" min="0" max="100" step="0.5" value="20" inputmode="decimal" aria-describedby="idxBonusDescontoPctHint">
+                                <span class="bonus-desconto-suffix" aria-hidden="true">%</span>
+                            </div>
+                            <p id="idxBonusDescontoPctHint" class="bonus-desconto-hint">0 a 100 sobre a comissão deste prescritor. Atualiza «A bonificar» na projeção aberta. Fechados não mudam.</p>
+                        </div>
+                    </div>
+                    <div class="bonus-modal-foot">
+                        <button type="button" class="topbar-btn" onclick="idxBonusCloseDescontoModal()">Cancelar</button>
+                        <button type="button" class="bonus-btn-primary" onclick="idxBonusSalvarDescontoAdmin()"><i class="fas fa-floppy-disk"></i> Salvar</button>
+                    </div>
                 </div>
             </div>
 

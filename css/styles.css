@@ -3096,8 +3096,188 @@ body {
     flex-wrap: nowrap;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 5px;
     white-space: nowrap;
+}
+.section-page#page-bonificacoes .idx-bonus-actions-cell > button {
+    flex: 0 0 auto;
+}
+
+/* Barra de filtros / ações — bonificação (index e bonificacoes.html) */
+/* Sobrescreve .bonus-toolbar { align-items: center }, que em coluna centralizava as linhas. */
+.section-page#page-bonificacoes .bonus-toolbar.idx-bonus-toolbar-layout,
+#bonusPage .bonus-toolbar.idx-bonus-toolbar-layout {
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+.section-page#page-bonificacoes .idx-bonus-toolbar-layout,
+#bonusPage .idx-bonus-toolbar-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+.section-page#page-bonificacoes .idx-bonus-toolbar-row--filtros,
+#bonusPage .idx-bonus-toolbar-row--filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    box-sizing: border-box;
+}
+.section-page#page-bonificacoes .idx-bonus-toolbar-row--filtros .bonus-filter-select,
+#bonusPage .idx-bonus-toolbar-row--filtros .bonus-filter-select {
+    flex: 0 1 220px;
+    min-width: 160px;
+}
+.section-page#page-bonificacoes .idx-bonus-toolbar-row--filtros .bonus-search,
+#bonusPage .idx-bonus-toolbar-row--filtros .bonus-search {
+    flex: 1 1 280px;
+    min-width: 200px;
+    max-width: 100%;
+}
+.section-page#page-bonificacoes .idx-bonus-toolbar-row--admin,
+#bonusPage .idx-bonus-toolbar-row--admin {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: stretch;
+    justify-content: flex-start;
+    width: 100%;
+    box-sizing: border-box;
+}
+.section-page#page-bonificacoes .idx-bonus-toolbar-card,
+#bonusPage .idx-bonus-toolbar-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: var(--bg-surface);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1 1 240px;
+    min-width: min(100%, 220px);
+    max-width: 100%;
+}
+.section-page#page-bonificacoes .idx-bonus-toolbar-card-label,
+#bonusPage .idx-bonus-toolbar-card-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    line-height: 1.2;
+}
+.section-page#page-bonificacoes .idx-bonus-toolbar-card-body,
+#bonusPage .idx-bonus-toolbar-card-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.section-page#page-bonificacoes .idx-bonus-toolbar-card-body input[type="number"],
+#bonusPage .idx-bonus-toolbar-card-body input[type="number"] {
+    width: 88px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+.section-page#page-bonificacoes .idx-bonus-toolbar-card--fechar .idx-bonus-toolbar-card-body input[type="number"],
+#bonusPage .idx-bonus-toolbar-card--fechar .idx-bonus-toolbar-card-body input[type="number"] {
+    width: 88px;
+}
+.section-page#page-bonificacoes .idx-bonus-toolbar-card--fechar .idx-bonus-toolbar-card-body input.idx-bonus-fechar-mes-input,
+#bonusPage .idx-bonus-toolbar-card--fechar .idx-bonus-toolbar-card-body input.idx-bonus-fechar-mes-input {
+    width: 72px;
+}
+
+/* Modal extrato — status da competência de crédito */
+.idx-bonus-cred-status-aprov {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    background: rgba(16, 185, 129, 0.16);
+    color: #047857;
+}
+.idx-bonus-cred-status-aberto {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: rgba(148, 163, 184, 0.2);
+    color: var(--text-secondary);
+}
+
+.section-page#page-bonificacoes .idx-bonus-col-a-utilizar {
+    font-weight: 800;
+    color: #0f766e;
+}
+.section-page#page-bonificacoes .idx-bonus-col-utilizada {
+    font-weight: 700;
+    color: #b91c1c;
+}
+.section-page#page-bonificacoes .idx-bonus-col-saldo {
+    font-weight: 800;
+}
+.section-page#page-bonificacoes .idx-bonus-th-a-utilizar {
+    color: #0f766e;
+}
+.section-page#page-bonificacoes .idx-bonus-th-utilizada {
+    color: #b91c1c;
+}
+.section-page#page-bonificacoes .idx-bonus-th-saldo {
+    color: #b45309;
+}
+.section-page#page-bonificacoes .idx-bonus-kpi-a-utilizar .kpi-value {
+    color: #0f766e;
+    font-weight: 800;
+}
+.section-page#page-bonificacoes .idx-bonus-kpi-utilizada .kpi-value {
+    font-weight: 700;
+}
+.section-page#page-bonificacoes .idx-bonus-kpi-saldo .kpi-value {
+    font-weight: 800;
+}
+
+#bonusPage .idx-bonus-col-a-utilizar {
+    font-weight: 800;
+    color: #0f766e;
+}
+#bonusPage .idx-bonus-col-utilizada {
+    font-weight: 700;
+    color: #b91c1c;
+}
+#bonusPage .idx-bonus-col-saldo {
+    font-weight: 800;
+}
+#bonusPage .idx-bonus-kpi-a-utilizar .kpi-value {
+    color: #0f766e;
+    font-weight: 800;
+}
+#bonusPage .idx-bonus-kpi-utilizada .kpi-value {
+    font-weight: 700;
+}
+#bonusPage .idx-bonus-kpi-saldo .kpi-value {
+    font-weight: 800;
+}
+/* Quatro ícones na mesma linha: botões um pouco menores só nesta célula */
+.section-page#page-bonificacoes .idx-bonus-actions-cell .visitas-btn-relatorio,
+.section-page#page-bonificacoes .idx-bonus-actions-cell .visitas-btn-reprovar,
+.section-page#page-bonificacoes .idx-bonus-actions-cell .visitas-btn-restaurar,
+.section-page#page-bonificacoes .idx-bonus-actions-cell .visitas-btn-editar-motivo {
+    width: 34px;
+    height: 34px;
+    font-size: 0.78rem;
 }
 
 .section-page#page-bonificacoes .visitas-btn-relatorio,
@@ -3349,6 +3529,135 @@ body {
 }
 .bonus-close-btn:hover { background: rgba(148, 163, 184, 0.14); color: var(--text-primary); }
 .bonus-modal-body { overflow: auto; padding: 16px 18px; }
+/* Modal compacto: reserva administrativa por prescritor */
+.bonus-modal-box.bonus-modal-compact {
+    width: min(440px, 100%);
+    max-height: none;
+}
+.bonus-modal-desconto-intro {
+    margin: 0 0 16px 0;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+}
+.bonus-modal-desconto-nome {
+    margin: -8px 0 14px 0;
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1.3;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+.bonus-modal-desconto-intro strong {
+    color: var(--text-primary);
+    font-weight: 800;
+}
+.bonus-desconto-field {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    background: var(--bg-body);
+}
+.bonus-desconto-field > label {
+    display: block;
+    margin: 0 0 10px 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+.bonus-desconto-input-group {
+    display: flex;
+    align-items: stretch;
+    max-width: 200px;
+}
+.bonus-desconto-input-group input[type="number"] {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+    border: 1px solid var(--border);
+    border-radius: 10px 0 0 10px;
+    border-right: none;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: 0 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    box-sizing: border-box;
+}
+.bonus-desconto-input-group input[type="number"]:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+.bonus-desconto-suffix {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    border: 1px solid var(--border);
+    border-left: none;
+    border-radius: 0 10px 10px 0;
+    background: rgba(148, 163, 184, 0.12);
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+.bonus-desconto-hint {
+    margin: 12px 0 0 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+.bonus-desconto-preview {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    background: var(--bg-body);
+    font-size: 0.86rem;
+}
+.bonus-desconto-preview-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+.bonus-desconto-preview-row:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+.bonus-desconto-preview-row strong {
+    color: var(--text-primary);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+}
+.bonus-desconto-preview-row--novo strong {
+    color: #2563eb;
+}
+.bonus-desconto-fechada-note {
+    margin: 0 0 10px 0;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: #b45309;
+    font-weight: 600;
+}
+.bonus-modal-foot {
+    padding: 14px 18px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: linear-gradient(180deg, rgba(148, 163, 184, 0.06) 0%, transparent 100%);
+}
 .bonus-kpi-grid-modal { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .bonus-kpi-card-modal { border: 1px solid var(--border); border-radius: 12px; background: var(--bg-body); padding: 10px; }
 .bonus-kpi-label-modal { font-size: 0.68rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; display: inline-flex; align-items: center; gap: 5px; }

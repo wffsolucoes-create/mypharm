@@ -49,14 +49,6 @@
                         <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
                         <span>Controle de erros</span>
                     </button>
-                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-financeiro" data-section="financeiro" aria-selected="false" aria-controls="gc-section-financeiro">
-                        <i class="fas fa-coins" aria-hidden="true"></i>
-                        <span>Financeiro aplicado</span>
-                    </button>
-                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-reuniao" data-section="reuniao" aria-selected="false" aria-controls="gc-section-reuniao">
-                        <i class="fas fa-clipboard-check" aria-hidden="true"></i>
-                        <span>Reunião mensal</span>
-                    </button>
                 </div>
                 <div class="nav-section-title">Atalhos</div>
                 <a class="nav-item" href="tv-vendedores.html" target="_blank" rel="noopener noreferrer">
@@ -64,17 +56,7 @@
                     <span>TV corrida de vendas</span>
                     <span class="gc-sr-only"> (abre em nova aba)</span>
                 </a>
-                <a class="nav-item" href="rejeitados-clientes.html" target="_blank" rel="noopener noreferrer">
-                    <i class="fas fa-address-card" aria-hidden="true"></i>
-                    <span>Rejeitados por cliente</span>
-                    <span class="gc-sr-only"> (abre em nova aba)</span>
-                </a>
-                <a class="nav-item" href="rejeitados-prescritores.html" target="_blank" rel="noopener noreferrer">
-                    <i class="fas fa-user-doctor" aria-hidden="true"></i>
-                    <span>Rejeitados por prescritor</span>
-                    <span class="gc-sr-only"> (abre em nova aba)</span>
-                </a>
-                <a class="nav-item" href="index.html">
+                <a class="nav-item" href="index.html" title="Voltar ao painel administrativo MyPharm">
                     <i class="fas fa-arrow-left" aria-hidden="true"></i>
                     <span>Painel administrativo</span>
                 </a>
@@ -323,13 +305,6 @@
                                 <div class="gc-chart-canvas-wrap"><canvas id="gcChartVendasClientesFaixaTicket" aria-label="Faixas de ticket por cliente"></canvas></div>
                             </div>
                         </div>
-                        <div class="gc-chart-grid gc-stack-20">
-                            <div class="gc-chart-panel gc-chart-panel--wide">
-                                <h4 class="gc-chart-title">Clientes com maior perda potencial</h4>
-                                <p class="gc-chart-sub">Clientes com maior valor rejeitado/no carrinho no período.</p>
-                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasClientesPerda" aria-label="Clientes com maior perda potencial"></canvas></div>
-                            </div>
-                        </div>
                         <div class="gc-compare-banner">
                             <i class="fas fa-circle-info" aria-hidden="true"></i>
                             <span>Os próximos gráficos são de comparação fixa e não se aplicam aos filtros globais de período.</span>
@@ -557,41 +532,88 @@
                         </div>
                     </div>
 
-                    <div class="gc-block">
-                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-sack-dollar"></i></span> Regras de comissão</h3>
-                        <p class="gc-note gc-note--tight">Tabela de faixas de comissão individual, comissão de grupo e bônus por score.</p>
-                        <div class="gc-chart-grid gc-chart-grid--2">
-                            <div class="gc-table-wrap">
-                                <table class="gc-table gc-table--prod gc-rel-comissao-table" id="gcRelComissaoIndTable">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">% Meta</th>
-                                            <th scope="col">Faixa</th>
-                                            <th scope="col">Comissão %</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="gcRelComissaoIndTbody"></tbody>
-                                </table>
+                    <div class="gc-block gc-comissao-block">
+                        <div class="gc-comissao-head">
+                            <h3 class="gc-block-title gc-comissao-head__title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-sack-dollar"></i></span> Regras de comissão</h3>
+                            <div class="gc-comissao-head__actions">
+                                <span class="gc-comissao-mode-pill" id="gcComissaoModoLabel" aria-live="polite">Visualização</span>
+                                <button type="button" class="gc-comissao-btn gc-comissao-btn--outline" id="gcComissaoRegrasEditarBtn" aria-pressed="false">
+                                    <i class="fas fa-pen-to-square" aria-hidden="true"></i> Editar
+                                </button>
                             </div>
-                            <div class="gc-table-wrap">
-                                <table class="gc-table gc-table--prod gc-rel-comissao-table" id="gcRelComissaoGrupoTable">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Meta grupo</th>
-                                            <th scope="col">Percentual</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="gcRelComissaoGrupoTbody"></tbody>
-                                </table>
-                                <table class="gc-table gc-table--prod gc-rel-comissao-table gc-stack-16" id="gcRelComissaoPremioTable">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Regra de bônus</th>
-                                            <th scope="col">Prêmio</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="gcRelComissaoPremioTbody"></tbody>
-                                </table>
+                        </div>
+                        <p class="gc-note gc-note--tight gc-comissao-lead">Use <strong>Editar</strong> para alterar faixas. <strong>Salvar</strong> grava no mês indicado. Os <strong>cálculos</strong> do relatório e % da equipe seguem o mês da data <strong>Até</strong> do filtro; o seletor de mês/ano serve para carregar ou gravar outro mês civil.</p>
+                        <div class="gc-comissao-hint" id="gcComissaoRegrasRefText" aria-live="polite"></div>
+                        <div class="gc-comissao-toolbar">
+                            <div class="gc-comissao-toolbar__period">
+                                <span class="gc-comissao-toolbar__label">Regras do mês</span>
+                                <select id="gcComissaoRegrasMes" class="gc-comissao-select" aria-label="Mês das regras"></select>
+                                <select id="gcComissaoRegrasAno" class="gc-comissao-select gc-comissao-select--ano" aria-label="Ano das regras"></select>
+                            </div>
+                            <div class="gc-comissao-toolbar__actions">
+                                <button type="button" class="gc-comissao-btn gc-comissao-btn--secondary" id="gcComissaoRegrasCarregarBtn">Carregar</button>
+                                <button type="button" class="gc-comissao-btn gc-comissao-btn--primary" id="gcComissaoRegrasSalvarBtn" disabled>Salvar</button>
+                                <span class="gc-comissao-save-msg" id="gcComissaoRegrasSalvarMsg" aria-live="polite"></span>
+                            </div>
+                        </div>
+                        <div id="gcComissaoRegrasTablesWrap" class="gc-comissao-tables" data-edit-mode="false">
+                            <div class="gc-comissao-grid">
+                                <div class="gc-comissao-subcard gc-comissao-subcard--ind">
+                                    <h4 class="gc-comissao-subcard__title"><span class="gc-comissao-subcard__accent gc-comissao-subcard__accent--ind"></span> Comissão individual</h4>
+                                    <p class="gc-comissao-subcard__desc">Faixas por % da meta e comissão aplicável.</p>
+                                    <div class="gc-table-wrap gc-comissao-table-wrap">
+                                        <table class="gc-table gc-table--prod gc-rel-comissao-table gc-comissao-table" id="gcRelComissaoIndTable">
+                                            <thead class="gc-comissao-thead">
+                                                <tr>
+                                                    <th scope="col">% Meta (texto)</th>
+                                                    <th scope="col">Faixa (texto)</th>
+                                                    <th scope="col" class="gc-num">Meta mín %</th>
+                                                    <th scope="col" class="gc-num">Meta máx %</th>
+                                                    <th scope="col" class="gc-num">Comissão %</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="gcRelComissaoIndTbody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="gc-comissao-col-stack">
+                                    <div class="gc-comissao-subcard gc-comissao-subcard--grupo">
+                                        <h4 class="gc-comissao-subcard__title"><span class="gc-comissao-subcard__accent gc-comissao-subcard__accent--grupo"></span> Meta da equipe (grupo)</h4>
+                                        <p class="gc-comissao-subcard__desc">Receita aprovada da equipe no período.</p>
+                                        <div class="gc-table-wrap gc-comissao-table-wrap">
+                                            <table class="gc-table gc-table--prod gc-rel-comissao-table gc-comissao-table" id="gcRelComissaoGrupoTable">
+                                                <thead class="gc-comissao-thead">
+                                                    <tr>
+                                                        <th scope="col">Meta grupo (texto)</th>
+                                                        <th scope="col" class="gc-num">Rev min R$</th>
+                                                        <th scope="col" class="gc-num">Rev máx R$</th>
+                                                        <th scope="col" class="gc-num">%</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="gcRelComissaoGrupoTbody"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div class="gc-comissao-subcard gc-comissao-subcard--bonus">
+                                        <h4 class="gc-comissao-subcard__title"><span class="gc-comissao-subcard__accent gc-comissao-subcard__accent--bonus"></span> Bônus por meta e score</h4>
+                                        <p class="gc-comissao-subcard__desc">Primeira regra que atender aplica o prêmio.</p>
+                                        <div class="gc-table-wrap gc-comissao-table-wrap">
+                                            <table class="gc-table gc-table--prod gc-rel-comissao-table gc-comissao-table" id="gcRelComissaoPremioTable">
+                                                <thead class="gc-comissao-thead">
+                                                    <tr>
+                                                        <th scope="col">Regra de bônus</th>
+                                                        <th scope="col" class="gc-num">Prêmio R$</th>
+                                                        <th scope="col">% meta</th>
+                                                        <th scope="col" class="gc-num">Valor</th>
+                                                        <th scope="col">Score</th>
+                                                        <th scope="col" class="gc-num">Valor</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="gcRelComissaoPremioTbody"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -687,129 +709,6 @@
                                 </thead>
                                 <tbody id="gcErrosTbody"></tbody>
                             </table>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="gc-section" id="gc-section-financeiro" role="tabpanel" aria-labelledby="gc-tab-financeiro" aria-hidden="true">
-                    <header class="gc-tab-head">
-                        <p class="gc-tab-head__kicker">Financeiro aplicado</p>
-                        <p class="gc-tab-head__desc">Visão sintética ligada ao período do relatório: composição de faturamento, custos e margem. Campos sem base cadastrada aparecem como —.</p>
-                    </header>
-
-                    <div class="gc-block">
-                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-scale-balanced"></i></span> Visão financeira do período</h3>
-                        <div class="gc-chart-panel gc-chart-panel--wide">
-                            <h4 class="gc-chart-title">Composição (faturamento, CMV, lucro)</h4>
-                            <p class="gc-chart-sub">Resumo visual alinhado aos KPIs abaixo.</p>
-                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartFinResumo" aria-label="Resumo financeiro"></canvas></div>
-                        </div>
-                        <div class="kpi-grid gc-kpi-grid gc-stack-16" role="list">
-                            <div class="kpi-card" role="listitem">
-                                <div class="kpi-icon"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i></div>
-                                <div class="kpi-label">Faturamento</div>
-                                <div class="kpi-value gc-metric-value" id="gcFinFatBruto">—</div>
-                                <div class="kpi-sub">Bruto no período</div>
-                            </div>
-                            <div class="kpi-card" role="listitem">
-                                <div class="kpi-icon"><i class="fas fa-wallet" aria-hidden="true"></i></div>
-                                <div class="kpi-label">Líquido</div>
-                                <div class="kpi-value gc-metric-value" id="gcFinFatLiq">—</div>
-                                <div class="kpi-sub">Após ajustes</div>
-                            </div>
-                            <div class="kpi-card" role="listitem">
-                                <div class="kpi-icon"><i class="fas fa-boxes" aria-hidden="true"></i></div>
-                                <div class="kpi-label">CMV</div>
-                                <div class="kpi-value gc-metric-value" id="gcFinCmv">—</div>
-                                <div class="kpi-sub">Custo da mercadoria vendida</div>
-                            </div>
-                            <div class="kpi-card" role="listitem">
-                                <div class="kpi-icon"><i class="fas fa-tag" aria-hidden="true"></i></div>
-                                <div class="kpi-label">Custo / venda</div>
-                                <div class="kpi-value gc-metric-value" id="gcFinCustoVenda">—</div>
-                                <div class="kpi-sub">Variável por pedido</div>
-                            </div>
-                            <div class="kpi-card" role="listitem">
-                                <div class="kpi-icon"><i class="fas fa-headset" aria-hidden="true"></i></div>
-                                <div class="kpi-label">Custo / atend.</div>
-                                <div class="kpi-value gc-metric-value" id="gcFinCustoAtend">—</div>
-                                <div class="kpi-sub">Por atendimento</div>
-                            </div>
-                            <div class="kpi-card" role="listitem">
-                                <div class="kpi-icon"><i class="fas fa-balance-scale" aria-hidden="true"></i></div>
-                                <div class="kpi-label">Margem</div>
-                                <div class="kpi-value gc-metric-value" id="gcFinMargem">—</div>
-                                <div class="kpi-sub">Margem bruta %</div>
-                            </div>
-                            <div class="kpi-card" role="listitem">
-                                <div class="kpi-icon"><i class="fas fa-coins" aria-hidden="true"></i></div>
-                                <div class="kpi-label">Lucro operacional</div>
-                                <div class="kpi-value gc-metric-value" id="gcFinLucro">—</div>
-                                <div class="kpi-sub">Resultado no período</div>
-                            </div>
-                        </div>
-                        <p class="gc-note gc-metric-value" id="gcFinNotas">Campos sem base no sistema aparecem como —.</p>
-                    </div>
-
-                    <div class="gc-block">
-                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-piggy-bank"></i></span> Caixa e projeções</h3>
-                        <div class="gc-chart-panel gc-chart-panel--wide">
-                            <h4 class="gc-chart-title">Indicadores de caixa</h4>
-                            <p class="gc-chart-sub">Preenchidos quando houver dados de contas a receber / financeiro na base.</p>
-                            <ul class="gc-metric-list">
-                                <li><span class="gc-metric-list__text gc-metric-value" id="gcFinCaixaLinha1">Prazo médio recebimento: —</span></li>
-                                <li><span class="gc-metric-list__text gc-metric-value" id="gcFinCaixaLinha2">Inadimplência: —</span></li>
-                                <li><span class="gc-metric-list__text gc-metric-value" id="gcFinCaixaLinha3">Antecipação / fluxo 3 meses: —</span></li>
-                            </ul>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="gc-section" id="gc-section-reuniao" role="tabpanel" aria-labelledby="gc-tab-reuniao" aria-hidden="true">
-                    <header class="gc-tab-head">
-                        <p class="gc-tab-head__kicker">Reunião mensal</p>
-                        <p class="gc-tab-head__desc">Roteiro de perguntas para cruzar com os números deste painel no fechamento com a diretoria.</p>
-                    </header>
-
-                    <div class="gc-block">
-                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-clipboard-list"></i></span> Perguntas da diretoria — fechamento mensal</h3>
-                        <div class="gc-checklist gc-checklist--meeting">
-                            <div class="gc-card">
-                                <div class="gc-label">Receita</div>
-                                <ul>
-                                    <li>Quanto vendemos?</li>
-                                    <li>Crescemos?</li>
-                                    <li>Onde crescemos?</li>
-                                </ul>
-                            </div>
-                            <div class="gc-card">
-                                <div class="gc-label">Conversão</div>
-                                <ul>
-                                    <li>O funil melhorou ou piorou?</li>
-                                    <li>Onde está o gargalo?</li>
-                                </ul>
-                            </div>
-                            <div class="gc-card">
-                                <div class="gc-label">Margem</div>
-                                <ul>
-                                    <li>Estamos vendendo mais com mais lucro?</li>
-                                    <li>Quais produtos puxaram margem para baixo?</li>
-                                </ul>
-                            </div>
-                            <div class="gc-card">
-                                <div class="gc-label">Clientes</div>
-                                <ul>
-                                    <li>Estamos fidelizando?</li>
-                                    <li>A base ativa está aumentando?</li>
-                                </ul>
-                            </div>
-                            <div class="gc-card">
-                                <div class="gc-label">Marketing</div>
-                                <ul>
-                                    <li>Qual canal trouxe mais lucro?</li>
-                                    <li>CAC e ROI estão saudáveis?</li>
-                                </ul>
-                            </div>
                         </div>
                     </div>
                 </section>
