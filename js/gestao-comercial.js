@@ -2098,42 +2098,27 @@
         };
         let sumValorAprov = 0;
         let sumValorReprov = 0;
-        let sumValorRecusados = 0;
-        let qtdLinhasRecusado = 0;
+        let qtdAprov = 0;
+        let qtdReprov = 0;
         groupedList.forEach(function (g) {
-            (g.rows || []).forEach(function (r) {
-                const t = String(r.tipo || '');
-                const v = parseFloat(r.valor) || 0;
-                if (t === 'Aprovado') {
-                    sumValorAprov += v;
-                }
-                if (t === 'Recusado' || t === 'No carrinho') {
-                    sumValorReprov += v;
-                }
-                if (t === 'Recusado') {
-                    sumValorRecusados += v;
-                    qtdLinhasRecusado += 1;
-                }
-            });
+            const t = String(g.tipo || '');
+            const v = parseFloat(g.valor) || 0;
+            if (t === 'Aprovado') {
+                sumValorAprov += v;
+                qtdAprov += 1;
+            } else if (t === 'Recusado' || t === 'No carrinho') {
+                sumValorReprov += v;
+                qtdReprov += 1;
+            }
         });
-        const totalValor = groupedList.reduce(function (acc, p) {
-            return acc + (parseFloat(p.valor) || 0);
-        }, 0);
-        const cardValor = document.getElementById('gcPedidosRelCardValor');
         const cardQty = document.getElementById('gcPedidosRelCardQtd');
         const cardValorAprov = document.getElementById('gcPedidosRelCardValorAprov');
         const cardValorReprov = document.getElementById('gcPedidosRelCardValorReprov');
-        const cardValorRecusados = document.getElementById('gcPedidosRelCardValorRecusados');
         const cardQtdRecusados = document.getElementById('gcPedidosRelCardQtdRecusados');
-        if (cardValor) cardValor.textContent = fmtBr(totalValor);
-        if (cardQty) cardQty.textContent = groupedList.length + ' pedido' + (groupedList.length !== 1 ? 's' : '');
         if (cardValorAprov) cardValorAprov.textContent = fmtBr(sumValorAprov);
         if (cardValorReprov) cardValorReprov.textContent = fmtBr(sumValorReprov);
-        if (cardValorRecusados) cardValorRecusados.textContent = fmtBr(sumValorRecusados);
-        if (cardQtdRecusados) {
-            cardQtdRecusados.textContent =
-                String(qtdLinhasRecusado) + ' série' + (qtdLinhasRecusado !== 1 ? 's' : '');
-        }
+        if (cardQty) cardQty.textContent = qtdAprov + ' pedido' + (qtdAprov !== 1 ? 's' : '');
+        if (cardQtdRecusados) cardQtdRecusados.textContent = qtdReprov + ' pedido' + (qtdReprov !== 1 ? 's' : '');
         const esc = function (x) {
             return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
         };
@@ -2174,7 +2159,17 @@
             const isOpen = !!__gcPedidosExpanded[key];
             const rows = Array.isArray(group.rows) ? group.rows : [];
             const keyJs = key.replace(/'/g, "\\'");
-            html += '<tr style="background:rgba(148,163,184,0.06);">';
+            const bgRow = isAprovado
+                ? 'rgba(5,150,105,0.06)'
+                : isRecusado
+                ? 'rgba(220,38,38,0.07)'
+                : 'rgba(234,179,8,0.08)'; // Misto = amarelo
+            const borderRow = isAprovado
+                ? '2px solid rgba(5,150,105,0.25)'
+                : isRecusado
+                ? '2px solid rgba(220,38,38,0.25)'
+                : '2px solid rgba(234,179,8,0.35)';
+            html += '<tr style="background:' + bgRow + ';border-left:' + borderRow + ';">';
             html +=
                 '<td><button type="button" onclick="gcTogglePedidosRelSeries(\'' +
                 keyJs +
@@ -2208,6 +2203,18 @@
                         p.ano_referencia != null && String(p.ano_referencia).trim() !== ''
                             ? String(p.ano_referencia).trim()
                             : String(anoRef);
+                    const subAprov = p.tipo === 'Aprovado';
+                    const subRec = p.tipo === 'Recusado' || p.tipo === 'No carrinho';
+                    const bgSub = subAprov
+                        ? 'rgba(5,150,105,0.03)'
+                        : subRec
+                        ? 'rgba(220,38,38,0.04)'
+                        : 'rgba(234,179,8,0.04)';
+                    const borderSub = subAprov
+                        ? '2px solid rgba(5,150,105,0.15)'
+                        : subRec
+                        ? '2px solid rgba(220,38,38,0.15)'
+                        : '2px solid rgba(234,179,8,0.2)';
                     html +=
                         '<tr role="button" tabindex="0" onclick="gcOpenModalDetalhePedidoGc(' +
                         n +
@@ -2215,7 +2222,7 @@
                         sNum +
                         ',\'' +
                         anoRow.replace(/'/g, "\\'") +
-                        '\')" style="cursor:pointer;background:rgba(148,163,184,0.02);" title="Ver detalhes da série">';
+                        '\')" style="cursor:pointer;background:' + bgSub + ';border-left:' + borderSub + ';" title="Ver detalhes da série">';
                     html += '<td style="padding-left:36px;color:var(--text-secondary);">↳ ' + esc(p.numero_pedido) + '</td>';
                     html += '<td>' + esc(serieStr(p)) + '</td>';
                     html += '<td>' + esc(p.tipo === 'Recusado' || p.tipo === 'No carrinho' ? '—' : fmtDate(p.data_aprovacao)) + '</td>';
