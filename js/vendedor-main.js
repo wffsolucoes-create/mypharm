@@ -1697,18 +1697,23 @@
             return;
         }
         currentSession = session;
+        window.vdSession = session;
         const app = document.getElementById('vdApp');
         if (app) app.style.display = 'block';
         var loader = document.getElementById('vdLoadingOverlay');
         if (loader) loader.style.display = 'none';
         bindUi();
-        await loadMetas(session);
-        await loadPedidosPerdidos();
-        await loadVendedorPedidos();
-        setInterval(function () {
-            loadMetas(session).catch(function () {});
-            loadPedidosPerdidos().catch(function () {});
-            loadVendedorPedidos().catch(function () {});
-        }, REFRESH_MS);
+        // Só carrega dados pesados do dashboard na página principal (vendedor.html)
+        const isDashboard = !!document.getElementById('vdPctMetaDiaria');
+        if (isDashboard) {
+            await loadMetas(session);
+            await loadPedidosPerdidos();
+            await loadVendedorPedidos();
+            setInterval(function () {
+                loadMetas(session).catch(function () {});
+                loadPedidosPerdidos().catch(function () {});
+                loadVendedorPedidos().catch(function () {});
+            }, REFRESH_MS);
+        }
     });
 })();

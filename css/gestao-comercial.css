@@ -3248,3 +3248,491 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     border-color: var(--primary, #2563eb);
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
 }
+
+/* Transferências de comissão (aba gestão) */
+#gc-section-comissoes .gc-ct-block {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+#gc-section-comissoes .gc-ct-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 0 0 18px 0;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+#gc-section-comissoes .gc-ct-toolbar__intro {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+#gc-section-comissoes .gc-ct-toolbar__title {
+    margin: 0 0 6px 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: -0.02em;
+}
+
+#gc-section-comissoes .gc-ct-toolbar__title i {
+    color: var(--primary, #2563eb);
+    font-size: 1rem;
+    opacity: 0.95;
+}
+
+#gc-section-comissoes .gc-ct-toolbar__hint {
+    margin: 0;
+    font-size: 0.84rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    max-width: 520px;
+}
+
+#gc-section-comissoes .gc-ct-toolbar__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+#gc-section-comissoes .gc-ct-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+
+#gc-section-comissoes .gc-ct-select {
+    min-width: 200px;
+    font-weight: 600;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-body);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+#gc-section-comissoes .gc-ct-select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+#gc-section-comissoes .gc-ct-btn-refresh {
+    height: 40px;
+    padding-left: 18px;
+    padding-right: 18px;
+    font-weight: 700;
+}
+
+#gc-section-comissoes .gc-ct-msg {
+    margin: 0 0 14px 0;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: rgba(37, 99, 235, 0.06);
+    color: var(--text-primary);
+}
+
+#gc-section-comissoes .gc-ct-msg--error {
+    background: rgba(220, 38, 38, 0.08);
+    border-color: rgba(220, 38, 38, 0.28);
+    color: var(--danger, #b91c1c);
+}
+
+#gc-section-comissoes .gc-ct-msg--ok {
+    background: rgba(22, 163, 74, 0.08);
+    border-color: rgba(22, 163, 74, 0.28);
+    color: var(--success, #15803d);
+}
+
+#gc-section-comissoes .gc-comissao-transfer-wrap {
+    margin-top: 0;
+    max-height: min(68vh, 640px);
+    overflow: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-card, #fff);
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+}
+
+#gc-section-comissoes .gc-ct-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: linear-gradient(180deg, rgba(241, 245, 249, 0.98) 0%, rgba(226, 232, 240, 0.95) 100%);
+    box-shadow: 0 1px 0 var(--border);
+    font-size: 0.68rem;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    text-align: center;
+}
+
+#gc-section-comissoes .gc-ct-table tbody td {
+    vertical-align: middle;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    text-align: center;
+}
+
+#gc-section-comissoes .gc-ct-th-id,
+#gc-section-comissoes .gc-ct-td-id {
+    width: 52px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+#gc-section-comissoes .gc-ct-th-num,
+#gc-section-comissoes .gc-ct-td-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+#gc-section-comissoes .gc-ct-td-valor {
+    text-align: right;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+#gc-section-comissoes .gc-ct-th-ref,
+#gc-section-comissoes .gc-ct-td-ref {
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+#gc-section-comissoes .gc-ct-td-motivo {
+    max-width: 280px;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+#gc-section-comissoes .gc-ct-th-date,
+#gc-section-comissoes .gc-ct-td-date {
+    white-space: nowrap;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+#gc-section-comissoes .gc-ct-th-acoes,
+#gc-section-comissoes .gc-ct-td-acoes {
+    min-width: 140px;
+}
+
+#gc-section-comissoes .gc-ct-acoes-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+#gc-section-comissoes .gc-ct-btn-apr,
+#gc-section-comissoes .gc-ct-btn-rec {
+    padding: 7px 12px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    border-radius: 8px;
+}
+
+#gc-section-comissoes .gc-ct-decisao {
+    display: block;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: var(--text-secondary);
+    max-width: 200px;
+}
+
+#gc-section-comissoes .gc-ct-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border: 1px solid transparent;
+}
+
+#gc-section-comissoes .gc-ct-status--pendente {
+    background: rgba(234, 179, 8, 0.16);
+    border-color: rgba(202, 138, 4, 0.35);
+    color: #a16207;
+}
+
+#gc-section-comissoes .gc-ct-status--aprovada {
+    background: rgba(22, 163, 74, 0.14);
+    border-color: rgba(22, 163, 74, 0.35);
+    color: #166534;
+}
+
+#gc-section-comissoes .gc-ct-status--recusada {
+    background: rgba(220, 38, 38, 0.1);
+    border-color: rgba(220, 38, 38, 0.3);
+    color: #b91c1c;
+}
+
+#gc-section-comissoes .gc-ct-status--cancelada {
+    background: rgba(100, 116, 139, 0.14);
+    border-color: rgba(100, 116, 139, 0.35);
+    color: #475569;
+}
+
+#gc-section-comissoes .gc-ct-status--outro {
+    background: rgba(148, 163, 184, 0.15);
+    color: #475569;
+}
+
+[data-theme='dark'] #gc-section-comissoes .gc-ct-toolbar {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme='dark'] #gc-section-comissoes .gc-ct-table thead th {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.96) 100%);
+}
+
+[data-theme='dark'] #gc-section-comissoes .gc-comissao-transfer-wrap {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+/* ── Botões ícone da tabela de comissões ── */
+.gc-ct-acoes-btns {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gc-ct-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-body);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+}
+
+.gc-ct-icon-btn:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border-hover, #cbd5e1);
+}
+
+.gc-ct-icon-btn:active { transform: scale(0.94); }
+
+.gc-ct-icon-btn--approve {
+    color: #15803d;
+    border-color: rgba(22, 163, 74, 0.3);
+    background: rgba(22, 163, 74, 0.07);
+}
+
+.gc-ct-icon-btn--approve:hover {
+    background: rgba(22, 163, 74, 0.14);
+    border-color: rgba(22, 163, 74, 0.5);
+    color: #166534;
+}
+
+.gc-ct-icon-btn--refuse {
+    color: #b91c1c;
+    border-color: rgba(220, 38, 38, 0.28);
+    background: rgba(220, 38, 38, 0.07);
+}
+
+.gc-ct-icon-btn--refuse:hover {
+    background: rgba(220, 38, 38, 0.13);
+    border-color: rgba(220, 38, 38, 0.45);
+    color: #991b1b;
+}
+
+.gc-ct-icon-btn--delete {
+    color: #6b7280;
+    border-color: rgba(107, 114, 128, 0.28);
+    background: rgba(107, 114, 128, 0.07);
+}
+
+.gc-ct-icon-btn--delete:hover {
+    background: rgba(220, 38, 38, 0.1);
+    border-color: rgba(220, 38, 38, 0.4);
+    color: #b91c1c;
+}
+
+/* ── Modal de detalhe ── */
+.gc-ct-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    background: rgba(0, 0, 0, 0.45);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.gc-ct-modal-backdrop--open {
+    display: flex;
+}
+
+.gc-ct-modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 560px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    overflow: hidden;
+}
+
+.gc-ct-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.gc-ct-modal__title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: -0.02em;
+}
+
+.gc-ct-modal__title i {
+    color: var(--primary, #2563eb);
+}
+
+.gc-ct-modal__close {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: none;
+    font-size: 1.3rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: background 0.15s;
+}
+
+.gc-ct-modal__close:hover {
+    background: var(--bg-body);
+    color: var(--text-primary);
+}
+
+.gc-ct-modal__body {
+    padding: 18px 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.gc-ct-modal__footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* DL dentro do modal */
+.gc-ct-modal-dl {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+}
+
+.gc-ct-modal-dl__row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: var(--bg-body);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+
+.gc-ct-modal-dl__row--full {
+    grid-column: 1 / -1;
+}
+
+.gc-ct-modal-dl dt {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+}
+
+.gc-ct-modal-dl dd {
+    margin: 0;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+/* Revenda (gestão): formulário em linha */
+.gc-revenda-toolbar .gc-revenda-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px 14px;
+    width: 100%;
+    margin-top: 12px;
+}
+
+.gc-revenda-toolbar .gc-revenda-form .gc-ct-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+}

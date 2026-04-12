@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#E63946">
-    <title>Transferência de comissão | MyPharm</title>
+    <title>Revenda | MyPharm</title>
     <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/visitador-inline.css">
     <link rel="stylesheet" href="css/visitador.css">
     <link rel="stylesheet" href="css/vendedor.css?v=20260326cards11">
-    <link rel="stylesheet" href="css/ui-feedback.css">
-    <link rel="stylesheet" href="css/vendedor-comissao-transfer.css?v=20260414k">
+    <link rel="stylesheet" href="css/vendedor-comissao-transfer.css?v=20260414b">
     <style>body { visibility: hidden; }</style>
 </head>
 <body>
@@ -38,10 +37,10 @@
                 <a href="vendedor-pedidos.html" class="visitador-nav-link">
                     <i class="fas fa-list-alt"></i><span class="d-none-mobile">Pedidos</span>
                 </a>
-                <a href="vendedor-revenda.html" class="visitador-nav-link">
+                <a href="vendedor-revenda.html" class="visitador-nav-link active">
                     <i class="fas fa-store"></i><span class="d-none-mobile">Revenda</span>
                 </a>
-                <a href="vendedor-comissao-transferencias.html" class="visitador-nav-link active">
+                <a href="vendedor-comissao-transferencias.html" class="visitador-nav-link">
                     <i class="fas fa-hand-holding-usd"></i><span class="d-none-mobile">Comissão</span>
                 </a>
             </nav>
@@ -101,123 +100,83 @@
 
                 <div class="vdct-page-header">
                     <div class="vdct-page-header__text">
-                        <h1 class="vdct-page-title"><i class="fas fa-right-left"></i> Transferência de comissão</h1>
-                        <p class="vdct-page-subtitle">Use este formulário <strong>somente</strong> quando existir <strong>pedido aprovado em nome de outra consultora</strong> (comissão que deveria ser sua). Você é sempre o <strong>destino</strong> (crédito); em seguida indique a consultora de <strong>origem</strong> (débito) que consta na aprovação.</p>
+                        <h1 class="vdct-page-title"><i class="fas fa-store"></i> Revenda</h1>
+                        <p class="vdct-page-subtitle">Registre vendas <strong>fora dos pedidos importados</strong> (revenda). Os valores <strong>somam ao seu faturamento</strong> no mês, impactando meta individual, faixa de comissão e total do grupo no painel.</p>
                     </div>
-                    <div class="date-badge" id="vdPeriodoInfo">—</div>
+                    <div class="date-badge" id="vdRevPeriodoInfo">—</div>
                 </div>
 
-                <div id="vdCtRoot">
+                <div id="vdRevRoot">
 
-                    <!-- Card: Nova solicitação -->
                     <div class="vdct-card">
                         <div class="vdct-card__header">
-                            <span class="vdct-card__icon"><i class="fas fa-file-signature"></i></span>
+                            <span class="vdct-card__icon"><i class="fas fa-plus-circle"></i></span>
                             <div>
-                                <h2 class="vdct-card__title">Nova solicitação</h2>
-                                <p class="vdct-card__subtitle">Digite o <strong>número e a série do pedido</strong> — o sistema buscará as informações automaticamente. Confirme os dados e preencha o motivo.</p>
+                                <h2 class="vdct-card__title">Novo lançamento</h2>
+                                <p class="vdct-card__subtitle">Informe a data em que a venda ocorreu, o valor líquido e, se quiser, produto ou referência (NF, cliente).</p>
                             </div>
                         </div>
-
-                        <!-- Passo 1: busca do pedido -->
-                        <div class="vdct-lookup">
-                            <div class="vdct-lookup__row">
-                                <div class="vdct-field">
-                                    <label class="vdct-field__label" for="vdCtNumeroPedido">Nº do pedido</label>
-                                    <input class="vdct-field__input" type="text" id="vdCtNumeroPedido" inputmode="numeric" placeholder="Ex.: 62437" autocomplete="off">
-                                </div>
-                                <div class="vdct-field vdct-field--small">
-                                    <label class="vdct-field__label" for="vdCtSeriePedido">Série</label>
-                                    <input class="vdct-field__input" type="text" id="vdCtSeriePedido" inputmode="numeric" placeholder="0" autocomplete="off" value="0">
-                                </div>
-                                <button type="button" class="vdct-btn vdct-btn--lookup" id="vdCtBuscarPedido">
-                                    <i class="fas fa-magnifying-glass"></i> Buscar pedido
-                                </button>
-                            </div>
-                            <div id="vdCtLookupResult" class="vdct-lookup__result" style="display:none;"></div>
-                        </div>
-
-                        <!-- Passo 2: formulário (aparece após busca) -->
-                        <div class="vdct-form-grid" id="vdCtFormGrid" style="display:none;">
-                            <div class="vdct-field">
-                                <label class="vdct-field__label" for="vdCtContraparte">Consultora origem (débito)</label>
-                                <select class="vdct-field__input" id="vdCtContraparte"></select>
+                        <div class="vdct-form-grid">
+                            <div class="vdct-field vdct-field--small">
+                                <label class="vdct-field__label" for="vdRevDataVenda">Data da venda</label>
+                                <input class="vdct-field__input" type="date" id="vdRevDataVenda">
                             </div>
                             <div class="vdct-field vdct-field--small">
-                                <label class="vdct-field__label">Valor do pedido</label>
-                                <div class="vdct-field__readonly" id="vdCtValorDisplay">—</div>
-                                <input type="hidden" id="vdCtValor">
-                            </div>
-                            <div class="vdct-field vdct-field--small">
-                                <label class="vdct-field__label">Mês ref.</label>
-                                <div class="vdct-field__readonly" id="vdCtRefMesDisplay">—</div>
-                                <input type="hidden" id="vdCtRefMes">
-                            </div>
-                            <div class="vdct-field vdct-field--small">
-                                <label class="vdct-field__label">Ano ref.</label>
-                                <div class="vdct-field__readonly" id="vdCtRefAnoDisplay">—</div>
-                                <input type="hidden" id="vdCtRefAno">
+                                <label class="vdct-field__label" for="vdRevValor">Valor (R$)</label>
+                                <input class="vdct-field__input" type="text" id="vdRevValor" inputmode="decimal" placeholder="0,00" autocomplete="off">
                             </div>
                             <div class="vdct-field vdct-field--full">
-                                <label class="vdct-field__label" for="vdCtMotivo">Motivo / detalhes</label>
-                                <textarea class="vdct-field__input vdct-field__textarea" id="vdCtMotivo" rows="4" placeholder="Descreva por que o atendimento era seu (ex.: orçamento e follow-up feitos por você)."></textarea>
+                                <label class="vdct-field__label" for="vdRevDesc">Descrição (opcional)</label>
+                                <input class="vdct-field__input" type="text" id="vdRevDesc" maxlength="500" placeholder="Ex.: Revenda produto X — NF 123" autocomplete="off">
                             </div>
                         </div>
-                        <div id="vdCtFormMsg" class="vdct-msg" style="display:none;"></div>
-                        <div class="vdct-actions" id="vdCtFormActions" style="display:none;">
-                            <button type="button" class="vdct-btn vdct-btn--primary" id="vdCtEnviar">
-                                <i class="fas fa-paper-plane"></i> Enviar solicitação
-                            </button>
-                            <button type="button" class="vdct-btn vdct-btn--secondary" id="vdCtLimparBusca">
-                                <i class="fas fa-rotate-left"></i> Nova busca
+                        <div id="vdRevMsg" class="vdct-msg" style="display:none;"></div>
+                        <div class="vdct-actions">
+                            <button type="button" class="vdct-btn vdct-btn--primary" id="vdRevEnviar">
+                                <i class="fas fa-check"></i> Salvar lançamento
                             </button>
                         </div>
                     </div>
 
-                    <!-- Card: Minhas solicitações -->
                     <div class="vdct-card">
                         <div class="vdct-card__header vdct-card__header--between">
                             <div style="display:flex; align-items:center; gap:12px;">
-                                <span class="vdct-card__icon"><i class="fas fa-list-check"></i></span>
+                                <span class="vdct-card__icon"><i class="fas fa-list"></i></span>
                                 <div>
-                                    <h2 class="vdct-card__title">Minhas solicitações</h2>
-                                    <p class="vdct-card__subtitle">Inclui registros em que você é o destino (crédito) e solicitações pendentes em que foi indicada como origem (débito).</p>
+                                    <h2 class="vdct-card__title">Meus lançamentos</h2>
+                                    <p class="vdct-card__subtitle">Filtre por intervalo (padrão: mês corrente). Lançamentos cancelados não entram mais na receita.</p>
                                 </div>
                             </div>
-                            <button type="button" class="vdct-btn vdct-btn--secondary" id="vdCtAtualizar">
+                            <button type="button" class="vdct-btn vdct-btn--secondary" id="vdRevAtualizar">
                                 <i class="fas fa-rotate-right"></i> Atualizar
                             </button>
+                        </div>
+                        <div class="vdct-form-grid" style="margin-bottom:16px;">
+                            <div class="vdct-field vdct-field--small">
+                                <label class="vdct-field__label" for="vdRevDataDe">De</label>
+                                <input class="vdct-field__input" type="date" id="vdRevDataDe">
+                            </div>
+                            <div class="vdct-field vdct-field--small">
+                                <label class="vdct-field__label" for="vdRevDataAte">Até</label>
+                                <input class="vdct-field__input" type="date" id="vdRevDataAte">
+                            </div>
                         </div>
                         <div class="vdct-table-wrap">
                             <table class="vdct-table">
                                 <thead>
                                     <tr>
-                                        <th>Data</th>
-                                        <th>Papel</th>
-                                        <th>Outra parte</th>
+                                        <th>ID</th>
+                                        <th>Data venda</th>
                                         <th>Valor</th>
-                                        <th>Pedido / série</th>
-                                        <th>Ref.</th>
+                                        <th>Descrição</th>
                                         <th>Status</th>
                                         <th>Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody id="vdCtTbody">
-                                    <tr><td colspan="8" class="vdct-table__empty">Carregando…</td></tr>
+                                <tbody id="vdRevTbody">
+                                    <tr><td colspan="6" class="vdct-table__empty">Carregando…</td></tr>
                                 </tbody>
                             </table>
-                        </div>
-                    </div>
-
-                    <!-- Modal: detalhe / edição da solicitação -->
-                    <div class="vdct-modal-backdrop" id="vdCtModalBackdrop" aria-hidden="true">
-                        <div class="vdct-modal" role="dialog" aria-modal="true" aria-labelledby="vdCtModalTitle">
-                            <div class="vdct-modal__header">
-                                <h3 class="vdct-modal__title" id="vdCtModalTitle"><i class="fas fa-right-left"></i> Solicitação de transferência</h3>
-                                <button type="button" class="vdct-modal__close" id="vdCtModalClose" aria-label="Fechar">&times;</button>
-                            </div>
-                            <div class="vdct-modal__body" id="vdCtModalBody"></div>
-                            <div class="vdct-modal__footer" id="vdCtModalFooter"></div>
                         </div>
                     </div>
 
@@ -227,8 +186,7 @@
             </div>
         </main>
     </div>
-    <script src="js/ui-feedback.js"></script>
     <script src="js/vendedor-main.js?v=20260414-session"></script>
-    <script src="js/vendedor-comissao-transfer.js?v=20260414l"></script>
+    <script src="js/vendedor-revenda.js?v=20260414-session"></script>
 </body>
 </html>

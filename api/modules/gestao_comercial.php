@@ -42,6 +42,24 @@ function handleGestaoComercialModuleAction(string $action, PDO $pdo): void
             case 'gestao_comercial_pedidos_visitador_style':
                 gestaoComercialPedidosVisitadorStyle($pdo);
                 return;
+            case 'gestao_comercial_comissao_transfer_lista':
+                gestaoComercialComissaoTransferLista($pdo);
+                return;
+            case 'gestao_comercial_comissao_transfer_decidir':
+                gestaoComercialComissaoTransferDecidir($pdo);
+                return;
+            case 'gestao_comercial_comissao_transfer_excluir':
+                gestaoComercialComissaoTransferExcluir($pdo);
+                return;
+            case 'gestao_comercial_revenda_lista':
+                gestaoComercialRevendaLista($pdo);
+                return;
+            case 'gestao_comercial_revenda_salvar':
+                gestaoComercialRevendaSalvar($pdo);
+                return;
+            case 'gestao_comercial_revenda_cancelar':
+                gestaoComercialRevendaCancelar($pdo);
+                return;
             default:
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'AÃ§Ã£o de gestÃ£o comercial desconhecida'], JSON_UNESCAPED_UNICODE);
@@ -2236,6 +2254,16 @@ function gcBuildResumoErrosPayload(PDO $pdo, string $ini, string $fim): array
         $receitaMap[$nk] = (float)($r['receita'] ?? 0);
         $aprovMap[$nk] = (int)($r['vendas_aprovadas'] ?? 0);
     }
+    foreach (gcRevendaAggRows($pdo, $ini, $fim) as $rr) {
+        $nomeR = trim((string)($rr['nome'] ?? ''));
+        if ($nomeR === '' || !gcIsAllowedVendedora($nomeR)) {
+            continue;
+        }
+        $nkR = gcNormName($nomeR);
+        $receitaMap[$nkR] = round(($receitaMap[$nkR] ?? 0) + (float)($rr['total'] ?? 0), 2);
+    }
+    // Aplica ajustes de transferências de comissão aprovadas
+    gcComissaoTransferAdjust($pdo, substr($ini, 0, 7), substr($fim, 0, 7), $receitaMap);
 
     $orcMap = [];
     foreach ($orcRaw as $r) {
@@ -3364,6 +3392,75 @@ function gestaoComercialDashboard(PDO $pdo): void
     }
     unset($vnd);
 
+    $revendaPorNorm = [];
+    foreach (gcRevendaAggRows($pdo, $start, $end) as $rr) {
+        $nr = trim((string)($rr['nome'] ?? ''));
+        if ($nr === '' || !gcIsAllowedVendedora($nr)) {
+            continue;
+        }
+        $nkRev = gcNormName($nr);
+        $revendaPorNorm[$nkRev] = round(($revendaPorNorm[$nkRev] ?? 0) + (float)($rr['total'] ?? 0), 2);
+    }
+    foreach ($vendedores as &$vnd) {
+        $norm = gcNormName((string)($vnd['atendente'] ?? ''));
+        $extra = (float)($revendaPorNorm[$norm] ?? 0);
+        $vnd['receita_revenda'] = round($extra, 2);
+        $vnd['receita_pedidos'] = round((float)($vnd['receita'] ?? 0), 2);
+        $vnd['receita'] = round($vnd['receita_pedidos'] + $extra, 2);
+    }
+    unset($vnd);
+    // Aplica ajustes de transferências de comissão aprovadas
+    $receitaTransfMap = [];
+    foreach ($vendedores as $vnd) {
+        $nk = gcNormName((string)($vnd['atendente'] ?? ''));
+        $receitaTransfMap[$nk] = (float)($vnd['receita'] ?? 0);
+    }
+    gcComissaoTransferAdjust($pdo, substr($start, 0, 7), substr($end, 0, 7), $receitaTransfMap);
+    foreach ($vendedores as &$vnd) {
+        $nk = gcNormName((string)($vnd['atendente'] ?? ''));
+        if (isset($receitaTransfMap[$nk])) {
+            $vnd['receita'] = round($receitaTransfMap[$nk], 2);
+        }
+    }
+    unset($vnd);
+    foreach ($revendaPorNorm as $nkRev => $totRev) {
+        if ($totRev <= 0) {
+            continue;
+        }
+        $found = false;
+        foreach ($vendedores as $v) {
+            if (gcNormName((string)($v['atendente'] ?? '')) === $nkRev) {
+                $found = true;
+                break;
+            }
+        }
+        if ($found) {
+            continue;
+        }
+        $nomeCanon = (string)(($GLOBALS['_gc_vendedor_perfil_canon'] ?? [])[$nkRev] ?? '');
+        if ($nomeCanon === '' || !gcIsAllowedVendedora($nomeCanon)) {
+            continue;
+        }
+        $vendedores[] = [
+            'atendente' => $nomeCanon,
+            'total_pedidos' => 0,
+            'quantidade_somada' => 0,
+            'vendas_aprovadas' => 0,
+            'vendas_rejeitadas' => 0,
+            'receita' => round($totRev, 2),
+            'receita_pedidos' => 0.0,
+            'receita_revenda' => round($totRev, 2),
+            'ticket_medio' => 0,
+            'tempo_medio_espera_min' => 0,
+            'clientes_atendidos' => 0,
+            'conversao_individual' => 0.0,
+            'follow_ups_realizados' => null,
+            'motivos_perda' => null,
+            'tempo_medio_espera_resposta' => 0,
+            'taxa_perda' => 0.0,
+        ];
+    }
+
     $metaSistemaVendedor = (float)(getenv('VENDEDOR_META_SISTEMA') ?: 60000);
     if ($metaSistemaVendedor <= 0) {
         $metaSistemaVendedor = 60000.0;
@@ -4153,5 +4250,338 @@ function gestaoComercialDashboard(PDO $pdo): void
     exit;
 }
 
+/**
+ * Solicitações de transferência de comissão entre consultoras (auditoria + fluxo gestão).
+ */
+function gcEnsureComissaoTransferenciasTable(PDO $pdo): void
+{
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS gc_comissao_transferencias (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            solicitante_nome VARCHAR(190) NOT NULL COMMENT 'Quem deve receber após aprovação',
+            contraparte_nome VARCHAR(190) NOT NULL COMMENT 'Origem do crédito / consultora que constava',
+            valor DECIMAL(14,2) NOT NULL,
+            ref_mes TINYINT NULL,
+            ref_ano SMALLINT NULL,
+            numero_pedido INT UNSIGNED NULL COMMENT 'Número do pedido vinculado',
+            serie_pedido INT UNSIGNED NULL DEFAULT NULL COMMENT 'Série do pedido (0 se única)',
+            motivo TEXT NOT NULL,
+            status ENUM('pendente','aprovada','recusada','cancelada') NOT NULL DEFAULT 'pendente',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            created_by INT NULL,
+            decidido_por_nome VARCHAR(190) NULL,
+            decidido_em DATETIME NULL,
+            observacao_gestao TEXT NULL,
+            KEY idx_gc_ct_status (status),
+            KEY idx_gc_ct_sol (solicitante_nome(80)),
+            KEY idx_gc_ct_con (contraparte_nome(80)),
+            KEY idx_gc_ct_ped (numero_pedido, serie_pedido)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+    try {
+        $pdo->exec(
+            "ALTER TABLE gc_comissao_transferencias ADD COLUMN numero_pedido INT UNSIGNED NULL DEFAULT NULL COMMENT 'Número do pedido vinculado' AFTER ref_ano"
+        );
+    } catch (Throwable $e) {
+    }
+    try {
+        $pdo->exec(
+            "ALTER TABLE gc_comissao_transferencias ADD COLUMN serie_pedido INT UNSIGNED NULL DEFAULT NULL COMMENT 'Série do pedido (0 se única)' AFTER numero_pedido"
+        );
+    } catch (Throwable $e) {
+    }
+}
 
+/**
+ * Vendas de revenda (fora de pedidos importados): somam na receita da consultora para meta e comissão.
+ */
+function gcEnsureRevendaVendasTable(PDO $pdo): void
+{
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS gc_revenda_vendas (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            vendedor_nome VARCHAR(190) NOT NULL,
+            data_venda DATE NOT NULL,
+            valor_liquido DECIMAL(14,2) NOT NULL,
+            descricao VARCHAR(500) NULL,
+            ativo TINYINT(1) NOT NULL DEFAULT 1,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_by INT NULL,
+            KEY idx_gc_rev_vend (vendedor_nome(80)),
+            KEY idx_gc_rev_data (data_venda),
+            KEY idx_gc_rev_ativo (ativo)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+}
+
+/**
+ * Aplica transferências de comissão aprovadas sobre o receitaMap.
+ * Debita da origem (contraparte_nome) e credita ao destino (solicitante_nome).
+ * Usa ref_mes/ref_ano para filtrar pelo período; se ambos nulos usa created_at.
+ *
+ * @param array<string, float> $receitaMap  chave = gcNormName(nome), valor = receita acumulada
+ */
+function gcComissaoTransferAdjust(PDO $pdo, string $iniYm, string $fimYm, array &$receitaMap): void
+{
+    try {
+        gcEnsureComissaoTransferenciasTable($pdo);
+        // Extrai ano/mês de início e fim
+        [$iniY, $iniM] = array_map('intval', explode('-', $iniYm . '-01'));
+        [$fimY, $fimM] = array_map('intval', explode('-', $fimYm . '-01'));
+        $rows = gcTryFetchAll($pdo,
+            "SELECT solicitante_nome, contraparte_nome, valor, ref_mes, ref_ano
+             FROM gc_comissao_transferencias
+             WHERE status = 'aprovada'",
+            []
+        );
+        foreach ($rows as $r) {
+            $refMes = (int)($r['ref_mes'] ?? 0);
+            $refAno = (int)($r['ref_ano'] ?? 0);
+            if ($refMes <= 0 || $refAno <= 0) continue;
+            // Verifica se ref_ano/ref_mes está dentro do intervalo solicitado
+            if ($refAno < $iniY || ($refAno === $iniY && $refMes < $iniM)) continue;
+            if ($refAno > $fimY || ($refAno === $fimY && $refMes > $fimM)) continue;
+            $destNk  = gcNormName(trim((string)($r['solicitante_nome'] ?? '')));
+            $origNk  = gcNormName(trim((string)($r['contraparte_nome'] ?? '')));
+            $val     = (float)($r['valor'] ?? 0);
+            if ($val <= 0 || $destNk === '' || $origNk === '') continue;
+            // Débito na origem
+            $receitaMap[$origNk] = round(($receitaMap[$origNk] ?? 0) - $val, 2);
+            // Crédito no destino
+            $receitaMap[$destNk] = round(($receitaMap[$destNk] ?? 0) + $val, 2);
+        }
+    } catch (Throwable $e) {
+        // Não quebra o dashboard se a tabela ainda não existir
+    }
+}
+
+/**
+ * @return list<array{nome: string, total: float}>
+ */
+function gcRevendaAggRows(PDO $pdo, string $dataDe, string $dataAte): array
+{
+    try {
+        gcEnsureRevendaVendasTable($pdo);
+        $st = $pdo->prepare(
+            'SELECT TRIM(vendedor_nome) AS nome, COALESCE(SUM(valor_liquido), 0) AS total
+             FROM gc_revenda_vendas
+             WHERE ativo = 1 AND data_venda BETWEEN :a AND :b
+             GROUP BY TRIM(vendedor_nome)'
+        );
+        $st->execute(['a' => $dataDe, 'b' => $dataAte]);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $n = trim((string) ($row['nome'] ?? ''));
+            if ($n === '') {
+                continue;
+            }
+            $out[] = ['nome' => $n, 'total' => round((float) ($row['total'] ?? 0), 2)];
+        }
+        return $out;
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function gestaoComercialRevendaLista(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    gcEnsureRevendaVendasTable($pdo);
+    [$startObj, $endObj] = gcDateRangeFromInput();
+    $ini = $startObj->format('Y-m-d');
+    $fim = $endObj->format('Y-m-d');
+    $st = $pdo->prepare(
+        'SELECT id, vendedor_nome, data_venda, valor_liquido, descricao, ativo, created_at, created_by
+         FROM gc_revenda_vendas
+         WHERE data_venda BETWEEN :i AND :f
+         ORDER BY id DESC
+         LIMIT 500'
+    );
+    $st->execute(['i' => $ini, 'f' => $fim]);
+    echo json_encode([
+        'success' => true,
+        'periodo' => ['data_de' => $ini, 'data_ate' => $fim],
+        'rows' => $st->fetchAll(PDO::FETCH_ASSOC) ?: [],
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function gestaoComercialRevendaSalvar(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Use POST.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) {
+        $payload = [];
+    }
+    $nome = trim((string) ($payload['vendedor_nome'] ?? ''));
+    $dv = trim((string) ($payload['data_venda'] ?? ''));
+    $valor = (float) str_replace(',', '.', preg_replace('/[^\d,.-]/', '', (string) ($payload['valor_liquido'] ?? '0')));
+    $desc = trim((string) ($payload['descricao'] ?? ''));
+    if ($nome === '' || !gcIsAllowedVendedora($nome)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Consultora inválida ou não permitida.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dv)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Data inválida (use AAAA-MM-DD).'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if ($valor <= 0 || $valor > 99999999.99) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Valor inválido.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if (mb_strlen($desc) > 500) {
+        $desc = mb_substr($desc, 0, 500);
+    }
+    gcEnsureRevendaVendasTable($pdo);
+    $ins = $pdo->prepare(
+        'INSERT INTO gc_revenda_vendas (vendedor_nome, data_venda, valor_liquido, descricao, ativo, created_by)
+         VALUES (:n, :d, :v, :desc, 1, :uid)'
+    );
+    $ins->execute([
+        'n' => $nome,
+        'd' => $dv,
+        'v' => round($valor, 2),
+        'desc' => $desc !== '' ? $desc : null,
+        'uid' => (int) ($_SESSION['user_id'] ?? 0),
+    ]);
+    echo json_encode(['success' => true, 'id' => (int) $pdo->lastInsertId()], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function gestaoComercialRevendaCancelar(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Use POST.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) {
+        $payload = [];
+    }
+    $id = (int) ($payload['id'] ?? 0);
+    if ($id <= 0) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'ID inválido.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    gcEnsureRevendaVendasTable($pdo);
+    $st = $pdo->prepare('UPDATE gc_revenda_vendas SET ativo = 0 WHERE id = :id AND ativo = 1');
+    $st->execute(['id' => $id]);
+    echo json_encode(['success' => true, 'updated' => $st->rowCount() > 0], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function gestaoComercialComissaoTransferLista(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    gcEnsureComissaoTransferenciasTable($pdo);
+    $stF = trim((string) ($_GET['status'] ?? ''));
+    $allowedSt = ['pendente', 'aprovada', 'recusada', 'cancelada'];
+    $where = '';
+    $params = [];
+    if ($stF !== '' && $stF !== 'todas' && in_array($stF, $allowedSt, true)) {
+        $where = ' WHERE status = :st ';
+        $params['st'] = $stF;
+    }
+    $sql = 'SELECT id, solicitante_nome, contraparte_nome, valor, ref_mes, ref_ano, numero_pedido, serie_pedido, motivo, status,
+            created_at, updated_at, created_by, decidido_por_nome, decidido_em, observacao_gestao
+            FROM gc_comissao_transferencias ' . $where . ' ORDER BY id DESC LIMIT 500';
+    $st = $pdo->prepare($sql);
+    $st->execute($params);
+    echo json_encode(['success' => true, 'rows' => $st->fetchAll(PDO::FETCH_ASSOC) ?: []], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function gestaoComercialComissaoTransferDecidir(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Use POST.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) {
+        $payload = [];
+    }
+    $id = (int) ($payload['id'] ?? 0);
+    $dec = strtolower(trim((string) ($payload['decisao'] ?? '')));
+    $obs = trim((string) ($payload['observacao_gestao'] ?? ''));
+    if ($id <= 0 || !in_array($dec, ['aprovar', 'recusar'], true)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Dados inválidos.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if (mb_strlen($obs) > 4000) {
+        $obs = mb_substr($obs, 0, 4000);
+    }
+    gcEnsureComissaoTransferenciasTable($pdo);
+    $novoStatus = $dec === 'aprovar' ? 'aprovada' : 'recusada';
+    $nomeGestor = trim((string) ($_SESSION['user_nome'] ?? ''));
+    if ($nomeGestor === '') {
+        $nomeGestor = 'Administrador';
+    }
+    $st = $pdo->prepare(
+        'UPDATE gc_comissao_transferencias
+         SET status = :st, decidido_por_nome = :gn, decidido_em = NOW(), observacao_gestao = :ob, updated_at = NOW()
+         WHERE id = :id AND status = \'pendente\''
+    );
+    $st->execute([
+        'st' => $novoStatus,
+        'gn' => $nomeGestor,
+        'ob' => $obs !== '' ? $obs : null,
+        'id' => $id,
+    ]);
+    if ($st->rowCount() === 0) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => 'Solicitação não encontrada ou já decidida.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    echo json_encode(['success' => true, 'status' => $novoStatus], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function gestaoComercialComissaoTransferExcluir(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Use POST.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    $id = (int) ($payload['id'] ?? 0);
+    if ($id <= 0) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'ID inválido.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    gcEnsureComissaoTransferenciasTable($pdo);
+    $st = $pdo->prepare('DELETE FROM gc_comissao_transferencias WHERE id = :id');
+    $st->execute(['id' => $id]);
+    if ($st->rowCount() === 0) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => 'Registro não encontrado.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 

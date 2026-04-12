@@ -57,6 +57,12 @@ $allowedActions = [
     'gestao_comercial_erros_tipos_distintos',
     'gestao_comercial_comissao_regras_get',
     'gestao_comercial_comissao_regras_salvar',
+    'gestao_comercial_comissao_transfer_lista',
+    'gestao_comercial_comissao_transfer_decidir',
+    'gestao_comercial_comissao_transfer_excluir',
+    'gestao_comercial_revenda_lista',
+    'gestao_comercial_revenda_salvar',
+    'gestao_comercial_revenda_cancelar',
     'gestao_comercial_vendas_relatorio',
     'gestao_comercial_pedidos_visitador_style',
     'gestao_rd_metricas',
@@ -68,11 +74,20 @@ $allowedActions = [
     'vendedor_perdas_salvar_acao',
     'vendedor_perdas_interacoes_lista',
     'vendedor_perdas_interacoes_salvar',
+    'vendedor_comissao_transfer_lista',
+    'vendedor_comissao_transfer_opcoes',
+    'vendedor_comissao_transfer_solicitar',
+    'vendedor_comissao_transfer_cancelar',
+    'vendedor_comissao_transfer_editar',
+    'vendedor_comissao_transfer_buscar_pedido',
+    'vendedor_revenda_lista',
+    'vendedor_revenda_lancar',
+    'vendedor_revenda_cancelar',
     'tv_corrida_vendedores',
 ];
 if (!in_array($action, $allowedActions)) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'AÃ§Ã£o nÃ£o reconhecida.'], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['success' => false, 'error' => "Ação não reconhecida."], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -571,6 +586,21 @@ function handleVendedorDashboardGestao(PDO $pdo): void
         $rowsAgg = [];
     }
 
+    $revByKey = [];
+    if (function_exists('gcRevendaAggRows')) {
+        foreach (gcRevendaAggRows($pdo, $dataDe, $dataAte) as $rr) {
+            $nm = trim((string)($rr['nome'] ?? ''));
+            if ($nm === '') {
+                continue;
+            }
+            $kRev = gcNormalizeNome($nm);
+            if ($kRev === '') {
+                continue;
+            }
+            $revByKey[$kRev] = round(($revByKey[$kRev] ?? 0) + (float)($rr['total'] ?? 0), 2);
+        }
+    }
+
     // Rejeitados vÃªm de itens_orcamentos_pedidos; vÃ­nculo por numero/serie/ano para recuperar atendente.
     $rejeitadosByVendedor = [];
     try {
@@ -671,7 +701,10 @@ function handleVendedorDashboardGestao(PDO $pdo): void
         $key = gcNormalizeNome($nome);
         $seen[$key] = true;
         $meta = $metaSistemaVendedor;
-        $receita = round((float)($row['receita'] ?? 0), 2);
+        $receitaPed = round((float)($row['receita'] ?? 0), 2);
+        $extraRev = round((float)($revByKey[$key] ?? 0), 2);
+        unset($revByKey[$key]);
+        $receita = round($receitaPed + $extraRev, 2);
         $la = (int)($row['linhas_aprovadas'] ?? 0);
         $lo = (int)($row['linhas_orcamento'] ?? 0);
         $pedidoOrcDist = (int)($row['pedidos_orcamento_distintos'] ?? 0);
@@ -688,6 +721,8 @@ function handleVendedorDashboardGestao(PDO $pdo): void
         $ranking[] = [
             'vendedor' => $nome,
             'receita' => $receita,
+            'receita_pedidos' => $receitaPed,
+            'receita_revenda' => $extraRev,
             'meta_mensal' => $meta,
             'comissao_percentual' => $comissaoIndividualPct,
             'comissao_percentual_individual' => $comissaoIndividualPct,
@@ -722,15 +757,20 @@ function handleVendedorDashboardGestao(PDO $pdo): void
         $rej = $rejeitadosByVendedor[$k] ?? null;
         $lp = (int)($rej['linhas_rejeitadas'] ?? 0);
         $totalP = (int)($rej['pedidos_rejeitados'] ?? 0);
-        $comissaoIndividualPct = $calcComissaoIndividualPct(0.0);
+        $extraRev = round((float)($revByKey[$k] ?? 0), 2);
+        unset($revByKey[$k]);
+        $pctMetaNz = $metaUtilizada > 0 ? round(($extraRev / $metaUtilizada) * 100, 2) : 0.0;
+        $comissaoIndividualPct = $calcComissaoIndividualPct($pctMetaNz);
         $ranking[] = [
             'vendedor' => $nome,
-            'receita' => 0.0,
+            'receita' => $extraRev,
+            'receita_pedidos' => 0.0,
+            'receita_revenda' => $extraRev,
             'meta_mensal' => $metaUtilizada,
             'comissao_percentual' => $comissaoIndividualPct,
             'comissao_percentual_individual' => $comissaoIndividualPct,
             'comissao_percentual_grupo' => 0.0,
-            'comissao_estimada_valor' => 0.0,
+            'comissao_estimada_valor' => round(($extraRev * $comissaoIndividualPct) / 100, 2),
             'duracao_media_min' => null,
             'tempo_medio_espera_min' => null,
             'total_deals_ganhos' => 0,
@@ -740,7 +780,7 @@ function handleVendedorDashboardGestao(PDO $pdo): void
             'top_motivos_perda' => [],
             'origem_deals' => [],
             'meta_mensal_utilizada' => $metaUtilizada,
-            'percentual_meta' => 0.0,
+            'percentual_meta' => $pctMetaNz,
             'percentual_lider' => 0.0,
             'posicao' => 0,
             'volume_clientes' => 0,
@@ -758,15 +798,20 @@ function handleVendedorDashboardGestao(PDO $pdo): void
         $nome = (string)($rej['vendedor'] ?? $k);
         $lp = (int)($rej['linhas_rejeitadas'] ?? 0);
         $totalP = (int)($rej['pedidos_rejeitados'] ?? 0);
-        $comissaoIndividualPct = $calcComissaoIndividualPct(0.0);
+        $extraRev = round((float)($revByKey[$k] ?? 0), 2);
+        unset($revByKey[$k]);
+        $pctRej = $metaSistemaVendedor > 0 ? round(($extraRev / $metaSistemaVendedor) * 100, 2) : 0.0;
+        $comissaoIndividualPct = $calcComissaoIndividualPct($pctRej);
         $ranking[] = [
             'vendedor' => $nome,
-            'receita' => 0.0,
+            'receita' => $extraRev,
+            'receita_pedidos' => 0.0,
+            'receita_revenda' => $extraRev,
             'meta_mensal' => $metaSistemaVendedor,
             'comissao_percentual' => $comissaoIndividualPct,
             'comissao_percentual_individual' => $comissaoIndividualPct,
             'comissao_percentual_grupo' => 0.0,
-            'comissao_estimada_valor' => 0.0,
+            'comissao_estimada_valor' => round(($extraRev * $comissaoIndividualPct) / 100, 2),
             'duracao_media_min' => null,
             'tempo_medio_espera_min' => null,
             'total_deals_ganhos' => 0,
@@ -776,7 +821,7 @@ function handleVendedorDashboardGestao(PDO $pdo): void
             'top_motivos_perda' => [],
             'origem_deals' => [],
             'meta_mensal_utilizada' => $metaSistemaVendedor,
-            'percentual_meta' => 0.0,
+            'percentual_meta' => $pctRej,
             'percentual_lider' => 0.0,
             'posicao' => 0,
             'volume_clientes' => 0,
@@ -787,6 +832,53 @@ function handleVendedorDashboardGestao(PDO $pdo): void
             'taxa_conversao_linhas_pct' => 0.0,
         ];
         $seen[$k] = true;
+    }
+
+    foreach ($revByKey as $kLeft => $totLeft) {
+        if ($totLeft <= 0 || isset($seen[$kLeft])) {
+            continue;
+        }
+        $nomeLeft = (string)($nomesByKey[$kLeft] ?? '');
+        if ($nomeLeft === '' || !function_exists('gcIsAllowedVendedora') || !gcIsAllowedVendedora($nomeLeft)) {
+            continue;
+        }
+        $metaU = (float)($metasByKey[$kLeft] ?? $metaSistemaVendedor);
+        if ($metaU <= 0) {
+            $metaU = $metaSistemaVendedor;
+        }
+        $tot = round((float) $totLeft, 2);
+        $pctL = $metaU > 0 ? round(($tot / $metaU) * 100, 2) : 0.0;
+        $ciL = $calcComissaoIndividualPct($pctL);
+        $ranking[] = [
+            'vendedor' => $nomeLeft,
+            'receita' => $tot,
+            'receita_pedidos' => 0.0,
+            'receita_revenda' => $tot,
+            'meta_mensal' => $metaU,
+            'comissao_percentual' => $ciL,
+            'comissao_percentual_individual' => $ciL,
+            'comissao_percentual_grupo' => 0.0,
+            'comissao_estimada_valor' => round(($tot * $ciL) / 100, 2),
+            'duracao_media_min' => null,
+            'tempo_medio_espera_min' => null,
+            'total_deals_ganhos' => 0,
+            'total_deals_perdidos' => 0,
+            'valor_rejeitado' => 0.0,
+            'taxa_perda_pct' => 0.0,
+            'top_motivos_perda' => [],
+            'origem_deals' => [],
+            'meta_mensal_utilizada' => $metaU,
+            'percentual_meta' => $pctL,
+            'percentual_lider' => 0.0,
+            'posicao' => 0,
+            'volume_clientes' => 0,
+            'linhas_aprovadas' => 0,
+            'linhas_orcamento' => 0,
+            'linhas_perdidas' => 0,
+            'pedidos_orcamento_distintos' => 0,
+            'taxa_conversao_linhas_pct' => 0.0,
+        ];
+        $seen[$kLeft] = true;
     }
 
     usort($ranking, static function (array $a, array $b): int {
@@ -1571,6 +1663,29 @@ function handleTvCorridaVendedores(PDO $pdo): void
         }
     }
 
+    if (function_exists('gcRevendaAggRows')) {
+        foreach (gcRevendaAggRows($pdo, $dataDe, $dataAte) as $rRev) {
+            $nomeR = trim((string)($rRev['nome'] ?? ''));
+            if ($nomeR === '') {
+                continue;
+            }
+            if (function_exists('gcIsAllowedVendedora') && !gcIsAllowedVendedora($nomeR)) {
+                continue;
+            }
+            $kR = function_exists('mb_strtolower') ? mb_strtolower($nomeR, 'UTF-8') : strtolower($nomeR);
+            if (!isset($map[$kR])) {
+                $map[$kR] = [
+                    'vendedor' => $nomeR,
+                    'receita' => 0.0,
+                    'meta_mensal' => 0.0,
+                    'duracao_media_min' => null,
+                    'tempo_medio_espera_min' => null,
+                ];
+            }
+            $map[$kR]['receita'] = round((float)($map[$kR]['receita'] ?? 0) + (float)($rRev['total'] ?? 0), 2);
+        }
+    }
+
     $lista = array_values($map);
     usort($lista, static function (array $a, array $b): int {
         $ra = (float)($a['receita'] ?? 0);
@@ -1851,6 +1966,496 @@ function gcResolveVendedorTargetFromSession(array $session, array $query): strin
         return $vendedorParam;
     }
     return $nomeSessao;
+}
+
+function handleVendedorComissaoTransferOpcoes(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $tipo = strtolower(trim((string) ($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string) ($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $nomes = [];
+    try {
+        $st = $pdo->query(
+            "SELECT TRIM(nome) AS nome FROM usuarios
+             WHERE LOWER(TRIM(COALESCE(setor,''))) = 'vendedor' AND COALESCE(ativo,1) = 1
+               AND TRIM(COALESCE(nome,'')) != ''
+             ORDER BY TRIM(nome) ASC"
+        );
+        if ($st) {
+            while ($r = $st->fetch(PDO::FETCH_ASSOC)) {
+                $n = trim((string) ($r['nome'] ?? ''));
+                if ($n !== '') {
+                    $nomes[] = $n;
+                }
+            }
+        }
+    } catch (Throwable $e) {
+        $nomes = [];
+    }
+    echo json_encode(['success' => true, 'nomes' => $nomes], JSON_UNESCAPED_UNICODE);
+}
+
+function handleVendedorComissaoTransferLista(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    gcEnsureComissaoTransferenciasTable($pdo);
+    $vend = gcResolveVendedorTargetFromSession($_SESSION, $_GET);
+    if ($vend === '') {
+        echo json_encode(['success' => true, 'rows' => []], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $st = $pdo->prepare(
+        'SELECT id, solicitante_nome, contraparte_nome, valor, ref_mes, ref_ano, numero_pedido, serie_pedido, motivo, status,
+                created_at, updated_at, decidido_por_nome, decidido_em, observacao_gestao
+         FROM gc_comissao_transferencias
+         WHERE solicitante_nome = :v1 OR (contraparte_nome = :v2 AND status = \'pendente\')
+         ORDER BY id DESC
+         LIMIT 200'
+    );
+    $st->execute(['v1' => $vend, 'v2' => $vend]);
+    echo json_encode(['success' => true, 'rows' => $st->fetchAll(PDO::FETCH_ASSOC) ?: []], JSON_UNESCAPED_UNICODE);
+}
+
+function handleVendedorComissaoTransferSolicitar(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) {
+        $payload = [];
+    }
+    $solicitante = gcResolveVendedorTargetFromSession($_SESSION, $payload);
+    if ($solicitante === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Consultora solicitante não identificada.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $contraparte = trim((string)($payload['contraparte_nome'] ?? ''));
+    $motivo = trim((string)($payload['motivo'] ?? ''));
+    $valor = (float) str_replace(',', '.', preg_replace('/[^\d,.-]/', '', (string) ($payload['valor'] ?? '0')));
+    $refMes = isset($payload['ref_mes']) ? (int) $payload['ref_mes'] : 0;
+    $refAno = isset($payload['ref_ano']) ? (int) $payload['ref_ano'] : 0;
+    $numeroPedido = (int) ($payload['numero_pedido'] ?? 0);
+    if ($numeroPedido <= 0) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Informe o número do pedido.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    if ($numeroPedido > 999999999) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Número do pedido inválido.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $serieRaw = trim((string) ($payload['serie_pedido'] ?? ''));
+    $seriePedido = $serieRaw === '' ? 0 : (int) preg_replace('/\D+/', '', $serieRaw);
+    if ($seriePedido < 0 || $seriePedido > 999999) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Série do pedido inválida.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    if ($contraparte === '' || mb_strtoupper($contraparte) === mb_strtoupper($solicitante)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Informe a consultora de origem (diferente de você).'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    if ($valor <= 0 || $valor > 99999999.99) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Valor inválido.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    if (mb_strlen($motivo) < 10) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Descreva o motivo (mínimo 10 caracteres).'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    if (mb_strlen($motivo) > 4000) {
+        $motivo = mb_substr($motivo, 0, 4000);
+    }
+    gcEnsureComissaoTransferenciasTable($pdo);
+    $ins = $pdo->prepare(
+        'INSERT INTO gc_comissao_transferencias
+        (solicitante_nome, contraparte_nome, valor, ref_mes, ref_ano, numero_pedido, serie_pedido, motivo, status, created_by)
+        VALUES (:sol, :con, :val, :rm, :ra, :np, :sp, :mot, \'pendente\', :uid)'
+    );
+    $ins->execute([
+        'sol' => $solicitante,
+        'con' => $contraparte,
+        'val' => round($valor, 2),
+        'rm' => $refMes > 0 && $refMes <= 12 ? $refMes : null,
+        'ra' => $refAno >= 2000 && $refAno <= 2100 ? $refAno : null,
+        'np' => $numeroPedido,
+        'sp' => $seriePedido,
+        'mot' => $motivo,
+        'uid' => (int) ($_SESSION['user_id'] ?? 0),
+    ]);
+    echo json_encode(['success' => true, 'id' => (int) $pdo->lastInsertId()], JSON_UNESCAPED_UNICODE);
+}
+
+function handleVendedorComissaoTransferCancelar(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) {
+        $payload = [];
+    }
+    $id = (int) ($payload['id'] ?? 0);
+    $vend = gcResolveVendedorTargetFromSession($_SESSION, $payload);
+    if ($id <= 0 || $vend === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Solicitação inválida.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    gcEnsureComissaoTransferenciasTable($pdo);
+    $st = $pdo->prepare(
+        'UPDATE gc_comissao_transferencias SET status = \'cancelada\', updated_at = NOW()
+         WHERE id = :id AND status = \'pendente\' AND solicitante_nome = :vend'
+    );
+    $st->execute(['id' => $id, 'vend' => $vend]);
+    echo json_encode(['success' => true, 'updated' => $st->rowCount() > 0], JSON_UNESCAPED_UNICODE);
+}
+
+function handleVendedorComissaoTransferEditar(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) { $payload = []; }
+    $id = (int) ($payload['id'] ?? 0);
+    $vend = gcResolveVendedorTargetFromSession($_SESSION, $payload);
+    if ($id <= 0 || $vend === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Solicitação inválida.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $numStr = preg_replace('/\D/', '', (string)($payload['numero_pedido'] ?? ''));
+    $numeroPedido = (int) $numStr;
+    if ($numeroPedido <= 0 || $numeroPedido > 999999999) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Número do pedido inválido.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $serStr = preg_replace('/\D/', '', (string)($payload['serie_pedido'] ?? '0'));
+    $seriePedido = $serStr === '' ? 0 : (int) $serStr;
+    if ($seriePedido < 0 || $seriePedido > 999999) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Série inválida.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $valorRaw = str_replace(['.', ','], ['', '.'], trim((string)($payload['valor'] ?? '')));
+    $valor = (float) $valorRaw;
+    if ($valor < 0) { $valor = 0; }
+    $motivo = trim((string)($payload['motivo'] ?? ''));
+    if (mb_strlen($motivo) > 0 && mb_strlen($motivo) < 10) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Motivo muito curto (mínimo 10 caracteres).'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    gcEnsureComissaoTransferenciasTable($pdo);
+    $st = $pdo->prepare(
+        'UPDATE gc_comissao_transferencias
+         SET numero_pedido = :np, serie_pedido = :sp, valor = :val, motivo = :mot, updated_at = NOW()
+         WHERE id = :id AND status = \'pendente\' AND solicitante_nome = :vend'
+    );
+    $st->execute(['np' => $numeroPedido, 'sp' => $seriePedido, 'val' => round($valor, 2), 'mot' => $motivo, 'id' => $id, 'vend' => $vend]);
+    echo json_encode(['success' => true, 'updated' => $st->rowCount() > 0], JSON_UNESCAPED_UNICODE);
+}
+
+function handleVendedorComissaoTransferBuscarPedido(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    if (!isset($_SESSION['user_id'])) { http_response_code(401); echo json_encode(['success'=>false,'error'=>'Não autenticado.'],JSON_UNESCAPED_UNICODE); return; }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) { http_response_code(401); echo json_encode(['success'=>false,'error'=>'Sessão encerrada.'],JSON_UNESCAPED_UNICODE); return; }
+    $tipo  = strtolower(trim((string)($_SESSION['user_tipo']  ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) { http_response_code(403); echo json_encode(['success'=>false,'error'=>'Acesso restrito.'],JSON_UNESCAPED_UNICODE); return; }
+    $np  = (int) preg_replace('/\D/', '', (string)($_GET['numero'] ?? ''));
+    $sp  = (int) preg_replace('/\D/', '', (string)($_GET['serie']  ?? '0'));
+    if ($np <= 0) { http_response_code(422); echo json_encode(['success'=>false,'error'=>'Informe o número do pedido.'],JSON_UNESCAPED_UNICODE); return; }
+    // Busca em gestao_pedidos (dados importados) — inclui orcamentista e aprovador
+    $st = $pdo->prepare(
+        'SELECT numero_pedido, serie_pedido, cliente, prescritor, atendente,
+                orcamentista, aprovador,
+                SUM(preco_liquido) AS valor_total, status_financeiro,
+                MAX(data_aprovacao) AS data_aprovacao
+         FROM gestao_pedidos
+         WHERE numero_pedido = :np AND (serie_pedido = :sp OR :sp2 = 0)
+         GROUP BY numero_pedido, serie_pedido, cliente, prescritor, atendente, orcamentista, aprovador, status_financeiro
+         ORDER BY data_aprovacao DESC
+         LIMIT 5'
+    );
+    $st->execute(['np' => $np, 'sp' => $sp, 'sp2' => $sp]);
+    $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+    if (!$rows) {
+        // Tenta em itens_orcamentos_pedidos — usuario_inclusao=orçamentista, usuario_aprovador=aprovador
+        $st2 = $pdo->prepare(
+            'SELECT i.numero AS numero_pedido, i.serie AS serie_pedido,
+                    i.cliente, i.prescritor, i.atendente,
+                    i.usuario_inclusao AS orcamentista, i.usuario_aprovador AS aprovador,
+                    SUM(i.valor_liquido) AS valor_total, i.status AS status_financeiro,
+                    MAX(i.data) AS data_aprovacao
+             FROM itens_orcamentos_pedidos i
+             WHERE i.numero = :np AND (i.serie = :sp OR :sp2 = 0)
+             GROUP BY i.numero, i.serie, i.cliente, i.prescritor, i.atendente, i.usuario_inclusao, i.usuario_aprovador, i.status
+             ORDER BY data_aprovacao DESC
+             LIMIT 5'
+        );
+        $st2->execute(['np' => $np, 'sp' => $sp, 'sp2' => $sp]);
+        $rows = $st2->fetchAll(PDO::FETCH_ASSOC);
+    }
+    if (!$rows) { echo json_encode(['success'=>false,'error'=>'Pedido não encontrado na base.'],JSON_UNESCAPED_UNICODE); return; }
+    $out = array_map(function($r) {
+        return [
+            'numero_pedido'    => (int)   $r['numero_pedido'],
+            'serie_pedido'     => (int)   ($r['serie_pedido'] ?? 0),
+            'cliente'          => (string)($r['cliente']       ?? ''),
+            'prescritor'       => (string)($r['prescritor']    ?? ''),
+            'atendente'        => (string)($r['atendente']     ?? ''),
+            'orcamentista'     => (string)($r['orcamentista']  ?? ''),
+            'aprovador'        => (string)($r['aprovador']     ?? ''),
+            'valor_total'      => round((float)($r['valor_total'] ?? 0), 2),
+            'status_financeiro'=> (string)($r['status_financeiro'] ?? ''),
+            'data_aprovacao'   => $r['data_aprovacao'] ? substr((string)$r['data_aprovacao'], 0, 10) : null,
+        ];
+    }, $rows);
+    echo json_encode(['success'=>true,'rows'=>$out],JSON_UNESCAPED_UNICODE);
+}
+
+function handleVendedorRevendaLista(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    [$dataDe, $dataAte] = gcDateRangeFromQuery();
+    $vend = gcResolveVendedorTargetFromSession($_SESSION, $_GET);
+    if ($vend === '') {
+        echo json_encode(['success' => true, 'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte], 'rows' => []], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    if (!function_exists('gcEnsureRevendaVendasTable')) {
+        echo json_encode(['success' => true, 'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte], 'rows' => []], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    gcEnsureRevendaVendasTable($pdo);
+    $st = $pdo->prepare(
+        'SELECT id, vendedor_nome, data_venda, valor_liquido, descricao, ativo, created_at
+         FROM gc_revenda_vendas
+         WHERE LOWER(TRIM(vendedor_nome)) = LOWER(TRIM(:v))
+           AND data_venda BETWEEN :a AND :b
+         ORDER BY id DESC
+         LIMIT 200'
+    );
+    $st->execute(['v' => $vend, 'a' => $dataDe, 'b' => $dataAte]);
+    echo json_encode([
+        'success' => true,
+        'periodo' => ['data_de' => $dataDe, 'data_ate' => $dataAte],
+        'rows' => $st->fetchAll(PDO::FETCH_ASSOC) ?: [],
+    ], JSON_UNESCAPED_UNICODE);
+}
+
+function handleVendedorRevendaLancar(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) {
+        $payload = [];
+    }
+    $vend = gcResolveVendedorTargetFromSession($_SESSION, $payload);
+    if ($vend === '' || !function_exists('gcIsAllowedVendedora') || !gcIsAllowedVendedora($vend)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Consultora não identificada.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $dv = trim((string)($payload['data_venda'] ?? ''));
+    $valor = (float) str_replace(',', '.', preg_replace('/[^\d,.-]/', '', (string)($payload['valor_liquido'] ?? '0')));
+    $desc = trim((string)($payload['descricao'] ?? ''));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dv)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Data inválida (AAAA-MM-DD).'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    if ($valor <= 0 || $valor > 99999999.99) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Valor inválido.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    if (mb_strlen($desc) > 500) {
+        $desc = mb_substr($desc, 0, 500);
+    }
+    gcEnsureRevendaVendasTable($pdo);
+    $ins = $pdo->prepare(
+        'INSERT INTO gc_revenda_vendas (vendedor_nome, data_venda, valor_liquido, descricao, ativo, created_by)
+         VALUES (:n, :d, :v, :desc, 1, :uid)'
+    );
+    $ins->execute([
+        'n' => $vend,
+        'd' => $dv,
+        'v' => round($valor, 2),
+        'desc' => $desc !== '' ? $desc : null,
+        'uid' => (int)($_SESSION['user_id'] ?? 0),
+    ]);
+    echo json_encode(['success' => true, 'id' => (int)$pdo->lastInsertId()], JSON_UNESCAPED_UNICODE);
+}
+
+function handleVendedorRevendaCancelar(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Sessão encerrada.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acesso restrito.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) {
+        $payload = [];
+    }
+    $id = (int)($payload['id'] ?? 0);
+    $vend = gcResolveVendedorTargetFromSession($_SESSION, $payload);
+    if ($id <= 0 || $vend === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Dados inválidos.'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    gcEnsureRevendaVendasTable($pdo);
+    $st = $pdo->prepare(
+        'UPDATE gc_revenda_vendas SET ativo = 0
+         WHERE id = :id AND ativo = 1 AND LOWER(TRIM(vendedor_nome)) = LOWER(TRIM(:v))'
+    );
+    $st->execute(['id' => $id, 'v' => $vend]);
+    echo json_encode(['success' => true, 'updated' => $st->rowCount() > 0], JSON_UNESCAPED_UNICODE);
 }
 
 function handleVendedorPerdasLista(PDO $pdo): void
@@ -2697,6 +3302,129 @@ if ($action === 'vendedor_dashboard_gestao') {
                 ? 'Erro ao carregar dados da gestÃ£o de pedidos.'
                 : $e->getMessage(),
         ], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_comissao_transfer_lista') {
+    try {
+        $pdo = getConnection();
+        handleVendedorComissaoTransferLista($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_comissao_transfer_lista: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao listar solicitações.'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_comissao_transfer_opcoes') {
+    try {
+        $pdo = getConnection();
+        handleVendedorComissaoTransferOpcoes($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_comissao_transfer_opcoes: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao carregar consultoras.'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_comissao_transfer_solicitar') {
+    try {
+        $pdo = getConnection();
+        handleVendedorComissaoTransferSolicitar($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_comissao_transfer_solicitar: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao registrar solicitação.'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_comissao_transfer_cancelar') {
+    try {
+        $pdo = getConnection();
+        handleVendedorComissaoTransferCancelar($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_comissao_transfer_cancelar: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao cancelar.'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_comissao_transfer_editar') {
+    try {
+        $pdo = getConnection();
+        handleVendedorComissaoTransferEditar($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_comissao_transfer_editar: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao editar.'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_comissao_transfer_buscar_pedido') {
+    try {
+        $pdo = getConnection();
+        handleVendedorComissaoTransferBuscarPedido($pdo);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao buscar pedido.'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_revenda_lista') {
+    try {
+        $pdo = getConnection();
+        handleVendedorRevendaLista($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_revenda_lista: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao listar revenda.'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_revenda_lancar') {
+    try {
+        $pdo = getConnection();
+        handleVendedorRevendaLancar($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_revenda_lancar: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao registrar revenda.'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_revenda_cancelar') {
+    try {
+        $pdo = getConnection();
+        handleVendedorRevendaCancelar($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) {
+            error_log('vendedor_revenda_cancelar: ' . $e->getMessage());
+        }
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao cancelar revenda.'], JSON_UNESCAPED_UNICODE);
     }
     exit;
 }

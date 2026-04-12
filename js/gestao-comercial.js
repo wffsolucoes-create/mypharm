@@ -2663,6 +2663,461 @@
         }
     }
 
+    var gcComissaoTransferUiBound = false;
+    var gcRevendaUiBound = false;
+
+    function gcSetComissaoTransferMsg(text, kind) {
+        const el = document.getElementById('gcComissaoTransferMsg');
+        if (!el) return;
+        const t = (text || '').trim();
+        el.classList.remove('gc-ct-msg--error', 'gc-ct-msg--ok');
+        if (!t) {
+            el.textContent = '';
+            el.hidden = true;
+            return;
+        }
+        el.textContent = t;
+        el.hidden = false;
+        if (kind === 'error') el.classList.add('gc-ct-msg--error');
+        else if (kind === 'ok') el.classList.add('gc-ct-msg--ok');
+    }
+
+    async function gcLoadComissaoTransferList() {
+        const tbody = document.getElementById('gcComissaoTransferTbody');
+        if (!tbody) return;
+        tbody.innerHTML =
+            '<tr><td colspan="11" style="text-align:center;padding:28px;color:var(--text-secondary);">Carregando…</td></tr>';
+        gcSetComissaoTransferMsg('');
+        const stEl = document.getElementById('gcComissaoTransferFiltroStatus');
+        const status = stEl ? stEl.value : 'pendente';
+        const params = {};
+        if (status && status !== 'todas') params.status = status;
+        let data;
+        try {
+            data = await apiGet('gestao_comercial_comissao_transfer_lista', params);
+        } catch (e) {
+            data = { success: false };
+        }
+        if (!data || data.success !== true) {
+            tbody.innerHTML =
+                '<tr><td colspan="11" style="text-align:center;padding:28px;color:var(--danger);">Não foi possível carregar.</td></tr>';
+            gcSetComissaoTransferMsg((data && data.error) ? String(data.error) : 'Erro ao carregar a lista.', 'error');
+            return;
+        }
+        const rows = Array.isArray(data.rows) ? data.rows : [];
+        if (!rows.length) {
+            tbody.innerHTML =
+                '<tr><td colspan="11" style="text-align:center;padding:28px;color:var(--text-secondary);">Nenhuma solicitação.</td></tr>';
+            return;
+        }
+        const escCt = function (x) {
+            return String(x == null ? '' : x)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/"/g, '&quot;');
+        };
+        const escAttr = function (x) {
+            return String(x == null ? '' : x)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/\n/g, ' ');
+        };
+        const fmtMoneyCt = function (v) {
+            return 'R$ ' + (parseFloat(v) || 0).toFixed(2).replace('.', ',');
+        };
+        const statusBadge = function (raw) {
+            const s = String(raw || '').trim().toLowerCase();
+            const labels = {
+                pendente: 'Pendente',
+                aprovada: 'Aprovada',
+                recusada: 'Recusada',
+                cancelada: 'Cancelada'
+            };
+            const lab = labels[s] || raw || '—';
+            const cls = labels[s] ? s.replace(/[^a-z]/g, '') || 'outro' : 'outro';
+            return (
+                '<span class="gc-ct-status gc-ct-status--' +
+                escCt(cls) +
+                '">' +
+                escCt(lab) +
+                '</span>'
+            );
+        };
+        tbody.innerHTML = rows
+            .map(function (r) {
+                const id = r.id;
+                const st = String(r.status || '');
+                const pend = st === 'pendente';
+                const ref =
+                    r.ref_mes && r.ref_ano ? String(r.ref_mes) + '/' + String(r.ref_ano) : '—';
+                const np = r.numero_pedido != null && r.numero_pedido !== '' ? parseInt(r.numero_pedido, 10) : 0;
+                const sp = r.serie_pedido != null && r.serie_pedido !== '' ? parseInt(r.serie_pedido, 10) : null;
+                const cellPed = np > 0 ? escCt(String(np)) : '—';
+                const cellSer =
+                    np > 0 ? escCt(sp != null && !isNaN(sp) ? String(sp) : '0') : '—';
+                const btnVer = '<button type="button" class="gc-ct-icon-btn gc-ct-btn-ver" data-id="' + escCt(id) + '" title="Visualizar detalhes" aria-label="Visualizar"><i class="fas fa-eye"></i></button>';
+                const btnDel = '<button type="button" class="gc-ct-icon-btn gc-ct-icon-btn--delete gc-ct-btn-del" data-id="' + escCt(id) + '" title="Excluir registro" aria-label="Excluir"><i class="fas fa-trash"></i></button>';
+                const acoes = pend
+                    ? '<div class="gc-ct-acoes-btns">' + btnVer +
+                      '<button type="button" class="gc-ct-icon-btn gc-ct-icon-btn--approve gc-ct-btn-apr" data-id="' + escCt(id) + '" title="Aprovar" aria-label="Aprovar"><i class="fas fa-check"></i></button>' +
+                      '<button type="button" class="gc-ct-icon-btn gc-ct-icon-btn--refuse gc-ct-btn-rec" data-id="' + escCt(id) + '" title="Recusar" aria-label="Recusar"><i class="fas fa-times"></i></button>' +
+                      btnDel +
+                      '</div>'
+                    : '<div class="gc-ct-acoes-btns">' + btnVer + btnDel + '</div>';
+                return (
+                    '<tr><td class="gc-ct-td-id">' +
+                    escCt(id) +
+                    '</td><td>' +
+                    escCt(r.solicitante_nome) +
+                    '</td><td>' +
+                    escCt(r.contraparte_nome) +
+                    '</td><td class="gc-ct-td-valor">' +
+                    escCt(fmtMoneyCt(r.valor)) +
+                    '</td><td class="gc-ct-td-ref">' +
+                    escCt(ref) +
+                    '</td><td class="gc-ct-td-num">' +
+                    cellPed +
+                    '</td><td class="gc-ct-td-num">' +
+                    cellSer +
+                    '</td><td class="gc-ct-td-motivo">' +
+                    escCt(r.motivo) +
+                    '</td><td>' +
+                    statusBadge(st) +
+                    '</td><td class="gc-ct-td-date">' +
+                    escCt(String(r.created_at || '').replace('T', ' ').slice(0, 16)) +
+                    '</td><td class="gc-ct-td-acoes">' +
+                    acoes +
+                    '</td></tr>'
+                );
+            })
+            .join('');
+        tbody.querySelectorAll('.gc-ct-btn-apr').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                gcDecidirComissaoTransfer(btn.getAttribute('data-id'), 'aprovar');
+            });
+        });
+        tbody.querySelectorAll('.gc-ct-btn-rec').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                gcDecidirComissaoTransfer(btn.getAttribute('data-id'), 'recusar');
+            });
+        });
+        tbody.querySelectorAll('.gc-ct-btn-ver').forEach(function (btn) {
+            const id = btn.getAttribute('data-id');
+            const row = rows.find(function (r) { return String(r.id) === String(id); });
+            btn.addEventListener('click', function () {
+                gcAbrirModalComissaoTransfer(row);
+            });
+        });
+        tbody.querySelectorAll('.gc-ct-btn-del').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                gcExcluirComissaoTransfer(btn.getAttribute('data-id'));
+            });
+        });
+    }
+
+    async function gcExcluirComissaoTransfer(id) {
+        if (!id) return;
+        const ok = await showConfirm({
+            kind: 'danger',
+            title: 'Excluir registro',
+            message: 'Excluir permanentemente este registro do banco de dados? Esta ação não pode ser desfeita.',
+            confirmText: 'Excluir',
+            cancelText: 'Cancelar',
+            destructive: true
+        });
+        if (!ok) return;
+        const msgEl = document.getElementById('gcComissaoTransferMsg');
+        const data = await apiPost('gestao_comercial_comissao_transfer_excluir', { id: parseInt(id, 10) });
+        if (!data || data.success !== true) {
+            showError((data && data.error) ? data.error : 'Falha ao excluir.');
+            return;
+        }
+        showSuccess('Registro excluído com sucesso.');
+        await gcLoadComissaoTransferList();
+    }
+
+    function gcAbrirModalComissaoTransfer(r) {
+        if (!r) return;
+        const backdrop = document.getElementById('gcCtModalBackdrop');
+        const body = document.getElementById('gcCtModalBody');
+        const footer = document.getElementById('gcCtModalFooter');
+        const closeBtn = document.getElementById('gcCtModalClose');
+        if (!backdrop || !body || !footer) return;
+        const esc = function (s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+        const fmt = function (v) { return 'R$ ' + (parseFloat(v)||0).toFixed(2).replace('.',','); };
+        const ref = (r.ref_mes && r.ref_ano) ? String(r.ref_mes).padStart(2,'0') + '/' + r.ref_ano : '—';
+        const np = r.numero_pedido ? parseInt(r.numero_pedido,10) : 0;
+        const pedido = np > 0 ? String(np) + ' / ' + (r.serie_pedido != null ? String(r.serie_pedido) : '0') : '—';
+        const st = String(r.status||'').toLowerCase();
+        const stLabels = {pendente:'Pendente',aprovada:'Aprovada',recusada:'Recusada',cancelada:'Cancelada'};
+        const stLabel = stLabels[st] || r.status || '—';
+        body.innerHTML =
+            '<dl class="gc-ct-modal-dl">' +
+            '<div class="gc-ct-modal-dl__row"><dt>Destino (crédito)</dt><dd>' + esc(r.solicitante_nome) + '</dd></div>' +
+            '<div class="gc-ct-modal-dl__row"><dt>Origem (débito)</dt><dd>' + esc(r.contraparte_nome) + '</dd></div>' +
+            '<div class="gc-ct-modal-dl__row"><dt>Valor</dt><dd>' + esc(fmt(r.valor)) + '</dd></div>' +
+            '<div class="gc-ct-modal-dl__row"><dt>Pedido / série</dt><dd>' + esc(pedido) + '</dd></div>' +
+            '<div class="gc-ct-modal-dl__row"><dt>Referência</dt><dd>' + esc(ref) + '</dd></div>' +
+            '<div class="gc-ct-modal-dl__row"><dt>Status</dt><dd><span class="gc-ct-status gc-ct-status--' + esc(st) + '">' + esc(stLabel) + '</span></dd></div>' +
+            '<div class="gc-ct-modal-dl__row gc-ct-modal-dl__row--full"><dt>Motivo</dt><dd>' + esc(r.motivo || '—') + '</dd></div>' +
+            (r.observacao_gestao ? '<div class="gc-ct-modal-dl__row gc-ct-modal-dl__row--full"><dt>Observação da gestão</dt><dd>' + esc(r.observacao_gestao) + '</dd></div>' : '') +
+            (r.decidido_por_nome ? '<div class="gc-ct-modal-dl__row"><dt>Decidido por</dt><dd>' + esc(r.decidido_por_nome) + '</dd></div>' : '') +
+            (r.decidido_em ? '<div class="gc-ct-modal-dl__row"><dt>Data da decisão</dt><dd>' + esc(String(r.decidido_em).slice(0,16).replace('T',' ')) + '</dd></div>' : '') +
+            '<div class="gc-ct-modal-dl__row"><dt>Criado em</dt><dd>' + esc(String(r.created_at||'').slice(0,16).replace('T',' ')) + '</dd></div>' +
+            '</dl>';
+        const pend = st === 'pendente';
+        footer.innerHTML = pend
+            ? '<button type="button" class="gc-filter-btn gc-ct-modal-btn-apr" data-id="' + esc(r.id) + '"><i class="fas fa-check"></i> Aprovar</button>' +
+              '<button type="button" class="gc-filter-btn gc-filter-btn--secondary gc-ct-modal-btn-rec" data-id="' + esc(r.id) + '"><i class="fas fa-times"></i> Recusar</button>' +
+              '<button type="button" class="gc-filter-btn gc-filter-btn--secondary" id="gcCtModalCloseFooter">Fechar</button>'
+            : '<button type="button" class="gc-filter-btn gc-filter-btn--secondary" id="gcCtModalCloseFooter">Fechar</button>';
+        const closeModal = function () {
+            backdrop.classList.remove('gc-ct-modal-backdrop--open');
+            backdrop.setAttribute('aria-hidden','true');
+        };
+        closeBtn.onclick = closeModal;
+        const closeFooter = footer.querySelector('#gcCtModalCloseFooter');
+        if (closeFooter) closeFooter.onclick = closeModal;
+        backdrop.onclick = function (e) { if (e.target === backdrop) closeModal(); };
+        const aprBtn = footer.querySelector('.gc-ct-modal-btn-apr');
+        if (aprBtn) aprBtn.addEventListener('click', function () { closeModal(); gcDecidirComissaoTransfer(aprBtn.getAttribute('data-id'), 'aprovar'); });
+        const recBtn = footer.querySelector('.gc-ct-modal-btn-rec');
+        if (recBtn) recBtn.addEventListener('click', function () { closeModal(); gcDecidirComissaoTransfer(recBtn.getAttribute('data-id'), 'recusar'); });
+        backdrop.classList.add('gc-ct-modal-backdrop--open');
+        backdrop.setAttribute('aria-hidden','false');
+    }
+
+    async function gcDecidirComissaoTransfer(id, decisao) {
+        const isAprovar = decisao === 'aprovar';
+        const ok = await showConfirm({
+            kind: isAprovar ? 'info' : 'danger',
+            title: isAprovar ? 'Aprovar transferência' : 'Recusar transferência',
+            message: isAprovar
+                ? 'Confirmar aprovação desta solicitação de transferência de comissão?'
+                : 'Confirmar recusa desta solicitação de transferência de comissão?',
+            confirmText: isAprovar ? 'Aprovar' : 'Recusar',
+            cancelText: 'Cancelar',
+            destructive: !isAprovar
+        });
+        if (!ok) return;
+        const data = await apiPost('gestao_comercial_comissao_transfer_decidir', {
+            id: parseInt(id, 10),
+            decisao: decisao,
+            observacao_gestao: ''
+        });
+        if (!data || data.success !== true) {
+            showError(data && data.error ? String(data.error) : 'Falha ao registrar decisão.');
+            return;
+        }
+        await gcLoadComissaoTransferList();
+        showSuccess(isAprovar ? 'Transferência aprovada.' : 'Transferência recusada.');
+    }
+
+    function gcEnsureComissaoTransferUi() {
+        if (gcComissaoTransferUiBound) return;
+        gcComissaoTransferUiBound = true;
+        const b = document.getElementById('gcComissaoTransferAtualizarBtn');
+        if (b)
+            b.addEventListener('click', function () {
+                gcLoadComissaoTransferList().catch(function () {});
+            });
+        const f = document.getElementById('gcComissaoTransferFiltroStatus');
+        if (f)
+            f.addEventListener('change', function () {
+                gcLoadComissaoTransferList().catch(function () {});
+            });
+    }
+
+    function gcDashboardDateParams() {
+        const deEl = document.getElementById('gcDataDe');
+        const ateEl = document.getElementById('gcDataAte');
+        const params = {};
+        if (deEl && deEl.value) params.data_de = deEl.value;
+        if (ateEl && ateEl.value) params.data_ate = ateEl.value;
+        return params;
+    }
+
+    function gcIsRevendaTabActive() {
+        const s = document.getElementById('gc-section-revenda');
+        return !!(s && s.classList.contains('active'));
+    }
+
+    function gcSetRevendaMsg(text, kind) {
+        const el = document.getElementById('gcRevendaMsg');
+        if (!el) return;
+        const t = (text || '').trim();
+        el.classList.remove('gc-ct-msg--error', 'gc-ct-msg--ok');
+        if (!t) {
+            el.textContent = '';
+            el.hidden = true;
+            return;
+        }
+        el.textContent = t;
+        el.hidden = false;
+        if (kind === 'error') el.classList.add('gc-ct-msg--error');
+        else if (kind === 'ok') el.classList.add('gc-ct-msg--ok');
+    }
+
+    function gcFillRevendaVendedoraSelect() {
+        const sel = document.getElementById('gcRevendaVendedora');
+        if (!sel) return;
+        const nomes = Array.isArray(gcNomesVendedores) ? gcNomesVendedores.slice() : [];
+        const prev = sel.value;
+        sel.innerHTML = '<option value="">Selecione a consultora…</option>';
+        nomes.forEach(function (n) {
+            if (!n) return;
+            const opt = document.createElement('option');
+            opt.value = n;
+            opt.textContent = n;
+            sel.appendChild(opt);
+        });
+        if (prev && nomes.indexOf(prev) !== -1) sel.value = prev;
+    }
+
+    function gcParseValorRevendaInput(raw) {
+        const s = String(raw || '').trim();
+        if (!s) return NaN;
+        const norm = s.replace(/\s/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
+        const n = parseFloat(norm);
+        return Number.isFinite(n) ? n : NaN;
+    }
+
+    async function gcLoadRevendaList() {
+        const tbody = document.getElementById('gcRevendaTbody');
+        if (!tbody) return;
+        tbody.innerHTML =
+            '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--text-secondary);">Carregando…</td></tr>';
+        gcSetRevendaMsg('');
+        let data;
+        try {
+            data = await apiGet('gestao_comercial_revenda_lista', gcDashboardDateParams());
+        } catch (e) {
+            data = { success: false };
+        }
+        if (!data || data.success !== true) {
+            tbody.innerHTML =
+                '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--danger);">Não foi possível carregar.</td></tr>';
+            gcSetRevendaMsg((data && data.error) ? String(data.error) : 'Erro ao carregar a lista.', 'error');
+            return;
+        }
+        const rows = Array.isArray(data.rows) ? data.rows : [];
+        if (!rows.length) {
+            tbody.innerHTML =
+                '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--text-secondary);">Nenhum lançamento no período.</td></tr>';
+            return;
+        }
+        const esc = function (x) {
+            return String(x == null ? '' : x)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/"/g, '&quot;');
+        };
+        tbody.innerHTML = rows
+            .map(function (r) {
+                const ativo = Number(r.ativo) === 1;
+                const st = ativo
+                    ? '<span class="gc-ct-status gc-ct-status--pendente">Ativo</span>'
+                    : '<span class="gc-ct-status gc-ct-status--cancelada">Cancelado</span>';
+                const btn =
+                    '<button type="button" class="gc-filter-btn gc-filter-btn--secondary gc-revenda-cancel" data-id="' +
+                    esc(String(r.id)) +
+                    '"' +
+                    (ativo ? '' : ' disabled') +
+                    '>Cancelar</button>';
+                return (
+                    '<tr><td>' +
+                    esc(r.id) +
+                    '</td><td>' +
+                    esc(r.vendedor_nome) +
+                    '</td><td>' +
+                    esc(String(r.data_venda || '').slice(0, 10)) +
+                    '</td><td style="text-align:right;">' +
+                    esc(formatMoney(r.valor_liquido)) +
+                    '</td><td>' +
+                    esc(r.descricao) +
+                    '</td><td>' +
+                    st +
+                    '</td><td>' +
+                    esc(String(r.created_at || '').replace('T', ' ').slice(0, 16)) +
+                    '</td><td>' +
+                    btn +
+                    '</td></tr>'
+                );
+            })
+            .join('');
+        tbody.querySelectorAll('.gc-revenda-cancel').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                const id = parseInt(btn.getAttribute('data-id') || '0', 10);
+                if (!id) return;
+                const okRev = await showConfirm({ kind: 'danger', title: 'Cancelar revenda', message: 'Cancelar este lançamento de revenda? Ele deixa de entrar na receita.', confirmText: 'Cancelar lançamento', cancelText: 'Voltar', destructive: true });
+                if (!okRev) return;
+                gcSetRevendaMsg('');
+                const resp = await apiPost('gestao_comercial_revenda_cancelar', { id: id });
+                if (!resp || resp.success !== true) {
+                    gcSetRevendaMsg((resp && resp.error) ? String(resp.error) : 'Não foi possível cancelar.', 'error');
+                    return;
+                }
+                gcSetRevendaMsg('Lançamento cancelado.', 'ok');
+                await gcLoadRevendaList();
+            });
+        });
+    }
+
+    function gcEnsureRevendaUi() {
+        if (gcRevendaUiBound) return;
+        gcRevendaUiBound = true;
+        const dataInp = document.getElementById('gcRevendaData');
+        if (dataInp && !dataInp.value) {
+            dataInp.value = new Date().toISOString().slice(0, 10);
+        }
+        const salvar = document.getElementById('gcRevendaSalvarBtn');
+        if (salvar) {
+            salvar.addEventListener('click', async function () {
+                const nome = (document.getElementById('gcRevendaVendedora') || {}).value || '';
+                const dv = (document.getElementById('gcRevendaData') || {}).value || '';
+                const valorRaw = (document.getElementById('gcRevendaValor') || {}).value || '';
+                const desc = (document.getElementById('gcRevendaDesc') || {}).value || '';
+                const valor = gcParseValorRevendaInput(valorRaw);
+                if (!nome) {
+                    gcSetRevendaMsg('Selecione a consultora.', 'error');
+                    return;
+                }
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(dv)) {
+                    gcSetRevendaMsg('Informe a data da venda.', 'error');
+                    return;
+                }
+                if (!Number.isFinite(valor) || valor <= 0) {
+                    gcSetRevendaMsg('Informe um valor válido.', 'error');
+                    return;
+                }
+                gcSetRevendaMsg('');
+                const resp = await apiPost('gestao_comercial_revenda_salvar', {
+                    vendedor_nome: nome,
+                    data_venda: dv,
+                    valor_liquido: valor,
+                    descricao: desc
+                });
+                if (!resp || resp.success !== true) {
+                    gcSetRevendaMsg((resp && resp.error) ? String(resp.error) : 'Não foi possível salvar.', 'error');
+                    return;
+                }
+                gcSetRevendaMsg('Lançamento salvo.', 'ok');
+                const vInp = document.getElementById('gcRevendaValor');
+                if (vInp) vInp.value = '';
+                const dInp = document.getElementById('gcRevendaDesc');
+                if (dInp) dInp.value = '';
+                await gcLoadRevendaList();
+            });
+        }
+        const att = document.getElementById('gcRevendaAtualizarBtn');
+        if (att) {
+            att.addEventListener('click', function () {
+                gcLoadRevendaList().catch(function () {});
+            });
+        }
+    }
+
     function gcEnsurePedidosRelatorioUiBind() {
         if (gcPedidosRelUiBound) return;
         gcPedidosRelUiBound = true;
@@ -2784,10 +3239,11 @@
     window.gcExcluirErroManual = async function (id) {
         const n = Number(id || 0);
         if (!n) return;
-        if (!window.confirm('Deseja excluir este erro?')) return;
+        const okErr = await showConfirm({ kind: 'danger', title: 'Excluir erro', message: 'Deseja excluir este registro de erro?', confirmText: 'Excluir', cancelText: 'Cancelar', destructive: true });
+        if (!okErr) return;
         const resp = await apiPost('gestao_comercial_erros_excluir', { id: n });
         if (!resp || resp.success === false) {
-            alert((resp && resp.error) ? resp.error : 'Não foi possível excluir o erro.');
+            showError((resp && resp.error) ? resp.error : 'Não foi possível excluir o erro.');
             return;
         }
         await gcLoadControleErros();
@@ -2902,6 +3358,10 @@
             gcDashboardData = data;
             await gcLoadErrosTiposDistintos();
             gcNomesVendedores = Array.isArray(data.lista_vendedores_nomes) ? data.lista_vendedores_nomes : [];
+            gcFillRevendaVendedoraSelect();
+            if (gcIsRevendaTabActive()) {
+                gcLoadRevendaList().catch(function () {});
+            }
             renderExecutivo(data);
             renderGcCharts(data);
             renderVendedoresTabs(data, gcNomesVendedores);
@@ -3984,6 +4444,15 @@
                     gcEnsurePedidosRelatorioUiBind();
                     gcLoadPedidosRelatorioVisitadorStyle().catch(function () {});
                 }
+                if (target === 'comissoes') {
+                    gcEnsureComissaoTransferUi();
+                    gcLoadComissaoTransferList().catch(function () {});
+                }
+                if (target === 'revenda') {
+                    gcEnsureRevendaUi();
+                    gcFillRevendaVendedoraSelect();
+                    gcLoadRevendaList().catch(function () {});
+                }
             });
         });
     }
@@ -4001,7 +4470,7 @@
                 tab = '';
             }
         }
-        const valid = ['executivo', 'vendas', 'vendedores', 'relatorios', 'erros'];
+        const valid = ['executivo', 'vendas', 'vendedores', 'relatorios', 'comissoes', 'revenda', 'erros'];
         if (valid.indexOf(tab) === -1 || tab === 'erros') {
             return;
         }

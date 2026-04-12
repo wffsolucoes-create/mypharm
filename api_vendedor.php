@@ -8,6 +8,7 @@ if (function_exists('ini_set')) {
     @ini_set('log_errors', '1');
 }
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/api/modules/gestao_comercial.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
@@ -272,6 +273,28 @@ try {
                 // Sem regressão se tabela não existir.
             }
 
+            $revMes = 0.0;
+            $revAno = 0.0;
+            if (function_exists('gcRevendaAggRows')) {
+                $me = normalizeSimple($userNome);
+                if ($me !== '') {
+                    foreach (gcRevendaAggRows($pdo, $inicioMes, $fimMes) as $rr) {
+                        if (normalizeSimple((string)($rr['nome'] ?? '')) === $me) {
+                            $revMes = (float)($rr['total'] ?? 0);
+                            break;
+                        }
+                    }
+                    foreach (gcRevendaAggRows($pdo, $inicioAno, $fimAno) as $rr) {
+                        if (normalizeSimple((string)($rr['nome'] ?? '')) === $me) {
+                            $revAno = (float)($rr['total'] ?? 0);
+                            break;
+                        }
+                    }
+                }
+            }
+            $progresso['faturamento_mes'] = round((float)$progresso['faturamento_mes'] + $revMes, 2);
+            $progresso['faturamento_ano'] = round((float)$progresso['faturamento_ano'] + $revAno, 2);
+
             try {
                 $stVisSemana = $pdo->prepare("
                     SELECT COALESCE(COUNT(*), 0)
@@ -324,6 +347,22 @@ try {
             ");
             $stGrupoMes->execute($params);
             $faturamentoGrupoMes = (float)($stGrupoMes->fetchColumn() ?: 0);
+            if (function_exists('gcRevendaAggRows')) {
+                $allowedNorm = [];
+                foreach ($allowed as $nomeLista) {
+                    $kn = normalizeSimple((string)$nomeLista);
+                    if ($kn !== '') {
+                        $allowedNorm[$kn] = true;
+                    }
+                }
+                foreach (gcRevendaAggRows($pdo, $inicioMes, $fimMes) as $rr) {
+                    $kn = normalizeSimple((string)($rr['nome'] ?? ''));
+                    if ($kn !== '' && isset($allowedNorm[$kn])) {
+                        $faturamentoGrupoMes += (float)($rr['total'] ?? 0);
+                    }
+                }
+                $faturamentoGrupoMes = round($faturamentoGrupoMes, 2);
+            }
         } catch (Throwable $e) {
             // Sem regressão se tabela não existir.
         }
