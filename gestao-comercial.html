@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/ui-feedback.css">
-    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260410-vendas-relatorio">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260411-relatorios-refactor">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body class="gc-compact-ui">
@@ -622,61 +622,93 @@
                 <section class="gc-section" id="gc-section-relatorios" role="tabpanel" aria-labelledby="gc-tab-relatorios" aria-hidden="true">
                     <header class="gc-tab-head">
                         <p class="gc-tab-head__kicker">Relatórios comerciais</p>
-                        <p class="gc-tab-head__desc">Linhas de <strong>gestão de pedidos</strong> aprovadas no período global (datas no topo). Filtre por prescritor e vendedor; use <strong>Carregar mais</strong> para paginar.</p>
+                        <p class="gc-tab-head__desc">Relatório de <strong>Pedidos</strong> no mesmo formato da página do visitador (aprovados, recusados e no carrinho), com agrupamento por número, séries expansíveis e impressão.</p>
                     </header>
 
-                    <div class="gc-block gc-block--vendas-relatorio">
-                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-receipt"></i></span> Todas as vendas (detalhamento)</h3>
-                        <p class="gc-note gc-note--tight">O período segue <strong>Data inicial</strong> e <strong>Data final</strong> do cartão &quot;Período do relatório&quot; acima. Comissões e relatórios semanais/mensais continuam na aba <strong>Vendedores</strong>.</p>
-                        <div class="gc-filter-panel gc-vendas-rel-filtros">
-                            <div class="gc-filters-row gc-vendas-rel-filtros__row">
-                                <label>Prescritor
-                                    <select id="gcVendasRelPrescritor" aria-label="Filtrar por prescritor">
+                    <div class="gc-block">
+                        <div class="gc-pedidos-vd">
+                            <div class="gc-pedidos-vd-page-header">
+                                <div class="gc-pedidos-vd-page-header__inner">
+                                    <span class="gc-pedidos-vd-icon" aria-hidden="true"><i class="fas fa-list-alt"></i></span>
+                                    <div>
+                                        <h2 class="gc-pedidos-vd-title">Pedidos</h2>
+                                        <p class="gc-pedidos-vd-sub">Visão administrativa: use visitador (carteira) para espelhar a carteira de um profissional ou deixe em Todos.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="gc-pedidos-vd-filters">
+                                <div class="gc-pedidos-vd-filters-row">
+                                    <label for="gcPedidosRelFiltroStatus">Status</label>
+                                    <select id="gcPedidosRelFiltroStatus" class="gc-pedidos-vd-select-status">
                                         <option value="">Todos</option>
+                                        <option value="Aprovado" selected>Aprovado</option>
+                                        <option value="Recusado">Recusado</option>
+                                        <option value="No carrinho">No carrinho</option>
                                     </select>
-                                </label>
-                                <label>Vendedor
-                                    <select id="gcVendasRelVendedor" aria-label="Filtrar por vendedor">
-                                        <option value="">Todos</option>
-                                    </select>
-                                </label>
-                                <div class="gc-vendas-rel-filtros__actions">
-                                    <button type="button" class="gc-filter-btn" id="gcVendasRelBuscarBtn">
-                                        <i class="fas fa-magnifying-glass" aria-hidden="true"></i> Aplicar filtros
+                                </div>
+                                <div class="gc-pedidos-vd-filters-row gc-pedidos-vd-filters-row--grid">
+                                    <label>Visitador (carteira)
+                                        <select id="gcPedidosRelVisitador" aria-label="Filtrar por visitador da carteira">
+                                            <option value="">Todos</option>
+                                        </select>
+                                    </label>
+                                    <label>Prescritor
+                                        <select id="gcPedidosRelPrescritor" aria-label="Filtrar por prescritor">
+                                            <option value="">Todos</option>
+                                        </select>
+                                    </label>
+                                    <label>Vendedor
+                                        <select id="gcPedidosRelVendedor" aria-label="Filtrar por vendedor (atendente)">
+                                            <option value="">Todos</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div class="gc-pedidos-vd-filters-row gc-pedidos-vd-filters-row--tools">
+                                    <div class="gc-pedidos-vd-search-wrap">
+                                        <i class="fas fa-search gc-pedidos-vd-search-icon" aria-hidden="true"></i>
+                                        <input type="text" id="gcPedidosRelSearch" placeholder="Buscar por prescritor, cliente ou número..." autocomplete="off" aria-label="Buscar pedidos">
+                                    </div>
+                                    <button type="button" class="gc-filter-btn" id="gcPedidosRelBuscarListaBtn">
+                                        <i class="fas fa-rotate-right" aria-hidden="true"></i> Buscar lista
+                                    </button>
+                                    <button type="button" class="gc-filter-btn gc-filter-btn--secondary" id="gcPedidosRelPrintBtn">
+                                        <i class="fas fa-print" aria-hidden="true"></i> Imprimir
                                     </button>
                                 </div>
                             </div>
-                        </div>
-                        <div class="gc-quick-kpis gc-vendas-rel-resumo" role="list" aria-label="Resumo da listagem">
-                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Linhas no período</span><strong id="gcVendasRelTotal">—</strong></div>
-                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Exibindo</span><strong id="gcVendasRelExibindo">—</strong></div>
-                        </div>
-                        <p class="gc-api-inline-msg gc-vendas-rel-msg" id="gcVendasRelMsg" hidden></p>
-                        <div class="gc-table-wrap gc-table-wrap--scroll">
-                            <table class="gc-table gc-table--prod" id="gcVendasRelTable">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Aprovação</th>
-                                        <th scope="col">Orçamento</th>
-                                        <th scope="col">Pedido</th>
-                                        <th scope="col">Ano ref.</th>
-                                        <th scope="col">Vendedor</th>
-                                        <th scope="col">Prescritor</th>
-                                        <th scope="col">Cliente</th>
-                                        <th scope="col">Produto</th>
-                                        <th scope="col" class="gc-num">Qtd</th>
-                                        <th scope="col" class="gc-num">Líquido</th>
-                                        <th scope="col" class="gc-num">Custo</th>
-                                        <th scope="col">Status fin.</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="gcVendasRelTbody"></tbody>
-                            </table>
-                        </div>
-                        <div class="gc-vendas-rel-footer">
-                            <button type="button" class="gc-filter-btn gc-filter-btn--secondary" id="gcVendasRelCarregarMaisBtn" style="display:none;">
-                                <i class="fas fa-arrow-down" aria-hidden="true"></i> Carregar mais
-                            </button>
+
+                            <div class="gc-pedidos-vd-cards" id="gcPedidosRelCards">
+                                <div class="gc-pedidos-vd-card">
+                                    <div class="gc-pedidos-vd-card-label">Total em R$ (filtrado)</div>
+                                    <div class="gc-pedidos-vd-card-value" id="gcPedidosRelCardValor">R$ 0,00</div>
+                                </div>
+                                <div class="gc-pedidos-vd-card">
+                                    <div class="gc-pedidos-vd-card-label">Pedidos (grupos)</div>
+                                    <div class="gc-pedidos-vd-card-value" id="gcPedidosRelCardQtd">0 pedidos</div>
+                                </div>
+                            </div>
+                            <p class="gc-api-inline-msg" id="gcPedidosRelMsg" hidden></p>
+
+                            <div class="gc-pedidos-vd-table-card">
+                                <div class="gc-pedidos-vd-table-scroll">
+                                    <table class="gc-pedidos-vd-table" id="gcPedidosRelTable">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="numero_pedido" title="Ordenar">Nº Pedido <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="serie_pedido" title="Ordenar">Série <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="data_aprovacao" title="Ordenar">Data aprovação <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="data_orcamento" title="Ordenar">Data orçamento <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="prescritor" title="Ordenar">Prescritor <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="cliente" title="Ordenar">Cliente <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort gc-pedidos-vd-th-num" data-sort-col="valor" title="Ordenar">Valor <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="tipo" title="Ordenar">Status <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="gcPedidosRelTbody"></tbody>
+                                    </table>
+                                </div>
+                                <div class="gc-pedidos-vd-pagination" id="gcPedidosRelPagination" aria-live="polite"></div>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -766,6 +798,57 @@
             </main>
         </div>
     </div>
+    <!-- Modal detalhe do pedido (paridade visitador — api.php) -->
+    <div id="gcModalDetalhePedido" class="gc-modal-det-ped" aria-hidden="true">
+        <div class="gc-modal-det-ped__backdrop" onclick="gcCloseModalDetalhePedidoGc()" aria-hidden="true"></div>
+        <div class="gc-modal-det-ped__card" role="dialog" aria-modal="true" aria-labelledby="gcModalDetalhePedidoTitle">
+            <div class="gc-modal-det-ped__head">
+                <h3 id="gcModalDetalhePedidoTitle" class="gc-modal-det-ped__title"><i class="fas fa-file-invoice" aria-hidden="true"></i> Detalhe do pedido</h3>
+                <button type="button" class="gc-modal-det-ped__close" onclick="gcCloseModalDetalhePedidoGc()" aria-label="Fechar">&times;</button>
+            </div>
+            <div class="gc-modal-det-ped__body">
+                <div id="gcModalDetalhePedidoLoading" class="gc-modal-det-ped__loading"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Carregando…</div>
+                <div id="gcModalDetalhePedidoError" class="gc-modal-det-ped__err" style="display:none;"></div>
+                <div id="gcModalDetalhePedidoContent" style="display:none;">
+                    <div class="gc-modal-det-ped__fields-wrap">
+                        <div id="gcModalDetalhePedidoFields" class="gc-modal-det-ped__fields"></div>
+                    </div>
+                    <div id="gcModalDetalhePedidoItensGestaoWrap" class="gc-modal-det-ped__tbl-wrap" style="display:none;">
+                        <div class="gc-modal-det-ped__sec-title">Itens (Gestão de pedidos)</div>
+                        <div class="gc-modal-det-ped__scroll">
+                            <table class="gc-modal-det-ped__tbl">
+                                <thead><tr><th>#</th><th>Produto</th><th>Forma</th><th class="gc-num">Qtd</th><th class="gc-num">Preço liq.</th></tr></thead>
+                                <tbody id="gcModalDetalhePedidoItensGestao"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="gcModalDetalhePedidoItensOrcamentoWrap" class="gc-modal-det-ped__tbl-wrap" style="display:none;">
+                        <div class="gc-modal-det-ped__sec-title">Itens (Orçamento)</div>
+                        <div class="gc-modal-det-ped__scroll">
+                            <table class="gc-modal-det-ped__tbl">
+                                <thead><tr><th>#</th><th>Descrição</th><th>Canal</th><th class="gc-num">Qtd</th><th class="gc-num">Valor liq.</th><th>Inclusão</th><th>Aprovador</th></tr></thead>
+                                <tbody id="gcModalDetalhePedidoItensOrcamento"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="gc-modal-det-ped__tbl-wrap">
+                        <div class="gc-modal-det-ped__sec-title">Componentes</div>
+                        <div class="gc-modal-det-ped__scroll">
+                            <table class="gc-modal-det-ped__tbl">
+                                <thead><tr><th>#</th><th>Descrição</th><th class="gc-num">Qtd calc.</th></tr></thead>
+                                <tbody id="gcModalDetalhePedidoComponentes"></tbody>
+                            </table>
+                        </div>
+                        <p id="gcModalDetalhePedidoComponentesEmpty" class="gc-modal-det-ped__empty" style="display:none;">Nenhum componente disponível.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="gc-modal-det-ped__foot">
+                <button type="button" class="gc-filter-btn gc-filter-btn--secondary" onclick="gcCloseModalDetalhePedidoGc()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="gcLoadingOverlay" class="gc-loading-overlay" aria-hidden="true">
         <div class="gc-loading-overlay-content" role="status" aria-live="polite" aria-atomic="true">
             <span class="gc-loading-spinner" aria-hidden="true"></span>
@@ -774,6 +857,6 @@
     </div>
 
     <script defer src="js/ui-feedback.js"></script>
-    <script defer src="js/gestao-comercial.js?v=20260410-vendas-relatorio"></script>
+    <script defer src="js/gestao-comercial.js?v=20260410-pedidos-relatorio"></script>
 </body>
 </html>
