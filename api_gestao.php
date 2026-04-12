@@ -2382,9 +2382,9 @@ function handleVendedorRevendaLancar(PDO $pdo): void
         $payload = [];
     }
     $vend = gcResolveVendedorTargetFromSession($_SESSION, $payload);
-    if ($vend === '' || !function_exists('gcIsAllowedVendedora') || !gcIsAllowedVendedora($vend)) {
+    if ($vend === '') {
         http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Consultora não identificada.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => false, 'error' => 'Consultora não identificada na sessão.'], JSON_UNESCAPED_UNICODE);
         return;
     }
     $dv = trim((string)($payload['data_venda'] ?? ''));
