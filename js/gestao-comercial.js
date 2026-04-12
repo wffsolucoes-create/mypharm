@@ -1998,6 +1998,8 @@
         if (!tbody) return;
         const searchInput = document.getElementById('gcPedidosRelSearch');
         const q = ((searchInput || {}).value || '').toLowerCase().trim();
+        // Filtro de data local (campos específicos da tabela, se existirem)
+        // Não usa o topbar como fallback pois a API já filtrou pelo período do topbar
         const dataDe = (document.getElementById('gcPedidosRelDataDe') || {}).value || '';
         const dataAte = (document.getElementById('gcPedidosRelDataAte') || {}).value || '';
         const filtroStatus = (document.getElementById('gcPedidosRelFiltroStatus') || {}).value || '';
@@ -2096,20 +2098,23 @@
             const p = n.split('.');
             return 'R$ ' + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + p[1];
         };
+        // KPIs calculados sobre as rows individuais (ignora tipo "Misto" do grupo)
         let sumValorAprov = 0;
         let sumValorReprov = 0;
-        let qtdAprov = 0;
-        let qtdReprov = 0;
+        const pedidosAprovSet = new Set();
+        const pedidosReprovSet = new Set();
         groupedList.forEach(function (g) {
-            const t = String(g.tipo || '');
-            const v = parseFloat(g.valor) || 0;
-            if (t === 'Aprovado') {
-                sumValorAprov += v;
-                qtdAprov += 1;
-            } else if (t === 'Recusado' || t === 'No carrinho') {
-                sumValorReprov += v;
-                qtdReprov += 1;
-            }
+            (g.rows || []).forEach(function (r) {
+                const t = String(r.tipo || '');
+                const v = parseFloat(r.valor) || 0;
+                if (t === 'Aprovado') {
+                    sumValorAprov += v;
+                    pedidosAprovSet.add(String(r.numero_pedido));
+                } else if (t === 'Recusado' || t === 'No carrinho') {
+                    sumValorReprov += v;
+                    pedidosReprovSet.add(String(r.numero_pedido) + '_' + String(r.serie_pedido));
+                }
+            });
         });
         const cardQty = document.getElementById('gcPedidosRelCardQtd');
         const cardValorAprov = document.getElementById('gcPedidosRelCardValorAprov');
@@ -2117,8 +2122,8 @@
         const cardQtdRecusados = document.getElementById('gcPedidosRelCardQtdRecusados');
         if (cardValorAprov) cardValorAprov.textContent = fmtBr(sumValorAprov);
         if (cardValorReprov) cardValorReprov.textContent = fmtBr(sumValorReprov);
-        if (cardQty) cardQty.textContent = qtdAprov + ' pedido' + (qtdAprov !== 1 ? 's' : '');
-        if (cardQtdRecusados) cardQtdRecusados.textContent = qtdReprov + ' pedido' + (qtdReprov !== 1 ? 's' : '');
+        if (cardQty) cardQty.textContent = pedidosAprovSet.size + ' pedido' + (pedidosAprovSet.size !== 1 ? 's' : '');
+        if (cardQtdRecusados) cardQtdRecusados.textContent = pedidosReprovSet.size + ' pedido' + (pedidosReprovSet.size !== 1 ? 's' : '');
         const esc = function (x) {
             return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
         };
