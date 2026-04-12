@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/ui-feedback.css">
-    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260411-topbar-period">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260411-relatorios-layout-improved">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body class="gc-compact-ui">
@@ -625,26 +625,16 @@
 
                     <div class="gc-block">
                         <div class="gc-pedidos-vd">
-                            <div class="gc-pedidos-vd-page-header">
-                                <div class="gc-pedidos-vd-page-header__inner">
-                                    <span class="gc-pedidos-vd-icon" aria-hidden="true"><i class="fas fa-list-alt"></i></span>
-                                    <div>
-                                        <h2 class="gc-pedidos-vd-title">Pedidos</h2>
-                                        <p class="gc-pedidos-vd-sub">Visão administrativa: use visitador (carteira) para espelhar a carteira de um profissional ou deixe em Todos.</p>
-                                    </div>
-                                </div>
-                            </div>
                             <div class="gc-pedidos-vd-filters">
-                                <div class="gc-pedidos-vd-filters-row">
-                                    <label for="gcPedidosRelFiltroStatus">Status</label>
-                                    <select id="gcPedidosRelFiltroStatus" class="gc-pedidos-vd-select-status">
-                                        <option value="">Todos</option>
-                                        <option value="Aprovado" selected>Aprovado</option>
-                                        <option value="Recusado">Recusado</option>
-                                        <option value="No carrinho">No carrinho</option>
-                                    </select>
-                                </div>
-                                <div class="gc-pedidos-vd-filters-row gc-pedidos-vd-filters-row--grid">
+                                <div class="gc-pedidos-vd-filters-row gc-pedidos-vd-filters-row--main">
+                                    <label for="gcPedidosRelFiltroStatus">Status
+                                        <select id="gcPedidosRelFiltroStatus" class="gc-pedidos-vd-select-status">
+                                            <option value="">Todos</option>
+                                            <option value="Aprovado" selected>Aprovado</option>
+                                            <option value="Recusado">Recusado</option>
+                                            <option value="No carrinho">No carrinho</option>
+                                        </select>
+                                    </label>
                                     <label>Visitador (carteira)
                                         <select id="gcPedidosRelVisitador" aria-label="Filtrar por visitador da carteira">
                                             <option value="">Todos</option>

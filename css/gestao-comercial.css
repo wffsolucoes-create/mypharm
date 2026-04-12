@@ -1910,21 +1910,22 @@ body.gc-compact-ui .gc-rd-motivos-wrap {
     min-width: 0;
 }
 
-/* Grid de 3 colunas para filtros (visitador, prescritor, vendedor) */
-#gc-section-relatorios .gc-pedidos-vd-filters-row--grid {
+/* Linha principal de filtros (status, visitador, prescritor, vendedor) */
+#gc-section-relatorios .gc-pedidos-vd-filters-row--main {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(140px, 1fr) repeat(3, minmax(150px, 1fr));
     align-items: end;
+    gap: 12px;
 }
 
-@media (max-width: 900px) {
-    #gc-section-relatorios .gc-pedidos-vd-filters-row--grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 1200px) {
+    #gc-section-relatorios .gc-pedidos-vd-filters-row--main {
+        grid-template-columns: repeat(2, minmax(150px, 1fr));
     }
 }
 
-@media (max-width: 600px) {
-    #gc-section-relatorios .gc-pedidos-vd-filters-row--grid {
+@media (max-width: 768px) {
+    #gc-section-relatorios .gc-pedidos-vd-filters-row--main {
         grid-template-columns: 1fr;
     }
 }
@@ -1951,13 +1952,14 @@ body.gc-compact-ui .gc-rd-motivos-wrap {
 /* Linha de ferramentas (busca, botões) */
 #gc-section-relatorios .gc-pedidos-vd-filters-row--tools {
     align-items: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
+    gap: 12px;
 }
 
 #gc-section-relatorios .gc-pedidos-vd-search-wrap {
     position: relative;
-    flex: 1 1 240px;
-    min-width: 0;
+    flex: 1 1 300px;
+    min-width: 240px;
 }
 
 #gc-section-relatorios .gc-pedidos-vd-search-wrap input {
@@ -1984,7 +1986,7 @@ body.gc-compact-ui .gc-rd-motivos-wrap {
 /* Resumo de KPIs da tabela (padrão gc-quick-kpis) */
 #gc-section-relatorios .gc-pedidos-vd-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
     margin-bottom: 20px;
 }
@@ -1992,9 +1994,21 @@ body.gc-compact-ui .gc-rd-motivos-wrap {
 #gc-section-relatorios .gc-pedidos-vd-card {
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 16px;
+    padding: 18px;
     background: var(--bg-card);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+#gc-section-relatorios .gc-pedidos-vd-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #2563eb, #1d4ed8);
 }
 
 #gc-section-relatorios .gc-pedidos-vd-card-label {
@@ -2021,18 +2035,22 @@ body.gc-compact-ui .gc-rd-motivos-wrap {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     overflow: hidden;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 #gc-section-relatorios .gc-pedidos-vd-table-scroll {
     overflow-x: auto;
-    min-height: 300px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 400px;
 }
 
 #gc-section-relatorios .gc-pedidos-vd-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 920px;
-    font-size: 0.88rem;
+    min-width: 900px;
+    font-size: 0.87rem;
 }
 
 #gc-section-relatorios .gc-pedidos-vd-table thead th {
@@ -2041,9 +2059,9 @@ body.gc-compact-ui .gc-rd-motivos-wrap {
     z-index: 1;
     background: var(--bg-body);
     border-bottom: 2px solid var(--border);
-    padding: 12px 14px;
+    padding: 14px 16px;
     text-align: left;
-    font-size: 0.72rem;
+    font-size: 0.71rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -2053,6 +2071,7 @@ body.gc-compact-ui .gc-rd-motivos-wrap {
 
 #gc-section-relatorios .gc-pedidos-vd-th-num {
     text-align: right;
+    padding-right: 20px;
 }
 
 #gc-section-relatorios .gc-pedidos-vd-th-sort {
@@ -2063,16 +2082,18 @@ body.gc-compact-ui .gc-rd-motivos-wrap {
 #gc-section-relatorios .gc-pedidos-vd-th-sort i {
     opacity: 0.35;
     margin-left: 4px;
+    font-size: 0.8rem;
 }
 
 #gc-section-relatorios .gc-pedidos-vd-table tbody td {
-    padding: 12px 14px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
+    color: var(--text-primary);
 }
 
-#gc-section-relatorios .gc-pedidos-vd-table tbody tr:hover td {
-    background: rgba(148, 163, 184, 0.06);
+#gc-section-relatorios .gc-pedidos-vd-table tbody tr:hover {
+    background: rgba(37, 99, 235, 0.04);
 }
 
 #gc-section-relatorios .gc-pedidos-vd-pagination {
