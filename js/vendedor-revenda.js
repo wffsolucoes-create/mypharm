@@ -122,18 +122,20 @@
             tbody.innerHTML = '<tr><td colspan="6" class="vdct-table__empty">Nenhum lançamento no período.</td></tr>';
             return;
         }
+        const statusMap = {
+            pendente:  '<span class="vdct-status vdct-status--pendente">Aguardando aprovação</span>',
+            aprovada:  '<span class="vdct-status vdct-status--aprovada">Aprovada</span>',
+            recusada:  '<span class="vdct-status vdct-status--recusada">Recusada</span>',
+            cancelada: '<span class="vdct-status vdct-status--cancelada">Cancelada</span>',
+        };
         tbody.innerHTML = rows
             .map(function (r) {
-                const ativo = Number(r.ativo) === 1;
-                const st = ativo
-                    ? '<span class="vdct-status vdct-status--pendente">Ativo</span>'
-                    : '<span class="vdct-status vdct-status--cancelada">Cancelado</span>';
-                const btn =
-                    '<button type="button" class="vdct-btn vdct-btn--secondary vd-rev-cancel" data-id="' +
-                    escapeHtml(String(r.id)) +
-                    '"' +
-                    (ativo ? '' : ' disabled') +
-                    '>Cancelar</button>';
+                const stKey = String(r.status || (Number(r.ativo) === 1 ? 'aprovada' : 'cancelada')).toLowerCase();
+                const stBadge = statusMap[stKey] || stKey;
+                const canCancel = stKey === 'pendente';
+                const btn = canCancel
+                    ? '<button type="button" class="vdct-icon-btn vdct-icon-btn--cancel vd-rev-cancel" data-id="' + escapeHtml(String(r.id)) + '" title="Cancelar"><i class="fas fa-times"></i></button>'
+                    : '';
                 return (
                     '<tr><td class="vdct-td-id">' +
                     escapeHtml(String(r.id)) +
@@ -142,9 +144,9 @@
                     '</td><td class="vdct-td-valor">' +
                     escapeHtml(formatMoney(r.valor_liquido)) +
                     '</td><td class="vdct-td-motivo">' +
-                    escapeHtml(r.descricao) +
+                    escapeHtml(r.descricao || '—') +
                     '</td><td>' +
-                    st +
+                    stBadge +
                     '</td><td class="vdct-td-acoes">' +
                     btn +
                     '</td></tr>'
@@ -155,15 +157,23 @@
             btn.addEventListener('click', async function () {
                 const id = parseInt(btn.getAttribute('data-id') || '0', 10);
                 if (!id || !session) return;
-                if (!window.confirm('Cancelar este lançamento? Ele deixa de entrar na sua receita.')) return;
+                const ok = await showConfirm({
+                    kind: 'danger',
+                    title: 'Cancelar lançamento',
+                    message: 'Cancelar este lançamento pendente? Ele não poderá mais ser aprovado.',
+                    confirmText: 'Cancelar lançamento',
+                    cancelText: 'Voltar',
+                    destructive: true
+                });
+                if (!ok) return;
                 const body = { id: id };
                 if (adminVendedorApiParam(session)) body.vendedor = adminVendedorApiParam(session);
                 const resp = await apiPost('vendedor_revenda_cancelar', body);
                 if (!resp || resp.success !== true) {
-                    setMsg(msgEl, 'err', (resp && resp.error) || 'Não foi possível cancelar.');
+                    showError((resp && resp.error) || 'Não foi possível cancelar.');
                     return;
                 }
-                setMsg(msgEl, 'ok', 'Cancelamento registrado.');
+                showSuccess('Lançamento cancelado.');
                 await loadLista(session);
             });
         });

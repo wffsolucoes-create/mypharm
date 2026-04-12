@@ -2989,9 +2989,11 @@
         tbody.innerHTML =
             '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--text-secondary);">Carregando…</td></tr>';
         gcSetRevendaMsg('');
+        const filtroSt = (document.getElementById('gcRevendaFiltroStatus') || {}).value || 'pendente';
+        const params = Object.assign({}, filtroSt && filtroSt !== 'todas' ? { status: filtroSt } : {});
         let data;
         try {
-            data = await apiGet('gestao_comercial_revenda_lista', gcDashboardDateParams());
+            data = await apiGet('gestao_comercial_revenda_lista', params);
         } catch (e) {
             data = { success: false };
         }
@@ -3004,7 +3006,7 @@
         const rows = Array.isArray(data.rows) ? data.rows : [];
         if (!rows.length) {
             tbody.innerHTML =
-                '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--text-secondary);">Nenhum lançamento no período.</td></tr>';
+                '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--text-secondary);">Nenhum lançamento encontrado.</td></tr>';
             return;
         }
         const esc = function (x) {
@@ -3013,55 +3015,82 @@
                 .replace(/</g, '&lt;')
                 .replace(/"/g, '&quot;');
         };
+        const stBadge = {
+            pendente:  '<span class="gc-ct-status gc-ct-status--pendente">Pendente</span>',
+            aprovada:  '<span class="gc-ct-status gc-ct-status--aprovada">Aprovada</span>',
+            recusada:  '<span class="gc-ct-status gc-ct-status--recusada">Recusada</span>',
+            cancelada: '<span class="gc-ct-status gc-ct-status--cancelada">Cancelada</span>',
+        };
         tbody.innerHTML = rows
             .map(function (r) {
-                const ativo = Number(r.ativo) === 1;
-                const st = ativo
-                    ? '<span class="gc-ct-status gc-ct-status--pendente">Ativo</span>'
-                    : '<span class="gc-ct-status gc-ct-status--cancelada">Cancelado</span>';
-                const btn =
-                    '<button type="button" class="gc-filter-btn gc-filter-btn--secondary gc-revenda-cancel" data-id="' +
-                    esc(String(r.id)) +
-                    '"' +
-                    (ativo ? '' : ' disabled') +
-                    '>Cancelar</button>';
+                const stKey = String(r.status || 'pendente').toLowerCase();
+                const st = stBadge[stKey] || stKey;
+                const pend = stKey === 'pendente';
+                const id = esc(String(r.id));
+                const acoes = pend
+                    ? '<div class="gc-ct-acoes-btns">' +
+                      '<button type="button" class="gc-ct-icon-btn gc-ct-icon-btn--approve gc-rev-apr" data-id="' + id + '" title="Aprovar"><i class="fas fa-check"></i></button>' +
+                      '<button type="button" class="gc-ct-icon-btn gc-ct-icon-btn--refuse gc-rev-rec" data-id="' + id + '" title="Recusar"><i class="fas fa-times"></i></button>' +
+                      '</div>'
+                    : '<div class="gc-ct-acoes-btns">' +
+                      '<button type="button" class="gc-ct-icon-btn gc-ct-icon-btn--delete gc-rev-del" data-id="' + id + '" title="Cancelar/Excluir"><i class="fas fa-trash"></i></button>' +
+                      '</div>';
                 return (
-                    '<tr><td>' +
-                    esc(r.id) +
-                    '</td><td>' +
-                    esc(r.vendedor_nome) +
-                    '</td><td>' +
-                    esc(String(r.data_venda || '').slice(0, 10)) +
-                    '</td><td style="text-align:right;">' +
-                    esc(formatMoney(r.valor_liquido)) +
-                    '</td><td>' +
-                    esc(r.descricao) +
-                    '</td><td>' +
-                    st +
-                    '</td><td>' +
-                    esc(String(r.created_at || '').replace('T', ' ').slice(0, 16)) +
-                    '</td><td>' +
-                    btn +
+                    '<tr><td class="gc-ct-td-id">' + id +
+                    '</td><td>' + esc(r.vendedor_nome) +
+                    '</td><td class="gc-ct-td-date">' + esc(String(r.data_venda || '').slice(0, 10)) +
+                    '</td><td class="gc-ct-td-valor">' + esc(formatMoney(r.valor_liquido)) +
+                    '</td><td>' + esc(r.descricao || '—') +
+                    '</td><td>' + st +
+                    '</td><td class="gc-ct-td-date">' + esc(String(r.created_at || '').replace('T', ' ').slice(0, 16)) +
+                    '</td><td class="gc-ct-td-acoes">' + acoes +
                     '</td></tr>'
                 );
             })
             .join('');
-        tbody.querySelectorAll('.gc-revenda-cancel').forEach(function (btn) {
+        tbody.querySelectorAll('.gc-rev-apr').forEach(function (btn) {
+            btn.addEventListener('click', function () { gcDecidirRevenda(btn.getAttribute('data-id'), 'aprovar'); });
+        });
+        tbody.querySelectorAll('.gc-rev-rec').forEach(function (btn) {
+            btn.addEventListener('click', function () { gcDecidirRevenda(btn.getAttribute('data-id'), 'recusar'); });
+        });
+        tbody.querySelectorAll('.gc-rev-del').forEach(function (btn) {
             btn.addEventListener('click', async function () {
                 const id = parseInt(btn.getAttribute('data-id') || '0', 10);
                 if (!id) return;
-                const okRev = await showConfirm({ kind: 'danger', title: 'Cancelar revenda', message: 'Cancelar este lançamento de revenda? Ele deixa de entrar na receita.', confirmText: 'Cancelar lançamento', cancelText: 'Voltar', destructive: true });
+                const okRev = await showConfirm({ kind: 'danger', title: 'Cancelar revenda', message: 'Cancelar este lançamento de revenda?', confirmText: 'Cancelar', cancelText: 'Voltar', destructive: true });
                 if (!okRev) return;
-                gcSetRevendaMsg('');
                 const resp = await apiPost('gestao_comercial_revenda_cancelar', { id: id });
                 if (!resp || resp.success !== true) {
-                    gcSetRevendaMsg((resp && resp.error) ? String(resp.error) : 'Não foi possível cancelar.', 'error');
+                    showError((resp && resp.error) ? String(resp.error) : 'Não foi possível cancelar.');
                     return;
                 }
-                gcSetRevendaMsg('Lançamento cancelado.', 'ok');
+                showSuccess('Lançamento cancelado.');
                 await gcLoadRevendaList();
             });
         });
+    }
+
+    async function gcDecidirRevenda(id, decisao) {
+        const isAprovar = decisao === 'aprovar';
+        const ok = await showConfirm({
+            kind: isAprovar ? 'info' : 'danger',
+            title: isAprovar ? 'Aprovar revenda' : 'Recusar revenda',
+            message: isAprovar
+                ? 'Aprovar este lançamento? O valor entrará na receita e comissão da consultora.'
+                : 'Recusar este lançamento de revenda?',
+            confirmText: isAprovar ? 'Aprovar' : 'Recusar',
+            cancelText: 'Cancelar',
+            destructive: !isAprovar
+        });
+        if (!ok) return;
+        const data = await apiPost('gestao_comercial_revenda_decidir', { id: parseInt(id, 10), decisao: decisao });
+        if (!data || data.success !== true) {
+            showError(data && data.error ? String(data.error) : 'Falha ao registrar decisão.');
+            return;
+        }
+        await gcLoadRevendaList();
+        showSuccess(isAprovar ? 'Revenda aprovada.' : 'Revenda recusada.');
     }
 
     function gcEnsureRevendaUi() {
@@ -3113,6 +3142,12 @@
         const att = document.getElementById('gcRevendaAtualizarBtn');
         if (att) {
             att.addEventListener('click', function () {
+                gcLoadRevendaList().catch(function () {});
+            });
+        }
+        const filtro = document.getElementById('gcRevendaFiltroStatus');
+        if (filtro) {
+            filtro.addEventListener('change', function () {
                 gcLoadRevendaList().catch(function () {});
             });
         }
@@ -4446,7 +4481,9 @@
                 }
                 if (target === 'comissoes') {
                     gcEnsureComissaoTransferUi();
+                    gcEnsureRevendaUi();
                     gcLoadComissaoTransferList().catch(function () {});
+                    gcLoadRevendaList().catch(function () {});
                 }
                 if (target === 'revenda') {
                     gcEnsureRevendaUi();

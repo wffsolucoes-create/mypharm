@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/ui-feedback.css">
-    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260414-ui3">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260414-ui4">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body class="gc-compact-ui">
@@ -769,6 +769,48 @@
                             </table>
                         </div>
                     </div>
+
+                    <!-- Bloco: aprovação de revendas pendentes -->
+                    <div class="gc-block gc-ct-block" style="margin-top:20px;">
+                        <div class="gc-ct-toolbar">
+                            <div class="gc-ct-toolbar__intro">
+                                <h3 class="gc-ct-toolbar__title"><i class="fas fa-store" aria-hidden="true"></i> Revendas aguardando aprovação</h3>
+                                <p class="gc-ct-toolbar__hint">Lançamentos de revenda enviados pelos vendedores. Ao <strong>aprovar</strong>, o valor entra na receita e comissão da consultora.</p>
+                            </div>
+                            <div class="gc-ct-toolbar__controls">
+                                <label class="gc-ct-label">Status
+                                    <select id="gcRevendaFiltroStatus" class="gc-filter-select gc-ct-select" aria-label="Filtrar revendas por status">
+                                        <option value="pendente" selected>Pendentes</option>
+                                        <option value="aprovada">Aprovadas</option>
+                                        <option value="recusada">Recusadas</option>
+                                        <option value="cancelada">Canceladas</option>
+                                        <option value="todas">Todas</option>
+                                    </select>
+                                </label>
+                                <button type="button" class="gc-filter-btn gc-ct-btn-refresh" id="gcRevendaAtualizarBtn">
+                                    <i class="fas fa-rotate-right" aria-hidden="true"></i> Atualizar
+                                </button>
+                            </div>
+                        </div>
+                        <p class="gc-ct-msg" id="gcRevendaMsg" role="status" aria-live="polite" hidden></p>
+                        <div class="gc-table-wrap gc-comissao-transfer-wrap">
+                            <table class="gc-table gc-table--prod gc-ct-table" id="gcRevendaTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" class="gc-ct-th-id">ID</th>
+                                        <th scope="col">Consultora</th>
+                                        <th scope="col" class="gc-ct-th-date">Data venda</th>
+                                        <th scope="col" class="gc-ct-th-num">Valor</th>
+                                        <th scope="col">Descrição</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col" class="gc-ct-th-date">Lançado em</th>
+                                        <th scope="col" class="gc-ct-th-acoes">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcRevendaTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- Modal: detalhe de transferência de comissão -->
@@ -976,6 +1018,6 @@
     </div>
 
     <script defer src="js/ui-feedback.js"></script>
-    <script defer src="js/gestao-comercial.js?v=20260414-origem"></script>
+    <script defer src="js/gestao-comercial.js?v=20260414-revenda"></script>
 </body>
 </html>

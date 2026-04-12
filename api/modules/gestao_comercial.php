@@ -60,6 +60,9 @@ function handleGestaoComercialModuleAction(string $action, PDO $pdo): void
             case 'gestao_comercial_revenda_cancelar':
                 gestaoComercialRevendaCancelar($pdo);
                 return;
+            case 'gestao_comercial_revenda_decidir':
+                gestaoComercialRevendaDecidir($pdo);
+                return;
             default:
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'AÃ§Ã£o de gestÃ£o comercial desconhecida'], JSON_UNESCAPED_UNICODE);
@@ -4306,13 +4309,33 @@ function gcEnsureRevendaVendasTable(PDO $pdo): void
             valor_liquido DECIMAL(14,2) NOT NULL,
             descricao VARCHAR(500) NULL,
             ativo TINYINT(1) NOT NULL DEFAULT 1,
+            status ENUM('pendente','aprovada','recusada','cancelada') NOT NULL DEFAULT 'pendente',
+            decidido_por_nome VARCHAR(190) NULL,
+            decidido_em DATETIME NULL,
+            observacao_gestao TEXT NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             created_by INT NULL,
             KEY idx_gc_rev_vend (vendedor_nome(80)),
             KEY idx_gc_rev_data (data_venda),
-            KEY idx_gc_rev_ativo (ativo)
+            KEY idx_gc_rev_ativo (ativo),
+            KEY idx_gc_rev_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
+    // Migração: adiciona colunas novas para tabelas já existentes
+    foreach ([
+        "ALTER TABLE gc_revenda_vendas ADD COLUMN status ENUM('pendente','aprovada','recusada','cancelada') NOT NULL DEFAULT 'pendente' AFTER ativo",
+        "ALTER TABLE gc_revenda_vendas ADD COLUMN decidido_por_nome VARCHAR(190) NULL AFTER status",
+        "ALTER TABLE gc_revenda_vendas ADD COLUMN decidido_em DATETIME NULL AFTER decidido_por_nome",
+        "ALTER TABLE gc_revenda_vendas ADD COLUMN observacao_gestao TEXT NULL AFTER decidido_em",
+        "ALTER TABLE gc_revenda_vendas ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at",
+    ] as $ddl) {
+        try { $pdo->exec($ddl); } catch (Throwable $e) {}
+    }
+    // Registros antigos com ativo=1 e sem status definido → aprovados (retrocompatibilidade)
+    try {
+        $pdo->exec("UPDATE gc_revenda_vendas SET status = 'aprovada' WHERE ativo = 1 AND status = 'pendente' AND created_by IS NOT NULL AND created_at < NOW() - INTERVAL 1 HOUR");
+    } catch (Throwable $e) {}
 }
 
 /**
@@ -4364,10 +4387,10 @@ function gcRevendaAggRows(PDO $pdo, string $dataDe, string $dataAte): array
     try {
         gcEnsureRevendaVendasTable($pdo);
         $st = $pdo->prepare(
-            'SELECT TRIM(vendedor_nome) AS nome, COALESCE(SUM(valor_liquido), 0) AS total
+            "SELECT TRIM(vendedor_nome) AS nome, COALESCE(SUM(valor_liquido), 0) AS total
              FROM gc_revenda_vendas
-             WHERE ativo = 1 AND data_venda BETWEEN :a AND :b
-             GROUP BY TRIM(vendedor_nome)'
+             WHERE status = 'aprovada' AND data_venda BETWEEN :a AND :b
+             GROUP BY TRIM(vendedor_nome)"
         );
         $st->execute(['a' => $dataDe, 'b' => $dataAte]);
         $out = [];
@@ -4389,22 +4412,80 @@ function gestaoComercialRevendaLista(PDO $pdo): void
     header('Content-Type: application/json; charset=utf-8');
     gcAssertAdminSession();
     gcEnsureRevendaVendasTable($pdo);
-    [$startObj, $endObj] = gcDateRangeFromInput();
-    $ini = $startObj->format('Y-m-d');
-    $fim = $endObj->format('Y-m-d');
-    $st = $pdo->prepare(
-        'SELECT id, vendedor_nome, data_venda, valor_liquido, descricao, ativo, created_at, created_by
+    $stF = trim((string)($_GET['status'] ?? ''));
+    $allowed = ['pendente', 'aprovada', 'recusada', 'cancelada'];
+    $where = '';
+    $params = [];
+    if ($stF !== '' && $stF !== 'todas' && in_array($stF, $allowed, true)) {
+        $where = " AND status = :st";
+        $params['st'] = $stF;
+    }
+    // Para listagem geral usa data_venda; mas pendentes sem data_de/data_ate retorna tudo pendente
+    $dataDe = trim((string)($_GET['data_de'] ?? ''));
+    $dataAte = trim((string)($_GET['data_ate'] ?? ''));
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataDe) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataAte)) {
+        $where .= " AND data_venda BETWEEN :i AND :f";
+        $params['i'] = $dataDe;
+        $params['f'] = $dataAte;
+    }
+    $stmt = $pdo->prepare(
+        "SELECT id, vendedor_nome, data_venda, valor_liquido, descricao, ativo, status,
+                decidido_por_nome, decidido_em, observacao_gestao, created_at, created_by
          FROM gc_revenda_vendas
-         WHERE data_venda BETWEEN :i AND :f
+         WHERE 1=1 {$where}
          ORDER BY id DESC
-         LIMIT 500'
+         LIMIT 500"
     );
-    $st->execute(['i' => $ini, 'f' => $fim]);
+    $stmt->execute($params);
     echo json_encode([
         'success' => true,
-        'periodo' => ['data_de' => $ini, 'data_ate' => $fim],
-        'rows' => $st->fetchAll(PDO::FETCH_ASSOC) ?: [],
+        'rows' => $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [],
     ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function gestaoComercialRevendaDecidir(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    gcAssertAdminSession();
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Use POST.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) $payload = [];
+    $id  = (int)($payload['id'] ?? 0);
+    $dec = strtolower(trim((string)($payload['decisao'] ?? '')));
+    $obs = trim((string)($payload['observacao_gestao'] ?? ''));
+    if ($id <= 0 || !in_array($dec, ['aprovar', 'recusar'], true)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Dados inválidos.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if (mb_strlen($obs) > 4000) $obs = mb_substr($obs, 0, 4000);
+    gcEnsureRevendaVendasTable($pdo);
+    $novoStatus = $dec === 'aprovar' ? 'aprovada' : 'recusada';
+    $gestor = trim((string)($_SESSION['user_nome'] ?? 'Administrador'));
+    $st = $pdo->prepare(
+        "UPDATE gc_revenda_vendas
+         SET status = :st, ativo = :at, decidido_por_nome = :gn, decidido_em = NOW(),
+             observacao_gestao = :ob, updated_at = NOW()
+         WHERE id = :id AND status = 'pendente'"
+    );
+    $st->execute([
+        'st' => $novoStatus,
+        'at' => $dec === 'aprovar' ? 1 : 0,
+        'gn' => $gestor,
+        'ob' => $obs !== '' ? $obs : null,
+        'id' => $id,
+    ]);
+    if ($st->rowCount() === 0) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => 'Registro não encontrado ou já decidido.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    echo json_encode(['success' => true, 'status' => $novoStatus], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -4444,9 +4525,10 @@ function gestaoComercialRevendaSalvar(PDO $pdo): void
         $desc = mb_substr($desc, 0, 500);
     }
     gcEnsureRevendaVendasTable($pdo);
+    // Admin lança direto como aprovado (lançamento manual pela gestão)
     $ins = $pdo->prepare(
-        'INSERT INTO gc_revenda_vendas (vendedor_nome, data_venda, valor_liquido, descricao, ativo, created_by)
-         VALUES (:n, :d, :v, :desc, 1, :uid)'
+        "INSERT INTO gc_revenda_vendas (vendedor_nome, data_venda, valor_liquido, descricao, ativo, status, created_by)
+         VALUES (:n, :d, :v, :desc, 1, 'aprovada', :uid)"
     );
     $ins->execute([
         'n' => $nome,
@@ -4479,7 +4561,7 @@ function gestaoComercialRevendaCancelar(PDO $pdo): void
         exit;
     }
     gcEnsureRevendaVendasTable($pdo);
-    $st = $pdo->prepare('UPDATE gc_revenda_vendas SET ativo = 0 WHERE id = :id AND ativo = 1');
+    $st = $pdo->prepare("UPDATE gc_revenda_vendas SET ativo = 0, status = 'cancelada' WHERE id = :id");
     $st->execute(['id' => $id]);
     echo json_encode(['success' => true, 'updated' => $st->rowCount() > 0], JSON_UNESCAPED_UNICODE);
     exit;

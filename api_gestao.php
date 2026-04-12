@@ -63,6 +63,7 @@ $allowedActions = [
     'gestao_comercial_revenda_lista',
     'gestao_comercial_revenda_salvar',
     'gestao_comercial_revenda_cancelar',
+    'gestao_comercial_revenda_decidir',
     'gestao_comercial_vendas_relatorio',
     'gestao_comercial_pedidos_visitador_style',
     'gestao_rd_metricas',
@@ -2403,9 +2404,10 @@ function handleVendedorRevendaLancar(PDO $pdo): void
         $desc = mb_substr($desc, 0, 500);
     }
     gcEnsureRevendaVendasTable($pdo);
+    // Vendedor lança como pendente — aguarda aprovação do gestor para entrar na comissão
     $ins = $pdo->prepare(
-        'INSERT INTO gc_revenda_vendas (vendedor_nome, data_venda, valor_liquido, descricao, ativo, created_by)
-         VALUES (:n, :d, :v, :desc, 1, :uid)'
+        "INSERT INTO gc_revenda_vendas (vendedor_nome, data_venda, valor_liquido, descricao, ativo, status, created_by)
+         VALUES (:n, :d, :v, :desc, 0, 'pendente', :uid)"
     );
     $ins->execute([
         'n' => $vend,
@@ -2451,8 +2453,8 @@ function handleVendedorRevendaCancelar(PDO $pdo): void
     }
     gcEnsureRevendaVendasTable($pdo);
     $st = $pdo->prepare(
-        'UPDATE gc_revenda_vendas SET ativo = 0
-         WHERE id = :id AND ativo = 1 AND LOWER(TRIM(vendedor_nome)) = LOWER(TRIM(:v))'
+        "UPDATE gc_revenda_vendas SET ativo = 0, status = 'cancelada'
+         WHERE id = :id AND status = 'pendente' AND LOWER(TRIM(vendedor_nome)) = LOWER(TRIM(:v))"
     );
     $st->execute(['id' => $id, 'v' => $vend]);
     echo json_encode(['success' => true, 'updated' => $st->rowCount() > 0], JSON_UNESCAPED_UNICODE);
