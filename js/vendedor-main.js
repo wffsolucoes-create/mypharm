@@ -395,13 +395,16 @@
             const isAprovado = group.tipo === 'Aprovado';
             const isRecusado = group.tipo === 'Recusado';
             const corValor = isAprovado ? 'var(--success)' : (isRecusado ? 'var(--danger)' : 'var(--text-primary)');
+            const bgGrupo = isAprovado ? 'rgba(5,150,105,0.04)' : isRecusado ? 'rgba(220,38,38,0.04)' : 'rgba(234,179,8,0.04)';
             const key = String(group.numero_pedido || '');
             const isOpen = !!vendedorPedidosState.expanded[key];
             const rows = Array.isArray(group.rows) ? group.rows : [];
-
-            html += '<tr style="background:rgba(148,163,184,0.06);">';
             const serieGrupo = rows.length ? ((rows[0].serie_pedido === null || rows[0].serie_pedido === undefined || rows[0].serie_pedido === '') ? '0' : String(rows[0].serie_pedido)) : '0';
-            html += '<td><button type="button" onclick="toggleVendedorPedidoSeries(\'' + key.replace(/'/g, "\\'") + '\')" style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border:1px solid var(--border); border-radius:6px; background:var(--bg-body); color:var(--text-primary); cursor:pointer; margin-right:8px; font-weight:700; line-height:1;">' + (isOpen ? '−' : '+') + '</button><a href="#" onclick="return openVendedorPedidoDetalhe(\'' + escapeHtml(String(group.numero_pedido || '').replace(/'/g, "\\'")) + '\', \'' + escapeHtml(String(serieGrupo).replace(/'/g, "\\'")) + '\')" style="color:var(--text-primary); text-decoration:underline; text-underline-offset:2px; font-weight:600;">' + escapeHtml(group.numero_pedido) + '</a></td>';
+            const nEsc = escapeHtml(String(group.numero_pedido || '').replace(/'/g, "\\'"));
+            const sEsc = escapeHtml(String(serieGrupo).replace(/'/g, "\\'"));
+
+            html += '<tr role="button" tabindex="0" style="cursor:pointer; background:' + bgGrupo + ';" title="Ver detalhes do pedido" onclick="openVendedorPedidoDetalhe(\'' + nEsc + '\', \'' + sEsc + '\')">';
+            html += '<td onclick="event.stopPropagation()"><button type="button" onclick="toggleVendedorPedidoSeries(\'' + key.replace(/'/g, "\\'") + '\')" style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border:1px solid var(--border); border-radius:6px; background:var(--bg-body); color:var(--text-primary); cursor:pointer; margin-right:8px; font-weight:700; line-height:1;">' + (isOpen ? '−' : '+') + '</button><span style="font-weight:600;">' + escapeHtml(group.numero_pedido) + '</span></td>';
             html += '<td>' + escapeHtml(rows.length + ' série' + (rows.length !== 1 ? 's' : '')) + '</td>';
             html += '<td>' + escapeHtml(group.tipo === 'Recusado' ? '—' : fmtDateBr(group.data_aprovacao)) + '</td>';
             html += '<td>' + escapeHtml(fmtDateBr(group.data_orcamento || (group.tipo === 'Aprovado' ? group.data_aprovacao : ''))) + '</td>';
@@ -413,9 +416,14 @@
             if (isOpen) {
                 rows.forEach(function (p) {
                     const rowAprov = p.tipo === 'Aprovado';
+                    const rowRec = p.tipo === 'Recusado';
                     const serie = (p.serie_pedido === null || p.serie_pedido === undefined || p.serie_pedido === '') ? '0' : String(p.serie_pedido);
-                    html += '<tr style="background:rgba(148,163,184,0.02);">';
-                    html += '<td style="padding-left:36px; color:var(--text-secondary);">↳ <a href="#" onclick="return openVendedorPedidoDetalhe(\'' + escapeHtml(String(p.numero_pedido || '').replace(/'/g, "\\'")) + '\', \'' + escapeHtml(String(serie).replace(/'/g, "\\'")) + '\')" style="color:inherit; text-decoration:underline; text-underline-offset:2px; font-weight:600;">' + escapeHtml(p.numero_pedido) + '</a></td>';
+                    const bgSub = rowAprov ? 'rgba(5,150,105,0.02)' : rowRec ? 'rgba(220,38,38,0.03)' : 'rgba(234,179,8,0.03)';
+                    const borderSub = rowAprov ? '2px solid rgba(5,150,105,0.15)' : rowRec ? '2px solid rgba(220,38,38,0.15)' : '2px solid rgba(234,179,8,0.2)';
+                    const pnEsc = escapeHtml(String(p.numero_pedido || '').replace(/'/g, "\\'"));
+                    const psEsc = escapeHtml(String(serie).replace(/'/g, "\\'"));
+                    html += '<tr role="button" tabindex="0" onclick="openVendedorPedidoDetalhe(\'' + pnEsc + '\', \'' + psEsc + '\')" style="cursor:pointer; background:' + bgSub + '; border-left:' + borderSub + ';" title="Ver detalhes da série">';
+                    html += '<td style="padding-left:36px; color:var(--text-secondary);">↳ <span style="font-weight:600;">' + escapeHtml(p.numero_pedido) + '</span></td>';
                     html += '<td>' + escapeHtml(serie) + '</td>';
                     html += '<td>' + escapeHtml(p.tipo === 'Recusado' ? '—' : fmtDateBr(p.data_aprovacao)) + '</td>';
                     html += '<td>' + escapeHtml(fmtDateBr(p.data_orcamento || (p.tipo === 'Aprovado' ? p.data_aprovacao : ''))) + '</td>';
@@ -432,15 +440,14 @@
             const from = start + 1;
             const to = Math.min(start + vendedorPedidosState.pageSize, groupedList.length);
             let pagHtml = '<span style="font-weight:500;">Mostrando ' + from + ' – ' + to + ' de ' + groupedList.length + ' pedidos</span>';
-            pagHtml += '<span class="prescritores-pag-btns">';
-            pagHtml += '<button type="button" onclick="goToVendedorPedidosPage(1)" ' + (vendedorPedidosState.page <= 1 ? 'disabled' : '') + ' title="Primeira página"><i class="fas fa-angle-double-left"></i></button>';
+            pagHtml += '<span class="vdped-pag-btns">';
+            pagHtml += '<button type="button" onclick="goToVendedorPedidosPage(1)" ' + (vendedorPedidosState.page <= 1 ? 'disabled' : '') + ' title="Primeira"><i class="fas fa-angle-double-left"></i></button>';
             pagHtml += '<button type="button" onclick="goToVendedorPedidosPage(' + (vendedorPedidosState.page - 1) + ')" ' + (vendedorPedidosState.page <= 1 ? 'disabled' : '') + ' title="Anterior"><i class="fas fa-angle-left"></i></button>';
             pagHtml += '<span style="padding:0 10px; font-weight:500;">Página ' + vendedorPedidosState.page + ' de ' + totalPages + '</span>';
             pagHtml += '<button type="button" onclick="goToVendedorPedidosPage(' + (vendedorPedidosState.page + 1) + ')" ' + (vendedorPedidosState.page >= totalPages ? 'disabled' : '') + ' title="Próxima"><i class="fas fa-angle-right"></i></button>';
-            pagHtml += '<button type="button" onclick="goToVendedorPedidosPage(' + totalPages + ')" ' + (vendedorPedidosState.page >= totalPages ? 'disabled' : '') + ' title="Última página"><i class="fas fa-angle-double-right"></i></button>';
+            pagHtml += '<button type="button" onclick="goToVendedorPedidosPage(' + totalPages + ')" ' + (vendedorPedidosState.page >= totalPages ? 'disabled' : '') + ' title="Última"><i class="fas fa-angle-double-right"></i></button>';
             pagHtml += '</span>';
             pagEl.innerHTML = pagHtml;
-            pagEl.style.display = 'flex';
         }
 
         updateVendedorPedidosSortIcons();
@@ -523,7 +530,8 @@
         var errEl = document.getElementById('modalDetalhePedidoError');
         var content = document.getElementById('modalDetalhePedidoContent');
         if (!modal || !loading) return;
-        modal.style.display = 'flex';
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
         loading.style.display = 'block';
         if (errEl) errEl.style.display = 'none';
         if (content) content.style.display = 'none';
@@ -618,7 +626,7 @@
 
     window.closeModalDetalhePedido = function () {
         var modal = document.getElementById('modalDetalhePedido');
-        if (modal) modal.style.display = 'none';
+        if (modal) { modal.classList.remove('is-open'); modal.setAttribute('aria-hidden', 'true'); }
     };
 
     window.printVendedorPedidosFiltrados = function () {
@@ -1702,9 +1710,14 @@
         if (app) app.style.display = 'block';
         var loader = document.getElementById('vdLoadingOverlay');
         if (loader) loader.style.display = 'none';
+        // Preenche nome e avatar em todas as páginas do vendedor
+        const nomeHeader = getDashboardVendedoraName(session);
+        setText('vdUserName', nomeHeader);
+        setText('vdAvatar', nomeHeader ? nomeHeader.charAt(0).toUpperCase() : 'V');
         bindUi();
         // Só carrega dados pesados do dashboard na página principal (vendedor.html)
         const isDashboard = !!document.getElementById('vdPctMetaDiaria');
+        const isPedidosPage = !!document.getElementById('vdPedidosTbody') && !isDashboard;
         if (isDashboard) {
             await loadMetas(session);
             await loadPedidosPerdidos();
@@ -1714,6 +1727,8 @@
                 loadPedidosPerdidos().catch(function () {});
                 loadVendedorPedidos().catch(function () {});
             }, REFRESH_MS);
+        } else if (isPedidosPage) {
+            await loadVendedorPedidos();
         }
     });
 })();

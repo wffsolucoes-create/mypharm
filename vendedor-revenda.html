@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/vendedor.css?v=20260326cards11">
     <link rel="stylesheet" href="css/ui-feedback.css">
     <link rel="stylesheet" href="css/vendedor-comissao-transfer.css?v=20260414l">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260414-ui4">
     <style>body { visibility: hidden; }</style>
 </head>
 <body>
@@ -126,9 +127,21 @@
                                 <label class="vdct-field__label" for="vdRevValor">Valor (R$)</label>
                                 <input class="vdct-field__input" type="text" id="vdRevValor" inputmode="decimal" placeholder="0,00" autocomplete="off">
                             </div>
+                            <div class="vdct-field vdct-field--small">
+                                <label class="vdct-field__label" for="vdRevNumeroPedido">Nº Pedido (opcional)</label>
+                                <input class="vdct-field__input" type="text" id="vdRevNumeroPedido" maxlength="40" placeholder="Ex.: 62435" autocomplete="off">
+                            </div>
+                            <div class="vdct-field vdct-field--small">
+                                <label class="vdct-field__label" for="vdRevSeriePedido">Série (opcional)</label>
+                                <input class="vdct-field__input" type="text" id="vdRevSeriePedido" maxlength="20" placeholder="Ex.: 1" autocomplete="off">
+                            </div>
                             <div class="vdct-field vdct-field--full">
-                                <label class="vdct-field__label" for="vdRevDesc">Descrição (opcional)</label>
-                                <input class="vdct-field__input" type="text" id="vdRevDesc" maxlength="500" placeholder="Ex.: Revenda produto X — NF 123" autocomplete="off">
+                                <label class="vdct-field__label" for="vdRevProduto">Produto / Descrição <span style="color:var(--danger)">*</span></label>
+                                <input class="vdct-field__input" type="text" id="vdRevProduto" maxlength="500" placeholder="Ex.: Vitamina C 1g — 30 cápsulas" autocomplete="off">
+                            </div>
+                            <div class="vdct-field vdct-field--full">
+                                <label class="vdct-field__label" for="vdRevDesc">Observações (opcional)</label>
+                                <input class="vdct-field__input" type="text" id="vdRevDesc" maxlength="500" placeholder="Ex.: NF 123, cliente João da Silva" autocomplete="off">
                             </div>
                         </div>
                         <div id="vdRevMsg" class="vdct-msg" style="display:none;"></div>
@@ -168,14 +181,17 @@
                                     <tr>
                                         <th>ID</th>
                                         <th>Data venda</th>
+                                        <th>Nº Pedido</th>
+                                        <th>Série</th>
+                                        <th>Produto</th>
                                         <th>Valor</th>
-                                        <th>Descrição</th>
+                                        <th>Observações</th>
                                         <th>Status</th>
                                         <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="vdRevTbody">
-                                    <tr><td colspan="6" class="vdct-table__empty">Carregando…</td></tr>
+                                    <tr><td colspan="9" class="vdct-table__empty">Carregando…</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -188,7 +204,7 @@
         </main>
     </div>
     <script src="js/ui-feedback.js"></script>
-    <script src="js/vendedor-main.js?v=20260414-session"></script>
-    <script src="js/vendedor-revenda.js?v=20260414-rev2"></script>
+    <script src="js/vendedor-main.js?v=20260412-layout"></script>
+    <script src="js/vendedor-revenda.js?v=20260412-btns"></script>
 </body>
 </html>

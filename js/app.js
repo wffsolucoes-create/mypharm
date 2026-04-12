@@ -436,13 +436,15 @@ function showApp(nome, tipo, fotoPerfil, setorInformado) {
         window.location.href = 'visitador.html';
         return;
     }
-    if (isVendedor && !window.location.pathname.includes('vendedor.html')) {
+    const vendedorPages = ['vendedor.html', 'vendedor-pedidos.html', 'vendedor-revenda.html', 'vendedor-comissao-transferencias.html'];
+    if (isVendedor && !vendedorPages.some(function(p) { return window.location.pathname.includes(p); })) {
         window.location.href = 'vendedor.html';
         return;
     }
 
     // Se estivermos na página do visitador, não executamos o resto (layout diferente)
-    if (window.location.pathname.includes('visitador.html') || window.location.pathname.includes('vendedor.html')) {
+    const isVendedorPage = vendedorPages.some(function(p) { return window.location.pathname.includes(p); });
+    if (window.location.pathname.includes('visitador.html') || isVendedorPage) {
         const lp = document.getElementById('loginPage');
         if (lp) lp.style.display = 'none';
         return;

@@ -30,6 +30,106 @@
             font-size: 0.9rem;
         }
         @keyframes vdSpin { to { transform: rotate(360deg); } }
+
+        /* ── Pedidos page — identical to gestão comercial ── */
+        .vdped-wrap { margin-top: 0; }
+
+        .vdped-page-header { margin-bottom: 20px; }
+        .vdped-page-header__inner { display: flex; align-items: flex-start; gap: 14px; }
+        .vdped-icon {
+            width: 48px; height: 48px; border-radius: 12px;
+            background: rgba(220,38,38,0.12); color: #dc2626;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.25rem; flex-shrink: 0;
+        }
+        .vdped-title { margin: 0 0 6px 0; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text-primary); }
+        .vdped-sub { margin: 0; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.45; max-width: 720px; }
+
+        .vdped-filters {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+            padding: 16px 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 20px;
+        }
+        .vdped-filters-row {
+            display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; margin-bottom: 12px;
+        }
+        .vdped-filters-row:last-child { margin-bottom: 0; }
+        .vdped-filters-row label {
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+            color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px; min-width: 0;
+        }
+        .vdped-filters-row input[type="date"],
+        .vdped-filters-row select {
+            padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+            background: var(--bg-input, var(--bg-body)); color: var(--text-primary);
+            font-size: 0.9rem; font-family: inherit;
+        }
+        .vdped-search-wrap { position: relative; flex: 1 1 300px; min-width: 240px; }
+        .vdped-search-wrap input {
+            width: 100%; box-sizing: border-box; padding: 10px 14px 10px 40px;
+            border: 1px solid var(--border); border-radius: 8px;
+            background: var(--bg-input, var(--bg-body)); color: var(--text-primary); font-size: 0.9rem;
+        }
+        .vdped-search-icon {
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+            color: var(--text-secondary); font-size: 0.85rem; pointer-events: none;
+        }
+
+        .vdped-cards {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px; margin-bottom: 20px;
+        }
+        .vdped-card {
+            border: 1px solid var(--border); border-radius: 12px; padding: 18px;
+            background: var(--bg-card); box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            position: relative; overflow: hidden;
+        }
+        .vdped-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, #2563eb, #1d4ed8);
+        }
+        .vdped-card--success::before { background: linear-gradient(90deg, #059669, #047857); }
+        .vdped-card-label {
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 10px;
+        }
+        .vdped-card-value { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); word-break: break-word; }
+
+        .vdped-table-card {
+            border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column;
+        }
+        .vdped-table-scroll { overflow-x: auto; overflow-y: auto; flex: 1; min-height: 400px; }
+        .vdped-table { width: 100%; border-collapse: collapse; min-width: 860px; font-size: 0.87rem; }
+        .vdped-table thead th {
+            position: sticky; top: 0; z-index: 1;
+            background: var(--bg-body); border-bottom: 2px solid var(--border);
+            padding: 14px 16px; text-align: left;
+            font-size: 0.71rem; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.04em; color: var(--text-secondary); white-space: nowrap;
+            cursor: pointer; user-select: none;
+        }
+        .vdped-table thead th i { opacity: 0.35; margin-left: 4px; font-size: 0.8rem; }
+        .vdped-table thead th.th-num { text-align: right; }
+        .vdped-table tbody td {
+            padding: 12px 16px; border-bottom: 1px solid var(--border);
+            vertical-align: middle; color: var(--text-primary);
+        }
+        .vdped-table tbody tr[role="button"]:hover { background: rgba(37,99,235,0.05) !important; }
+        .vdped-table tbody tr[role="button"]:focus { outline: 2px solid var(--primary,#E63946); outline-offset:-2px; }
+
+        .vdped-pagination {
+            display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+            gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border);
+            font-size: 0.86rem; color: var(--text-secondary);
+        }
+        .vdped-pag-btns { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .vdped-pag-btns button {
+            min-width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--bg-body); color: var(--text-primary); cursor: pointer; font-size: 0.85rem;
+        }
+        .vdped-pag-btns button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* modal — reusa gc-modal-det-ped do gestao-comercial.css */
     </style>
 </head>
 <body>
@@ -116,138 +216,131 @@
 
         <main class="dashboard-container">
             <div class="welcome-section" style="display:block;">
-                <div style="margin-bottom:24px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;">
-                    <div>
-                        <h1 id="vdGreeting" style="margin:0; font-size:1.8rem;">Pedidos do Vendedor</h1>
-                        <p style="margin:4px 0 0 0; color:var(--text-secondary);">Acompanhe os pedidos aprovados e recusados da sua carteira.</p>
-                    </div>
-                    <div class="date-badge" id="vdPeriodoInfo">
-                        --/--/---- a --/--/----
+
+                <div class="vdped-page-header">
+                    <div class="vdped-page-header__inner">
+                        <div class="vdped-icon"><i class="fas fa-list-alt"></i></div>
+                        <div>
+                            <h1 class="vdped-title">Pedidos do Vendedor</h1>
+                            <p class="vdped-sub">Acompanhe os pedidos aprovados e recusados da sua carteira. Clique em qualquer linha para ver os detalhes.</p>
+                        </div>
                     </div>
                 </div>
 
-                <section id="paginaPedidos" class="dashboard-section">
-                    <div class="pedidos-page-header">
-                        <h2>
-                            <span class="pedidos-icon"><i class="fas fa-list-alt"></i></span>
-                            Pedidos
-                        </h2>
-                    </div>
-                    <div class="pedidos-filters">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <label for="vdPedidosDataDe">De</label>
-                            <input type="date" id="vdPedidosDataDe" style="padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
-                        </div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <label for="vdPedidosDataAte">Até</label>
-                            <input type="date" id="vdPedidosDataAte" style="padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
-                        </div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <label for="vdPedidosFiltroStatus">Status</label>
-                            <select id="vdPedidosFiltroStatus" class="pedidos-select-status" style="padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
+                <div class="vdped-filters">
+                    <div class="vdped-filters-row">
+                        <label>De
+                            <input type="date" id="vdPedidosDataDe">
+                        </label>
+                        <label>Até
+                            <input type="date" id="vdPedidosDataAte">
+                        </label>
+                        <label>Status
+                            <select id="vdPedidosFiltroStatus">
                                 <option value="">Todos</option>
-                                <option value="Aprovado">Aprovados</option>
-                                <option value="Recusado">Recusados (No carrinho + Recusado)</option>
+                                <option value="Aprovado" selected>Aprovados</option>
+                                <option value="Recusado">Recusados / No carrinho</option>
                             </select>
+                        </label>
+                        <div class="vdped-search-wrap">
+                            <i class="fas fa-search vdped-search-icon"></i>
+                            <input type="text" id="vdSearchPedidos" placeholder="Buscar por prescritor, cliente ou número…" autocomplete="off">
                         </div>
-                        <div class="pedidos-search-wrap">
-                            <i class="fas fa-search pedidos-search-icon"></i>
-                            <input type="text" id="vdSearchPedidos" placeholder="Buscar por prescritor, cliente ou número..." autocomplete="off">
-                        </div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <button type="button" onclick="printVendedorPedidosFiltrados()" style="padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.85rem; font-weight:700; cursor:pointer; white-space:nowrap;">
-                                <i class="fas fa-print" style="margin-right:6px;"></i>Imprimir filtrados
-                            </button>
-                        </div>
+                        <button type="button" onclick="printVendedorPedidosFiltrados()" style="padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.85rem; font-weight:700; cursor:pointer; white-space:nowrap; align-self:flex-end;">
+                            <i class="fas fa-print" style="margin-right:6px;"></i>Imprimir filtrados
+                        </button>
                     </div>
-                    <div id="vdPedidosCards" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:20px;">
-                        <div class="card" style="padding:16px 20px;">
-                            <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-coins" style="margin-right:6px; color:var(--success);"></i>Valor total</div>
-                            <div id="vdPedidosCardValor" style="font-size:1.35rem; font-weight:800; color:var(--text-primary);">R$ 0,00</div>
-                        </div>
-                        <div class="card" style="padding:16px 20px;">
-                            <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-list-ol" style="margin-right:6px; color:var(--primary);"></i>Quantidade</div>
-                            <div id="vdPedidosCardQuantidade" style="font-size:1.35rem; font-weight:800; color:var(--text-primary);">0 pedidos</div>
-                        </div>
+                </div>
+
+                <div class="vdped-cards">
+                    <div class="vdped-card vdped-card--success">
+                        <div class="vdped-card-label"><i class="fas fa-coins" style="margin-right:6px;"></i>Valor total</div>
+                        <div class="vdped-card-value" id="vdPedidosCardValor">R$ 0,00</div>
                     </div>
-                    <div class="pedidos-table-card">
-                        <div id="vdPedidosBody" style="min-height:200px; overflow-x:auto;">
-                            <table class="pedidos-table">
-                                <thead>
-                                    <tr>
-                                        <th id="vdPedidosThNumero" onclick="sortVendedorPedidosBy('numero_pedido')" style="cursor:pointer; user-select:none;" title="Ordenar">Nº Pedido <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
-                                        <th id="vdPedidosThSerie" onclick="sortVendedorPedidosBy('serie_pedido')" style="cursor:pointer; user-select:none;" title="Ordenar">Séries <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
-                                        <th id="vdPedidosThDataAprovacao" onclick="sortVendedorPedidosBy('data_aprovacao')" style="cursor:pointer; user-select:none;" title="Ordenar">Data aprovação <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
-                                        <th id="vdPedidosThDataOrcamento" onclick="sortVendedorPedidosBy('data_orcamento')" style="cursor:pointer; user-select:none;" title="Ordenar">Data orçamento <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
-                                        <th id="vdPedidosThPrescritor" onclick="sortVendedorPedidosBy('prescritor')" style="cursor:pointer; user-select:none;" title="Ordenar">Prescritor <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
-                                        <th id="vdPedidosThCliente" onclick="sortVendedorPedidosBy('cliente')" style="cursor:pointer; user-select:none;" title="Ordenar">Cliente <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
-                                        <th id="vdPedidosThValor" onclick="sortVendedorPedidosBy('valor')" style="cursor:pointer; user-select:none;" title="Ordenar">Valor <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
-                                        <th id="vdPedidosThStatus" onclick="sortVendedorPedidosBy('tipo')" style="cursor:pointer; user-select:none;" title="Ordenar">Status <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="vdPedidosTbody">
-                                    <tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div id="vdPedidosPagination" class="pedidos-pagination"></div>
+                    <div class="vdped-card">
+                        <div class="vdped-card-label"><i class="fas fa-list-ol" style="margin-right:6px;"></i>Quantidade</div>
+                        <div class="vdped-card-value" id="vdPedidosCardQuantidade">0 pedidos</div>
                     </div>
-                </section>
+                </div>
+
+                <div class="vdped-table-card">
+                    <div class="vdped-table-scroll">
+                        <table class="vdped-table">
+                            <thead>
+                                <tr>
+                                    <th id="vdPedidosThNumero"        onclick="sortVendedorPedidosBy('numero_pedido')" title="Ordenar">Nº Pedido <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThSerie"         onclick="sortVendedorPedidosBy('serie_pedido')"  title="Ordenar">Séries <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThDataAprovacao" onclick="sortVendedorPedidosBy('data_aprovacao')" title="Ordenar">Data Aprovação <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThDataOrcamento" onclick="sortVendedorPedidosBy('data_orcamento')" title="Ordenar">Data Orçamento <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThPrescritor"    onclick="sortVendedorPedidosBy('prescritor')"    title="Ordenar">Prescritor <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThCliente"       onclick="sortVendedorPedidosBy('cliente')"       title="Ordenar">Cliente <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThValor"         onclick="sortVendedorPedidosBy('valor')"         title="Ordenar" class="th-num">Valor <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThStatus"        onclick="sortVendedorPedidosBy('tipo')"          title="Ordenar">Status <i class="fas fa-sort"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody id="vdPedidosTbody">
+                                <tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="vdPedidosPagination" class="vdped-pagination"></div>
+                </div>
 
                 <div class="vd-error" id="vdError" style="display:none;"></div>
             </div>
         </main>
     </div>
-    <!-- Modal Detalhe do Pedido (dados + componentes) -->
-    <div id="modalDetalhePedido" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3200; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
-        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:960px; max-height:92vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
-            <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
-                <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-file-invoice" style="margin-right:8px; color:var(--primary);"></i>Detalhe do Pedido</h3>
-                <button type="button" onclick="closeModalDetalhePedido()" style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px;">&times;</button>
+
+    <!-- Modal Detalhe do Pedido — mesmas classes do gestão comercial -->
+    <div id="modalDetalhePedido" class="gc-modal-det-ped" aria-hidden="true">
+        <div class="gc-modal-det-ped__backdrop" onclick="closeModalDetalhePedido()" aria-hidden="true"></div>
+        <div class="gc-modal-det-ped__card" role="dialog" aria-modal="true" aria-labelledby="modalDetalhePedidoTitle">
+            <div class="gc-modal-det-ped__head">
+                <h3 id="modalDetalhePedidoTitle" class="gc-modal-det-ped__title"><i class="fas fa-file-invoice" aria-hidden="true"></i> Detalhe do pedido</h3>
+                <button type="button" class="gc-modal-det-ped__close" onclick="closeModalDetalhePedido()" aria-label="Fechar">&times;</button>
             </div>
-            <div id="modalDetalhePedidoBody" style="overflow-y:auto; flex:1; padding:24px;">
-                <div id="modalDetalhePedidoLoading" style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem; margin-bottom:12px;"></i><p>Carregando...</p></div>
-                <div id="modalDetalhePedidoError" style="display:none; text-align:center; padding:24px; color:var(--danger);"></div>
+            <div class="gc-modal-det-ped__body">
+                <div id="modalDetalhePedidoLoading" class="gc-modal-det-ped__loading"><i class="fas fa-spinner fa-spin"></i> Carregando…</div>
+                <div id="modalDetalhePedidoError" class="gc-modal-det-ped__err" style="display:none;"></div>
                 <div id="modalDetalhePedidoContent" style="display:none;">
-                    <div style="margin-bottom:20px;">
-                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Dados do pedido</div>
-                        <div id="modalDetalhePedidoFields" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px;"></div>
+                    <div class="gc-modal-det-ped__fields-wrap">
+                        <div id="modalDetalhePedidoFields" class="gc-modal-det-ped__fields"></div>
                     </div>
-                    <div id="modalDetalhePedidoItensGestaoWrap" style="margin-bottom:20px; display:none;">
-                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Itens (Gestão de Pedidos)</div>
-                        <div style="overflow-x:auto;">
-                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Produto</th><th style="padding:10px 12px; text-align:left;">Forma</th><th style="padding:10px 12px; text-align:right;">Qtd</th><th style="padding:10px 12px; text-align:right;">Preço liq.</th></tr></thead>
+                    <div id="modalDetalhePedidoItensGestaoWrap" class="gc-modal-det-ped__tbl-wrap" style="display:none;">
+                        <div class="gc-modal-det-ped__sec-title">Itens (Gestão de pedidos)</div>
+                        <div class="gc-modal-det-ped__scroll">
+                            <table class="gc-modal-det-ped__tbl">
+                                <thead><tr><th>#</th><th>Produto</th><th>Forma</th><th class="gc-num">Qtd</th><th class="gc-num">Preço liq.</th></tr></thead>
                                 <tbody id="modalDetalhePedidoItensGestao"></tbody>
                             </table>
                         </div>
                     </div>
-                    <div id="modalDetalhePedidoItensOrcamentoWrap" style="margin-bottom:20px; display:none;">
-                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Itens (Orçamento)</div>
-                        <div style="overflow-x:auto;">
-                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Descrição</th><th style="padding:10px 12px; text-align:left;">Canal</th><th style="padding:10px 12px; text-align:right;">Qtd</th><th style="padding:10px 12px; text-align:right;">Valor liq.</th><th style="padding:10px 12px; text-align:left;">Inclusão</th><th style="padding:10px 12px; text-align:left;">Aprovador</th></tr></thead>
+                    <div id="modalDetalhePedidoItensOrcamentoWrap" class="gc-modal-det-ped__tbl-wrap" style="display:none;">
+                        <div class="gc-modal-det-ped__sec-title">Itens (Orçamento)</div>
+                        <div class="gc-modal-det-ped__scroll">
+                            <table class="gc-modal-det-ped__tbl">
+                                <thead><tr><th>#</th><th>Descrição</th><th>Canal</th><th class="gc-num">Qtd</th><th class="gc-num">Valor liq.</th><th>Inclusão</th><th>Aprovador</th></tr></thead>
                                 <tbody id="modalDetalhePedidoItensOrcamento"></tbody>
                             </table>
                         </div>
                     </div>
-                    <div>
-                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Componentes</div>
-                        <div style="overflow-x:auto;">
-                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Descrição</th><th style="padding:10px 12px; text-align:right;">Qtd calc.</th></tr></thead>
+                    <div class="gc-modal-det-ped__tbl-wrap">
+                        <div class="gc-modal-det-ped__sec-title">Componentes</div>
+                        <div class="gc-modal-det-ped__scroll">
+                            <table class="gc-modal-det-ped__tbl">
+                                <thead><tr><th>#</th><th>Descrição</th><th class="gc-num">Qtd calc.</th></tr></thead>
                                 <tbody id="modalDetalhePedidoComponentes"></tbody>
                             </table>
                         </div>
-                        <p id="modalDetalhePedidoComponentesEmpty" style="display:none; padding:16px; text-align:center; color:var(--text-secondary); font-size:0.9rem;">Nenhum componente disponível.</p>
+                        <p id="modalDetalhePedidoComponentesEmpty" class="gc-modal-det-ped__empty" style="display:none;">Nenhum componente disponível.</p>
                     </div>
                 </div>
             </div>
-            <div style="padding:14px 24px; border-top:1px solid var(--border); flex-shrink:0;">
-                <button type="button" onclick="closeModalDetalhePedido()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+            <div class="gc-modal-det-ped__foot">
+                <button type="button" class="gc-filter-btn gc-filter-btn--secondary" onclick="closeModalDetalhePedido()">Fechar</button>
             </div>
         </div>
     </div>
-    <script src="js/vendedor-main.js?v=20260414-session"></script>
+    <script src="js/vendedor-main.js?v=20260412-layout"></script>
 </body>
 </html>

@@ -4329,6 +4329,9 @@ function gcEnsureRevendaVendasTable(PDO $pdo): void
         "ALTER TABLE gc_revenda_vendas ADD COLUMN decidido_em DATETIME NULL AFTER decidido_por_nome",
         "ALTER TABLE gc_revenda_vendas ADD COLUMN observacao_gestao TEXT NULL AFTER decidido_em",
         "ALTER TABLE gc_revenda_vendas ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at",
+        "ALTER TABLE gc_revenda_vendas ADD COLUMN numero_pedido VARCHAR(40) NULL AFTER descricao",
+        "ALTER TABLE gc_revenda_vendas ADD COLUMN serie_pedido VARCHAR(20) NULL AFTER numero_pedido",
+        "ALTER TABLE gc_revenda_vendas ADD COLUMN produto VARCHAR(500) NULL AFTER serie_pedido",
     ] as $ddl) {
         try { $pdo->exec($ddl); } catch (Throwable $e) {}
     }

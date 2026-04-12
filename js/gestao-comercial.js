@@ -2987,7 +2987,7 @@
         const tbody = document.getElementById('gcRevendaTbody');
         if (!tbody) return;
         tbody.innerHTML =
-            '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--text-secondary);">Carregando…</td></tr>';
+            '<tr><td colspan="11" style="text-align:center;padding:28px;color:var(--text-secondary);">Carregando…</td></tr>';
         gcSetRevendaMsg('');
         const filtroSt = (document.getElementById('gcRevendaFiltroStatus') || {}).value || 'pendente';
         const params = Object.assign({}, filtroSt && filtroSt !== 'todas' ? { status: filtroSt } : {});
@@ -2999,14 +2999,14 @@
         }
         if (!data || data.success !== true) {
             tbody.innerHTML =
-                '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--danger);">Não foi possível carregar.</td></tr>';
+                '<tr><td colspan="11" style="text-align:center;padding:28px;color:var(--danger);">Não foi possível carregar.</td></tr>';
             gcSetRevendaMsg((data && data.error) ? String(data.error) : 'Erro ao carregar a lista.', 'error');
             return;
         }
         const rows = Array.isArray(data.rows) ? data.rows : [];
         if (!rows.length) {
             tbody.innerHTML =
-                '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--text-secondary);">Nenhum lançamento encontrado.</td></tr>';
+                '<tr><td colspan="11" style="text-align:center;padding:28px;color:var(--text-secondary);">Nenhum lançamento encontrado.</td></tr>';
             return;
         }
         const esc = function (x) {
@@ -3027,20 +3027,33 @@
                 const st = stBadge[stKey] || stKey;
                 const pend = stKey === 'pendente';
                 const id = esc(String(r.id));
+                const btnVer = '<button type="button" class="gc-ct-icon-btn gc-rev-ver" data-id="' + id + '" title="Visualizar detalhes"><i class="fas fa-eye"></i></button>';
                 const acoes = pend
                     ? '<div class="gc-ct-acoes-btns">' +
+                      btnVer +
                       '<button type="button" class="gc-ct-icon-btn gc-ct-icon-btn--approve gc-rev-apr" data-id="' + id + '" title="Aprovar"><i class="fas fa-check"></i></button>' +
                       '<button type="button" class="gc-ct-icon-btn gc-ct-icon-btn--refuse gc-rev-rec" data-id="' + id + '" title="Recusar"><i class="fas fa-times"></i></button>' +
+                      '<button type="button" class="gc-ct-icon-btn gc-ct-icon-btn--delete gc-rev-del" data-id="' + id + '" title="Cancelar/Excluir"><i class="fas fa-trash"></i></button>' +
                       '</div>'
                     : '<div class="gc-ct-acoes-btns">' +
+                      btnVer +
                       '<button type="button" class="gc-ct-icon-btn gc-ct-icon-btn--delete gc-rev-del" data-id="' + id + '" title="Cancelar/Excluir"><i class="fas fa-trash"></i></button>' +
                       '</div>';
+                const obsGestao = r.observacao_gestao
+                    ? '<span title="' + esc(r.observacao_gestao) + '" style="color:var(--text-secondary);font-size:0.8rem;cursor:help;">' +
+                      '<i class="fas fa-comment-alt" style="margin-right:3px;"></i>' +
+                      esc(String(r.observacao_gestao).slice(0, 40)) + (r.observacao_gestao.length > 40 ? '…' : '') +
+                      '</span>'
+                    : '—';
                 return (
                     '<tr><td class="gc-ct-td-id">' + id +
                     '</td><td>' + esc(r.vendedor_nome) +
                     '</td><td class="gc-ct-td-date">' + esc(String(r.data_venda || '').slice(0, 10)) +
+                    '</td><td class="gc-ct-td-id">' + esc(r.numero_pedido || '—') +
+                    '</td><td class="gc-ct-td-id">' + esc(r.serie_pedido || '—') +
+                    '</td><td style="max-width:200px;">' + esc(r.produto || '—') +
                     '</td><td class="gc-ct-td-valor">' + esc(formatMoney(r.valor_liquido)) +
-                    '</td><td>' + esc(r.descricao || '—') +
+                    '</td><td class="gc-ct-td-motivo">' + esc(r.descricao || '—') +
                     '</td><td>' + st +
                     '</td><td class="gc-ct-td-date">' + esc(String(r.created_at || '').replace('T', ' ').slice(0, 16)) +
                     '</td><td class="gc-ct-td-acoes">' + acoes +
@@ -3048,6 +3061,14 @@
                 );
             })
             .join('');
+        tbody.querySelectorAll('.gc-rev-ver').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const id = parseInt(btn.getAttribute('data-id') || '0', 10);
+                const r = rows.find(function (x) { return Number(x.id) === id; });
+                if (!r) return;
+                gcAbrirModalVerRevenda(r);
+            });
+        });
         tbody.querySelectorAll('.gc-rev-apr').forEach(function (btn) {
             btn.addEventListener('click', function () { gcDecidirRevenda(btn.getAttribute('data-id'), 'aprovar'); });
         });
@@ -3071,20 +3092,65 @@
         });
     }
 
+    function gcAbrirModalVerRevenda(r) {
+        const modal = document.getElementById('gcModalDetalhePedido');
+        const loading = document.getElementById('gcModalDetalhePedidoLoading');
+        const errEl = document.getElementById('gcModalDetalhePedidoError');
+        const content = document.getElementById('gcModalDetalhePedidoContent');
+        const titleEl = document.getElementById('gcModalDetalhePedidoTitle');
+        if (!modal) return;
+        if (titleEl) titleEl.innerHTML = '<i class="fas fa-store" aria-hidden="true"></i> Revenda #' + String(r.id || '');
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        if (loading) loading.style.display = 'none';
+        if (errEl) errEl.style.display = 'none';
+        if (content) content.style.display = 'block';
+        const esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+        const stLabels = { pendente: 'Aguardando aprovação', aprovada: 'Aprovada', recusada: 'Recusada', cancelada: 'Cancelada' };
+        const stKey = String(r.status || 'pendente').toLowerCase();
+        const fieldsEl = document.getElementById('gcModalDetalhePedidoFields');
+        if (fieldsEl) {
+            fieldsEl.innerHTML =
+                '<div><span style="font-size:0.7rem;color:var(--text-secondary);">ID</span><div style="font-weight:600;">' + esc(r.id) + '</div></div>' +
+                '<div><span style="font-size:0.7rem;color:var(--text-secondary);">Consultora</span><div style="font-weight:600;">' + esc(r.vendedor_nome) + '</div></div>' +
+                '<div><span style="font-size:0.7rem;color:var(--text-secondary);">Data da venda</span><div style="font-weight:600;">' + esc(String(r.data_venda||'').slice(0,10)) + '</div></div>' +
+                '<div><span style="font-size:0.7rem;color:var(--text-secondary);">Nº Pedido</span><div style="font-weight:600;">' + esc(r.numero_pedido||'—') + '</div></div>' +
+                '<div><span style="font-size:0.7rem;color:var(--text-secondary);">Série</span><div style="font-weight:600;">' + esc(r.serie_pedido||'—') + '</div></div>' +
+                '<div><span style="font-size:0.7rem;color:var(--text-secondary);">Valor</span><div style="font-weight:600;color:var(--success);">' + esc(formatMoney(r.valor_liquido)) + '</div></div>' +
+                '<div><span style="font-size:0.7rem;color:var(--text-secondary);">Status</span><div style="font-weight:600;">' + esc(stLabels[stKey]||stKey) + '</div></div>' +
+                '<div><span style="font-size:0.7rem;color:var(--text-secondary);">Lançado em</span><div style="font-weight:600;">' + esc(String(r.created_at||'').replace('T',' ').slice(0,16)) + '</div></div>' +
+                '<div style="grid-column:1/-1;"><span style="font-size:0.7rem;color:var(--text-secondary);">Produto</span><div style="font-weight:600;">' + esc(r.produto||'—') + '</div></div>' +
+                '<div style="grid-column:1/-1;"><span style="font-size:0.7rem;color:var(--text-secondary);">Observações</span><div>' + esc(r.descricao||'—') + '</div></div>' +
+                (r.observacao_gestao ? '<div style="grid-column:1/-1;"><span style="font-size:0.7rem;color:var(--text-secondary);">Observação da gestão</span><div style="color:var(--warning,#d97706);">' + esc(r.observacao_gestao) + '</div></div>' : '');
+        }
+        // Oculta seções de itens/componentes que não se aplicam à revenda
+        ['gcModalDetalhePedidoItensGestaoWrap','gcModalDetalhePedidoItensOrcamentoWrap'].forEach(function(id) {
+            var el = document.getElementById(id); if (el) el.style.display = 'none';
+        });
+        var compWrap = document.querySelector('.gc-modal-det-ped__tbl-wrap:last-of-type');
+        if (compWrap) compWrap.style.display = 'none';
+    }
+
     async function gcDecidirRevenda(id, decisao) {
         const isAprovar = decisao === 'aprovar';
-        const ok = await showConfirm({
-            kind: isAprovar ? 'info' : 'danger',
-            title: isAprovar ? 'Aprovar revenda' : 'Recusar revenda',
-            message: isAprovar
-                ? 'Aprovar este lançamento? O valor entrará na receita e comissão da consultora.'
-                : 'Recusar este lançamento de revenda?',
-            confirmText: isAprovar ? 'Aprovar' : 'Recusar',
-            cancelText: 'Cancelar',
-            destructive: !isAprovar
-        });
-        if (!ok) return;
-        const data = await apiPost('gestao_comercial_revenda_decidir', { id: parseInt(id, 10), decisao: decisao });
+        let obs = '';
+        if (!isAprovar) {
+            const motivo = window.prompt('Recusar revenda — informe o motivo (opcional):');
+            if (motivo === null) return; // cancelou
+            obs = motivo.trim();
+        } else {
+            const ok = await showConfirm({
+                kind: 'info',
+                title: 'Aprovar revenda',
+                message: 'Aprovar este lançamento? O valor entrará na receita e comissão da consultora.',
+                confirmText: 'Aprovar',
+                cancelText: 'Cancelar'
+            });
+            if (!ok) return;
+        }
+        const payload = { id: parseInt(id, 10), decisao: decisao };
+        if (obs) payload.observacao = obs;
+        const data = await apiPost('gestao_comercial_revenda_decidir', payload);
         if (!data || data.success !== true) {
             showError(data && data.error ? String(data.error) : 'Falha ao registrar decisão.');
             return;

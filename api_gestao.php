@@ -84,6 +84,7 @@ $allowedActions = [
     'vendedor_revenda_lista',
     'vendedor_revenda_lancar',
     'vendedor_revenda_cancelar',
+    'vendedor_revenda_editar',
     'tv_corrida_vendedores',
 ];
 if (!in_array($action, $allowedActions)) {
@@ -1868,11 +1869,11 @@ function handleVendedorPedidosLista(PDO $pdo): void
           ON i.numero = gp.numero_pedido
          AND i.serie = gp.serie_pedido
          AND i.ano_referencia = gp.ano_referencia
-        WHERE DATE(gp.data_aprovacao) BETWEEN :de AND :ate
+        WHERE gp.data_aprovacao >= :de AND gp.data_aprovacao < DATE_ADD(:ate, INTERVAL 1 DAY)
           AND COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') = :vend
           AND {$approvedCase}
         ORDER BY gp.data_aprovacao DESC, gp.numero_pedido DESC, gp.serie_pedido DESC
-        LIMIT 5000
+        LIMIT 2000
     ";
     $stAprov = $pdo->prepare($sqlAprovados);
     $stAprov->execute(['de' => $dataDe, 'ate' => $dataAte, 'vend' => $vendedor]);
@@ -1895,11 +1896,11 @@ function handleVendedorPedidosLista(PDO $pdo): void
           ON gpLink.numero_pedido = i.numero
          AND gpLink.serie_pedido = i.serie
          AND gpLink.ano_referencia = i.ano_referencia
-        WHERE DATE(i.data) BETWEEN :de AND :ate
+        WHERE i.data >= :de AND i.data < DATE_ADD(:ate, INTERVAL 1 DAY)
           AND LOWER(TRIM(COALESCE(i.status, ''))) IN ('recusado', 'no carrinho')
           AND COALESCE(NULLIF(TRIM(gpLink.atendente), ''), NULLIF(TRIM(i.usuario_inclusao), ''), '(Sem atendente)') = :vend
         ORDER BY i.data DESC, i.numero DESC, i.serie DESC
-        LIMIT 5000
+        LIMIT 2000
     ";
     $stRec = $pdo->prepare($sqlRecusados);
     $stRec->execute(['de' => $dataDe, 'ate' => $dataAte, 'vend' => $vendedor]);
@@ -1928,11 +1929,12 @@ function handleVendedorPedidosLista(PDO $pdo): void
                 gp.status_financeiro IN ('Recusado', 'Cancelado', CONCAT('Or', CHAR(231), 'amento'))
                 OR gp.status_financeiro LIKE '%carrinho%'
             )
-          AND DATE(COALESCE(gp.data_aprovacao, gp.data_orcamento)) BETWEEN :de AND :ate
+          AND COALESCE(gp.data_aprovacao, gp.data_orcamento) >= :de
+          AND COALESCE(gp.data_aprovacao, gp.data_orcamento) < DATE_ADD(:ate, INTERVAL 1 DAY)
           AND COALESCE(NULLIF(TRIM(gp.atendente), ''), '(Sem atendente)') = :vend
         GROUP BY gp.numero_pedido, gp.serie_pedido
         ORDER BY MAX(gp.data_orcamento) DESC, gp.numero_pedido DESC, gp.serie_pedido DESC
-        LIMIT 5000
+        LIMIT 2000
     ";
     try {
         $stRg = $pdo->prepare($sqlRecGestao);
@@ -2341,7 +2343,9 @@ function handleVendedorRevendaLista(PDO $pdo): void
     }
     gcEnsureRevendaVendasTable($pdo);
     $st = $pdo->prepare(
-        'SELECT id, vendedor_nome, data_venda, valor_liquido, descricao, ativo, created_at
+        'SELECT id, vendedor_nome, data_venda, valor_liquido, descricao,
+                numero_pedido, serie_pedido, produto,
+                ativo, status, observacao_gestao, created_at
          FROM gc_revenda_vendas
          WHERE LOWER(TRIM(vendedor_nome)) = LOWER(TRIM(:v))
            AND data_venda BETWEEN :a AND :b
@@ -2389,7 +2393,10 @@ function handleVendedorRevendaLancar(PDO $pdo): void
     }
     $dv = trim((string)($payload['data_venda'] ?? ''));
     $valor = (float) str_replace(',', '.', preg_replace('/[^\d,.-]/', '', (string)($payload['valor_liquido'] ?? '0')));
-    $desc = trim((string)($payload['descricao'] ?? ''));
+    $desc  = trim((string)($payload['descricao'] ?? ''));
+    $nped  = trim((string)($payload['numero_pedido'] ?? ''));
+    $sped  = trim((string)($payload['serie_pedido'] ?? ''));
+    $prod  = trim((string)($payload['produto'] ?? ''));
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dv)) {
         http_response_code(422);
         echo json_encode(['success' => false, 'error' => 'Data inválida (AAAA-MM-DD).'], JSON_UNESCAPED_UNICODE);
@@ -2400,21 +2407,25 @@ function handleVendedorRevendaLancar(PDO $pdo): void
         echo json_encode(['success' => false, 'error' => 'Valor inválido.'], JSON_UNESCAPED_UNICODE);
         return;
     }
-    if (mb_strlen($desc) > 500) {
-        $desc = mb_substr($desc, 0, 500);
-    }
+    if (mb_strlen($desc) > 500) $desc = mb_substr($desc, 0, 500);
+    if (mb_strlen($prod) > 500) $prod = mb_substr($prod, 0, 500);
+    if (mb_strlen($nped) > 40)  $nped = mb_substr($nped, 0, 40);
+    if (mb_strlen($sped) > 20)  $sped = mb_substr($sped, 0, 20);
     gcEnsureRevendaVendasTable($pdo);
     // Vendedor lança como pendente — aguarda aprovação do gestor para entrar na comissão
     $ins = $pdo->prepare(
-        "INSERT INTO gc_revenda_vendas (vendedor_nome, data_venda, valor_liquido, descricao, ativo, status, created_by)
-         VALUES (:n, :d, :v, :desc, 0, 'pendente', :uid)"
+        "INSERT INTO gc_revenda_vendas (vendedor_nome, data_venda, valor_liquido, descricao, numero_pedido, serie_pedido, produto, ativo, status, created_by)
+         VALUES (:n, :d, :v, :desc, :nped, :sped, :prod, 0, 'pendente', :uid)"
     );
     $ins->execute([
-        'n' => $vend,
-        'd' => $dv,
-        'v' => round($valor, 2),
+        'n'    => $vend,
+        'd'    => $dv,
+        'v'    => round($valor, 2),
         'desc' => $desc !== '' ? $desc : null,
-        'uid' => (int)($_SESSION['user_id'] ?? 0),
+        'nped' => $nped !== '' ? $nped : null,
+        'sped' => $sped !== '' ? $sped : null,
+        'prod' => $prod !== '' ? $prod : null,
+        'uid'  => (int)($_SESSION['user_id'] ?? 0),
     ]);
     echo json_encode(['success' => true, 'id' => (int)$pdo->lastInsertId()], JSON_UNESCAPED_UNICODE);
 }
@@ -2458,6 +2469,43 @@ function handleVendedorRevendaCancelar(PDO $pdo): void
     );
     $st->execute(['id' => $id, 'v' => $vend]);
     echo json_encode(['success' => true, 'updated' => $st->rowCount() > 0], JSON_UNESCAPED_UNICODE);
+}
+
+function handleVendedorRevendaEditar(PDO $pdo): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    if (!isset($_SESSION['user_id'])) { http_response_code(401); echo json_encode(['success' => false, 'error' => 'Não autenticado.'], JSON_UNESCAPED_UNICODE); return; }
+    $sessionCheck = gcEnsureSessionIsValidOrRepair($pdo);
+    if (!($sessionCheck['valid'] ?? true)) { http_response_code(401); echo json_encode(['success' => false, 'error' => 'Sessão encerrada.'], JSON_UNESCAPED_UNICODE); return; }
+    $tipo = strtolower(trim((string)($_SESSION['user_tipo'] ?? '')));
+    $setor = strtolower(trim((string)($_SESSION['user_setor'] ?? '')));
+    if ($tipo !== 'admin' && strpos($setor, 'vendedor') === false) { http_response_code(403); echo json_encode(['success' => false, 'error' => 'Acesso restrito.'], JSON_UNESCAPED_UNICODE); return; }
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) $payload = [];
+    $id   = (int)($payload['id'] ?? 0);
+    $vend = gcResolveVendedorTargetFromSession($_SESSION, $payload);
+    $dv   = trim((string)($payload['data_venda'] ?? ''));
+    $valor = (float) str_replace(',', '.', preg_replace('/[^\d,.-]/', '', (string)($payload['valor_liquido'] ?? '0')));
+    $prod  = trim((string)($payload['produto'] ?? ''));
+    $desc  = trim((string)($payload['descricao'] ?? ''));
+    $nped  = trim((string)($payload['numero_pedido'] ?? ''));
+    $sped  = trim((string)($payload['serie_pedido'] ?? ''));
+    if ($id <= 0 || $vend === '') { http_response_code(422); echo json_encode(['success' => false, 'error' => 'Dados inválidos.'], JSON_UNESCAPED_UNICODE); return; }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dv)) { http_response_code(422); echo json_encode(['success' => false, 'error' => 'Data inválida.'], JSON_UNESCAPED_UNICODE); return; }
+    if ($valor <= 0) { http_response_code(422); echo json_encode(['success' => false, 'error' => 'Valor inválido.'], JSON_UNESCAPED_UNICODE); return; }
+    if ($prod === '') { http_response_code(422); echo json_encode(['success' => false, 'error' => 'Produto obrigatório.'], JSON_UNESCAPED_UNICODE); return; }
+    if (mb_strlen($prod) > 500) $prod = mb_substr($prod, 0, 500);
+    if (mb_strlen($desc) > 500) $desc = mb_substr($desc, 0, 500);
+    gcEnsureRevendaVendasTable($pdo);
+    $st = $pdo->prepare(
+        "UPDATE gc_revenda_vendas
+            SET data_venda = :dv, valor_liquido = :val, produto = :prod, descricao = :desc,
+                numero_pedido = :nped, serie_pedido = :sped
+          WHERE id = :id AND status = 'pendente' AND LOWER(TRIM(vendedor_nome)) = LOWER(TRIM(:v))"
+    );
+    $st->execute(['dv'=>$dv,'val'=>round($valor,2),'prod'=>$prod,'desc'=>$desc!==''?$desc:null,'nped'=>$nped!==''?$nped:null,'sped'=>$sped!==''?$sped:null,'id'=>$id,'v'=>$vend]);
+    if ($st->rowCount() === 0) { echo json_encode(['success' => false, 'error' => 'Lançamento não encontrado ou não está pendente.'], JSON_UNESCAPED_UNICODE); return; }
+    echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
 }
 
 function handleVendedorPerdasLista(PDO $pdo): void
@@ -3427,6 +3475,18 @@ if ($action === 'vendedor_revenda_cancelar') {
         }
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Erro ao cancelar revenda.'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($action === 'vendedor_revenda_editar') {
+    try {
+        $pdo = getConnection();
+        handleVendedorRevendaEditar($pdo);
+    } catch (Throwable $e) {
+        if (function_exists('error_log')) error_log('vendedor_revenda_editar: ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Erro ao editar revenda.'], JSON_UNESCAPED_UNICODE);
     }
     exit;
 }
