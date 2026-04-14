@@ -3,6 +3,7 @@
  * Módulo Dashboard: KPIs, faturamento, tops e canais.
  * Usa buildDateFilter() e safeLimit() de api/bootstrap.php.
  */
+require_once __DIR__ . '/rotas_gps_lacunas.php';
 require_once __DIR__ . '/dashboard_visitador.php';
 
 function handleDashboardModuleAction(string $action, PDO $pdo): void

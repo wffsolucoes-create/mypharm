@@ -2036,6 +2036,14 @@ function getRelatorioRotaCompleto(PDO $pdo): void
         }
         $totalKm += $km;
 
+        $isRotaFinalizadaRel = strcasecmp(trim((string)($rota['status'] ?? '')), 'finalizada') === 0;
+        $lacunasRel = mypharm_rotas_pontos_lacunas_resumo(
+            $pontos,
+            $dataInicio ? (string)$dataInicio : null,
+            $dataFim ? (string)$dataFim : null,
+            $isRotaFinalizadaRel
+        );
+
         $resultado[] = [
             'rota_id' => $rid,
             'data_inicio' => $dataInicio,
@@ -2044,6 +2052,7 @@ function getRelatorioRotaCompleto(PDO $pdo): void
             'pausado_em' => $rota['pausado_em'],
             'km' => round($km, 2),
             'qtd_pontos' => $qtd,
+            'lacunas' => $lacunasRel,
             'tempo_rota_min' => $tempoRotaMin,
             'tempo_visita_min' => $tempoVisitaMin,
             'local_inicio_lat' => $primeiroPonto ? (float)$primeiroPonto['lat'] : null,

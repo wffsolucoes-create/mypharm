@@ -2942,6 +2942,15 @@ function getThemeStorageKeyVisitador() {
             var h = Math.floor(min / 60), m = min % 60;
             return h > 0 ? h + 'h ' + m + 'min' : m + 'min';
         }
+        function fmtDuracaoSeg(seg) {
+            if (seg == null || !isFinite(Number(seg))) return '—';
+            var s = Math.max(0, Math.floor(Number(seg)));
+            if (s < 60) return s + ' s';
+            var m = Math.floor(s / 60);
+            if (m < 120) return m + ' min';
+            var h = Math.floor(m / 60), rm = m % 60;
+            return rm > 0 ? (h + ' h ' + rm + ' min') : (h + ' h');
+        }
         function fmtDataHoraBr(dt) {
             if (!dt) return '—';
             var s = String(dt).replace('T', ' ').slice(0, 16);
@@ -3053,6 +3062,22 @@ function getThemeStorageKeyVisitador() {
                 html += roteiroInfoCard('fa-map-marker-alt', 'Local de encerramento', endFim);
                 if (r.pausado_em) html += roteiroInfoCard('fa-pause-circle', 'Pausada em', fmtDataHoraBr(r.pausado_em));
                 html += '</div>';
+                if (r.lacunas && typeof r.lacunas === 'object') {
+                    var lac = r.lacunas;
+                    var maxL = parseInt(lac.maior_lacuna_seg, 10) || 0;
+                    var q5v = parseInt(lac.qtd_lacunas_ge_5min, 10) || 0;
+                    var lacLinha = 'Maior lacuna: ' + fmtDuracaoSeg(maxL);
+                    if (q5v > 0) lacLinha += ' · ' + q5v + ' intervalo(s) ≥ 5 min sem amostra';
+                    html += '<div style="font-size:0.78rem; color:var(--text-secondary); margin-top:10px; padding:10px 12px; border-radius:8px; background:var(--bg-body); border:1px solid var(--border);">';
+                    html += '<strong style="color:var(--text-primary);"><i class="fas fa-wave-square" style="margin-right:6px;opacity:0.85;"></i>Lacunas GPS</strong><br>';
+                    html += '<span style="margin-top:6px; display:inline-block;">' + escNotif(lacLinha) + '</span>';
+                    if (lac.maior_lacuna_de) {
+                        html += '<br><span style="opacity:0.9;">De ' + escNotif(String(lac.maior_lacuna_de)) + ' até ';
+                        html += lac.maior_lacuna_ate_agora ? 'agora' : escNotif(String(lac.maior_lacuna_ate || '—'));
+                        html += '</span>';
+                    }
+                    html += '</div>';
+                }
                 // Visitas da rota
                 if (r.visitas && r.visitas.length > 0) {
                     html += '<div style="font-size:0.8rem; font-weight:700; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;"><i class="fas fa-clipboard-list" style="margin-right:6px;"></i>Visitas do dia (' + r.visitas.length + ')</div>';

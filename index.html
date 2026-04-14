@@ -478,6 +478,10 @@
                     <i class="fas fa-briefcase"></i>
                     <span>Gestão Comercial</span>
                 </a>
+                <a class="nav-item admin-only-nav" href="clientes.html" style="display:none;">
+                    <i class="fas fa-users"></i>
+                    <span>Base de Clientes</span>
+                </a>
 
                 <div class="nav-section-title">Análises</div>
                 <a class="nav-item" data-page="visitas" onclick="navigateTo('visitas')">
@@ -855,6 +859,7 @@
                                         <th class="th-sortable" data-sort="status" scope="col" title="Ordenar por status">Status <span class="th-sort-icon" aria-hidden="true"></span></th>
                                         <th class="th-sortable" data-sort="km" scope="col" title="Soma dos trechos em linha reta entre cada par de pontos GPS consecutivos">Km (trajeto) <span class="th-sort-icon" aria-hidden="true"></span></th>
                                         <th class="th-sortable" data-sort="pontos" scope="col" title="Ordenar por quantidade de pontos">Pontos <span class="th-sort-icon" aria-hidden="true"></span></th>
+                                        <th class="th-sortable" data-sort="lacuna_max" scope="col" title="Maior intervalo sem amostra GPS (início→1º ponto, entre pontos ou após o último ponto). ≥5 min contam como lacuna significativa.">Lacunas GPS <span class="th-sort-icon" aria-hidden="true"></span></th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -880,8 +885,8 @@
                         <div id="rotasDetalhesEmpty" class="empty-state" style="display:none; text-align:center; padding:1.5rem; color:var(--text-secondary);">Nenhuma rota no período.</div>
                     </div>
                     <!-- Mapa de rotas -->
-                    <div class="chart-card full-width mapa-rotas-card" style="margin-bottom:32px;">
-                        <div class="chart-header">
+                    <div class="chart-card full-width mapa-rotas-card">
+                        <div class="chart-header mapa-rotas-card__head">
                             <div>
                                 <div class="chart-title">Mapa de visitas</div>
                                 <div class="chart-subtitle">Densidade por região (calor) · visitas pontuais · respeita o <strong>filtro de visitador</strong> acima</div>
@@ -923,7 +928,7 @@
                                         </div>
                                     </div>
                                     <div class="mapa-rotas-legend-divider"></div>
-                                    <p class="mapa-rotas-legend-hint">Camadas</p>
+                                    <h4 class="mapa-rotas-legend-title mapa-rotas-legend-title--camadas">Camadas</h4>
                                     <label class="mapa-rotas-toggle">
                                         <input type="checkbox" id="mapaVisitasTogglePinos" checked>
                                         <span>Mostrar pontos de visita</span>

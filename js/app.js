@@ -2464,7 +2464,7 @@ let __visitasTableState = {
     pageSize: 15
 };
 
-const ROTAS_DET_SORT_KEYS = ['id', 'visitador', 'data_inicio', 'data_fim', 'status', 'km', 'pontos'];
+const ROTAS_DET_SORT_KEYS = ['id', 'visitador', 'data_inicio', 'data_fim', 'status', 'km', 'pontos', 'lacuna_max'];
 
 let __rotasDetalhesTableState = {
     lista: [],
@@ -3071,6 +3071,41 @@ function rotaDetDateMs(val) {
     return Number.isFinite(t) ? t : 0;
 }
 
+/** Duração legível a partir de segundos (lacunas GPS). */
+function visitasFormatDuracaoSegBr(seg) {
+    if (seg == null || !Number.isFinite(Number(seg))) return '—';
+    const s = Math.max(0, Math.floor(Number(seg)));
+    if (s < 60) return s + ' s';
+    const m = Math.floor(s / 60);
+    if (m < 120) return m + ' min';
+    const h = Math.floor(m / 60);
+    const rm = m % 60;
+    return rm > 0 ? (h + ' h ' + rm + ' min') : (h + ' h');
+}
+
+function visitasBuildRotasLacunasTitle(lac) {
+    if (!lac || typeof lac !== 'object') return '';
+    const parts = [];
+    const maxS = parseInt(lac.maior_lacuna_seg, 10) || 0;
+    parts.push('Maior lacuna: ' + visitasFormatDuracaoSegBr(maxS));
+    if (lac.maior_lacuna_de) {
+        parts.push('De: ' + String(lac.maior_lacuna_de));
+    }
+    if (lac.maior_lacuna_ate_agora) {
+        parts.push('Até: agora (rota em andamento)');
+    } else if (lac.maior_lacuna_ate) {
+        parts.push('Até: ' + String(lac.maior_lacuna_ate));
+    }
+    if (lac.lacuna_inicio_seg != null && lac.lacuna_inicio_seg > 0) {
+        parts.push('Início→1º ponto: ' + visitasFormatDuracaoSegBr(lac.lacuna_inicio_seg));
+    }
+    if (lac.apos_ultimo_ponto_seg != null && lac.apos_ultimo_ponto_seg > 0) {
+        parts.push('Após último ponto: ' + visitasFormatDuracaoSegBr(lac.apos_ultimo_ponto_seg));
+    }
+    parts.push('Intervalos ≥5 min: ' + (parseInt(lac.qtd_lacunas_ge_5min, 10) || 0));
+    return parts.join(' · ');
+}
+
 function rotasDetComparableForSort(r, key) {
     const row = r || {};
     switch (key) {
@@ -3093,6 +3128,11 @@ function rotasDetComparableForSort(r, key) {
         case 'pontos': {
             const n = parseInt(row.qtd_pontos, 10);
             return Number.isFinite(n) ? n : 0;
+        }
+        case 'lacuna_max': {
+            const lac = row.lacunas || {};
+            const x = parseInt(lac.maior_lacuna_seg, 10);
+            return Number.isFinite(x) ? x : 0;
         }
         default:
             return '';
@@ -3132,7 +3172,7 @@ function rotasDetalhesTableSetSort(key) {
         __rotasDetalhesTableState.sortDir = __rotasDetalhesTableState.sortDir === 'asc' ? 'desc' : 'asc';
     } else {
         __rotasDetalhesTableState.sortKey = key;
-        const descFirst = key === 'id' || key === 'data_inicio' || key === 'data_fim' || key === 'km' || key === 'pontos';
+        const descFirst = key === 'id' || key === 'data_inicio' || key === 'data_fim' || key === 'km' || key === 'pontos' || key === 'lacuna_max';
         __rotasDetalhesTableState.sortDir = descFirst ? 'desc' : 'asc';
     }
     __rotasDetalhesTableState.page = 1;
@@ -3214,6 +3254,19 @@ function renderRotasDetalhesView() {
         const statusClass = isFin ? 'status-badge status-badge--ok' : 'status-badge status-badge--warn';
         const rotaId = parseInt(r.id, 10);
         const rotaIdCell = Number.isFinite(rotaId) ? String(rotaId) : '—';
+        const lac = r.lacunas && typeof r.lacunas === 'object' ? r.lacunas : {};
+        const maxLacSeg = parseInt(lac.maior_lacuna_seg, 10) || 0;
+        const q5 = parseInt(lac.qtd_lacunas_ge_5min, 10) || 0;
+        const lacTitle = escapeHtml(visitasBuildRotasLacunasTitle(lac));
+        let lacCell = '<span style="color:var(--text-secondary);opacity:0.65;">—</span>';
+        if (maxLacSeg >= 60 || q5 > 0) {
+            lacCell = '<span class="visitas-lacuna-maior">' + escapeHtml(visitasFormatDuracaoSegBr(maxLacSeg)) + '</span>';
+            if (q5 > 0) {
+                lacCell += '<br><span class="visitas-lacuna-badge">' + q5 + ' ≥5 min</span>';
+            }
+        } else if ((r.qtd_pontos ?? 0) > 0) {
+            lacCell = '<span style="opacity:0.75;">' + escapeHtml(visitasFormatDuracaoSegBr(maxLacSeg)) + '</span>';
+        }
         return `
         <tr>
             <td class="td-center td-rota-id"><span class="visitas-id-cell">${rotaIdCell}</span></td>
@@ -3225,6 +3278,7 @@ function renderRotasDetalhesView() {
             <td class="td-center"><span class="${statusClass}">${escapeHtml(statusRaw)}</span></td>
             <td class="td-center td-km"><strong>${(parseFloat(r.km) || 0).toFixed(1)} km</strong></td>
             <td class="td-center td-pontos">${formatNumber(r.qtd_pontos ?? 0)}</td>
+            <td class="td-center td-lacunas-gps" title="${lacTitle}">${lacCell}</td>
         </tr>`;
     }).join('');
 

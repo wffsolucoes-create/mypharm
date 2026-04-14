@@ -697,6 +697,16 @@ try {
                 if (!isset($km_por_visitador[$vn])) $km_por_visitador[$vn] = 0;
                 $km_por_visitador[$vn] += $km_rota;
 
+                if (!function_exists('mypharm_rotas_pontos_lacunas_resumo')) {
+                    require_once __DIR__ . '/api/modules/rotas_gps_lacunas.php';
+                }
+                $lacunasResumo = mypharm_rotas_pontos_lacunas_resumo(
+                    $pontos,
+                    $dataInicioRota !== null && $dataInicioRota !== '' ? (string)$dataInicioRota : null,
+                    $dataFimRota !== null && $dataFimRota !== '' ? (string)$dataFimRota : null,
+                    $isRotaFinalizada
+                );
+
                 $rotas_com_km[] = [
                     'id' => $rid,
                     'visitador_nome' => $vn,
@@ -708,6 +718,7 @@ try {
                     'qtd_pontos' => $qtd_pontos,
                     'local_inicio_endereco' => $addrInicio,
                     'local_fim_endereco' => $addrFim,
+                    'lacunas' => $lacunasResumo,
                 ];
 
                 $pontos_rotas[] = [
