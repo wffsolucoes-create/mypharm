@@ -3249,8 +3249,8 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
 }
 
-/* Transferências de comissão (aba gestão) */
-#gc-section-comissoes .gc-ct-block {
+/* Transferências de comissão + Revenda (mesmo painel visual) */
+.gc-ct-surface .gc-ct-block {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 16px;
@@ -3258,7 +3258,11 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
-#gc-section-comissoes .gc-ct-toolbar {
+.gc-ct-surface .gc-ct-block + .gc-ct-block {
+    margin-top: 20px;
+}
+
+.gc-ct-surface .gc-ct-toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
@@ -3269,12 +3273,12 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     border-bottom: 1px solid var(--border);
 }
 
-#gc-section-comissoes .gc-ct-toolbar__intro {
+.gc-ct-surface .gc-ct-toolbar__intro {
     flex: 1 1 220px;
     min-width: 0;
 }
 
-#gc-section-comissoes .gc-ct-toolbar__title {
+.gc-ct-surface .gc-ct-toolbar__title {
     margin: 0 0 6px 0;
     font-size: 1.05rem;
     font-weight: 800;
@@ -3285,13 +3289,13 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     letter-spacing: -0.02em;
 }
 
-#gc-section-comissoes .gc-ct-toolbar__title i {
+.gc-ct-surface .gc-ct-toolbar__title i {
     color: var(--primary, #2563eb);
     font-size: 1rem;
     opacity: 0.95;
 }
 
-#gc-section-comissoes .gc-ct-toolbar__hint {
+.gc-ct-surface .gc-ct-toolbar__hint {
     margin: 0;
     font-size: 0.84rem;
     color: var(--text-secondary);
@@ -3299,14 +3303,14 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     max-width: 520px;
 }
 
-#gc-section-comissoes .gc-ct-toolbar__controls {
+.gc-ct-surface .gc-ct-toolbar__controls {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 12px;
 }
 
-#gc-section-comissoes .gc-ct-label {
+.gc-ct-surface .gc-ct-label {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -3317,7 +3321,7 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     color: var(--text-secondary);
 }
 
-#gc-section-comissoes .gc-ct-select {
+.gc-ct-surface .gc-ct-select {
     min-width: 200px;
     font-weight: 600;
     height: 40px;
@@ -3332,20 +3336,26 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-#gc-section-comissoes .gc-ct-select:focus {
+.gc-ct-surface input.gc-ct-select {
+    cursor: text;
+    box-sizing: border-box;
+}
+
+.gc-ct-surface .gc-ct-select:focus,
+.gc-ct-surface input.gc-ct-select:focus {
     outline: none;
     border-color: #2563eb;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
-#gc-section-comissoes .gc-ct-btn-refresh {
+.gc-ct-surface .gc-ct-btn-refresh {
     height: 40px;
     padding-left: 18px;
     padding-right: 18px;
     font-weight: 700;
 }
 
-#gc-section-comissoes .gc-ct-msg {
+.gc-ct-surface .gc-ct-msg {
     margin: 0 0 14px 0;
     padding: 10px 14px;
     border-radius: 10px;
@@ -3356,19 +3366,19 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     color: var(--text-primary);
 }
 
-#gc-section-comissoes .gc-ct-msg--error {
+.gc-ct-surface .gc-ct-msg--error {
     background: rgba(220, 38, 38, 0.08);
     border-color: rgba(220, 38, 38, 0.28);
     color: var(--danger, #b91c1c);
 }
 
-#gc-section-comissoes .gc-ct-msg--ok {
+.gc-ct-surface .gc-ct-msg--ok {
     background: rgba(22, 163, 74, 0.08);
     border-color: rgba(22, 163, 74, 0.28);
     color: var(--success, #15803d);
 }
 
-#gc-section-comissoes .gc-comissao-transfer-wrap {
+.gc-ct-surface .gc-comissao-transfer-wrap {
     margin-top: 0;
     max-height: min(68vh, 640px);
     overflow: auto;
@@ -3378,7 +3388,7 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
 }
 
-#gc-section-comissoes .gc-ct-table thead th {
+.gc-ct-surface .gc-ct-table thead th {
     position: sticky;
     top: 0;
     z-index: 2;
@@ -3390,40 +3400,40 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     text-align: center;
 }
 
-#gc-section-comissoes .gc-ct-table tbody td {
+.gc-ct-surface .gc-ct-table tbody td {
     vertical-align: middle;
     padding-top: 12px;
     padding-bottom: 12px;
     text-align: center;
 }
 
-#gc-section-comissoes .gc-ct-th-id,
-#gc-section-comissoes .gc-ct-td-id {
+.gc-ct-surface .gc-ct-th-id,
+.gc-ct-surface .gc-ct-td-id {
     width: 52px;
     text-align: center;
     font-variant-numeric: tabular-nums;
 }
 
-#gc-section-comissoes .gc-ct-th-num,
-#gc-section-comissoes .gc-ct-td-num {
+.gc-ct-surface .gc-ct-th-num,
+.gc-ct-surface .gc-ct-td-num {
     text-align: right;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
 
-#gc-section-comissoes .gc-ct-td-valor {
+.gc-ct-surface .gc-ct-td-valor {
     text-align: right;
     font-weight: 700;
     color: var(--text-primary);
 }
 
-#gc-section-comissoes .gc-ct-th-ref,
-#gc-section-comissoes .gc-ct-td-ref {
+.gc-ct-surface .gc-ct-th-ref,
+.gc-ct-surface .gc-ct-td-ref {
     white-space: nowrap;
     font-weight: 600;
 }
 
-#gc-section-comissoes .gc-ct-td-motivo {
+.gc-ct-surface .gc-ct-td-motivo {
     max-width: 280px;
     font-size: 0.82rem;
     line-height: 1.4;
@@ -3432,34 +3442,34 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     word-break: break-word;
 }
 
-#gc-section-comissoes .gc-ct-th-date,
-#gc-section-comissoes .gc-ct-td-date {
+.gc-ct-surface .gc-ct-th-date,
+.gc-ct-surface .gc-ct-td-date {
     white-space: nowrap;
     font-size: 0.8rem;
     color: var(--text-secondary);
 }
 
-#gc-section-comissoes .gc-ct-th-acoes,
-#gc-section-comissoes .gc-ct-td-acoes {
+.gc-ct-surface .gc-ct-th-acoes,
+.gc-ct-surface .gc-ct-td-acoes {
     min-width: 140px;
 }
 
-#gc-section-comissoes .gc-ct-acoes-btns {
+.gc-ct-surface .gc-ct-acoes-btns {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     justify-content: flex-end;
 }
 
-#gc-section-comissoes .gc-ct-btn-apr,
-#gc-section-comissoes .gc-ct-btn-rec {
+.gc-ct-surface .gc-ct-btn-apr,
+.gc-ct-surface .gc-ct-btn-rec {
     padding: 7px 12px;
     font-size: 0.76rem;
     font-weight: 700;
     border-radius: 8px;
 }
 
-#gc-section-comissoes .gc-ct-decisao {
+.gc-ct-surface .gc-ct-decisao {
     display: block;
     font-size: 0.72rem;
     line-height: 1.35;
@@ -3467,7 +3477,7 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     max-width: 200px;
 }
 
-#gc-section-comissoes .gc-ct-status {
+.gc-ct-surface .gc-ct-status {
     display: inline-flex;
     align-items: center;
     padding: 4px 10px;
@@ -3479,44 +3489,44 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     border: 1px solid transparent;
 }
 
-#gc-section-comissoes .gc-ct-status--pendente {
+.gc-ct-surface .gc-ct-status--pendente {
     background: rgba(234, 179, 8, 0.16);
     border-color: rgba(202, 138, 4, 0.35);
     color: #a16207;
 }
 
-#gc-section-comissoes .gc-ct-status--aprovada {
+.gc-ct-surface .gc-ct-status--aprovada {
     background: rgba(22, 163, 74, 0.14);
     border-color: rgba(22, 163, 74, 0.35);
     color: #166534;
 }
 
-#gc-section-comissoes .gc-ct-status--recusada {
+.gc-ct-surface .gc-ct-status--recusada {
     background: rgba(220, 38, 38, 0.1);
     border-color: rgba(220, 38, 38, 0.3);
     color: #b91c1c;
 }
 
-#gc-section-comissoes .gc-ct-status--cancelada {
+.gc-ct-surface .gc-ct-status--cancelada {
     background: rgba(100, 116, 139, 0.14);
     border-color: rgba(100, 116, 139, 0.35);
     color: #475569;
 }
 
-#gc-section-comissoes .gc-ct-status--outro {
+.gc-ct-surface .gc-ct-status--outro {
     background: rgba(148, 163, 184, 0.15);
     color: #475569;
 }
 
-[data-theme='dark'] #gc-section-comissoes .gc-ct-toolbar {
+[data-theme='dark'] .gc-ct-surface .gc-ct-toolbar {
     border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
-[data-theme='dark'] #gc-section-comissoes .gc-ct-table thead th {
+[data-theme='dark'] .gc-ct-surface .gc-ct-table thead th {
     background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.96) 100%);
 }
 
-[data-theme='dark'] #gc-section-comissoes .gc-comissao-transfer-wrap {
+[data-theme='dark'] .gc-ct-surface .gc-comissao-transfer-wrap {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
@@ -3716,23 +3726,3 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     word-break: break-word;
 }
 
-/* Revenda (gestão): formulário em linha */
-.gc-revenda-toolbar .gc-revenda-form {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 12px 14px;
-    width: 100%;
-    margin-top: 12px;
-}
-
-.gc-revenda-toolbar .gc-revenda-form .gc-ct-label {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--text-secondary);
-}

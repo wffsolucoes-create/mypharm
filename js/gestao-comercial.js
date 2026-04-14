@@ -1,6 +1,8 @@
 (function () {
     // Tudo da gestão comercial usa api_gestao.php
     const API_URL = 'api_gestao.php';
+    /** Mesma sessão do painel admin: foto servida por api.php (get_foto_perfil), igual index.html */
+    const ADMIN_API_URL = 'api.php';
 
     function clearLocalStoragePreservingMyPharmTheme() {
         const backup = {};
@@ -2959,30 +2961,6 @@
         else if (kind === 'ok') el.classList.add('gc-ct-msg--ok');
     }
 
-    function gcFillRevendaVendedoraSelect() {
-        const sel = document.getElementById('gcRevendaVendedora');
-        if (!sel) return;
-        const nomes = Array.isArray(gcNomesVendedores) ? gcNomesVendedores.slice() : [];
-        const prev = sel.value;
-        sel.innerHTML = '<option value="">Selecione a consultora…</option>';
-        nomes.forEach(function (n) {
-            if (!n) return;
-            const opt = document.createElement('option');
-            opt.value = n;
-            opt.textContent = n;
-            sel.appendChild(opt);
-        });
-        if (prev && nomes.indexOf(prev) !== -1) sel.value = prev;
-    }
-
-    function gcParseValorRevendaInput(raw) {
-        const s = String(raw || '').trim();
-        if (!s) return NaN;
-        const norm = s.replace(/\s/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
-        const n = parseFloat(norm);
-        return Number.isFinite(n) ? n : NaN;
-    }
-
     async function gcLoadRevendaList() {
         const tbody = document.getElementById('gcRevendaTbody');
         if (!tbody) return;
@@ -3162,55 +3140,14 @@
     function gcEnsureRevendaUi() {
         if (gcRevendaUiBound) return;
         gcRevendaUiBound = true;
-        const dataInp = document.getElementById('gcRevendaData');
-        if (dataInp && !dataInp.value) {
-            dataInp.value = new Date().toISOString().slice(0, 10);
-        }
-        const salvar = document.getElementById('gcRevendaSalvarBtn');
-        if (salvar) {
-            salvar.addEventListener('click', async function () {
-                const nome = (document.getElementById('gcRevendaVendedora') || {}).value || '';
-                const dv = (document.getElementById('gcRevendaData') || {}).value || '';
-                const valorRaw = (document.getElementById('gcRevendaValor') || {}).value || '';
-                const desc = (document.getElementById('gcRevendaDesc') || {}).value || '';
-                const valor = gcParseValorRevendaInput(valorRaw);
-                if (!nome) {
-                    gcSetRevendaMsg('Selecione a consultora.', 'error');
-                    return;
-                }
-                if (!/^\d{4}-\d{2}-\d{2}$/.test(dv)) {
-                    gcSetRevendaMsg('Informe a data da venda.', 'error');
-                    return;
-                }
-                if (!Number.isFinite(valor) || valor <= 0) {
-                    gcSetRevendaMsg('Informe um valor válido.', 'error');
-                    return;
-                }
-                gcSetRevendaMsg('');
-                const resp = await apiPost('gestao_comercial_revenda_salvar', {
-                    vendedor_nome: nome,
-                    data_venda: dv,
-                    valor_liquido: valor,
-                    descricao: desc
+        ['gcRevendaFilaAtualizarBtn'].forEach(function (btnId) {
+            const att = document.getElementById(btnId);
+            if (att) {
+                att.addEventListener('click', function () {
+                    gcLoadRevendaList().catch(function () {});
                 });
-                if (!resp || resp.success !== true) {
-                    gcSetRevendaMsg((resp && resp.error) ? String(resp.error) : 'Não foi possível salvar.', 'error');
-                    return;
-                }
-                gcSetRevendaMsg('Lançamento salvo.', 'ok');
-                const vInp = document.getElementById('gcRevendaValor');
-                if (vInp) vInp.value = '';
-                const dInp = document.getElementById('gcRevendaDesc');
-                if (dInp) dInp.value = '';
-                await gcLoadRevendaList();
-            });
-        }
-        const att = document.getElementById('gcRevendaAtualizarBtn');
-        if (att) {
-            att.addEventListener('click', function () {
-                gcLoadRevendaList().catch(function () {});
-            });
-        }
+            }
+        });
         const filtro = document.getElementById('gcRevendaFiltroStatus');
         if (filtro) {
             filtro.addEventListener('change', function () {
@@ -3459,7 +3396,6 @@
             gcDashboardData = data;
             await gcLoadErrosTiposDistintos();
             gcNomesVendedores = Array.isArray(data.lista_vendedores_nomes) ? data.lista_vendedores_nomes : [];
-            gcFillRevendaVendedoraSelect();
             if (gcIsRevendaTabActive()) {
                 gcLoadRevendaList().catch(function () {});
             }
@@ -4547,13 +4483,10 @@
                 }
                 if (target === 'comissoes') {
                     gcEnsureComissaoTransferUi();
-                    gcEnsureRevendaUi();
                     gcLoadComissaoTransferList().catch(function () {});
-                    gcLoadRevendaList().catch(function () {});
                 }
                 if (target === 'revenda') {
                     gcEnsureRevendaUi();
-                    gcFillRevendaVendedoraSelect();
                     gcLoadRevendaList().catch(function () {});
                 }
             });
@@ -4587,12 +4520,54 @@
         if (btn) btn.click();
     }
 
+    function applyGcAvatar(initial, fotoUrl) {
+        const av = document.getElementById('gcAvatar');
+        const img = document.getElementById('gcAvatarImg');
+        if (!av) return;
+        if (img) {
+            if (fotoUrl) {
+                var url = ADMIN_API_URL + '?action=get_foto_perfil&t=' + Date.now();
+                img.src = url;
+                img.alt = 'Foto de perfil';
+                img.style.display = 'block';
+                av.style.display = 'none';
+                img.onerror = function () {
+                    img.style.display = 'none';
+                    av.style.display = '';
+                    av.textContent = (initial || 'A').charAt(0).toUpperCase();
+                    img.src = '';
+                    try {
+                        localStorage.removeItem('foto_perfil');
+                    } catch (e) { /* ignore */ }
+                };
+            } else {
+                img.src = '';
+                img.onerror = null;
+                img.style.display = 'none';
+                av.style.display = '';
+                av.textContent = (initial || 'A').charAt(0).toUpperCase();
+            }
+        } else {
+            av.textContent = (initial || 'A').charAt(0).toUpperCase();
+        }
+    }
+
     function bindUi(session) {
         const nome = (session && session.nome) || localStorage.getItem('userName') || 'Administrador';
         const nomeEl = document.getElementById('gcUserName');
         if (nomeEl) nomeEl.textContent = nome;
-        const avatarEl = document.getElementById('gcAvatar');
-        if (avatarEl) avatarEl.textContent = (nome || 'A').charAt(0).toUpperCase();
+        var fotoPerfil = null;
+        try {
+            fotoPerfil = (session && session.foto_perfil) || localStorage.getItem('foto_perfil') || null;
+        } catch (e) {
+            fotoPerfil = (session && session.foto_perfil) || null;
+        }
+        if (session && session.foto_perfil) {
+            try {
+                localStorage.setItem('foto_perfil', session.foto_perfil);
+            } catch (e) { /* ignore */ }
+        }
+        applyGcAvatar((nome || 'A').charAt(0).toUpperCase(), fotoPerfil);
 
         const logoutBtn = document.getElementById('gcLogoutBtn');
         if (logoutBtn) {

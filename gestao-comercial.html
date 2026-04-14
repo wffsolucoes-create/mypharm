@@ -71,7 +71,10 @@
             </nav>
             <div class="sidebar-footer">
                 <div class="user-info">
-                    <div class="user-avatar" id="gcAvatar">A</div>
+                    <div class="avatar-wrap sidebar-avatar-wrap" id="gcAvatarWrap" title="Foto de perfil">
+                        <div class="user-avatar" id="gcAvatar">A</div>
+                        <img class="avatar-img" id="gcAvatarImg" src="" alt="" width="36" height="36" style="display:none;">
+                    </div>
                     <div class="user-details">
                         <div class="user-name" id="gcUserName">Administrador</div>
                         <div class="user-role">Gestão Comercial</div>
@@ -721,7 +724,7 @@
                     </div>
                 </section>
 
-                <section class="gc-section" id="gc-section-comissoes" role="tabpanel" aria-labelledby="gc-tab-comissoes" aria-hidden="true">
+                <section class="gc-section gc-ct-surface" id="gc-section-comissoes" role="tabpanel" aria-labelledby="gc-tab-comissoes" aria-hidden="true">
                     <header class="gc-tab-head">
                         <p class="gc-tab-head__kicker">Gerenciamento de comissões</p>
                         <p class="gc-tab-head__desc">Solicitações de <strong>transferência de comissão</strong> entre consultoras (ex.: aprovação indevida). Ao <strong>aprovar</strong>, o valor do pedido é <strong>debitado da origem</strong> e <strong>creditado ao destino</strong> no cálculo de comissão.</p>
@@ -769,13 +772,30 @@
                             </table>
                         </div>
                     </div>
+                </section>
 
-                    <!-- Bloco: aprovação de revendas pendentes -->
-                    <div class="gc-block gc-ct-block" style="margin-top:20px;">
+                <!-- Modal: detalhe de transferência de comissão -->
+                <div class="gc-ct-modal-backdrop" id="gcCtModalBackdrop" aria-hidden="true">
+                    <div class="gc-ct-modal" role="dialog" aria-modal="true" aria-labelledby="gcCtModalTitle">
+                        <div class="gc-ct-modal__header">
+                            <h3 class="gc-ct-modal__title" id="gcCtModalTitle"><i class="fas fa-right-left"></i> Solicitação de transferência</h3>
+                            <button type="button" class="gc-ct-modal__close" id="gcCtModalClose" aria-label="Fechar">&times;</button>
+                        </div>
+                        <div class="gc-ct-modal__body" id="gcCtModalBody"></div>
+                        <div class="gc-ct-modal__footer" id="gcCtModalFooter"></div>
+                    </div>
+                </div>
+
+                <section class="gc-section gc-ct-surface" id="gc-section-revenda" role="tabpanel" aria-labelledby="gc-tab-revenda" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Revenda</p>
+                        <p class="gc-tab-head__desc">As consultoras lançam <strong>revendas</strong> pelo portal do vendedor (fora dos pedidos importados). Aqui a gestão <strong>aprova ou recusa</strong>, como nas transferências de comissão. Ao aprovar, o valor entra na <strong>receita da consultora</strong> no período do filtro global, somando à meta e à comissão estimada.</p>
+                    </header>
+                    <div class="gc-block gc-ct-block">
                         <div class="gc-ct-toolbar">
                             <div class="gc-ct-toolbar__intro">
                                 <h3 class="gc-ct-toolbar__title"><i class="fas fa-store" aria-hidden="true"></i> Revendas aguardando aprovação</h3>
-                                <p class="gc-ct-toolbar__hint">Lançamentos de revenda enviados pelos vendedores. Ao <strong>aprovar</strong>, o valor entra na receita e comissão da consultora.</p>
+                                <p class="gc-ct-toolbar__hint">Filtre por status e use <strong>Atualizar</strong> para recarregar a fila. Lançamentos enviados pelas consultoras pelo portal. Ao <strong>aprovar</strong>, o valor entra na receita e comissão da consultora.</p>
                             </div>
                             <div class="gc-ct-toolbar__controls">
                                 <label class="gc-ct-label">Status
@@ -787,7 +807,7 @@
                                         <option value="todas">Todas</option>
                                     </select>
                                 </label>
-                                <button type="button" class="gc-filter-btn gc-ct-btn-refresh" id="gcRevendaAtualizarBtn">
+                                <button type="button" class="gc-filter-btn gc-ct-btn-refresh" id="gcRevendaFilaAtualizarBtn">
                                     <i class="fas fa-rotate-right" aria-hidden="true"></i> Atualizar
                                 </button>
                             </div>
@@ -808,67 +828,6 @@
                                         <th scope="col">Status</th>
                                         <th scope="col" class="gc-ct-th-date">Lançado em</th>
                                         <th scope="col" class="gc-ct-th-acoes">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="gcRevendaTbody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Modal: detalhe de transferência de comissão -->
-                <div class="gc-ct-modal-backdrop" id="gcCtModalBackdrop" aria-hidden="true">
-                    <div class="gc-ct-modal" role="dialog" aria-modal="true" aria-labelledby="gcCtModalTitle">
-                        <div class="gc-ct-modal__header">
-                            <h3 class="gc-ct-modal__title" id="gcCtModalTitle"><i class="fas fa-right-left"></i> Solicitação de transferência</h3>
-                            <button type="button" class="gc-ct-modal__close" id="gcCtModalClose" aria-label="Fechar">&times;</button>
-                        </div>
-                        <div class="gc-ct-modal__body" id="gcCtModalBody"></div>
-                        <div class="gc-ct-modal__footer" id="gcCtModalFooter"></div>
-                    </div>
-                </div>
-
-                <section class="gc-section" id="gc-section-revenda" role="tabpanel" aria-labelledby="gc-tab-revenda" aria-hidden="true">
-                    <header class="gc-tab-head">
-                        <p class="gc-tab-head__kicker">Revenda</p>
-                        <p class="gc-tab-head__desc">Lançamentos de <strong>vendas de revenda</strong> (fora dos pedidos importados). Os valores entram na <strong>receita da consultora</strong> no período do filtro global, somando à meta e à comissão estimada no painel e no portal do vendedor.</p>
-                    </header>
-                    <div class="gc-block gc-revenda-block">
-                        <div class="gc-ct-toolbar gc-revenda-toolbar">
-                            <div class="gc-ct-toolbar__intro">
-                                <h3 class="gc-ct-toolbar__title"><i class="fas fa-store" aria-hidden="true"></i> Lançamento (gestão)</h3>
-                                <p class="gc-ct-toolbar__hint">Use o mesmo intervalo de datas do topo da página. A consultora também pode lançar pelo portal.</p>
-                            </div>
-                            <div class="gc-revenda-form">
-                                <label class="gc-ct-label">Consultora
-                                    <select id="gcRevendaVendedora" class="gc-filter-select"></select>
-                                </label>
-                                <label class="gc-ct-label">Data da venda
-                                    <input type="date" id="gcRevendaData" class="gc-filter-select" style="min-width:160px;">
-                                </label>
-                                <label class="gc-ct-label">Valor (R$)
-                                    <input type="text" id="gcRevendaValor" class="gc-filter-select" placeholder="0,00" inputmode="decimal" style="min-width:120px;">
-                                </label>
-                                <label class="gc-ct-label" style="flex:1;min-width:200px;">Descrição (produto / NF)
-                                    <input type="text" id="gcRevendaDesc" class="gc-filter-select" placeholder="Opcional" maxlength="500" style="width:100%;">
-                                </label>
-                                <button type="button" class="gc-filter-btn" id="gcRevendaSalvarBtn"><i class="fas fa-plus"></i> Salvar</button>
-                                <button type="button" class="gc-filter-btn gc-filter-btn--secondary" id="gcRevendaAtualizarBtn"><i class="fas fa-rotate-right"></i> Atualizar lista</button>
-                            </div>
-                        </div>
-                        <p class="gc-ct-msg" id="gcRevendaMsg" role="status" aria-live="polite" hidden></p>
-                        <div class="gc-table-wrap gc-comissao-transfer-wrap">
-                            <table class="gc-table gc-table--prod" id="gcRevendaTable">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Consultora</th>
-                                        <th>Data</th>
-                                        <th>Valor</th>
-                                        <th>Descrição</th>
-                                        <th>Status</th>
-                                        <th>Cadastro</th>
-                                        <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="gcRevendaTbody"></tbody>

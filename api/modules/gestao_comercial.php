@@ -4496,51 +4496,11 @@ function gestaoComercialRevendaSalvar(PDO $pdo): void
 {
     header('Content-Type: application/json; charset=utf-8');
     gcAssertAdminSession();
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        http_response_code(405);
-        echo json_encode(['success' => false, 'error' => 'Use POST.'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
-    if (!is_array($payload)) {
-        $payload = [];
-    }
-    $nome = trim((string) ($payload['vendedor_nome'] ?? ''));
-    $dv = trim((string) ($payload['data_venda'] ?? ''));
-    $valor = (float) str_replace(',', '.', preg_replace('/[^\d,.-]/', '', (string) ($payload['valor_liquido'] ?? '0')));
-    $desc = trim((string) ($payload['descricao'] ?? ''));
-    if ($nome === '' || !gcIsAllowedVendedora($nome)) {
-        http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Consultora inválida ou não permitida.'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dv)) {
-        http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Data inválida (use AAAA-MM-DD).'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-    if ($valor <= 0 || $valor > 99999999.99) {
-        http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Valor inválido.'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-    if (mb_strlen($desc) > 500) {
-        $desc = mb_substr($desc, 0, 500);
-    }
-    gcEnsureRevendaVendasTable($pdo);
-    // Admin lança direto como aprovado (lançamento manual pela gestão)
-    $ins = $pdo->prepare(
-        "INSERT INTO gc_revenda_vendas (vendedor_nome, data_venda, valor_liquido, descricao, ativo, status, created_by)
-         VALUES (:n, :d, :v, :desc, 1, 'aprovada', :uid)"
-    );
-    $ins->execute([
-        'n' => $nome,
-        'd' => $dv,
-        'v' => round($valor, 2),
-        'desc' => $desc !== '' ? $desc : null,
-        'uid' => (int) ($_SESSION['user_id'] ?? 0),
-    ]);
-    echo json_encode(['success' => true, 'id' => (int) $pdo->lastInsertId()], JSON_UNESCAPED_UNICODE);
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Revenda não é mais lançada pela gestão comercial. A consultora registra pelo portal do vendedor; aqui apenas aprovação/recusa.',
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
