@@ -237,12 +237,18 @@ try {
         }
 
         foreach ($deals as $deal) {
-            if (empty($deal['win'])) continue;
+            // RD pode marcar venda por "win=true" ou por status textual "won".
+            $isWon = !empty($deal['win']) || strtolower((string)($deal['status'] ?? '')) === 'won';
+            if (!$isWon) continue;
             if (!dealInPeriod($deal, $period)) continue;
 
             // Extrair nome e email do vendedor
-            $nomeCrmRaw = trim((string)($deal['user']['name'] ?? ''));
+            $nomeCrmRaw = trim((string)($deal['user']['name'] ?? $deal['user_name'] ?? ''));
             $emailVendedor = trim((string)($deal['user']['email'] ?? ''));
+            if ($nomeCrmRaw === '' && $emailVendedor !== '') {
+                // Fallback: se o nome não vier no payload, usa o prefixo do email.
+                $nomeCrmRaw = preg_replace('/@.*/', '', $emailVendedor) ?: '';
+            }
             if ($nomeCrmRaw === '') continue;
             $nomeCrm = canonicalSellerName($nomeCrmRaw);
 
