@@ -139,11 +139,38 @@ function writeCache(array $data): void {
 // ============================================================
 
 try {
-    // 1. Verificar cache válido
+    // 1. Verificar cache
     $cache = readCache();
+
+    // Cache ainda válido → responde imediatamente
     if ($cache && $cache['age'] < CACHE_TTL && !empty($cache['data'])) {
         echo json_encode($cache['data'], JSON_UNESCAPED_UNICODE);
         exit;
+    }
+
+    // Cache expirado mas existe → responde o dado antigo AGORA
+    // e dispara a atualização em background (sem bloquear o cliente)
+    if ($cache && !empty($cache['data'])) {
+        // Marca o cache como "atualizando" (renova TTL por 30s para evitar
+        // que múltiplas requisições simultâneas disparem o background ao mesmo tempo)
+        touch(CACHE_DIR . '/ranking.json');
+
+        // Envia a resposta antiga para o cliente
+        echo json_encode($cache['data'], JSON_UNESCAPED_UNICODE);
+
+        // Fecha a conexão HTTP — o cliente já recebeu, o PHP continua rodando
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();   // PHP-FPM
+        } else {
+            // Apache mod_php: simula o fechamento via flush
+            ignore_user_abort(true);
+            header('Content-Length: ' . ob_get_length());
+            header('Connection: close');
+            ob_end_flush();
+            flush();
+        }
+
+        // A partir daqui o cliente não espera mais — atualizamos o cache em background
     }
 
     // 2. Calcular período
