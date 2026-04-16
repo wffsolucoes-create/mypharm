@@ -45,8 +45,8 @@ function fetchDeals(string $token, int $page, int $limit, string $startDate, str
     curl_setopt_array($ch, [
         CURLOPT_URL            => $url,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => 10,
-        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_CONNECTTIMEOUT => 6,
+        CURLOPT_TIMEOUT        => 12,
         CURLOPT_HTTPHEADER     => ['Accept: application/json'],
         CURLOPT_SSL_VERIFYPEER => true,
     ]);
@@ -87,6 +87,45 @@ function getAmountFromDeal(array $deal): float {
 }
 
 /**
+ * Normaliza string (minúsculo, sem acentos) para comparação.
+ */
+function normalizeForCompare(string $text): string {
+    if (function_exists('mb_strtolower')) {
+        $text = trim(mb_strtolower($text, 'UTF-8'));
+    } else {
+        $text = trim(strtolower($text));
+    }
+    $map = [
+        'á' => 'a', 'à' => 'a', 'ã' => 'a', 'â' => 'a', 'ä' => 'a',
+        'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
+        'í' => 'i', 'ì' => 'i', 'î' => 'i', 'ï' => 'i',
+        'ó' => 'o', 'ò' => 'o', 'õ' => 'o', 'ô' => 'o', 'ö' => 'o',
+        'ú' => 'u', 'ù' => 'u', 'û' => 'u', 'ü' => 'u',
+        'ç' => 'c',
+    ];
+    return strtr($text, $map);
+}
+
+/**
+ * Consolida variações de nome da consultora para chave canônica.
+ */
+function canonicalSellerName(string $nomeCrm): string {
+    $n = normalizeForCompare($nomeCrm);
+
+    if (strpos($n, 'vitoria') !== false || strpos($n, 'jessica') !== false) return 'Vitória Carvalho';
+    if (strpos($n, 'carla') !== false) return 'Carla Pires - Consultora';
+    if (strpos($n, 'clara') !== false) return 'Clara Letícia';
+    if (strpos($n, 'nailena') !== false) return 'Nailena';
+    if (strpos($n, 'ananda') !== false) return 'Ananda';
+    if (strpos($n, 'micaela') !== false) return 'Micaela Nicolle';
+    if (strpos($n, 'nereida') !== false) return 'Nereida';
+    if (strpos($n, 'giovanna') !== false) return 'Giovanna';
+    if (strpos($n, 'mariana') !== false) return 'Mariana';
+
+    return trim($nomeCrm);
+}
+
+/**
  * Calcula intervalo de datas do período
  */
 function getPeriodDates(): array {
@@ -95,20 +134,42 @@ function getPeriodDates(): array {
     switch (PERIODO_RANKING) {
         case 'semanal':
             $start = (clone $now)->modify('monday this week')->setTime(0, 0, 0);
+            $end = clone $now;
             break;
         case 'anual':
             $start = (clone $now)->modify('first day of January')->setTime(0, 0, 0);
+            $end = clone $now;
             break;
         case 'mensal':
         default:
             $start = (clone $now)->modify('first day of this month')->setTime(0, 0, 0);
+            // Para bater com o RD (filtro de mês cheio), usa o último dia do mês atual.
+            $end = (clone $now)->modify('last day of this month')->setTime(23, 59, 59);
             break;
     }
 
     return [
         'start' => $start->format('Y-m-d'),
-        'end'   => $now->format('Y-m-d'),
+        'end'   => $end->format('Y-m-d'),
     ];
+}
+
+/**
+ * Verifica se a data do deal está dentro do período (timezone Brasil).
+ */
+function dealInPeriod(array $deal, array $period): bool {
+    $dateStr = $deal['closed_at'] ?? $deal['created_at'] ?? '';
+    if ($dateStr === '') {
+        return false;
+    }
+    try {
+        $dt = new DateTime((string)$dateStr);
+        $dt->setTimezone(new DateTimeZone('America/Sao_Paulo'));
+        $date = $dt->format('Y-m-d');
+    } catch (Exception $e) {
+        return false;
+    }
+    return $date >= $period['start'] && $date <= $period['end'];
 }
 
 /**
@@ -153,25 +214,32 @@ try {
     $porVendedor = [];
     $page    = 1;
     $limit   = 200;
-    $maxPages = 15;
+    // Limite de segurança para evitar timeout do PHP/Apache.
+    $maxPages = 40;
+    $totalPages = null;
 
-    do {
+    while (true) {
         $data  = fetchDeals(RD_API_TOKEN, $page, $limit, $period['start'], $period['end'], 'true');
-        $deals = $data['deals'] ?? [];
+        $deals = is_array($data['deals'] ?? null) ? $data['deals'] : [];
+        $fetched = count($deals);
+
+        if ($totalPages === null) {
+            if (isset($data['meta']['total_pages']) && is_numeric($data['meta']['total_pages'])) {
+                $totalPages = (int)$data['meta']['total_pages'];
+            } elseif (isset($data['total_pages']) && is_numeric($data['total_pages'])) {
+                $totalPages = (int)$data['total_pages'];
+            }
+        }
 
         foreach ($deals as $deal) {
             if (empty($deal['win'])) continue;
-
-            // Validar data dentro do período
-            $dateStr = $deal['closed_at'] ?? $deal['created_at'] ?? '';
-            $date    = $dateStr ? substr((string)$dateStr, 0, 10) : '';
-            if ($date !== '' && $date < $period['start']) continue;
-            if ($date === '' || $date > $period['end']) continue;
+            if (!dealInPeriod($deal, $period)) continue;
 
             // Extrair nome e email do vendedor
-            $nomeCrm = trim((string)($deal['user']['name'] ?? ''));
+            $nomeCrmRaw = trim((string)($deal['user']['name'] ?? ''));
             $emailVendedor = trim((string)($deal['user']['email'] ?? ''));
-            if ($nomeCrm === '') continue;
+            if ($nomeCrmRaw === '') continue;
+            $nomeCrm = canonicalSellerName($nomeCrmRaw);
 
             // Extrair valor
             $amount = getAmountFromDeal($deal);
@@ -188,9 +256,12 @@ try {
             $porVendedor[$nomeCrm]['count']++;
         }
 
-        $fetched = count($deals);
+        if ($fetched === 0) break;
+        if ($fetched < $limit) break;
+        if ($totalPages !== null && $page >= $totalPages) break;
+        if ($page >= $maxPages) break;
         $page++;
-    } while ($fetched >= $limit && $page <= $maxPages);
+    }
 
     // 4. Montar ranking no formato SellerRecord
     global $SELLER_CONFIG;
@@ -262,6 +333,13 @@ try {
     echo json_encode($ranking, JSON_UNESCAPED_UNICODE);
 
 } catch (Exception $e) {
+    // Fallback resiliente: se RD estiver indisponível, devolve último cache conhecido.
+    $fallback = readCache();
+    if ($fallback && !empty($fallback['data']) && is_array($fallback['data'])) {
+        echo json_encode($fallback['data'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     http_response_code(502);
     echo json_encode([
         'error'   => true,

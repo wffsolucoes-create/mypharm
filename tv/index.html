@@ -453,6 +453,14 @@
       animation-play-state: running;
     }
 
+    .podium-slot.podium-move-up .podium-avatar-wrap {
+      animation: moverUpPulse 1s ease;
+    }
+
+    .podium-slot.podium-move-down .podium-avatar-wrap {
+      animation: moverDownPulse 1s ease;
+    }
+
     .podium-slot--2nd.podium-visible {
       animation: podiumEnter 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
                  float2nd 5s ease-in-out 0.8s infinite;
@@ -471,6 +479,18 @@
     @keyframes podiumEnter {
       0%   { opacity: 0; transform: translateY(60px) scale(0.85); }
       100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes moverUpPulse {
+      0%   { transform: translateY(0) scale(1); filter: drop-shadow(0 0 0 rgba(34, 211, 238, 0)); }
+      40%  { transform: translateY(-8px) scale(1.08); filter: drop-shadow(0 0 18px rgba(34, 211, 238, 0.8)); }
+      100% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 0 rgba(34, 211, 238, 0)); }
+    }
+
+    @keyframes moverDownPulse {
+      0%   { transform: translateY(0) scale(1); filter: drop-shadow(0 0 0 rgba(251, 146, 60, 0)); }
+      40%  { transform: translateY(3px) scale(0.97); filter: drop-shadow(0 0 14px rgba(251, 146, 60, 0.65)); }
+      100% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 0 rgba(251, 146, 60, 0)); }
     }
 
     /* Avatar wrapper */
@@ -787,7 +807,7 @@
       border-radius: 14px;
       border: 1px solid var(--border);
       background: linear-gradient(135deg, rgba(15, 23, 42, 0.6), rgba(30, 41, 59, 0.3));
-      transition: all 0.3s ease;
+      transition: all 0.65s cubic-bezier(0.22, 0.61, 0.36, 1);
       opacity: 0;
       transform: translateX(40px);
       position: relative;
@@ -816,6 +836,41 @@
     .rank-card.card-visible {
       opacity: 1;
       transform: translateX(0);
+    }
+
+    .rank-card.rank-card--up {
+      border-color: rgba(16, 185, 129, 0.45);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.22);
+      animation: rankUpFlash 1s ease;
+    }
+
+    .rank-card.rank-card--down {
+      border-color: rgba(251, 146, 60, 0.45);
+      box-shadow: 0 0 16px rgba(251, 146, 60, 0.22);
+      animation: rankDownFlash 1s ease;
+    }
+
+    .rank-card.rank-card--gain .rank-card__vendas,
+    .rank-card.rank-card--gain .rank-card__meta {
+      animation: salesGainFlash 1s ease;
+    }
+
+    @keyframes rankUpFlash {
+      0%   { transform: translateX(20px) scale(0.98); }
+      45%  { transform: translateX(0) scale(1.02); }
+      100% { transform: translateX(0) scale(1); }
+    }
+
+    @keyframes rankDownFlash {
+      0%   { transform: translateX(20px) scale(0.98); }
+      45%  { transform: translateX(0) scale(0.995); }
+      100% { transform: translateX(0) scale(1); }
+    }
+
+    @keyframes salesGainFlash {
+      0%   { color: inherit; text-shadow: none; }
+      50%  { color: #67e8f9; text-shadow: 0 0 10px rgba(34, 211, 238, 0.55); }
+      100% { color: inherit; text-shadow: none; }
     }
 
     /* Position change indicator */
@@ -912,7 +967,7 @@
     .rank-card__bar-fill {
       height: 100%;
       border-radius: 999px;
-      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: width 1.8s cubic-bezier(0.16, 1, 0.3, 1);
       position: relative;
     }
 
@@ -1081,6 +1136,51 @@
     .error-state__icon {
       font-size: 2rem;
       margin-bottom: 0.3rem;
+    }
+
+    /* ============================================================
+       LIVE CHANGE FX (alert + confetti)
+       ============================================================ */
+    .live-alert {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      z-index: 1200;
+      min-width: 260px;
+      max-width: min(90vw, 560px);
+      padding: 0.7rem 1rem;
+      border-radius: 12px;
+      border: 1px solid rgba(34, 211, 238, 0.35);
+      background: linear-gradient(120deg, rgba(8, 47, 73, 0.9), rgba(30, 64, 175, 0.9));
+      color: #e0f2fe;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45), 0 0 24px rgba(34, 211, 238, 0.2);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      text-align: center;
+      backdrop-filter: blur(8px);
+    }
+
+    .live-alert.live-alert--visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .confetti-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 1150;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .confetti-canvas.confetti-canvas--active {
+      opacity: 1;
     }
 
     /* ============================================================
@@ -1489,11 +1589,11 @@
           <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
         </svg>
       </button>
-      <button type="button" class="site-header__btn site-header__btn--icon" title="Som" aria-label="Som">🔊</button>
+      <button type="button" class="site-header__btn site-header__btn--icon" id="btn-sound" title="Som ligado" aria-label="Som ligado" aria-pressed="true">🔊</button>
       <a href="api/divergencias.php" class="site-header__btn site-header__btn--accent" title="Divergências / Vendas"><span aria-hidden="true">🛍</span> Vendas</a>
       <a href="premiacao.html" class="site-header__btn site-header__btn--purple" title="Gerenciar Premiações"><span aria-hidden="true">🏅</span> Premiação</a>
       <a href="api/import_csv.php" class="site-header__btn site-header__btn--purple" title="Importar CSV"><span aria-hidden="true">☁</span> Importar</a>
-      <button type="button" class="site-header__btn site-header__btn--icon" title="Configurações" aria-label="Configurações">⚙</button>
+      <button type="button" class="site-header__btn site-header__btn--icon" id="btn-config" title="Configurações" aria-label="Configurações">⚙</button>
       <a href="../index.html" class="site-header__btn site-header__btn--exit" id="btn-sair" title="Sair do Ranking" aria-label="Sair">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
@@ -1587,6 +1687,9 @@
       <div class="modal-footer" id="modal-footer"></div>
     </div>
   </div>
+
+  <div class="live-alert" id="live-alert" role="status" aria-live="polite"></div>
+  <canvas class="confetti-canvas" id="confetti-canvas"></canvas>
 
   <script>
     /* ==========================================================
@@ -1685,6 +1788,13 @@
         syncFullscreenBtn();
       }
 
+      var btnConfig = document.getElementById('btn-config');
+      if (btnConfig) {
+        btnConfig.addEventListener('click', function () {
+          window.location.href = 'premiacao.html';
+        });
+      }
+
       var btnSair = document.getElementById('btn-sair');
       if (btnSair) {
         btnSair.addEventListener('click', function (e) {
@@ -1704,8 +1814,257 @@
     (function ranking() {
       var API = 'api/index.php';
       var AWARD_API = 'api/premiacao.php';
+      var REFRESH_MS = 15000;
       var allSellers = []; // store for modal access
       var awardImages = {}; // { '1': 'url', '2': 'url', '3': 'url' }
+      var isFetching = false;
+      var lastSnapshot = '';
+      var hasFirstLoad = false;
+      var soundEnabled = true;
+      var audioUnlocked = false;
+      var audioCtx = null;
+      var pendingSoundKind = '';
+      var liveAlertEl = document.getElementById('live-alert');
+      var confettiCanvas = document.getElementById('confetti-canvas');
+      var confettiCtx = confettiCanvas && confettiCanvas.getContext ? confettiCanvas.getContext('2d') : null;
+
+      function setupSoundButton() {
+        var btn = document.getElementById('btn-sound');
+        if (!btn) return;
+        function syncBtn() {
+          btn.textContent = soundEnabled ? '🔊' : '🔇';
+          btn.title = soundEnabled ? 'Som ligado' : 'Som desligado';
+          btn.setAttribute('aria-label', soundEnabled ? 'Som ligado' : 'Som desligado');
+          btn.setAttribute('aria-pressed', soundEnabled ? 'true' : 'false');
+        }
+        btn.addEventListener('click', function () {
+          audioUnlocked = true; // clique no botão conta como gesto do usuário
+          soundEnabled = !soundEnabled;
+          ensureAudioContext();
+          flushPendingSound();
+          syncBtn();
+        });
+        var unlockAudio = function () {
+          audioUnlocked = true;
+          ensureAudioContext();
+          flushPendingSound();
+          document.removeEventListener('pointerdown', unlockAudio);
+          document.removeEventListener('keydown', unlockAudio);
+        };
+        document.addEventListener('pointerdown', unlockAudio, { once: true });
+        document.addEventListener('keydown', unlockAudio, { once: true });
+        syncBtn();
+      }
+
+      function ensureAudioContext() {
+        if (!audioUnlocked) return null;
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        if (!audioCtx) audioCtx = new Ctx();
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(function () {});
+        }
+        return audioCtx;
+      }
+
+      function playTone(freq, startOffset, duration, volume) {
+        var ctx = ensureAudioContext();
+        if (!ctx) return;
+        var now = ctx.currentTime + startOffset;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(volume, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration + 0.02);
+      }
+
+      // Som suave para qualquer alteração.
+      function playUpdateSound() {
+        if (!soundEnabled) return;
+        try {
+          playTone(880, 0.00, 0.20, 0.06);
+        } catch (e) {
+          // Falha de áudio não deve quebrar o ranking.
+        }
+      }
+
+      function playOvertakeSound() {
+        if (!soundEnabled) return;
+        try {
+          playTone(784, 0.00, 0.18, 0.06);
+          playTone(988, 0.10, 0.22, 0.07);
+          playTone(1174, 0.24, 0.28, 0.08);
+        } catch (e) {}
+      }
+
+      function playSalesGainSound() {
+        if (!soundEnabled) return;
+        try {
+          playTone(660, 0.00, 0.14, 0.05);
+          playTone(784, 0.10, 0.16, 0.055);
+        } catch (e) {}
+      }
+
+      function queueSound(kind) {
+        pendingSoundKind = kind;
+      }
+
+      function playSoundByKind(kind) {
+        if (kind === 'overtake') {
+          playOvertakeSound();
+        } else if (kind === 'sales') {
+          playSalesGainSound();
+        } else if (kind === 'update') {
+          playUpdateSound();
+        }
+      }
+
+      function flushPendingSound() {
+        if (!audioUnlocked || !soundEnabled || !pendingSoundKind) return;
+        var kind = pendingSoundKind;
+        pendingSoundKind = '';
+        playSoundByKind(kind);
+      }
+
+      function showLiveAlert(message) {
+        if (!liveAlertEl) return;
+        liveAlertEl.textContent = message;
+        liveAlertEl.classList.add('live-alert--visible');
+        clearTimeout(showLiveAlert._t);
+        showLiveAlert._t = setTimeout(function () {
+          liveAlertEl.classList.remove('live-alert--visible');
+        }, 2600);
+      }
+
+      function runConfettiBurst(intensity) {
+        if (!confettiCanvas || !confettiCtx) return;
+        var dpr = window.devicePixelRatio || 1;
+        var w = Math.floor(window.innerWidth);
+        var h = Math.floor(window.innerHeight);
+        confettiCanvas.width = Math.floor(w * dpr);
+        confettiCanvas.height = Math.floor(h * dpr);
+        confettiCanvas.style.width = w + 'px';
+        confettiCanvas.style.height = h + 'px';
+        confettiCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        confettiCanvas.classList.add('confetti-canvas--active');
+
+        var colors = ['#22d3ee', '#6366f1', '#f59e0b', '#34d399', '#f472b6', '#fb923c'];
+        var parts = [];
+        var count = Math.max(26, Math.min(120, intensity || 60));
+        for (var i = 0; i < count; i++) {
+          parts.push({
+            x: Math.random() * w,
+            y: -10 - Math.random() * 80,
+            vx: -2 + Math.random() * 4,
+            vy: 2 + Math.random() * 5,
+            g: 0.08 + Math.random() * 0.08,
+            s: 3 + Math.random() * 5,
+            a: Math.random() * Math.PI,
+            va: -0.2 + Math.random() * 0.4,
+            c: colors[Math.floor(Math.random() * colors.length)]
+          });
+        }
+        var start = performance.now();
+        var duration = 2200;
+        (function frame(nowTs) {
+          var elapsed = nowTs - start;
+          confettiCtx.clearRect(0, 0, w, h);
+          for (var j = 0; j < parts.length; j++) {
+            var p = parts[j];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += p.g;
+            p.a += p.va;
+            confettiCtx.save();
+            confettiCtx.translate(p.x, p.y);
+            confettiCtx.rotate(p.a);
+            confettiCtx.fillStyle = p.c;
+            confettiCtx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * 0.7);
+            confettiCtx.restore();
+          }
+          if (elapsed < duration) {
+            requestAnimationFrame(frame);
+          } else {
+            confettiCtx.clearRect(0, 0, w, h);
+            confettiCanvas.classList.remove('confetti-canvas--active');
+          }
+        })(performance.now());
+      }
+
+      function summarizeChanges(previousMap, list) {
+        var movedUp = 0;
+        var movedDown = 0;
+        var salesGain = 0;
+        var bestMove = null;
+        for (var i = 0; i < list.length; i++) {
+          var cur = list[i];
+          var prev = previousMap[cur.nome];
+          if (!prev) continue;
+          var curPos = Number(cur.posicao_atual) || 0;
+          var prevPos = Number(prev.posicao_atual) || curPos;
+          if (curPos < prevPos) {
+            movedUp += 1;
+            if (!bestMove || (prevPos - curPos) > bestMove.steps) {
+              bestMove = { nome: cur.nome, steps: (prevPos - curPos), pos: curPos };
+            }
+          } else if (curPos > prevPos) {
+            movedDown += 1;
+          }
+          if ((Number(cur.vendas_valor) || 0) > (Number(prev.vendas_valor) || 0) ||
+              (Number(cur.vendas_qtd) || 0) > (Number(prev.vendas_qtd) || 0)) {
+            salesGain += 1;
+          }
+        }
+        return { movedUp: movedUp, movedDown: movedDown, salesGain: salesGain, bestMove: bestMove };
+      }
+
+      function triggerRankingFx(summary) {
+        if (!summary) return;
+        if (summary.movedUp > 0 && summary.bestMove) {
+          showLiveAlert('🚀 ' + summary.bestMove.nome + ' subiu ' + summary.bestMove.steps + ' posição(ões) e está em #' + summary.bestMove.pos + '!');
+          runConfettiBurst(95);
+          if (!audioUnlocked) {
+            queueSound('overtake');
+            showLiveAlert('🔊 Clique em qualquer lugar para ativar o áudio automático.');
+          } else {
+            playOvertakeSound();
+          }
+          return;
+        }
+        if (summary.salesGain > 0) {
+          showLiveAlert('📈 Atualização automática: ' + summary.salesGain + ' consultora(s) aumentaram vendas.');
+          runConfettiBurst(45);
+          if (!audioUnlocked) {
+            queueSound('sales');
+            showLiveAlert('🔊 Clique em qualquer lugar para ativar o áudio automático.');
+          } else {
+            playSalesGainSound();
+          }
+          return;
+        }
+        if (!audioUnlocked) {
+          queueSound('update');
+        } else {
+          playUpdateSound();
+        }
+      }
+
+      function snapshotOf(list) {
+        return list.map(function (s) {
+          return [
+            String(s.nome || ''),
+            Number(s.posicao_atual) || 0,
+            Number(s.vendas_qtd) || 0,
+            Number(s.vendas_valor) || 0
+          ].join('|');
+        }).join('||');
+      }
 
       // Load award images config
       function loadAwardImages() {
@@ -1875,6 +2234,14 @@
         return '';
       }
 
+      function movementClass(s) {
+        var prev = Number(s.posicao_anterior || s.posicao_atual || 0);
+        var cur = Number(s.posicao_atual || 0);
+        if (prev > cur) return 'up';
+        if (prev < cur) return 'down';
+        return 'same';
+      }
+
       function renderPodium(top3) {
         var order = [top3[1], top3[0], top3[2]];
         var cls = ['podium-slot--2nd', 'podium-slot--1st', 'podium-slot--3rd'];
@@ -1885,7 +2252,8 @@
         for (var i = 0; i < 3; i++) {
           var s = order[i];
           var slot = document.createElement('div');
-          slot.className = 'podium-slot ' + cls[i];
+          var move = movementClass(s || {});
+          slot.className = 'podium-slot ' + cls[i] + (move === 'up' ? ' podium-move-up' : move === 'down' ? ' podium-move-down' : '');
 
           if (!s) {
             slot.innerHTML = '<div class="podium-pedestal">' + nums[i] + '</div>';
@@ -1893,7 +2261,7 @@
             // Trigger entrance animation
             setTimeout((function(sl) {
               return function() { sl.classList.add('podium-visible'); };
-            })(slot), 100 + i * 200);
+            })(slot), 180 + i * 320);
             continue;
           }
 
@@ -1944,11 +2312,11 @@
           // Trigger entrance animation with stagger
           setTimeout((function(sl) {
             return function() { sl.classList.add('podium-visible'); };
-          })(slot), 200 + i * 250);
+          })(slot), 280 + i * 420);
         }
       }
 
-      function renderOthers(rest) {
+      function renderOthers(rest, previousMap) {
         var box = document.getElementById('others-list');
         if (!rest.length) {
           box.innerHTML = '<p style="color:var(--text-muted);padding:1rem;text-align:center;font-weight:500">Sem colocados após o 3º lugar.</p>';
@@ -1968,9 +2336,14 @@
             ? '<span class="rank-card__pct-sub rank-card__pct-sub--hit">✓ Atingido</span>'
             : '<span class="rank-card__pct-sub rank-card__pct-sub--muted">da meta</span>';
           var changeHtml = positionChange(s);
+          var move = movementClass(s);
+          var prevStats = previousMap[s.nome] || null;
+          var hasSalesGain = !!(prevStats && (Number(s.vendas_valor) > Number(prevStats.vendas_valor) || Number(s.vendas_qtd) > Number(prevStats.vendas_qtd)));
+          var moveClass = move === 'up' ? ' rank-card--up' : move === 'down' ? ' rank-card--down' : '';
+          var gainClass = hasSalesGain ? ' rank-card--gain' : '';
 
           html +=
-            '<article class="rank-card" style="transition-delay:' + (j * 0.08) + 's">' +
+            '<article class="rank-card' + moveClass + gainClass + '" style="transition-delay:' + (j * 0.08) + 's">' +
             changeHtml +
             '<div class="rank-card__badge">' + esc(String(pos)) + '</div>' +
             '<img class="rank-card__avatar" src="' + avatar(s) + '" alt="" />' +
@@ -2005,16 +2378,21 @@
               if (fill) {
                 setTimeout(function() {
                   fill.style.width = fill.getAttribute('data-target-width') + '%';
-                }, 200);
+                }, 420);
               }
-            }, 100 + idx * 100);
+            }, 180 + idx * 180);
           })(cards[k], k, rest[k]);
         }
       }
 
-      // Load awards first, then ranking data
-      loadAwardImages().then(function () {
-        fetch(API, { cache: 'no-store' })
+      function fetchAndRenderRanking() {
+        if (isFetching) return;
+        isFetching = true;
+
+        loadAwardImages()
+          .then(function () {
+            return fetch(API + '?_=' + Date.now(), { cache: 'no-store' });
+          })
           .then(function (r) {
             return r.json();
           })
@@ -2023,7 +2401,21 @@
               throw new Error((data && data.message) || 'Resposta inválida');
             }
             var list = sorted(data);
+            var previousMap = {};
+            for (var p = 0; p < allSellers.length; p++) {
+              var prev = allSellers[p];
+              previousMap[prev.nome] = {
+                posicao_atual: Number(prev.posicao_atual) || 0,
+                vendas_valor: Number(prev.vendas_valor) || 0,
+                vendas_qtd: Number(prev.vendas_qtd) || 0
+              };
+            }
             allSellers = list;
+
+            var currentSnapshot = snapshotOf(list);
+            var hasChanged = hasFirstLoad && currentSnapshot !== lastSnapshot;
+            lastSnapshot = currentSnapshot;
+            hasFirstLoad = true;
 
             var n = list.length;
             var badgeEl = document.getElementById('others-count');
@@ -2033,16 +2425,35 @@
             }
 
             renderPodium(list.slice(0, 3));
-            renderOthers(list.slice(3));
+            renderOthers(list.slice(3), previousMap);
+
+            if (hasChanged) {
+              triggerRankingFx(summarizeChanges(previousMap, list));
+            }
           })
           .catch(function (e) {
-            var bc = document.getElementById('others-count');
-            if (bc) bc.textContent = '—';
-            document.getElementById('podium-row').innerHTML =
-              '<div class="error-state"><div class="error-state__icon">⚠️</div>' + esc(e.message) + '</div>';
-            document.getElementById('others-list').innerHTML =
-              '<div class="error-state"><div class="error-state__icon">⚠️</div>Não foi possível carregar o ranking.</div>';
+            // Só mostra tela de erro no primeiro carregamento.
+            if (!hasFirstLoad) {
+              var bc = document.getElementById('others-count');
+              if (bc) bc.textContent = '—';
+              document.getElementById('podium-row').innerHTML =
+                '<div class="error-state"><div class="error-state__icon">⚠️</div>' + esc(e.message) + '</div>';
+              document.getElementById('others-list').innerHTML =
+                '<div class="error-state"><div class="error-state__icon">⚠️</div>Não foi possível carregar o ranking.</div>';
+            }
+          })
+          .finally(function () {
+            isFetching = false;
           });
+      }
+
+      setupSoundButton();
+      fetchAndRenderRanking();
+      setInterval(fetchAndRenderRanking, REFRESH_MS);
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+          fetchAndRenderRanking();
+        }
       });
     })();
   </script>
