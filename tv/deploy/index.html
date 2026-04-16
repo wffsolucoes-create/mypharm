@@ -747,32 +747,12 @@
     .others-stats-group {
       display: flex;
       align-items: center;
-      gap: 1rem;
-    }
-
-    .others-stat-item {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      line-height: 1.2;
-    }
-
-    .others-stat-label {
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      letter-spacing: 0.05em;
-    }
-
-    .others-stat-value {
-      font-size: 1.05rem;
-      font-weight: 800;
-      color: var(--cyan);
-      letter-spacing: 0.02em;
+      justify-content: flex-end;
     }
 
     .others-panel__badge {
       flex-shrink: 0;
-      font-size: 0.58rem;
+      font-size: 0.72rem;
       font-weight: 800;
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -1535,7 +1515,7 @@
       <section class="podium-panel" aria-label="Top 3">
         <div class="podium-panel__header">
           <span class="podium-panel__header-icon">👑</span>
-          <span>Top 3 — Vendedores</span>
+          <span>Top 3 — Consultoras</span>
           <span class="podium-panel__header-icon">👑</span>
         </div>
         <div class="podium-panel__inner">
@@ -1553,15 +1533,7 @@
         <div class="others-panel__head">
           <span>📊 Classificação Geral</span>
           <div class="others-stats-group">
-            <div class="others-stat-item">
-              <span class="others-stat-label">Total Meta</span>
-              <span class="others-stat-value" id="total-meta">R$ 0,00</span>
-            </div>
-            <div class="others-stat-item">
-              <span class="others-stat-label">Meta Global</span>
-              <span class="others-stat-value" id="total-pct">0%</span>
-            </div>
-            <span class="others-panel__badge" id="others-count">—</span>
+            <span class="others-panel__badge" id="others-count" aria-live="polite">—</span>
           </div>
         </div>
         <div class="others-panel__body" id="others-list">
@@ -1984,10 +1956,6 @@
 
       function renderOthers(rest) {
         var box = document.getElementById('others-list');
-        var badge = document.getElementById('others-count');
-        if (badge) {
-          badge.textContent = rest.length ? rest.length + ' vendedores' : '0';
-        }
         if (!rest.length) {
           box.innerHTML = '<p style="color:var(--text-muted);padding:1rem;text-align:center;font-weight:500">Sem colocados após o 3º lugar.</p>';
           return;
@@ -2063,22 +2031,19 @@
             var list = sorted(data);
             allSellers = list;
 
-            // Calculate totals for the header
-            var revSum = 0;
-            var metaSum = 0;
-            for (var idx = 0; idx < list.length; idx++) {
-              revSum += (Number(list[idx].vendas_valor) || 0);
-              metaSum += (Number(list[idx].meta_valor) || 0);
+            var n = list.length;
+            var badgeEl = document.getElementById('others-count');
+            if (badgeEl) {
+              badgeEl.textContent =
+                n === 0 ? '0 consultoras' : n === 1 ? '1 consultora' : n + ' consultoras';
             }
-            var totalPctCalculated = metaSum > 0 ? (revSum / metaSum) * 100 : 0;
-
-            document.getElementById('total-meta').textContent = fmtBRL(metaSum);
-            document.getElementById('total-pct').textContent = Math.round(totalPctCalculated) + '%';
 
             renderPodium(list.slice(0, 3));
             renderOthers(list.slice(3));
           })
           .catch(function (e) {
+            var bc = document.getElementById('others-count');
+            if (bc) bc.textContent = '—';
             document.getElementById('podium-row').innerHTML =
               '<div class="error-state"><div class="error-state__icon">⚠️</div>' + esc(e.message) + '</div>';
             document.getElementById('others-list').innerHTML =

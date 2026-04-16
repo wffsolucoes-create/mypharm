@@ -103,10 +103,14 @@ export function RankingBoard() {
     return <div className="text-center text-gray-500 p-8">Nenhum dado encontrado.</div>;
   }
 
-  const sortedRanking = [...ranking].sort((a, b) => a.posicao_atual - b.posicao_atual);
-  
+  const hiddenSellers: string[] = JSON.parse(localStorage.getItem('ranking_hidden_sellers') || '[]');
+
+  const sortedRanking = [...ranking]
+    .filter(s => !hiddenSellers.includes(s.nome))
+    .sort((a, b) => a.posicao_atual - b.posicao_atual);
+
   const top3 = sortedRanking.slice(0, 3);
-  const remaining = sortedRanking.slice(3, 100); // Exibir até o top 100 por performance
+  const remaining = sortedRanking.slice(3, 100);
 
   return (
     <div className="w-full h-screen overflow-hidden py-3 px-4 flex flex-col">
