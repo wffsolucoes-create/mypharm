@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/animations.css" />
   <style>
     /* ============================================================
        CSS CUSTOM PROPERTIES
@@ -274,6 +275,48 @@
     #btn-fullscreen[aria-pressed="true"] .btn-fullscreen__icon--exit { display: block; }
     #btn-fullscreen .btn-fullscreen__icon--exit { display: none; }
 
+    /* Kit de áudio premium (volume + mute) */
+    .sound-kit {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0 0.35rem 0 0.15rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      flex-shrink: 0;
+    }
+    .sound-kit__vol {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin: 0;
+      padding: 0;
+      cursor: pointer;
+    }
+    .sound-kit__vol-icon {
+      display: flex;
+      color: var(--text-muted);
+      opacity: 0.85;
+    }
+    .sound-kit__vol-icon svg {
+      display: block;
+    }
+    #sound-volume {
+      width: 72px;
+      height: 4px;
+      accent-color: var(--accent-bright);
+      cursor: pointer;
+      opacity: 0.95;
+    }
+    .sound-kit .site-header__btn--icon {
+      border: none;
+      background: transparent;
+    }
+    .sound-kit .site-header__btn--icon:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
     .site-header__btn--accent {
       background: rgba(99, 102, 241, 0.15);
       border-color: rgba(99, 102, 241, 0.3);
@@ -294,6 +337,139 @@
     .site-header__btn--purple:hover {
       background: rgba(147, 51, 234, 0.25);
       border-color: rgba(147, 51, 234, 0.4);
+    }
+
+    /* Menu oculto (hamburger) */
+    .site-header__btn--menu svg {
+      display: block;
+    }
+
+    .nav-drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 900;
+      background: rgba(2, 6, 23, 0.55);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.28s ease, visibility 0.28s;
+      pointer-events: none;
+    }
+
+    .nav-drawer-backdrop--open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .nav-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(300px, 92vw);
+      max-height: 100vh;
+      z-index: 910;
+      background: linear-gradient(175deg, rgba(15, 23, 42, 0.98) 0%, rgba(17, 24, 39, 0.97) 50%, rgba(12, 18, 32, 0.98) 100%);
+      border-left: 1px solid rgba(148, 163, 184, 0.12);
+      box-shadow: -16px 0 48px rgba(0, 0, 0, 0.45);
+      transform: translateX(100%);
+      transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      pointer-events: none;
+    }
+
+    .nav-drawer--open {
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+
+    .nav-drawer__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .nav-drawer__title {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .nav-drawer__close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-dim);
+      font-size: 1.25rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .nav-drawer__close:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .nav-drawer__body {
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .nav-drawer__body .site-header__btn--icon {
+      width: 38px;
+      flex-shrink: 0;
+    }
+
+    #btn-fullscreen.nav-drawer__btn-fs {
+      width: 100%;
+      justify-content: flex-start;
+      gap: 0.65rem;
+      padding: 0 0.85rem;
+    }
+
+    .nav-drawer__body .sound-kit {
+      width: 100%;
+      justify-content: space-between;
+      box-sizing: border-box;
+    }
+
+    .nav-drawer__body .sound-kit #sound-volume {
+      flex: 1;
+      max-width: 160px;
+      min-width: 72px;
+    }
+
+    .nav-drawer__body > a.site-header__btn {
+      width: 100%;
+      justify-content: flex-start;
+      box-sizing: border-box;
+    }
+
+    .nav-drawer__body > button.site-header__btn:not(.site-header__btn--icon) {
+      width: 100%;
+      justify-content: flex-start;
+      box-sizing: border-box;
+    }
+
+    body.nav-drawer-active {
+      overflow: hidden;
     }
 
     /* ============================================================
@@ -1581,26 +1757,68 @@
     </div>
 
     <nav class="site-header__actions" aria-label="Ações">
-      <button type="button" class="site-header__btn site-header__btn--icon" id="btn-fullscreen" title="Tela cheia" aria-label="Tela cheia" aria-pressed="false">
+      <button
+        type="button"
+        class="site-header__btn site-header__btn--icon site-header__btn--menu"
+        id="btn-menu-drawer"
+        title="Menu"
+        aria-label="Abrir menu"
+        aria-expanded="false"
+        aria-controls="nav-drawer"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <line x1="4" y1="6" x2="20" y2="6" />
+          <line x1="4" y1="12" x2="20" y2="12" />
+          <line x1="4" y1="18" x2="20" y2="18" />
+        </svg>
+      </button>
+    </nav>
+  </header>
+
+  <div class="nav-drawer-backdrop" id="nav-drawer-backdrop" aria-hidden="true"></div>
+  <aside
+    class="nav-drawer"
+    id="nav-drawer"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Menu do painel"
+    aria-hidden="true"
+  >
+    <div class="nav-drawer__header">
+      <span class="nav-drawer__title">Menu</span>
+      <button type="button" class="nav-drawer__close" id="nav-drawer-close" aria-label="Fechar menu">×</button>
+    </div>
+    <div class="nav-drawer__body">
+      <button type="button" class="site-header__btn nav-drawer__btn-fs" id="btn-fullscreen" title="Tela cheia" aria-label="Tela cheia" aria-pressed="false">
         <svg class="btn-fullscreen__icon btn-fullscreen__icon--enter" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" />
         </svg>
         <svg class="btn-fullscreen__icon btn-fullscreen__icon--exit" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
         </svg>
+        <span>Tela cheia</span>
       </button>
-      <button type="button" class="site-header__btn site-header__btn--icon" id="btn-sound" title="Som ligado" aria-label="Som ligado" aria-pressed="true">🔊</button>
+      <div class="sound-kit" id="sound-kit" title="Áudio do painel">
+        <button type="button" class="site-header__btn site-header__btn--icon" id="btn-sound" title="Som ligado" aria-label="Som ligado" aria-pressed="true">🔊</button>
+        <label class="sound-kit__vol" for="sound-volume" title="Volume dos efeitos">
+          <span class="sound-kit__vol-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" />
+            </svg>
+          </span>
+          <input type="range" id="sound-volume" min="0" max="100" value="45" step="1" aria-label="Volume dos efeitos sonoros" />
+        </label>
+      </div>
       <a href="api/divergencias.php" class="site-header__btn site-header__btn--accent" title="Divergências / Vendas"><span aria-hidden="true">🛍</span> Vendas</a>
       <a href="premiacao.html" class="site-header__btn site-header__btn--purple" title="Gerenciar Premiações"><span aria-hidden="true">🏅</span> Premiação</a>
       <a href="api/import_csv.php" class="site-header__btn site-header__btn--purple" title="Importar CSV"><span aria-hidden="true">☁</span> Importar</a>
-      <button type="button" class="site-header__btn site-header__btn--icon" id="btn-config" title="Configurações" aria-label="Configurações">⚙</button>
-      <a href="../index.html" class="site-header__btn site-header__btn--exit" id="btn-sair" title="Sair do Ranking" aria-label="Sair">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-        </svg>
-      </a>
-    </nav>
-  </header>
+      <button type="button" class="site-header__btn site-header__btn--accent" id="btn-presentation" title="Modo apresentação" aria-label="Modo apresentação" aria-pressed="false">
+        <span aria-hidden="true">🎥</span>
+        <span class="presentation-label">Apresentação</span>
+      </button>
+      <button type="button" class="site-header__btn site-header__btn--purple" id="btn-config" title="Configurações" aria-label="Configurações"><span aria-hidden="true">⚙</span> Configurações</button>
+    </div>
+  </aside>
 
   <!-- Main Content -->
   <main class="page-main">
@@ -1689,7 +1907,36 @@
   </div>
 
   <div class="live-alert" id="live-alert" role="status" aria-live="polite"></div>
+  <div class="top3-entry-badge" id="top3-entry-badge" aria-live="polite"></div>
+  <div class="leader-spotlight" id="leader-spotlight" aria-hidden="true">
+    <div class="leader-spotlight__card">
+      <div class="leader-spotlight__ring">
+        <img class="leader-spotlight__avatar" id="leader-spotlight-avatar" src="" alt="Líder em destaque" />
+      </div>
+      <div class="leader-spotlight__meta">
+        <div class="leader-spotlight__title">Liderança em tempo real</div>
+        <div class="leader-spotlight__name" id="leader-spotlight-name">—</div>
+        <div class="leader-spotlight__value" id="leader-spotlight-value">—</div>
+        <div class="leader-spotlight__sub" id="leader-spotlight-sub">Destaque do ranking</div>
+      </div>
+    </div>
+  </div>
   <canvas class="confetti-canvas" id="confetti-canvas"></canvas>
+
+  <script src="../js/sound-manager.js"></script>
+  <script src="../js/confetti-manager.js"></script>
+  <script src="../js/ranking-animations.js"></script>
+  <script src="../js/presentation-mode.js"></script>
+  <script>
+    window.soundManager = new MyPharmSoundManager({ baseUrl: '../assets/sounds/' });
+    soundManager.init();
+    window.confettiManager = new MyPharmConfettiManager(document.getElementById('confetti-canvas'));
+    window.rankingAnimations = RankingAnimations.init();
+    if (window.confettiManager && window.rankingAnimations) {
+      confettiManager.setReducedMotion(rankingAnimations.reducedMotion);
+    }
+    window.presentationMode = PresentationMode.init();
+  </script>
 
   <script>
     /* ==========================================================
@@ -1761,6 +2008,10 @@
           btnFs.setAttribute('aria-label', on ? 'Sair da tela cheia' : 'Tela cheia');
         }
         btnFs.addEventListener('click', function () {
+          if (window.soundManager) {
+            soundManager.unlock();
+            soundManager.play('clickSoft');
+          }
           if (fullscreenActive()) {
             var exit =
               document.exitFullscreen ||
@@ -1791,21 +2042,86 @@
       var btnConfig = document.getElementById('btn-config');
       if (btnConfig) {
         btnConfig.addEventListener('click', function () {
+          if (window.soundManager) {
+            soundManager.unlock();
+            soundManager.play('clickSoft');
+          }
           window.location.href = 'premiacao.html';
         });
       }
 
-      var btnSair = document.getElementById('btn-sair');
-      if (btnSair) {
-        btnSair.addEventListener('click', function (e) {
-          // Se viemos de outra página do mesmo site, voltamos para manter o fluxo.
-          // Caso contrário, o link natural (../index.html) no href do <a> cuidará da navegação.
-          if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) {
-            e.preventDefault();
-            history.back();
+      var btnPresentation = document.getElementById('btn-presentation');
+      if (btnPresentation) {
+        btnPresentation.addEventListener('click', function () {
+          if (window.soundManager) {
+            soundManager.unlock();
+            soundManager.play('clickSoft');
+          }
+          if (window.presentationMode) {
+            presentationMode.togglePresentationMode();
           }
         });
       }
+    })();
+
+    /* Menu lateral (ícone de três barras) */
+    (function initNavDrawer() {
+      var toggle = document.getElementById('btn-menu-drawer');
+      var drawer = document.getElementById('nav-drawer');
+      var backdrop = document.getElementById('nav-drawer-backdrop');
+      var closeBtn = document.getElementById('nav-drawer-close');
+      if (!toggle || !drawer || !backdrop) return;
+
+      function isOpen() {
+        return drawer.classList.contains('nav-drawer--open');
+      }
+
+      function openDrawer() {
+        drawer.classList.add('nav-drawer--open');
+        backdrop.classList.add('nav-drawer-backdrop--open');
+        drawer.setAttribute('aria-hidden', 'false');
+        backdrop.setAttribute('aria-hidden', 'false');
+        toggle.setAttribute('aria-expanded', 'true');
+        document.body.classList.add('nav-drawer-active');
+      }
+
+      function closeDrawer() {
+        drawer.classList.remove('nav-drawer--open');
+        backdrop.classList.remove('nav-drawer-backdrop--open');
+        drawer.setAttribute('aria-hidden', 'true');
+        backdrop.setAttribute('aria-hidden', 'true');
+        toggle.setAttribute('aria-expanded', 'false');
+        document.body.classList.remove('nav-drawer-active');
+        toggle.focus();
+      }
+
+      toggle.addEventListener('click', function () {
+        if (isOpen()) {
+          closeDrawer();
+        } else {
+          openDrawer();
+        }
+      });
+      backdrop.addEventListener('click', closeDrawer);
+      if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+
+      drawer.addEventListener('click', function (e) {
+        var a = e.target.closest && e.target.closest('a[href]');
+        if (a && drawer.contains(a)) closeDrawer();
+        var b = e.target.closest && e.target.closest('button.site-header__btn');
+        if (b && drawer.contains(b) && !e.target.closest('#sound-kit')) {
+          if (b.id === 'btn-config' || b.id === 'btn-presentation' || b.id === 'btn-fullscreen') {
+            setTimeout(closeDrawer, 120);
+          }
+        }
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape' || !isOpen()) return;
+        var modal = document.getElementById('modal-overlay');
+        if (modal && modal.classList.contains('modal-open')) return;
+        closeDrawer();
+      });
     })();
 
     /* ==========================================================
@@ -1820,116 +2136,44 @@
       var isFetching = false;
       var lastSnapshot = '';
       var hasFirstLoad = false;
-      var soundEnabled = true;
-      var audioUnlocked = false;
-      var audioCtx = null;
-      var pendingSoundKind = '';
       var liveAlertEl = document.getElementById('live-alert');
       var confettiCanvas = document.getElementById('confetti-canvas');
       var confettiCtx = confettiCanvas && confettiCanvas.getContext ? confettiCanvas.getContext('2d') : null;
 
-      function setupSoundButton() {
+      /**
+       * UI de áudio: sincroniza botão e slider com soundManager (preferências em localStorage).
+       */
+      function setupSoundUi() {
         var btn = document.getElementById('btn-sound');
-        if (!btn) return;
-        function syncBtn() {
-          btn.textContent = soundEnabled ? '🔊' : '🔇';
-          btn.title = soundEnabled ? 'Som ligado' : 'Som desligado';
-          btn.setAttribute('aria-label', soundEnabled ? 'Som ligado' : 'Som desligado');
-          btn.setAttribute('aria-pressed', soundEnabled ? 'true' : 'false');
+        var vol = document.getElementById('sound-volume');
+        if (!btn || !window.soundManager) return;
+        function syncUi() {
+          var on = soundManager.enabled;
+          btn.textContent = on ? '🔊' : '🔇';
+          btn.title = on ? 'Som ligado' : 'Som desligado';
+          btn.setAttribute('aria-label', on ? 'Som ligado' : 'Som desligado');
+          btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+          if (vol) {
+            vol.value = String(Math.round(soundManager.volume * 100));
+          }
         }
         btn.addEventListener('click', function () {
-          audioUnlocked = true; // clique no botão conta como gesto do usuário
-          soundEnabled = !soundEnabled;
-          ensureAudioContext();
-          flushPendingSound();
-          syncBtn();
+          soundManager.unlock();
+          if (soundManager.enabled) {
+            soundManager.disable();
+          } else {
+            soundManager.enable();
+            soundManager.play('clickSoft');
+          }
+          syncUi();
         });
-        var unlockAudio = function () {
-          audioUnlocked = true;
-          ensureAudioContext();
-          flushPendingSound();
-          document.removeEventListener('pointerdown', unlockAudio);
-          document.removeEventListener('keydown', unlockAudio);
-        };
-        document.addEventListener('pointerdown', unlockAudio, { once: true });
-        document.addEventListener('keydown', unlockAudio, { once: true });
-        syncBtn();
-      }
-
-      function ensureAudioContext() {
-        if (!audioUnlocked) return null;
-        var Ctx = window.AudioContext || window.webkitAudioContext;
-        if (!Ctx) return null;
-        if (!audioCtx) audioCtx = new Ctx();
-        if (audioCtx.state === 'suspended') {
-          audioCtx.resume().catch(function () {});
+        if (vol) {
+          vol.addEventListener('input', function () {
+            soundManager.unlock();
+            soundManager.setVolume(Number(vol.value) / 100);
+          });
         }
-        return audioCtx;
-      }
-
-      function playTone(freq, startOffset, duration, volume) {
-        var ctx = ensureAudioContext();
-        if (!ctx) return;
-        var now = ctx.currentTime + startOffset;
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now);
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(volume, now + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + duration + 0.02);
-      }
-
-      // Som suave para qualquer alteração.
-      function playUpdateSound() {
-        if (!soundEnabled) return;
-        try {
-          playTone(880, 0.00, 0.20, 0.06);
-        } catch (e) {
-          // Falha de áudio não deve quebrar o ranking.
-        }
-      }
-
-      function playOvertakeSound() {
-        if (!soundEnabled) return;
-        try {
-          playTone(784, 0.00, 0.18, 0.06);
-          playTone(988, 0.10, 0.22, 0.07);
-          playTone(1174, 0.24, 0.28, 0.08);
-        } catch (e) {}
-      }
-
-      function playSalesGainSound() {
-        if (!soundEnabled) return;
-        try {
-          playTone(660, 0.00, 0.14, 0.05);
-          playTone(784, 0.10, 0.16, 0.055);
-        } catch (e) {}
-      }
-
-      function queueSound(kind) {
-        pendingSoundKind = kind;
-      }
-
-      function playSoundByKind(kind) {
-        if (kind === 'overtake') {
-          playOvertakeSound();
-        } else if (kind === 'sales') {
-          playSalesGainSound();
-        } else if (kind === 'update') {
-          playUpdateSound();
-        }
-      }
-
-      function flushPendingSound() {
-        if (!audioUnlocked || !soundEnabled || !pendingSoundKind) return;
-        var kind = pendingSoundKind;
-        pendingSoundKind = '';
-        playSoundByKind(kind);
+        syncUi();
       }
 
       function showLiveAlert(message) {
@@ -2024,34 +2268,110 @@
         return { movedUp: movedUp, movedDown: movedDown, salesGain: salesGain, bestMove: bestMove };
       }
 
-      function triggerRankingFx(summary) {
-        if (!summary) return;
+      /**
+       * Detecta entradas no Top 3 e meta ≥ 100% para mapeamento sonoro (ver sound-manager.js).
+       */
+      function computeAudioEvents(previousMap, list) {
+        var top3Enter = false;
+        var top3Seller = null;
+        var metaHit = false;
+        var metaHitSeller = null;
+        var leaderChanged = false;
+        var leaderSeller = list && list.length ? list[0] : null;
+        if (leaderSeller) {
+          var lp = previousMap[leaderSeller.nome];
+          leaderChanged = !!(lp && Number(lp.posicao_atual) > 1 && Number(leaderSeller.posicao_atual) === 1);
+        }
+        for (var i = 0; i < list.length; i++) {
+          var cur = list[i];
+          var prev = previousMap[cur.nome];
+          if (!prev) continue;
+          var curPos = Number(cur.posicao_atual) || 0;
+          var prevPos = Number(prev.posicao_atual) || curPos;
+          var curM = Number(cur.percentual_meta) || 0;
+          var prevM = Number(prev.percentual_meta) || 0;
+          if (prevPos > 3 && curPos <= 3) {
+            top3Enter = true;
+            if (!top3Seller) top3Seller = cur;
+          }
+          if (prevM < 100 && curM >= 100) {
+            metaHit = true;
+            if (!metaHitSeller) metaHitSeller = cur;
+          }
+        }
+        return {
+          top3Enter: top3Enter,
+          top3Seller: top3Seller,
+          metaHit: metaHit,
+          metaHitSeller: metaHitSeller,
+          leaderChanged: leaderChanged,
+          leaderSeller: leaderSeller
+        };
+      }
+
+      /** Prioridade sonora: top3Enter > metaHit > rankUp > rankingUpdate (discreto, com debounce no manager). */
+      function pickRankingSoundKey(summary, audioEv) {
+        if (audioEv.top3Enter) return 'top3Enter';
+        if (audioEv.metaHit) return 'metaHit';
+        if (summary.movedUp > 0 && summary.bestMove) return 'rankUp';
+        return 'rankingUpdate';
+      }
+
+      /**
+       * Efeitos visuais + um único som por ciclo (sem sobreposição — soundManager.stopAll internamente).
+       * Sons: rank-up.mp3 | top3-enter.mp3 | meta-hit.mp3 | ranking-update.mp3
+       */
+      function triggerRankingFx(previousMap, list) {
+        var summary = summarizeChanges(previousMap, list);
+        var audioEv = computeAudioEvents(previousMap, list);
+        var soundKey = pickRankingSoundKey(summary, audioEv);
+        var leaderForFx = audioEv.leaderSeller || (list && list.length ? list[0] : null);
+
+        if (window.rankingAnimations) {
+          rankingAnimations.animateRankingUpdate();
+          rankingAnimations.animateProgressBars(document.getElementById('others-list'));
+        }
+
         if (summary.movedUp > 0 && summary.bestMove) {
           showLiveAlert('🚀 ' + summary.bestMove.nome + ' subiu ' + summary.bestMove.steps + ' posição(ões) e está em #' + summary.bestMove.pos + '!');
-          runConfettiBurst(95);
-          if (!audioUnlocked) {
-            queueSound('overtake');
-            showLiveAlert('🔊 Clique em qualquer lugar para ativar o áudio automático.');
-          } else {
-            playOvertakeSound();
+          if (audioEv.leaderChanged) {
+            if (window.confettiManager) confettiManager.triggerLeaderCelebration();
+            else runConfettiBurst(90);
           }
-          return;
-        }
-        if (summary.salesGain > 0) {
+        } else if (summary.salesGain > 0) {
           showLiveAlert('📈 Atualização automática: ' + summary.salesGain + ' consultora(s) aumentaram vendas.');
-          runConfettiBurst(45);
-          if (!audioUnlocked) {
-            queueSound('sales');
-            showLiveAlert('🔊 Clique em qualquer lugar para ativar o áudio automático.');
-          } else {
-            playSalesGainSound();
-          }
-          return;
+        } else if (audioEv.metaHit) {
+          showLiveAlert('🎯 Meta atingida ou superada no painel.');
+          if (window.confettiManager) confettiManager.triggerMetaCelebration();
+          else runConfettiBurst(34);
+        } else if (audioEv.top3Enter) {
+          showLiveAlert('👑 Mudança no Top 3.');
+          if (window.confettiManager) confettiManager.triggerLeaderCelebration();
+          else runConfettiBurst(50);
         }
-        if (!audioUnlocked) {
-          queueSound('update');
-        } else {
-          playUpdateSound();
+
+        if (window.rankingAnimations) {
+          if (audioEv.top3Enter) {
+            rankingAnimations.animateTop3Change(list, audioEv.top3Seller ? audioEv.top3Seller.nome : '');
+          }
+          if (audioEv.metaHit && audioEv.metaHitSeller) {
+            rankingAnimations.highlightSellerPhoto({
+              nome: audioEv.metaHitSeller.nome,
+              foto: avatar(audioEv.metaHitSeller),
+              vendasFmt: fmtBRL(audioEv.metaHitSeller.vendas_valor)
+            }, 'Meta batida (100%+)');
+          }
+          if (audioEv.leaderChanged && leaderForFx) {
+            rankingAnimations.animateLeaderHighlight({
+              nome: leaderForFx.nome,
+              foto: avatar(leaderForFx),
+              vendasFmt: fmtBRL(leaderForFx.vendas_valor)
+            }, 'Nova líder do ranking');
+          }
+        }
+
+        if (window.soundManager) {
+          soundManager.play(soundKey);
         }
       }
 
@@ -2167,7 +2487,13 @@
         modalOverlay.classList.remove('modal-open');
       }
 
-      modalClose.addEventListener('click', closeModal);
+      modalClose.addEventListener('click', function () {
+        if (window.soundManager) {
+          soundManager.unlock();
+          soundManager.play('clickSoft');
+        }
+        closeModal();
+      });
       modalOverlay.addEventListener('click', function(e) {
         if (e.target === modalOverlay) closeModal();
       });
@@ -2342,8 +2668,9 @@
           var moveClass = move === 'up' ? ' rank-card--up' : move === 'down' ? ' rank-card--down' : '';
           var gainClass = hasSalesGain ? ' rank-card--gain' : '';
 
+          var pctPrev = prevStats ? (Number(prevStats.percentual_meta) || 0) : 0;
           html +=
-            '<article class="rank-card' + moveClass + gainClass + '" style="transition-delay:' + (j * 0.08) + 's">' +
+            '<article class="rank-card' + moveClass + gainClass + '" data-seller-name="' + esc(s.nome) + '" style="transition-delay:' + (j * 0.08) + 's">' +
             changeHtml +
             '<div class="rank-card__badge">' + esc(String(pos)) + '</div>' +
             '<img class="rank-card__avatar" src="' + avatar(s) + '" alt="" />' +
@@ -2358,7 +2685,7 @@
                 ' data-target-width="' + barW + '"></div></div>' +
             '</div>' +
             '<div class="rank-card__pct">' +
-              '<span class="' + pctCls + '">' + fmtPct(pct) + '</span>' +
+              '<span class="' + pctCls + '" data-pct-target="' + Math.round(pct) + '" data-anim-from="' + Math.round(pctPrev) + '">0%</span>' +
               subHtml +
             '</div>' +
             '</article>';
@@ -2374,14 +2701,20 @@
 
             setTimeout(function() {
               card.classList.add('card-visible');
-              var fill = card.querySelector('.rank-card__bar-fill');
-              if (fill) {
-                setTimeout(function() {
-                  fill.style.width = fill.getAttribute('data-target-width') + '%';
-                }, 420);
-              }
             }, 180 + idx * 180);
           })(cards[k], k, rest[k]);
+        }
+        if (window.rankingAnimations) {
+          rankingAnimations.animateProgressBars(box);
+        } else {
+          var fills = box.querySelectorAll('.rank-card__bar-fill[data-target-width]');
+          for (var fi = 0; fi < fills.length; fi++) {
+            fills[fi].style.width = fills[fi].getAttribute('data-target-width') + '%';
+          }
+          var pcts = box.querySelectorAll('.rank-card__pct-val[data-pct-target]');
+          for (var pi = 0; pi < pcts.length; pi++) {
+            pcts[pi].textContent = pcts[pi].getAttribute('data-pct-target') + '%';
+          }
         }
       }
 
@@ -2407,7 +2740,8 @@
               previousMap[prev.nome] = {
                 posicao_atual: Number(prev.posicao_atual) || 0,
                 vendas_valor: Number(prev.vendas_valor) || 0,
-                vendas_qtd: Number(prev.vendas_qtd) || 0
+                vendas_qtd: Number(prev.vendas_qtd) || 0,
+                percentual_meta: Number(prev.percentual_meta) || 0
               };
             }
             allSellers = list;
@@ -2428,10 +2762,13 @@
             renderOthers(list.slice(3), previousMap);
 
             if (hasChanged) {
-              triggerRankingFx(summarizeChanges(previousMap, list));
+              triggerRankingFx(previousMap, list);
             }
           })
           .catch(function (e) {
+            if (hasFirstLoad && window.soundManager) {
+              soundManager.play('warning');
+            }
             // Só mostra tela de erro no primeiro carregamento.
             if (!hasFirstLoad) {
               var bc = document.getElementById('others-count');
@@ -2447,7 +2784,7 @@
           });
       }
 
-      setupSoundButton();
+      setupSoundUi();
       fetchAndRenderRanking();
       setInterval(fetchAndRenderRanking, REFRESH_MS);
       document.addEventListener('visibilitychange', function () {

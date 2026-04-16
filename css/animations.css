@@ -1,0 +1,226 @@
+/* MyPharm TV — camada de animações premium */
+
+.ranking-update-flash {
+  animation: rankingScreenPulse 620ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@keyframes rankingScreenPulse {
+  0%   { transform: translateY(8px) scale(0.995); filter: saturate(0.92); }
+  45%  { transform: translateY(0) scale(1.004); filter: saturate(1.05); }
+  100% { transform: translateY(0) scale(1); filter: saturate(1); }
+}
+
+.podium-slot.leader-emphasis .podium-avatar-wrap {
+  animation: leaderPulse 1.4s ease;
+  box-shadow: 0 0 34px rgba(99, 102, 241, 0.28), 0 0 16px rgba(34, 211, 238, 0.2);
+}
+
+@keyframes leaderPulse {
+  0% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-3px) scale(1.06); }
+  60% { transform: translateY(-1px) scale(1.03); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+#podium-row.top3-shift .podium-slot {
+  animation: top3Shift 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes top3Shift {
+  0% { transform: translateY(18px); opacity: 0.35; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.leader-spotlight {
+  position: fixed;
+  left: 50%;
+  top: 14%;
+  transform: translateX(-50%) translateY(-12px) scale(0.94);
+  z-index: 1160;
+  width: min(620px, 92vw);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.32s ease, transform 0.32s ease;
+}
+
+.leader-spotlight--show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+.leader-spotlight__card {
+  border-radius: 20px;
+  border: 1px solid rgba(165, 180, 252, 0.28);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.88) 0%, rgba(17, 24, 39, 0.84) 50%, rgba(6, 11, 23, 0.9) 100%);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 18px 44px rgba(2, 6, 23, 0.56), 0 0 46px rgba(99, 102, 241, 0.14);
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+  padding: 0.72rem 0.85rem;
+}
+
+.leader-spotlight__ring {
+  width: 74px;
+  height: 74px;
+  border-radius: 999px;
+  padding: 2px;
+  background: conic-gradient(from 35deg, #22d3ee, #a5b4fc, #34d399, #22d3ee);
+  animation: ringSpin 2.7s linear infinite;
+}
+
+.leader-spotlight__avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+}
+
+@keyframes ringSpin {
+  to { transform: rotate(360deg); }
+}
+
+.leader-spotlight__meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.leader-spotlight__title {
+  font-size: 0.61rem;
+  letter-spacing: 0.16em;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #a5b4fc;
+}
+
+.leader-spotlight__name {
+  margin-top: 0.1rem;
+  font-size: 1.06rem;
+  font-weight: 900;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.leader-spotlight__value {
+  margin-top: 0.08rem;
+  font-size: 1.22rem;
+  font-weight: 900;
+  color: #22d3ee;
+  text-shadow: 0 0 15px rgba(34, 211, 238, 0.35);
+}
+
+.leader-spotlight__sub {
+  margin-top: 0.1rem;
+  font-size: 0.66rem;
+  color: #94a3b8;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.top3-entry-badge {
+  position: fixed;
+  right: 1rem;
+  top: 5.6rem;
+  z-index: 1150;
+  border-radius: 999px;
+  border: 1px solid rgba(99, 102, 241, 0.34);
+  background: rgba(15, 23, 42, 0.94);
+  color: #c7d2fe;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 0.42rem 0.75rem;
+  opacity: 0;
+  transform: translateY(-10px) scale(0.96);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+}
+
+.top3-entry-badge--show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Modo apresentação: foco no pódio e legibilidade em TV */
+body.presentation-mode .site-header {
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
+}
+
+body.presentation-mode .site-header__title {
+  font-size: 1.45rem;
+}
+
+body.presentation-mode .site-header__tagline {
+  font-size: 0.72rem;
+}
+
+body.presentation-mode .page-main {
+  padding: 0.45rem 0.6rem 0.6rem;
+}
+
+body.presentation-mode .page-main__grid {
+  grid-template-columns: minmax(0, 56%) minmax(0, 44%);
+  gap: 0.6rem;
+}
+
+body.presentation-mode .podium-panel__header {
+  font-size: 0.8rem;
+}
+
+body.presentation-mode .podium-value {
+  font-size: 1.45rem;
+}
+
+body.presentation-mode .rank-card {
+  min-height: 88px;
+}
+
+body.presentation-mode .rank-card__name {
+  font-size: 0.9rem;
+}
+
+body.presentation-mode .rank-card__pct-val {
+  font-size: 1.35rem;
+}
+
+body.presentation-mode .others-panel__head {
+  font-size: 0.76rem;
+}
+
+/* Responsivo em telas grandes */
+@media (min-width: 1600px) {
+  .leader-spotlight {
+    top: 12%;
+    width: min(760px, 85vw);
+  }
+  .leader-spotlight__name { font-size: 1.2rem; }
+  .leader-spotlight__value { font-size: 1.4rem; }
+}
+
+@media (max-width: 900px) {
+  .leader-spotlight {
+    top: 10%;
+    width: min(560px, 95vw);
+  }
+  .top3-entry-badge {
+    right: 0.6rem;
+    top: 4.8rem;
+    font-size: 0.6rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ranking-update-flash,
+  .podium-slot.leader-emphasis .podium-avatar-wrap,
+  #podium-row.top3-shift .podium-slot,
+  .leader-spotlight,
+  .top3-entry-badge {
+    animation: none !important;
+    transition: none !important;
+  }
+}
