@@ -162,22 +162,38 @@ try {
         foreach ($deals as $deal) {
             if (empty($deal['win'])) continue;
 
+            // Filtrar pelo pipeline configurado (ex.: "Pedido Aprovado")
+            if (FUNNEL_FILTER !== '') {
+                $funnelName = trim((string)(
+                    $deal['funnel']['name']
+                    ?? $deal['deal_stage']['funnel_name']
+                    ?? $deal['pipeline']['name']
+                    ?? ''
+                ));
+                if (strcasecmp($funnelName, FUNNEL_FILTER) !== 0) continue;
+            }
+
             // Validar data dentro do período
             $dateStr = $deal['closed_at'] ?? $deal['created_at'] ?? '';
             $date    = $dateStr ? substr((string)$dateStr, 0, 10) : '';
             if ($date !== '' && $date < $period['start']) continue;
             if ($date === '' || $date > $period['end']) continue;
 
-            // Extrair nome do vendedor
+            // Extrair nome e email do vendedor
             $nomeCrm = trim((string)($deal['user']['name'] ?? ''));
+            $emailVendedor = trim((string)($deal['user']['email'] ?? ''));
             if ($nomeCrm === '') continue;
 
             // Extrair valor
             $amount = getAmountFromDeal($deal);
 
-            // Agrupar
+            // Agrupar (preserva email da primeira ocorrência)
             if (!isset($porVendedor[$nomeCrm])) {
-                $porVendedor[$nomeCrm] = ['receita' => 0.0, 'count' => 0];
+                $porVendedor[$nomeCrm] = [
+                    'receita' => 0.0,
+                    'count'   => 0,
+                    'email'   => $emailVendedor
+                ];
             }
             $porVendedor[$nomeCrm]['receita'] += $amount;
             $porVendedor[$nomeCrm]['count']++;
@@ -195,13 +211,22 @@ try {
 
     foreach ($porVendedor as $nomeCrm => $dados) {
         $config     = $SELLER_CONFIG[$nomeCrm] ?? [];
-        $metaValor  = $config['meta'] ?? META_GLOBAL;
+
+        // Busca foto do banco
+        $fotoURL = getFotoFromDB($nomeCrm, $dados['email'] ?? '');
+
+        // Busca meta do banco usando email ou nome como fallback
+        $metaValor = getMetaFromDB($nomeCrm, $dados['email'] ?? '');
+        if ($metaValor === null) {
+            $metaValor = $config['meta'] ?? META_GLOBAL;  // fallback: config ou global
+        }
+
         $percentual = $metaValor > 0 ? round(($dados['receita'] / $metaValor) * 100, 1) : 0;
 
         $ranking[] = [
             'id'                 => $id,
             'nome'               => $config['nome_exibicao'] ?? $nomeCrm,
-            'foto'               => $config['foto'] ?? '',
+            'foto'               => $fotoURL ?? '',  // Foto do banco, ou vazio (mostra iniciais)
             'equipe'             => $config['equipe'] ?? 'Equipe Comercial',
             'vendas_qtd'         => $dados['count'],
             'vendas_valor'       => round($dados['receita'], 2),

@@ -1,15 +1,15 @@
 <?php
 /**
  * Configuração da integração com RD Station CRM (API v1)
- * 
- * A API v1 usa o token diretamente como query parameter.
- * Base: https://crm.rdstation.com/api/v1
+ * Lê o token e credenciais do .env da raiz do projeto (via db.php, mesmo parser do MyPharm).
  */
+
+require_once __DIR__ . '/db.php';
 
 // ============================================================
 // TOKEN DE ACESSO - RD Station CRM API v1
 // ============================================================
-define('RD_API_TOKEN', '69b244e342d1f9001391ae62');
+define('RD_API_TOKEN', $_ENV['RDSTATION_CRM_TOKEN'] ?? '');
 
 // URL base da API v1 do RD Station CRM
 define('RD_API_BASE', 'https://crm.rdstation.com/api/v1');
@@ -27,65 +27,243 @@ define('PERIODO_RANKING', 'mensal');
 // Tempo de cache em segundos (60 = 1 min)
 define('CACHE_TTL', 60);
 
+// Filtro de pipeline/funil (deixar vazio '' para contar todos os pipelines)
+// Coloque o nome EXATO do funil como aparece no RD Station CRM
+define('FUNNEL_FILTER', 'Pedido Aprovado');
+
 // Diretório do cache
 define('CACHE_DIR', __DIR__ . '/cache');
+
+/**
+ * Segmento de URL do projeto (ex.: "mypharm" em XAMPP/htdocs/mypharm).
+ * Vazio = ficheiros na raiz do domínio (ex.: Hostinger public_html = site).
+ * Sobrescrever com .env: MYPHARM_WEB_PATH=mypharm  ou  MYPHARM_WEB_PATH=
+ */
+function mypharm_web_public_prefix(): string
+{
+    if (array_key_exists('MYPHARM_WEB_PATH', $_ENV)) {
+        return trim((string) $_ENV['MYPHARM_WEB_PATH'], '/');
+    }
+
+    $projectRoot = realpath(dirname(__DIR__, 2));
+    $docRoot = !empty($_SERVER['DOCUMENT_ROOT']) ? realpath($_SERVER['DOCUMENT_ROOT']) : false;
+    if ($projectRoot && $docRoot && strpos($projectRoot, $docRoot) === 0) {
+        $rest = trim(str_replace('\\', '/', substr($projectRoot, strlen($docRoot))), '/');
+        if ($rest === '' || $rest === '.') {
+            return '';
+        }
+        $parts = explode('/', $rest);
+        return $parts[0] !== '' ? $parts[0] : '';
+    }
+
+    return 'mypharm';
+}
+
+/**
+ * URL pública para um ficheiro em uploads/ (coluna foto_perfil = caminho relativo a uploads/, ex. avatars/x.jpg).
+ */
+function foto_perfil_public_url(string $relative): string
+{
+    $relative = trim(str_replace('\\', '/', $relative));
+    if ($relative === '') {
+        return '';
+    }
+    if (preg_match('#^https?://#i', $relative)) {
+        return $relative;
+    }
+    // Caminho absoluto web já pronto
+    if ($relative[0] === '/') {
+        return $relative;
+    }
+
+    $relative = ltrim($relative, '/');
+    // Coluna pode ser "avatars/x.jpg" ou "uploads/avatars/x.jpg" (como em api.php)
+    if (stripos($relative, 'uploads/') === 0) {
+        $path = '/' . $relative;
+    } else {
+        $path = '/uploads/' . $relative;
+    }
+
+    $prefix = mypharm_web_public_prefix();
+    if ($prefix !== '') {
+        return '/' . $prefix . $path;
+    }
+    return $path;
+}
+
+// Função para buscar foto do usuário no banco
+function getFotoFromDB($nomeCrm, $email = '') {
+    try {
+        $pdo = getDB();
+
+        // Tenta buscar por email primeiro
+        if (!empty($email)) {
+            $stmt = $pdo->prepare('
+                SELECT foto_perfil FROM usuarios
+                WHERE email = ? AND ativo = 1 AND foto_perfil IS NOT NULL AND foto_perfil != ""
+                LIMIT 1
+            ');
+            $stmt->execute([$email]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($result && !empty($result['foto_perfil'])) {
+                return foto_perfil_public_url($result['foto_perfil']);
+            }
+        }
+
+        // Fallback: tenta por nome
+        $nomes = explode(' ', trim($nomeCrm));
+        $primeiroNome = $nomes[0] ?? '';
+
+        if (!empty($primeiroNome)) {
+            $stmt = $pdo->prepare('
+                SELECT foto_perfil FROM usuarios
+                WHERE nome LIKE ? AND ativo = 1 AND foto_perfil IS NOT NULL AND foto_perfil != ""
+                LIMIT 1
+            ');
+            $stmt->execute(['%' . $primeiroNome . '%']);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($result && !empty($result['foto_perfil'])) {
+                return foto_perfil_public_url($result['foto_perfil']);
+            }
+        }
+
+        return null;
+    } catch (Exception $e) {
+        error_log('Erro ao buscar foto do BD: ' . $e->getMessage());
+        return null;
+    }
+}
+
+// Função para buscar meta do usuário no banco
+function getMetaFromDB($nomeCrm, $email = '') {
+    global $NAME_ALIASES;
+
+    try {
+        $pdo = getDB();
+
+        // 0. Aplica alias se existir
+        $nomeParaBuscar = $NAME_ALIASES[$nomeCrm] ?? $nomeCrm;
+
+        // 1. Tenta buscar por email primeiro (mais confiável)
+        if (!empty($email)) {
+            $stmt = $pdo->prepare('
+                SELECT meta_mensal FROM usuarios
+                WHERE email = ? AND ativo = 1
+                LIMIT 1
+            ');
+            $stmt->execute([$email]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($result && $result['meta_mensal'] > 0) {
+                return (float)$result['meta_mensal'];
+            }
+        }
+
+        // 2. Extrai primeiro nome e tenta match
+        $nomes = explode(' ', trim($nomeParaBuscar));
+        $primeiroNome = $nomes[0] ?? '';
+
+        if (!empty($primeiroNome)) {
+            $stmt = $pdo->prepare('
+                SELECT meta_mensal FROM usuarios
+                WHERE nome LIKE ? AND ativo = 1
+                LIMIT 1
+            ');
+            $stmt->execute(['%' . $primeiroNome . '%']);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($result && $result['meta_mensal'] > 0) {
+                return (float)$result['meta_mensal'];
+            }
+        }
+
+        // 3. Fallback: tenta nome completo
+        $stmt = $pdo->prepare('
+            SELECT meta_mensal FROM usuarios
+            WHERE nome LIKE ? AND ativo = 1
+            LIMIT 1
+        ');
+        $stmt->execute(['%' . $nomeParaBuscar . '%']);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($result && $result['meta_mensal'] > 0) {
+            return (float)$result['meta_mensal'];
+        }
+
+        return null;
+    } catch (Exception $e) {
+        error_log('Erro ao buscar meta do BD: ' . $e->getMessage());
+        return null;
+    }
+}
 
 // ============================================================
 // CONFIGURAÇÃO INDIVIDUAL DE VENDEDORAS
 // A chave é o NOME EXATO como aparece no RD Station CRM.
 // ============================================================
+// ============================================================
+// MAPEAMENTO DE NOMES / ALIASES
+// Associa nomes do RD Station a nomes no banco (apelidos, variações)
+// ============================================================
+$NAME_ALIASES = [
+    'Vitória Carvalho' => 'Vitória',        // RD Station → banco
+    'Vitória Carvalho' => 'Jessica Vitória',
+    'Jéssica' => 'Jessica',
+    'Jhennyffer' => 'Jhennyffer',
+    // adicionar mais conforme necessário
+];
+
+// foto: deixar vazio ('') exibe as iniciais do nome no frontend.
+// URL completa ou caminho a partir de uploads/ (ex.: avatars/arquivo.png). Prefixo /mypharm vem de MYPHARM_WEB_PATH ou deteção automática.
 $SELLER_CONFIG = [
     'Vitória Carvalho' => [
         'nome_exibicao' => 'Jessica Vitória',
-        'foto'   => 'https://i.pravatar.cc/256?u=jessica_vitoria',
+        'foto'   => '',
         'equipe' => 'Equipe Capital',
         'meta'   => 25000
     ],
     'Giovanna' => [
         'nome_exibicao' => 'Giovanna',
-        'foto'   => 'https://i.pravatar.cc/256?u=giovanna_vendas',
-        'equipe' => 'Equipe Capital',
+        'foto'   => '',
+        'equipe' => 'Equipe Comercial',
         'meta'   => 25000
     ],
     'Carla Pires - Consultora' => [
         'nome_exibicao' => 'Carla Pires',
-        'foto'   => 'https://i.pravatar.cc/256?u=carla_pires',
+        'foto'   => '',
         'equipe' => 'Equipe Capital',
         'meta'   => 25000
     ],
     'Nailena' => [
         'nome_exibicao' => 'Nailena',
-        'foto'   => 'https://i.pravatar.cc/256?u=nailena_rv',
+        'foto'   => '',
         'equipe' => 'Equipe Capital',
         'meta'   => 25000
     ],
     'Clara Letícia' => [
         'nome_exibicao' => 'Clara Letícia',
-        'foto'   => 'https://i.pravatar.cc/256?u=clara_leticia',
+        'foto'   => '',
         'equipe' => 'Equipe Capital',
         'meta'   => 25000
     ],
     'Ananda' => [
         'nome_exibicao' => 'Ananda Reis',
-        'foto'   => 'https://i.pravatar.cc/256?u=ananda_reis',
+        'foto'   => '',
         'equipe' => 'Equipe Capital',
         'meta'   => 25000
     ],
     'Micaela Nicolle' => [
         'nome_exibicao' => 'Micaela Nicolle',
-        'foto'   => 'https://i.pravatar.cc/256?u=micaela_nicolle',
+        'foto'   => '',
         'equipe' => 'Equipe Capital',
         'meta'   => 25000
     ],
     'Nereida' => [
         'nome_exibicao' => 'Nereida',
-        'foto'   => 'https://i.pravatar.cc/256?u=nereida_rv',
+        'foto'   => '',
         'equipe' => 'Equipe Capital',
         'meta'   => 25000
     ],
     'Mariana' => [
         'nome_exibicao' => 'Mariana',
-        'foto'   => 'https://i.pravatar.cc/256?u=mariana_rv',
+        'foto'   => '',
         'equipe' => 'Equipe Capital',
         'meta'   => 25000
     ],

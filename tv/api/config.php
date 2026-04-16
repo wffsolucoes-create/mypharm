@@ -27,6 +27,10 @@ define('PERIODO_RANKING', 'mensal');
 // Tempo de cache em segundos (60 = 1 min)
 define('CACHE_TTL', 60);
 
+// Filtro de pipeline/funil (deixar vazio '' para contar todos os pipelines)
+// Coloque o nome EXATO do funil como aparece no RD Station CRM
+define('FUNNEL_FILTER', 'Pedido Aprovado');
+
 // Diretório do cache
 define('CACHE_DIR', __DIR__ . '/cache');
 

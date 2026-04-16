@@ -154,6 +154,17 @@ try {
         foreach ($deals as $deal) {
             if (empty($deal['win'])) continue;
 
+            // Filtrar pelo pipeline configurado
+            if (FUNNEL_FILTER !== '') {
+                $funnelName = trim((string)(
+                    $deal['funnel']['name']
+                    ?? $deal['deal_stage']['funnel_name']
+                    ?? $deal['pipeline']['name']
+                    ?? ''
+                ));
+                if (strcasecmp($funnelName, FUNNEL_FILTER) !== 0) continue;
+            }
+
             // Validar data dentro do período
             $dateStr = $deal['closed_at'] ?? $deal['created_at'] ?? '';
             $date    = $dateStr ? substr((string)$dateStr, 0, 10) : '';
