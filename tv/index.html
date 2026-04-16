@@ -743,7 +743,7 @@
     .others-stats-group {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 1rem;
     }
 
     .others-stat-item {
@@ -754,13 +754,14 @@
     }
 
     .others-stat-label {
-      font-size: 0.52rem;
+      font-size: 0.72rem;
       color: var(--text-muted);
       letter-spacing: 0.05em;
     }
 
     .others-stat-value {
-      font-size: 0.65rem;
+      font-size: 1.05rem;
+      font-weight: 800;
       color: var(--cyan);
       letter-spacing: 0.02em;
     }
@@ -1547,8 +1548,8 @@
           <span>📊 Classificação Geral</span>
           <div class="others-stats-group">
             <div class="others-stat-item">
-              <span class="others-stat-label">Total Receita</span>
-              <span class="others-stat-value" id="total-revenue">R$ 0</span>
+              <span class="others-stat-label">Total Meta</span>
+              <span class="others-stat-value" id="total-meta">R$ 0,00</span>
             </div>
             <div class="others-stat-item">
               <span class="others-stat-label">Meta Global</span>
@@ -1804,7 +1805,7 @@
         document.getElementById('modal-vendas').textContent = seller.vendas_qtd || 0;
 
         // Revenue
-        document.getElementById('modal-revenue').textContent = fmtBRLFull(seller.vendas_valor);
+        document.getElementById('modal-revenue').textContent = fmtBRL(seller.vendas_valor);
 
         // Revenue pct
         var pctEl = document.getElementById('modal-revenue-pct');
@@ -1864,16 +1865,8 @@
         });
       }
 
+      /** Valores em reais: padrão brasileiro sempre com centavos (ex.: R$ 65.000,00). */
       function fmtBRL(n) {
-        return new Intl.NumberFormat('pt-BR', {
-          style: 'currency',
-          currency: 'BRL',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        }).format(Number(n) || 0);
-      }
-
-      function fmtBRLFull(n) {
         return new Intl.NumberFormat('pt-BR', {
           style: 'currency',
           currency: 'BRL',
@@ -2073,7 +2066,7 @@
             }
             var totalPctCalculated = metaSum > 0 ? (revSum / metaSum) * 100 : 0;
 
-            document.getElementById('total-revenue').textContent = fmtBRL(revSum);
+            document.getElementById('total-meta').textContent = fmtBRL(metaSum);
             document.getElementById('total-pct').textContent = Math.round(totalPctCalculated) + '%';
 
             renderPodium(list.slice(0, 3));
