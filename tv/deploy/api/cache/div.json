@@ -1,0 +1,456 @@
+﻿{
+    "divergencias":  [
+                         {
+                             "deal_id":  "69cd8d578fd1420013c2ceae",
+                             "cliente":  "Natalie Del Carmen Rodrigues De Carvalho Maranhão",
+                             "vendedora":  "Nailena",
+                             "phusion_val":  529.5,
+                             "rd_val":  481.5,
+                             "diff":  48
+                         },
+                         {
+                             "deal_id":  "69cd6cc0692cf90013bcf927",
+                             "cliente":  "Letícia De Souza Carmini Colen",
+                             "vendedora":  "Jessica Vitoria",
+                             "phusion_val":  253.66,
+                             "rd_val":  288.9,
+                             "diff":  35.23999999999998
+                         },
+                         {
+                             "deal_id":  "69cecab8eeafdb001d3c6f0e",
+                             "cliente":  "Lídia Saraiva Aguilera",
+                             "vendedora":  "Ananda Reis",
+                             "phusion_val":  534,
+                             "rd_val":  540,
+                             "diff":  6
+                         }
+                     ],
+    "unmatched_phusion":  [
+                              {
+                                  "cliente":  "Adriano Ferreira Ferreira De Oliveira",
+                                  "vendedora":  "Micaela",
+                                  "phusion_val":  147,
+                                  "ids":  [
+                                              "61638"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Alcimar Barroso Pinto",
+                                  "vendedora":  "Giovanna",
+                                  "phusion_val":  198,
+                                  "ids":  [
+                                              "61494",
+                                              "61494"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Andria Povodeniak Stenzel",
+                                  "vendedora":  "Jessica Vitoria",
+                                  "phusion_val":  340,
+                                  "ids":  [
+                                              "61715",
+                                              "61715",
+                                              "61715",
+                                              "61715",
+                                              "61715"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Bruna Talita Cyrino De Menezes",
+                                  "vendedora":  "Jessica Vitoria",
+                                  "phusion_val":  140.25,
+                                  "ids":  [
+                                              "61521"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Edilene Oliveira Da Costa",
+                                  "vendedora":  "Jessica Vitoria",
+                                  "phusion_val":  142,
+                                  "ids":  [
+                                              "61537"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Edina Do Amaral Dias",
+                                  "vendedora":  "Nailena",
+                                  "phusion_val":  55,
+                                  "ids":  [
+                                              "61596"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Elen Caroline Resem",
+                                  "vendedora":  "Jessica Vitoria",
+                                  "phusion_val":  0,
+                                  "ids":  [
+                                              "61731"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Emanuele Santos Pereira",
+                                  "vendedora":  "Clara Leticia",
+                                  "phusion_val":  45,
+                                  "ids":  [
+                                              "61593"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Enny Ramos",
+                                  "vendedora":  "Nailena",
+                                  "phusion_val":  164,
+                                  "ids":  [
+                                              "61683"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Ferdinando Finger Da Silva",
+                                  "vendedora":  "Nailena",
+                                  "phusion_val":  382.01,
+                                  "ids":  [
+                                              "61535"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Georgia Rodrigues Do Nascimento Trajano",
+                                  "vendedora":  "Ananda Reis",
+                                  "phusion_val":  173.6,
+                                  "ids":  [
+                                              "61538"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Iriete Batista Figueira",
+                                  "vendedora":  "Clara Leticia",
+                                  "phusion_val":  180,
+                                  "ids":  [
+                                              "61563"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Jacqueline Pires Da Silva",
+                                  "vendedora":  "Giovanna",
+                                  "phusion_val":  55,
+                                  "ids":  [
+                                              "54014"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Jaina Silva Rodrigues",
+                                  "vendedora":  "Giovanna",
+                                  "phusion_val":  58,
+                                  "ids":  [
+                                              "61520"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Janaína Cristina Muniz Brito",
+                                  "vendedora":  "Carla",
+                                  "phusion_val":  187,
+                                  "ids":  [
+                                              "61626",
+                                              "61626"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Jessyca Petry Dalazen",
+                                  "vendedora":  "Jessica",
+                                  "phusion_val":  0.03,
+                                  "ids":  [
+                                              "61699",
+                                              "61699",
+                                              "61699"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Juliana Alves Mendes Ribeiro",
+                                  "vendedora":  "Jessica Vitoria",
+                                  "phusion_val":  51,
+                                  "ids":  [
+                                              "61706"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Laisa Daian Araújo Da Silva Balberde",
+                                  "vendedora":  "Micaela",
+                                  "phusion_val":  0.01,
+                                  "ids":  [
+                                              "61697"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Leandra Gasparoto",
+                                  "vendedora":  "Nailena",
+                                  "phusion_val":  0.01,
+                                  "ids":  [
+                                              "61664"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Luiz Fabiano Santos",
+                                  "vendedora":  "Clara Leticia",
+                                  "phusion_val":  85,
+                                  "ids":  [
+                                              "61510"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Madizon Muniz De Minas",
+                                  "vendedora":  "Giovanna",
+                                  "phusion_val":  154,
+                                  "ids":  [
+                                              "61585",
+                                              "61585"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Maria De Fátima Paiva Xavier",
+                                  "vendedora":  "Giovanna",
+                                  "phusion_val":  224,
+                                  "ids":  [
+                                              "61670",
+                                              "61675"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Maria De Fátima Sales Reis",
+                                  "vendedora":  "Clara Leticia",
+                                  "phusion_val":  100,
+                                  "ids":  [
+                                              "61489"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Maria Linete Paiva",
+                                  "vendedora":  "Bruna Lopes",
+                                  "phusion_val":  375,
+                                  "ids":  [
+                                              "61651",
+                                              "61651"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Maria Rita Soares Do Nascimento",
+                                  "vendedora":  "Ananda Reis",
+                                  "phusion_val":  65,
+                                  "ids":  [
+                                              "61530"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Micaela Nicolle",
+                                  "vendedora":  "Micaela",
+                                  "phusion_val":  19,
+                                  "ids":  [
+                                              "61610"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "My Pharm | Cortesia",
+                                  "vendedora":  "Micaela",
+                                  "phusion_val":  0.05,
+                                  "ids":  [
+                                              "61559",
+                                              "61612",
+                                              "61617",
+                                              "61617",
+                                              "61705"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "My Pharm | VisitaÇÃo",
+                                  "vendedora":  "Micaela",
+                                  "phusion_val":  180,
+                                  "ids":  [
+                                              "61512"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Naiara Rocha Athayde",
+                                  "vendedora":  "Clara Leticia",
+                                  "phusion_val":  0.03,
+                                  "ids":  [
+                                              "61663",
+                                              "61663",
+                                              "61663",
+                                              "61663"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Patrícia Rafaela Lopes De Melo",
+                                  "vendedora":  "Nailena",
+                                  "phusion_val":  0.01,
+                                  "ids":  [
+                                              "61498"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Patrick Hebert Da Silva",
+                                  "vendedora":  "Giovanna",
+                                  "phusion_val":  130,
+                                  "ids":  [
+                                              "61582",
+                                              "61582"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Priscila Da Silva Cavalcante",
+                                  "vendedora":  "Micaela",
+                                  "phusion_val":  192.8,
+                                  "ids":  [
+                                              "61678"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Raiane Dias De Santana",
+                                  "vendedora":  "Ananda Reis",
+                                  "phusion_val":  160,
+                                  "ids":  [
+                                              "61542"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Rayara Do Carmo Paiva",
+                                  "vendedora":  "Giovanna",
+                                  "phusion_val":  58,
+                                  "ids":  [
+                                              "61679"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Rosyane Costa Lins Da Silva",
+                                  "vendedora":  "Nereida",
+                                  "phusion_val":  59.5,
+                                  "ids":  [
+                                              "61620"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Sandrini Assunção Moreto Gonçalves",
+                                  "vendedora":  "Nailena",
+                                  "phusion_val":  527,
+                                  "ids":  [
+                                              "61649",
+                                              "61649",
+                                              "61649",
+                                              "61649",
+                                              "61649",
+                                              "61649"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Sara Martins Da Hora",
+                                  "vendedora":  "Nailena",
+                                  "phusion_val":  100,
+                                  "ids":  [
+                                              "61668"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Suelen Silva Cabral De Assis",
+                                  "vendedora":  "Giovanna",
+                                  "phusion_val":  117,
+                                  "ids":  [
+                                              "61631",
+                                              "61631"
+                                          ]
+                              },
+                              {
+                                  "cliente":  "Tatiana Maria Gomes Horeay Santos",
+                                  "vendedora":  "Ananda Reis",
+                                  "phusion_val":  429.6,
+                                  "ids":  [
+                                              "60813",
+                                              "60813",
+                                              "60813",
+                                              "60813",
+                                              "60813"
+                                          ]
+                              }
+                          ],
+    "unmatched_rd":  [
+                         {
+                             "deal_id":  "69cef497ecf132001d4244a4",
+                             "cliente":  "Cliente Não Identificado",
+                             "vendedora":  "Giovanna",
+                             "rd_val":  3195.2,
+                             "titulo":  "Jacqueline/  02/04/ 30D (54014)"
+                         },
+                         {
+                             "deal_id":  "69cee536e4a7ca0017913f95",
+                             "cliente":  "Array",
+                             "vendedora":  "Nailena",
+                             "rd_val":  407,
+                             "titulo":  "Enny 61683 90d"
+                         },
+                         {
+                             "deal_id":  "69ced34b371c8200217b9c22",
+                             "cliente":  "Sandrini A. Moreto Gonçalves",
+                             "vendedora":  "Nailena",
+                             "rd_val":  527,
+                             "titulo":  "Sandrini Assunção 61649 30d"
+                         },
+                         {
+                             "deal_id":  "69ced05764607e00173e5ef8",
+                             "cliente":  "Édina Do Amaral Dias",
+                             "vendedora":  "Nailena",
+                             "rd_val":  55,
+                             "titulo":  "Édina do Amaral  61596 30D"
+                         },
+                         {
+                             "deal_id":  "69ce94029ad90c0013a849e0",
+                             "cliente":  "Rayara Paiva",
+                             "vendedora":  "Giovanna",
+                             "rd_val":  58,
+                             "titulo":  "Rayana Paiva/ 02/04/ 30D (61679)"
+                         },
+                         {
+                             "deal_id":  "69ce76cccb7011001678b082",
+                             "cliente":  "Rose Lins",
+                             "vendedora":  "Nereida",
+                             "rd_val":  131.5,
+                             "titulo":  "Rosyane Costa - 30d (61620)"
+                         },
+                         {
+                             "deal_id":  "69cde1a4dec294001ea9694a",
+                             "cliente":  "Dione Ribeiro Da Silva",
+                             "vendedora":  "Nailena",
+                             "rd_val":  382,
+                             "titulo":  "Dione Ribeiro 61535 90D"
+                         },
+                         {
+                             "deal_id":  "69cd70b2b19624001ecfd024",
+                             "cliente":  "Amanda Ferreira De Oliveira Dos Santos",
+                             "vendedora":  "Nailena",
+                             "rd_val":  151,
+                             "titulo":  "Amanda Ferreira 61028 30d"
+                         },
+                         {
+                             "deal_id":  "69cd13a2d4f033002454b768",
+                             "cliente":  "Jaina Rodrigues",
+                             "vendedora":  "Giovanna",
+                             "rd_val":  58,
+                             "titulo":  "Jaina Rodrigues/ 31/03/ 30D (61520)"
+                         },
+                         {
+                             "deal_id":  "69cd1372dd363e001ca6dbd5",
+                             "cliente":  "Bruna Menezes",
+                             "vendedora":  "Jessica Vitória",
+                             "rd_val":  140.25,
+                             "titulo":  "Bruna Menezes 90D (61521)"
+                         },
+                         {
+                             "deal_id":  "69b07ee807ddac001d977563",
+                             "cliente":  "Josy Renda",
+                             "vendedora":  "Giovanna",
+                             "rd_val":  225,
+                             "titulo":  "Josy Renda 30D 10/03"
+                         }
+                     ],
+    "total_phusion":  32711.06,
+    "total_rd":  32740.35,
+    "debug":  {
+                  "parsed_phusion":  137,
+                  "parsed_rd":  109
+              }
+}

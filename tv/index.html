@@ -1,0 +1,2036 @@
+<!DOCTYPE html>
+<!-- TV MyPharm: este ficheiro é o que deve abrir em /mypharm/tv/ (DirectoryIndex index.html). -->
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <title>Ranking My Pharm — TV</title>
+  <link rel="icon" type="image/svg+xml" href="dist/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ============================================================
+       CSS CUSTOM PROPERTIES
+       ============================================================ */
+    :root {
+      --bg-deep: #030712;
+      --bg-surface: rgba(15, 23, 42, 0.6);
+      --bg-card: rgba(15, 23, 42, 0.45);
+      --border: rgba(255, 255, 255, 0.07);
+      --border-glow: rgba(99, 102, 241, 0.25);
+      --text: #f1f5f9;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --gold: #fbbf24;
+      --gold-glow: rgba(251, 191, 36, 0.5);
+      --silver: #c0c0c0;
+      --silver-glow: rgba(192, 192, 192, 0.35);
+      --bronze: #cd7f32;
+      --bronze-glow: rgba(205, 127, 50, 0.35);
+      --accent: #818cf8;
+      --accent-bright: #a5b4fc;
+      --cyan: #22d3ee;
+      --cyan-glow: rgba(34, 211, 238, 0.3);
+      --success: #34d399;
+      --warning: #fb923c;
+      --font: 'Outfit', system-ui, -apple-system, sans-serif;
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg-deep);
+      color: var(--text);
+      font-family: var(--font);
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* ============================================================
+       ANIMATED BACKGROUND
+       ============================================================ */
+    .bg-effects {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .bg-effects::before {
+      content: '';
+      position: absolute;
+      top: -30%;
+      left: -10%;
+      width: 55%;
+      height: 70%;
+      background: radial-gradient(ellipse, rgba(99, 102, 241, 0.08), transparent 70%);
+      animation: bgPulse1 8s ease-in-out infinite alternate;
+    }
+
+    .bg-effects::after {
+      content: '';
+      position: absolute;
+      bottom: -20%;
+      right: -10%;
+      width: 60%;
+      height: 65%;
+      background: radial-gradient(ellipse, rgba(34, 211, 238, 0.06), transparent 70%);
+      animation: bgPulse2 10s ease-in-out infinite alternate;
+    }
+
+    @keyframes bgPulse1 {
+      0%   { transform: translate(0, 0) scale(1); opacity: 0.6; }
+      100% { transform: translate(5%, 8%) scale(1.15); opacity: 1; }
+    }
+
+    @keyframes bgPulse2 {
+      0%   { transform: translate(0, 0) scale(1); opacity: 0.5; }
+      100% { transform: translate(-4%, -6%) scale(1.1); opacity: 0.9; }
+    }
+
+    /* Grid overlay */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black, transparent);
+    }
+
+    /* Floating particles */
+    .particles {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      opacity: 0;
+      animation: particleFloat linear infinite;
+    }
+
+    @keyframes particleFloat {
+      0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+    }
+
+    /* ============================================================
+       HEADER
+       ============================================================ */
+    .site-header {
+      position: relative;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.6rem 1.25rem;
+      background: rgba(3, 7, 18, 0.85);
+      backdrop-filter: blur(20px) saturate(1.4);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .site-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--cyan), var(--accent));
+      background-size: 200% 100%;
+      animation: headerGlow 4s linear infinite;
+    }
+
+    @keyframes headerGlow {
+      0%   { background-position: 0% 0%; }
+      100% { background-position: 200% 0%; }
+    }
+
+    .site-header__brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      min-width: 0;
+    }
+
+    .site-header__logo-link {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      border: 1px solid var(--border);
+    }
+
+    .site-header__logo-img {
+      display: block;
+      height: 64px;
+      width: auto;
+      max-width: 200px;
+      object-fit: contain;
+    }
+
+    .site-header__text {
+      text-align: center;
+    }
+
+    .site-header__title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      background: linear-gradient(135deg, #fff 0%, var(--accent-bright) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .site-header__tagline {
+      margin-top: 0.15rem;
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* Pulsing live dot */
+    .live-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      margin-right: 0.4rem;
+      vertical-align: middle;
+      animation: livePulse 2s ease-in-out infinite;
+    }
+
+    @keyframes livePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5); }
+      50% { box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
+    }
+
+    .site-header__actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.4rem;
+      flex-shrink: 0;
+    }
+
+    .site-header__btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      height: 38px;
+      padding: 0 0.7rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-dim);
+      font-family: inherit;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .site-header__btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .site-header__btn--icon { width: 38px; padding: 0; }
+
+    .site-header__btn--accent {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.3);
+      color: var(--accent-bright);
+    }
+
+    .site-header__btn--accent:hover {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: rgba(99, 102, 241, 0.5);
+    }
+
+    .site-header__btn--purple {
+      background: rgba(147, 51, 234, 0.15);
+      border-color: rgba(147, 51, 234, 0.3);
+      color: #d8b4fe;
+    }
+
+    .site-header__btn--purple:hover {
+      background: rgba(147, 51, 234, 0.25);
+      border-color: rgba(147, 51, 234, 0.4);
+    }
+
+    /* ============================================================
+       MAIN LAYOUT
+       ============================================================ */
+    .page-main {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 0.75rem;
+    }
+
+    .page-main__grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 48%) minmax(0, 52%);
+      gap: 0.75rem;
+      min-height: 0;
+    }
+
+    @media (max-width: 900px) {
+      .page-main__grid { grid-template-columns: 1fr; }
+    }
+
+    /* ============================================================
+       PODIUM PANEL
+       ============================================================ */
+    .podium-panel {
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      backdrop-filter: blur(16px);
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .podium-panel::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 21px;
+      padding: 1px;
+      background: linear-gradient(180deg, rgba(99,102,241,0.2) 0%, transparent 50%, rgba(34,211,238,0.1) 100%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .podium-panel__header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .podium-panel__header-icon {
+      font-size: 1.1rem;
+      filter: drop-shadow(0 0 8px var(--gold-glow));
+    }
+
+    .podium-panel__inner {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem 1rem;
+      position: relative;
+    }
+
+    /* Stage glow under podium */
+    .podium-panel__inner::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 10%;
+      right: 10%;
+      height: 40%;
+      background: radial-gradient(ellipse 100% 100% at 50% 100%, rgba(99, 102, 241, 0.08), transparent);
+      pointer-events: none;
+    }
+
+    .podium-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 100%;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ---- Podium Slot ---- */
+    .podium-slot {
+      flex: 1;
+      max-width: 33%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+    }
+
+    .podium-slot--1st {
+      flex: 1.15;
+      max-width: 36%;
+      z-index: 2;
+      animation: float1st 4s ease-in-out infinite;
+    }
+
+    .podium-slot--2nd {
+      animation: float2nd 5s ease-in-out infinite;
+    }
+
+    .podium-slot--3rd {
+      animation: float3rd 4.5s ease-in-out infinite;
+    }
+
+    @keyframes float1st {
+      0%, 100% { transform: translateY(0); }
+      30%  { transform: translateY(-14px); }
+      70%  { transform: translateY(-6px); }
+    }
+
+    @keyframes float2nd {
+      0%, 100% { transform: translateY(0); }
+      40%  { transform: translateY(-10px); }
+      60%  { transform: translateY(-4px); }
+    }
+
+    @keyframes float3rd {
+      0%, 100% { transform: translateY(0); }
+      35%  { transform: translateY(-12px); }
+      65%  { transform: translateY(-5px); }
+    }
+
+    /* Entrance animation */
+    .podium-slot { opacity: 0; animation-play-state: paused; }
+    .podium-slot.podium-visible {
+      opacity: 1;
+      animation-play-state: running;
+    }
+
+    .podium-slot--2nd.podium-visible {
+      animation: podiumEnter 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+                 float2nd 5s ease-in-out 0.8s infinite;
+    }
+
+    .podium-slot--1st.podium-visible {
+      animation: podiumEnter 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s forwards,
+                 float1st 4s ease-in-out 1s infinite;
+    }
+
+    .podium-slot--3rd.podium-visible {
+      animation: podiumEnter 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s forwards,
+                 float3rd 4.5s ease-in-out 1.2s infinite;
+    }
+
+    @keyframes podiumEnter {
+      0%   { opacity: 0; transform: translateY(60px) scale(0.85); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Avatar wrapper */
+    .podium-avatar-wrap {
+      position: relative;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Glowing ring behind avatar */
+    .podium-avatar-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      opacity: 0.6;
+    }
+
+    .podium-slot--1st .podium-avatar-ring {
+      background: conic-gradient(from 0deg, var(--gold), #f59e0b, var(--gold), #fde68a, var(--gold));
+      animation: ringRotate 3s linear infinite;
+      filter: blur(1px);
+    }
+
+    .podium-slot--2nd .podium-avatar-ring {
+      background: conic-gradient(from 0deg, var(--silver), #e2e8f0, var(--silver), #f8fafc, var(--silver));
+      animation: ringRotate 4s linear infinite reverse;
+      filter: blur(1px);
+    }
+
+    .podium-slot--3rd .podium-avatar-ring {
+      background: conic-gradient(from 0deg, var(--bronze), #ea580c, var(--bronze), #fb923c, var(--bronze));
+      animation: ringRotate 3.5s linear infinite;
+      filter: blur(1px);
+    }
+
+    @keyframes ringRotate {
+      to { transform: rotate(360deg); }
+    }
+
+    .podium-avatar {
+      position: relative;
+      z-index: 1;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .podium-slot--1st .podium-avatar {
+      width: 92px;
+      height: 92px;
+      border-color: var(--gold);
+    }
+
+    .podium-slot--2nd .podium-avatar {
+      border-color: var(--silver);
+    }
+
+    .podium-slot--3rd .podium-avatar {
+      border-color: var(--bronze);
+    }
+
+    /* Crown / rank badge */
+    .podium-crown {
+      position: absolute;
+      top: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.8rem;
+      z-index: 3;
+      filter: drop-shadow(0 0 12px var(--gold-glow));
+      animation: crownBob 2s ease-in-out infinite;
+    }
+
+    @keyframes crownBob {
+      0%, 100% { transform: translateX(-50%) translateY(0) rotate(-2deg); }
+      50% { transform: translateX(-50%) translateY(-5px) rotate(2deg); }
+    }
+
+    /* Award prize image (uploaded via premiacao page) */
+    .podium-award-img {
+      position: absolute;
+      top: -35px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      z-index: 4;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.6));
+      animation: awardFloat 2.5s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    .podium-slot--1st .podium-award-img {
+      width: 68px;
+      height: 68px;
+      top: -42px;
+      filter: drop-shadow(0 4px 16px rgba(251,191,36,0.4));
+    }
+
+    @keyframes awardFloat {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(-6px); }
+    }
+
+    .podium-rank-badge {
+      position: absolute;
+      bottom: -4px;
+      right: -4px;
+      z-index: 3;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 0.75rem;
+      color: #fff;
+      border: 2px solid rgba(0,0,0,0.3);
+    }
+
+    .podium-slot--1st .podium-rank-badge {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      box-shadow: 0 0 12px var(--gold-glow);
+    }
+
+    .podium-slot--2nd .podium-rank-badge {
+      background: linear-gradient(135deg, #9ca3af, #6b7280);
+      box-shadow: 0 0 10px var(--silver-glow);
+    }
+
+    .podium-slot--3rd .podium-rank-badge {
+      background: linear-gradient(135deg, var(--bronze), #b45309);
+      box-shadow: 0 0 10px var(--bronze-glow);
+    }
+
+    .podium-name {
+      font-weight: 800;
+      font-size: clamp(0.8rem, 1.8vw, 1rem);
+      line-height: 1.2;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .podium-slot--1st .podium-name {
+      background: linear-gradient(135deg, var(--gold), #fde68a);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .podium-team {
+      font-size: clamp(0.55rem, 1.1vw, 0.68rem);
+      color: var(--text-muted);
+      margin-top: 0.1rem;
+      font-weight: 500;
+    }
+
+    .podium-value {
+      margin-top: 0.3rem;
+      font-size: clamp(0.7rem, 1.4vw, 0.85rem);
+      font-weight: 700;
+      color: var(--text-dim);
+    }
+
+    .podium-slot--1st .podium-value { color: var(--gold); }
+    .podium-slot--2nd .podium-value { color: var(--silver); }
+    .podium-slot--3rd .podium-value { color: var(--bronze); }
+
+    /* Podium pedestals */
+    .podium-pedestal {
+      width: 100%;
+      margin-top: 0.65rem;
+      border-radius: 12px 12px 8px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: clamp(2rem, 5vw, 3rem);
+      color: rgba(255, 255, 255, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .podium-pedestal::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 60%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+      animation: shimmer 3s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { left: -60%; }
+      100% { left: 160%; }
+    }
+
+    .podium-slot--1st .podium-pedestal {
+      min-height: clamp(120px, 25vh, 200px);
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.4) 0%, rgba(30, 27, 75, 0.8) 100%);
+      border-top: 3px solid var(--accent);
+      box-shadow: 0 0 40px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    .podium-slot--2nd .podium-pedestal {
+      min-height: clamp(90px, 18vh, 150px);
+      background: linear-gradient(180deg, rgba(100, 116, 139, 0.35) 0%, rgba(15, 23, 42, 0.8) 100%);
+      border-top: 3px solid var(--silver);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    .podium-slot--3rd .podium-pedestal {
+      min-height: clamp(70px, 14vh, 120px);
+      background: linear-gradient(180deg, rgba(180, 83, 9, 0.3) 0%, rgba(30, 15, 5, 0.8) 100%);
+      border-top: 3px solid var(--bronze);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+
+    /* ============================================================
+       OTHERS PANEL (LEADERBOARD)
+       ============================================================ */
+    .others-panel {
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      backdrop-filter: blur(16px);
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .others-panel::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 21px;
+      padding: 1px;
+      background: linear-gradient(180deg, rgba(34,211,238,0.15) 0%, transparent 40%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .others-panel__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.65rem 1rem;
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #e2e8f0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .others-stats-group {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .others-stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      line-height: 1.2;
+    }
+
+    .others-stat-label {
+      font-size: 0.52rem;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .others-stat-value {
+      font-size: 0.65rem;
+      color: var(--cyan);
+      letter-spacing: 0.02em;
+    }
+
+    .others-panel__badge {
+      flex-shrink: 0;
+      font-size: 0.58rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.3rem 0.65rem;
+      border-radius: 20px;
+      color: var(--cyan);
+      background: rgba(34, 211, 238, 0.1);
+      border: 1px solid rgba(34, 211, 238, 0.2);
+    }
+
+    .others-panel__body {
+      flex: 1;
+      overflow: auto;
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    /* Custom scrollbar */
+    .others-panel__body::-webkit-scrollbar { width: 4px; }
+    .others-panel__body::-webkit-scrollbar-track { background: transparent; }
+    .others-panel__body::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.3);
+      border-radius: 4px;
+    }
+
+    /* ============================================================
+       RANK CARD
+       ============================================================ */
+    .rank-card {
+      display: flex;
+      align-items: stretch;
+      gap: 0.6rem;
+      padding: 0.6rem 0.7rem;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.6), rgba(30, 41, 59, 0.3));
+      transition: all 0.3s ease;
+      opacity: 0;
+      transform: translateX(40px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .rank-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.02), transparent);
+      transition: left 0.6s ease;
+    }
+
+    .rank-card:hover::before { left: 100%; }
+
+    .rank-card:hover {
+      border-color: rgba(99, 102, 241, 0.3);
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(49, 46, 89, 0.3));
+      transform: translateX(0) scale(1.01);
+    }
+
+    .rank-card.card-visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* Position change indicator */
+    .rank-card__change {
+      position: absolute;
+      top: 4px;
+      right: 8px;
+      font-size: 0.55rem;
+      font-weight: 700;
+    }
+
+    .rank-card__change--up { color: var(--success); }
+    .rank-card__change--down { color: #ef4444; }
+    .rank-card__change--same { color: var(--text-muted); }
+
+    .rank-card__badge {
+      flex-shrink: 0;
+      width: 36px;
+      min-height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 0.9rem;
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--accent-bright);
+      border: 1px solid rgba(99, 102, 241, 0.15);
+      align-self: center;
+    }
+
+    .rank-card__avatar {
+      flex-shrink: 0;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      align-self: center;
+      transition: border-color 0.3s ease;
+    }
+
+    .rank-card:hover .rank-card__avatar {
+      border-color: var(--accent);
+    }
+
+    .rank-card__main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .rank-card__name {
+      font-weight: 800;
+      font-size: 0.82rem;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .rank-card__pipe {
+      font-weight: 500;
+      color: rgba(100, 116, 139, 0.5);
+      margin: 0 0.2rem;
+    }
+
+    .rank-card__team {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--text-dim);
+    }
+
+    .rank-card__vendas {
+      font-size: 0.62rem;
+      color: var(--text-dim);
+      margin-top: 0.2rem;
+      font-weight: 600;
+    }
+
+    .rank-card__meta {
+      font-size: 0.58rem;
+      color: var(--text-muted);
+      margin-top: 0.1rem;
+    }
+
+    .rank-card__bar {
+      margin-top: 0.35rem;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+    }
+
+    .rank-card__bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    .rank-card__bar-fill::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 20px;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+      border-radius: 999px;
+    }
+
+    .rank-card__bar-fill--high {
+      background: linear-gradient(90deg, var(--accent), var(--cyan));
+      box-shadow: 0 0 12px var(--cyan-glow);
+    }
+
+    .rank-card__bar-fill--low {
+      background: linear-gradient(90deg, #f97316, #fb923c);
+      box-shadow: 0 0 8px rgba(249, 115, 22, 0.3);
+    }
+
+    .rank-card__pct {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: center;
+      min-width: 65px;
+      text-align: right;
+    }
+
+    .rank-card__pct-val {
+      font-size: 1.2rem;
+      font-weight: 900;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .rank-card__pct-val--hit {
+      background: linear-gradient(135deg, var(--cyan), var(--accent-bright));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 8px var(--cyan-glow));
+    }
+
+    .rank-card__pct-sub {
+      font-size: 0.52rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      margin-top: 0.2rem;
+    }
+
+    .rank-card__pct-sub--hit {
+      color: var(--cyan);
+      text-transform: uppercase;
+    }
+
+    .rank-card__pct-sub--muted {
+      color: var(--text-muted);
+    }
+
+    /* ============================================================
+       LOADING STATE
+       ============================================================ */
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 2rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(99, 102, 241, 0.15);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ============================================================
+       PODIUM STATS (below pedestals)
+       ============================================================ */
+    .podium-stats {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      margin-top: 0.25rem;
+    }
+
+    .podium-stat-tag {
+      font-size: 0.55rem;
+      font-weight: 700;
+      padding: 0.15rem 0.4rem;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-dim);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .podium-stat-tag--vendas {
+      color: var(--accent-bright);
+      background: rgba(99, 102, 241, 0.1);
+      border-color: rgba(99, 102, 241, 0.15);
+    }
+
+    .podium-stat-tag--meta {
+      color: var(--success);
+      background: rgba(52, 211, 153, 0.1);
+      border-color: rgba(52, 211, 153, 0.15);
+    }
+
+    /* ============================================================
+       SPARKLE EFFECT ON 1ST PLACE
+       ============================================================ */
+    .sparkle-container {
+      position: absolute;
+      inset: -30px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .sparkle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--gold);
+      border-radius: 50%;
+      animation: sparkle 2s ease-in-out infinite;
+    }
+
+    @keyframes sparkle {
+      0%, 100% { opacity: 0; transform: scale(0); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+
+    /* ============================================================
+       ERROR STATE
+       ============================================================ */
+    .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 2rem;
+      color: #f87171;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    .error-state__icon {
+      font-size: 2rem;
+      margin-bottom: 0.3rem;
+    }
+
+    /* ============================================================
+       SELLER DETAIL MODAL
+       ============================================================ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+
+    .modal-overlay.modal-open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-card {
+      position: relative;
+      width: 92%;
+      max-width: 440px;
+      border-radius: 24px;
+      background: linear-gradient(165deg, rgba(15, 23, 42, 0.95) 0%, rgba(3, 7, 18, 0.98) 100%);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      box-shadow:
+        0 0 60px rgba(99, 102, 241, 0.1),
+        0 25px 80px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+      transform: scale(0.85) translateY(30px);
+      opacity: 0;
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
+    }
+
+    .modal-overlay.modal-open .modal-card {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+
+    /* Gradient top accent */
+    .modal-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--cyan), var(--accent));
+      background-size: 200% 100%;
+      animation: headerGlow 3s linear infinite;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 10;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-dim);
+      font-size: 1.1rem;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: rotate(90deg);
+    }
+
+    /* Modal header with avatar */
+    .modal-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.5rem 1.5rem 1.1rem;
+    }
+
+    .modal-avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .modal-avatar-ring {
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      opacity: 0.7;
+      animation: ringRotate 3s linear infinite;
+      filter: blur(0.5px);
+    }
+
+    .modal-avatar-ring--gold {
+      background: conic-gradient(from 0deg, var(--gold), #f59e0b, var(--gold), #fde68a, var(--gold));
+    }
+    .modal-avatar-ring--silver {
+      background: conic-gradient(from 0deg, var(--silver), #e2e8f0, var(--silver), #f8fafc, var(--silver));
+    }
+    .modal-avatar-ring--bronze {
+      background: conic-gradient(from 0deg, var(--bronze), #ea580c, var(--bronze), #fb923c, var(--bronze));
+    }
+    .modal-avatar-ring--default {
+      background: conic-gradient(from 0deg, var(--accent), var(--cyan), var(--accent), var(--accent-bright), var(--accent));
+    }
+
+    .modal-avatar {
+      position: relative;
+      z-index: 1;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-rank-icon {
+      position: absolute;
+      bottom: -2px;
+      left: -2px;
+      z-index: 2;
+      font-size: 1.3rem;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+    }
+
+    .modal-info {
+      min-width: 0;
+    }
+
+    .modal-name {
+      font-weight: 900;
+      font-size: 1.4rem;
+      line-height: 1.2;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .modal-team {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin-top: 0.15rem;
+    }
+
+    .modal-rank-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-top: 0.1rem;
+    }
+
+    /* Modal body */
+    .modal-body {
+      padding: 0 1.5rem 1.5rem;
+    }
+
+    /* Stats row: Posição | Vendas */
+    .modal-stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .modal-stat-card {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.6);
+      padding: 0.85rem 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .modal-stat-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 50%;
+      height: 100%;
+      background: radial-gradient(ellipse at 100% 0%, rgba(99,102,241,0.06), transparent 70%);
+      pointer-events: none;
+    }
+
+    .modal-stat-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .modal-stat-label-icon {
+      font-size: 0.85rem;
+    }
+
+    .modal-stat-value {
+      font-size: 2rem;
+      font-weight: 900;
+      color: var(--text);
+      line-height: 1.1;
+      margin-top: 0.35rem;
+    }
+
+    .modal-stat-sub {
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    .modal-stat-sub--up { color: var(--success); }
+    .modal-stat-sub--down { color: #ef4444; }
+    .modal-stat-sub--same { color: var(--text-muted); }
+
+    /* Revenue card */
+    .modal-revenue-card {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.6);
+      padding: 0.85rem 1rem;
+      margin-bottom: 0.75rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .modal-revenue-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+      background: radial-gradient(ellipse at 50% 0%, rgba(34,211,238,0.04), transparent 70%);
+      pointer-events: none;
+    }
+
+    .modal-revenue-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-revenue-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .modal-revenue-pct {
+      font-size: 1rem;
+      font-weight: 900;
+    }
+
+    .modal-revenue-pct--hit {
+      background: linear-gradient(135deg, var(--cyan), var(--accent-bright));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .modal-revenue-pct--miss {
+      color: var(--warning);
+    }
+
+    .modal-revenue-value {
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: var(--text);
+      line-height: 1.1;
+      margin-top: 0.3rem;
+    }
+
+    /* Meta progress */
+    .modal-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.6rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .modal-meta-label {
+      font-size: 0.62rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .modal-meta-target {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--text-dim);
+    }
+
+    .modal-progress {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+    }
+
+    .modal-progress__fill {
+      height: 100%;
+      border-radius: 999px;
+      width: 0%;
+      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1) 0.4s;
+      position: relative;
+    }
+
+    .modal-progress__fill--hit {
+      background: linear-gradient(90deg, var(--accent), var(--cyan));
+      box-shadow: 0 0 14px var(--cyan-glow);
+    }
+
+    .modal-progress__fill--miss {
+      background: linear-gradient(90deg, #f97316, #fb923c);
+      box-shadow: 0 0 10px rgba(249, 115, 22, 0.3);
+    }
+
+    .modal-progress__fill::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 24px;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35));
+      border-radius: 999px;
+    }
+
+    /* Footer timestamp */
+    .modal-footer {
+      text-align: center;
+      padding: 0.65rem 1.5rem 1.2rem;
+      font-size: 0.58rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* Clickable elements */
+    .podium-slot { cursor: pointer; }
+    .rank-card { cursor: pointer; }
+  </style>
+</head>
+<body>
+  <!-- Background Effects -->
+  <div class="bg-effects" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="particles" id="particles" aria-hidden="true"></div>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="site-header__brand">
+      <a class="site-header__logo-link" href="../index.html" title="My Pharm">
+        <img
+          id="site-header-logo"
+          class="site-header__logo-img"
+          src="/mypharm/imagens/logoMypharm1.png"
+          alt="My Pharm — Farmácia de manipulação"
+          width="200"
+          height="64"
+        />
+      </a>
+    </div>
+
+    <div class="site-header__text">
+      <h1 class="site-header__title">🏆 Ranking My Pharm</h1>
+      <p class="site-header__tagline"><span class="live-dot"></span>Painel em tempo real</p>
+    </div>
+
+    <nav class="site-header__actions" aria-label="Ações">
+      <button type="button" class="site-header__btn site-header__btn--icon" title="Som" aria-label="Som">🔊</button>
+      <a href="../index.html" class="site-header__btn site-header__btn--accent" title="Ir para Painel de Vendas"><span aria-hidden="true">🛍</span> Vendas</a>
+      <a href="premiacao.html" class="site-header__btn site-header__btn--purple" title="Gerenciar Premiações"><span aria-hidden="true">🏅</span> Premiação</a>
+      <a href="../importar_clientes.php" class="site-header__btn site-header__btn--purple" title="Ir para Importação"><span aria-hidden="true">☁</span> Importar</a>
+      <button type="button" class="site-header__btn site-header__btn--icon" title="Configurações" aria-label="Configurações">⚙</button>
+      <a href="../index.html" class="site-header__btn site-header__btn--exit" id="btn-sair" title="Sair do Ranking" aria-label="Sair">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+        </svg>
+      </a>
+    </nav>
+  </header>
+
+  <!-- Main Content -->
+  <main class="page-main">
+    <div class="page-main__grid">
+      <!-- Left: Podium Top 3 -->
+      <section class="podium-panel" aria-label="Top 3">
+        <div class="podium-panel__header">
+          <span class="podium-panel__header-icon">👑</span>
+          <span>Top 3 — Vendedores</span>
+          <span class="podium-panel__header-icon">👑</span>
+        </div>
+        <div class="podium-panel__inner">
+          <div class="podium-row" id="podium-row">
+            <div class="loading-state">
+              <div class="loading-spinner"></div>
+              <span>Carregando pódio…</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Other Rankings -->
+      <aside class="others-panel" aria-label="Classificação geral">
+        <div class="others-panel__head">
+          <span>📊 Classificação Geral</span>
+          <div class="others-stats-group">
+            <div class="others-stat-item">
+              <span class="others-stat-label">Total Receita</span>
+              <span class="others-stat-value" id="total-revenue">R$ 0</span>
+            </div>
+            <div class="others-stat-item">
+              <span class="others-stat-label">Meta Global</span>
+              <span class="others-stat-value" id="total-pct">0%</span>
+            </div>
+            <span class="others-panel__badge" id="others-count">—</span>
+          </div>
+        </div>
+        <div class="others-panel__body" id="others-list">
+          <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <span>Carregando ranking…</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- Seller Detail Modal -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-card" id="modal-card">
+      <button class="modal-close" id="modal-close" aria-label="Fechar">✕</button>
+      <div class="modal-header">
+        <div class="modal-avatar-wrap">
+          <div class="modal-avatar-ring" id="modal-avatar-ring"></div>
+          <img class="modal-avatar" id="modal-avatar" src="" alt="" />
+          <div class="modal-rank-icon" id="modal-rank-icon"></div>
+        </div>
+        <div class="modal-info">
+          <div class="modal-name" id="modal-name"></div>
+          <div class="modal-team" id="modal-team"></div>
+          <div class="modal-rank-label" id="modal-rank-label"></div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-stats-row">
+          <div class="modal-stat-card">
+            <div class="modal-stat-label"><span class="modal-stat-label-icon">🏅</span> Posição</div>
+            <div class="modal-stat-value" id="modal-position"></div>
+            <div class="modal-stat-sub" id="modal-position-change"></div>
+          </div>
+          <div class="modal-stat-card">
+            <div class="modal-stat-label"><span class="modal-stat-label-icon">📈</span> Vendas</div>
+            <div class="modal-stat-value" id="modal-vendas"></div>
+            <div class="modal-stat-sub">negociações ganhas</div>
+          </div>
+        </div>
+        <div class="modal-revenue-card">
+          <div class="modal-revenue-header">
+            <div class="modal-revenue-label"><span class="modal-stat-label-icon">💰</span> Receita Total</div>
+            <div class="modal-revenue-pct" id="modal-revenue-pct"></div>
+          </div>
+          <div class="modal-revenue-value" id="modal-revenue"></div>
+          <div class="modal-meta-row">
+            <div class="modal-meta-label">⊙ Progresso da Meta</div>
+            <div class="modal-meta-target" id="modal-meta-target"></div>
+          </div>
+          <div class="modal-progress">
+            <div class="modal-progress__fill" id="modal-progress-fill"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" id="modal-footer"></div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================
+       PARTICLES SYSTEM
+       ========================================================== */
+    (function initParticles() {
+      var container = document.getElementById('particles');
+      var colors = ['rgba(99,102,241,0.4)', 'rgba(34,211,238,0.3)', 'rgba(251,191,36,0.25)', 'rgba(147,51,234,0.3)'];
+      for (var i = 0; i < 25; i++) {
+        var p = document.createElement('div');
+        p.className = 'particle';
+        var size = 2 + Math.random() * 4;
+        p.style.width = size + 'px';
+        p.style.height = size + 'px';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        p.style.animationDuration = (12 + Math.random() * 20) + 's';
+        p.style.animationDelay = (Math.random() * 15) + 's';
+        container.appendChild(p);
+      }
+    })();
+
+    /* ==========================================================
+       HEADER LOGO FALLBACK
+       ========================================================== */
+    (function () {
+      var logo = document.getElementById('site-header-logo');
+      if (!logo) return;
+      var path = (location.pathname || '/').replace(/\/index\.html?$/i, '').replace(/\/$/, '');
+      var urls = [];
+      if (/^(.+)\/tv$/i.test(path)) {
+        urls.push(path.replace(/\/tv$/i, '') + '/imagens/logoMypharm1.png');
+      }
+      var def = '/mypharm/imagens/logoMypharm1.png';
+      if (urls.length === 0 || urls[0] !== def) {
+        urls.push(def);
+      }
+      urls.push(new URL('../imagens/logoMypharm1.png', location.href).href);
+      var ix = 0;
+      logo.addEventListener('error', function tryNext() {
+        ix += 1;
+        if (ix < urls.length) {
+          logo.src = urls[ix];
+        } else {
+          logo.removeEventListener('error', tryNext);
+        }
+      });
+      logo.src = urls[0];
+    })();
+
+    /* ==========================================================
+       HEADER ACTIONS
+       ========================================================== */
+    (function initHeaderActions() {
+      var btnSair = document.getElementById('btn-sair');
+      if (btnSair) {
+        btnSair.addEventListener('click', function (e) {
+          // Se viemos de outra página do mesmo site, voltamos para manter o fluxo.
+          // Caso contrário, o link natural (../index.html) no href do <a> cuidará da navegação.
+          if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) {
+            e.preventDefault();
+            history.back();
+          }
+        });
+      }
+    })();
+
+    /* ==========================================================
+       RANKING ENGINE
+       ========================================================== */
+    (function ranking() {
+      var API = 'api/index.php';
+      var AWARD_API = 'api/premiacao.php';
+      var allSellers = []; // store for modal access
+      var awardImages = {}; // { '1': 'url', '2': 'url', '3': 'url' }
+
+      // Load award images config
+      function loadAwardImages() {
+        return fetch(AWARD_API)
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            if (json.success && json.data) {
+              ['1', '2', '3'].forEach(function (pos) {
+                if (json.data[pos] && json.data[pos].url) {
+                  awardImages[pos] = json.data[pos].url;
+                }
+              });
+            }
+          })
+          .catch(function () { /* silently ignore — awards are optional */ });
+      }
+
+      /* ---- MODAL LOGIC ---- */
+      var modalOverlay = document.getElementById('modal-overlay');
+      var modalClose = document.getElementById('modal-close');
+
+      function openModal(seller) {
+        var pos = seller.posicao_atual || 0;
+        var prev = seller.posicao_anterior || pos;
+        var pct = Number(seller.percentual_meta) || 0;
+        var hit = pct >= 100;
+        var barW = Math.min(100, Math.max(0, pct));
+
+        // Avatar
+        document.getElementById('modal-avatar').src = avatar(seller);
+
+        // Ring color
+        var ring = document.getElementById('modal-avatar-ring');
+        ring.className = 'modal-avatar-ring';
+        if (pos === 1) ring.classList.add('modal-avatar-ring--gold');
+        else if (pos === 2) ring.classList.add('modal-avatar-ring--silver');
+        else if (pos === 3) ring.classList.add('modal-avatar-ring--bronze');
+        else ring.classList.add('modal-avatar-ring--default');
+
+        // Rank icon
+        var rankIcon = document.getElementById('modal-rank-icon');
+        if (pos === 1) rankIcon.textContent = '🏆';
+        else if (pos === 2) rankIcon.textContent = '🥈';
+        else if (pos === 3) rankIcon.textContent = '🥉';
+        else rankIcon.textContent = '';
+
+        // Name, team, rank label
+        document.getElementById('modal-name').textContent = seller.nome || '';
+        document.getElementById('modal-team').textContent = seller.equipe || '';
+        document.getElementById('modal-rank-label').textContent = '#' + pos + ' no ranking';
+
+        // Position
+        document.getElementById('modal-position').textContent = pos + 'º';
+
+        // Position change
+        var changeEl = document.getElementById('modal-position-change');
+        if (prev > pos) {
+          changeEl.textContent = '▲ Subiu ' + (prev - pos) + ' posição(ões)';
+          changeEl.className = 'modal-stat-sub modal-stat-sub--up';
+        } else if (prev < pos) {
+          changeEl.textContent = '▼ Desceu ' + (pos - prev) + ' posição(ões)';
+          changeEl.className = 'modal-stat-sub modal-stat-sub--down';
+        } else {
+          changeEl.textContent = 'Manteve posição';
+          changeEl.className = 'modal-stat-sub modal-stat-sub--same';
+        }
+
+        // Vendas
+        document.getElementById('modal-vendas').textContent = seller.vendas_qtd || 0;
+
+        // Revenue
+        document.getElementById('modal-revenue').textContent = fmtBRLFull(seller.vendas_valor);
+
+        // Revenue pct
+        var pctEl = document.getElementById('modal-revenue-pct');
+        pctEl.textContent = Math.round(pct) + '%';
+        pctEl.className = 'modal-revenue-pct ' + (hit ? 'modal-revenue-pct--hit' : 'modal-revenue-pct--miss');
+
+        // Meta target
+        document.getElementById('modal-meta-target').textContent = fmtBRL(seller.meta_valor);
+
+        // Progress bar
+        var fill = document.getElementById('modal-progress-fill');
+        fill.style.width = '0%';
+        fill.className = 'modal-progress__fill ' + (hit ? 'modal-progress__fill--hit' : 'modal-progress__fill--miss');
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            fill.style.width = barW + '%';
+          });
+        });
+
+        // Footer
+        document.getElementById('modal-footer').textContent = 'Última atualização: ' + (seller.ultima_atualizacao || '—');
+
+        // Open
+        modalOverlay.classList.add('modal-open');
+      }
+
+      function closeModal() {
+        modalOverlay.classList.remove('modal-open');
+      }
+
+      modalClose.addEventListener('click', closeModal);
+      modalOverlay.addEventListener('click', function(e) {
+        if (e.target === modalOverlay) closeModal();
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeModal();
+      });
+
+
+      function esc(t) {
+        var d = document.createElement('div');
+        d.textContent = t == null ? '' : String(t);
+        return d.innerHTML;
+      }
+
+      function avatar(s) {
+        var u = (s.foto || '').trim();
+        if (u && (u.charAt(0) === '/' || u.indexOf('http') === 0)) {
+          return u.split('"').join('');
+        }
+        return 'https://ui-avatars.com/api/?name=' + encodeURIComponent(s.nome || '?') + '&background=1e1b4b&color=a5b4fc&bold=true&size=128&font-size=0.4';
+      }
+
+      function sorted(arr) {
+        return arr.slice().sort(function (x, y) {
+          return (x.posicao_atual || 99) - (y.posicao_atual || 99);
+        });
+      }
+
+      function fmtBRL(n) {
+        return new Intl.NumberFormat('pt-BR', {
+          style: 'currency',
+          currency: 'BRL',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        }).format(Number(n) || 0);
+      }
+
+      function fmtBRLFull(n) {
+        return new Intl.NumberFormat('pt-BR', {
+          style: 'currency',
+          currency: 'BRL',
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }).format(Number(n) || 0);
+      }
+
+      function fmtPct(n) {
+        var v = Number(n) || 0;
+        return Math.round(v) + '%';
+      }
+
+      function createSparkles() {
+        var container = document.createElement('div');
+        container.className = 'sparkle-container';
+        for (var i = 0; i < 8; i++) {
+          var s = document.createElement('div');
+          s.className = 'sparkle';
+          s.style.top = Math.random() * 100 + '%';
+          s.style.left = Math.random() * 100 + '%';
+          s.style.animationDelay = (Math.random() * 2) + 's';
+          s.style.animationDuration = (1.5 + Math.random() * 1.5) + 's';
+          container.appendChild(s);
+        }
+        return container;
+      }
+
+      function positionChange(s) {
+        var prev = s.posicao_anterior || s.posicao_atual;
+        var cur = s.posicao_atual;
+        if (prev > cur) return '<span class="rank-card__change rank-card__change--up">▲ ' + (prev - cur) + '</span>';
+        if (prev < cur) return '<span class="rank-card__change rank-card__change--down">▼ ' + (cur - prev) + '</span>';
+        return '';
+      }
+
+      function renderPodium(top3) {
+        var order = [top3[1], top3[0], top3[2]];
+        var cls = ['podium-slot--2nd', 'podium-slot--1st', 'podium-slot--3rd'];
+        var nums = ['2', '1', '3'];
+        var el = document.getElementById('podium-row');
+        el.innerHTML = '';
+
+        for (var i = 0; i < 3; i++) {
+          var s = order[i];
+          var slot = document.createElement('div');
+          slot.className = 'podium-slot ' + cls[i];
+
+          if (!s) {
+            slot.innerHTML = '<div class="podium-pedestal">' + nums[i] + '</div>';
+            el.appendChild(slot);
+            // Trigger entrance animation
+            setTimeout((function(sl) {
+              return function() { sl.classList.add('podium-visible'); };
+            })(slot), 100 + i * 200);
+            continue;
+          }
+
+          var crown = nums[i] === '1' ? '<div class="podium-crown" aria-hidden="true">👑</div>' : '';
+
+          // Award image (from premiacao system)
+          var awardHtml = '';
+          if (awardImages[nums[i]]) {
+            awardHtml = '<img class="podium-award-img" src="' + esc(awardImages[nums[i]]) + '" alt="Prêmio ' + nums[i] + 'º lugar" />';
+            crown = ''; // Replace crown emoji with actual award image
+          }
+
+          var pctVal = Number(s.percentual_meta) || 0;
+          var metaTag = pctVal >= 100
+            ? '<span class="podium-stat-tag podium-stat-tag--meta">✓ ' + Math.round(pctVal) + '% meta</span>'
+            : '<span class="podium-stat-tag">' + Math.round(pctVal) + '% meta</span>';
+
+          slot.innerHTML =
+            '<div class="podium-avatar-wrap">' +
+              crown +
+              awardHtml +
+              '<div class="podium-avatar-ring"></div>' +
+              '<img class="podium-avatar" src="' + avatar(s) + '" alt="" />' +
+              '<div class="podium-rank-badge">' + nums[i] + '</div>' +
+            '</div>' +
+            '<div class="podium-name">' + esc(s.nome) + '</div>' +
+            '<div class="podium-team">' + esc(s.equipe || '') + '</div>' +
+            '<div class="podium-value">' + fmtBRL(s.vendas_valor) + '</div>' +
+            '<div class="podium-stats">' +
+              '<span class="podium-stat-tag podium-stat-tag--vendas">' + esc(String(s.vendas_qtd || 0)) + ' vendas</span>' +
+              metaTag +
+            '</div>' +
+            '<div class="podium-pedestal">' + nums[i] + '</div>';
+
+          // Add sparkles to 1st place
+          if (nums[i] === '1') {
+            var sparkles = createSparkles();
+            slot.querySelector('.podium-avatar-wrap').appendChild(sparkles);
+          }
+
+          // Click to open modal
+          (function(seller) {
+            slot.addEventListener('click', function() { openModal(seller); });
+          })(s);
+
+          el.appendChild(slot);
+
+          // Trigger entrance animation with stagger
+          setTimeout((function(sl) {
+            return function() { sl.classList.add('podium-visible'); };
+          })(slot), 200 + i * 250);
+        }
+      }
+
+      function renderOthers(rest) {
+        var box = document.getElementById('others-list');
+        var badge = document.getElementById('others-count');
+        if (badge) {
+          badge.textContent = rest.length ? rest.length + ' vendedores' : '0';
+        }
+        if (!rest.length) {
+          box.innerHTML = '<p style="color:var(--text-muted);padding:1rem;text-align:center;font-weight:500">Sem colocados após o 3º lugar.</p>';
+          return;
+        }
+
+        var html = '';
+        for (var j = 0; j < rest.length; j++) {
+          var s = rest[j];
+          var pos = s.posicao_atual || j + 4;
+          var pct = Number(s.percentual_meta) || 0;
+          var hit = pct >= 100;
+          var barW = Math.min(100, Math.max(0, pct));
+          var barCls = hit ? 'rank-card__bar-fill rank-card__bar-fill--high' : 'rank-card__bar-fill rank-card__bar-fill--low';
+          var pctCls = 'rank-card__pct-val' + (hit ? ' rank-card__pct-val--hit' : '');
+          var subHtml = hit
+            ? '<span class="rank-card__pct-sub rank-card__pct-sub--hit">✓ Atingido</span>'
+            : '<span class="rank-card__pct-sub rank-card__pct-sub--muted">da meta</span>';
+          var changeHtml = positionChange(s);
+
+          html +=
+            '<article class="rank-card" style="transition-delay:' + (j * 0.08) + 's">' +
+            changeHtml +
+            '<div class="rank-card__badge">' + esc(String(pos)) + '</div>' +
+            '<img class="rank-card__avatar" src="' + avatar(s) + '" alt="" />' +
+            '<div class="rank-card__main">' +
+              '<div class="rank-card__name">' + esc(s.nome) +
+                ' <span class="rank-card__pipe">•</span> ' +
+                '<span class="rank-card__team">' + esc(s.equipe || '') + '</span>' +
+              '</div>' +
+              '<div class="rank-card__vendas">' + esc(String(s.vendas_qtd || 0)) + ' vendas</div>' +
+              '<div class="rank-card__meta">Meta: ' + fmtBRL(s.meta_valor) + '</div>' +
+              '<div class="rank-card__bar"><div class="' + barCls + '" style="width:0%"' +
+                ' data-target-width="' + barW + '"></div></div>' +
+            '</div>' +
+            '<div class="rank-card__pct">' +
+              '<span class="' + pctCls + '">' + fmtPct(pct) + '</span>' +
+              subHtml +
+            '</div>' +
+            '</article>';
+        }
+        box.innerHTML = html;
+
+        // Animate cards entrance + progress bars + click handlers
+        var cards = box.querySelectorAll('.rank-card');
+        for (var k = 0; k < cards.length; k++) {
+          (function(card, idx, seller) {
+            // Click to open modal
+            card.addEventListener('click', function() { openModal(seller); });
+
+            setTimeout(function() {
+              card.classList.add('card-visible');
+              var fill = card.querySelector('.rank-card__bar-fill');
+              if (fill) {
+                setTimeout(function() {
+                  fill.style.width = fill.getAttribute('data-target-width') + '%';
+                }, 200);
+              }
+            }, 100 + idx * 100);
+          })(cards[k], k, rest[k]);
+        }
+      }
+
+      // Load awards first, then ranking data
+      loadAwardImages().then(function () {
+        fetch(API, { cache: 'no-store' })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            if (!Array.isArray(data) || (data.error && data.message)) {
+              throw new Error((data && data.message) || 'Resposta inválida');
+            }
+            var list = sorted(data);
+            allSellers = list;
+
+            // Calculate totals for the header
+            var revSum = 0;
+            var metaSum = 0;
+            for (var idx = 0; idx < list.length; idx++) {
+              revSum += (Number(list[idx].vendas_valor) || 0);
+              metaSum += (Number(list[idx].meta_valor) || 0);
+            }
+            var totalPctCalculated = metaSum > 0 ? (revSum / metaSum) * 100 : 0;
+
+            document.getElementById('total-revenue').textContent = fmtBRL(revSum);
+            document.getElementById('total-pct').textContent = Math.round(totalPctCalculated) + '%';
+
+            renderPodium(list.slice(0, 3));
+            renderOthers(list.slice(3));
+          })
+          .catch(function (e) {
+            document.getElementById('podium-row').innerHTML =
+              '<div class="error-state"><div class="error-state__icon">⚠️</div>' + esc(e.message) + '</div>';
+            document.getElementById('others-list').innerHTML =
+              '<div class="error-state"><div class="error-state__icon">⚠️</div>Não foi possível carregar o ranking.</div>';
+          });
+      });
+    })();
+  </script>
+</body>
+</html>
