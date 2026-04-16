@@ -4,8 +4,8 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // App servida via Apache em /mypharm/tv/
-  base: '/mypharm/tv/',
+  // App servida em /tv/ no domínio rede-mypharm.com.br
+  base: '/tv/',
   plugins: [react()],
   resolve: {
     alias: {

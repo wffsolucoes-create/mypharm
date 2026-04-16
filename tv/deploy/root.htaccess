@@ -1,0 +1,14 @@
+# Arquivo para a RAIZ do servidor (public_html/.htaccess)
+# Redireciona rede-mypharm.com.br → rede-mypharm.com.br/tv
+
+RewriteEngine On
+
+# Não redireciona se já estiver dentro de /tv
+RewriteCond %{REQUEST_URI} !^/tv [NC]
+# Não redireciona arquivos físicos na raiz (favicons, robots.txt, etc.)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ /tv/$1 [R=301,L]
+
+# Redireciona a raiz vazia para /tv/
+RewriteRule ^$ /tv/ [R=301,L]

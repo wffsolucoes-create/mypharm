@@ -1,0 +1,30 @@
+# Arquivo para public_html/tv/.htaccess
+# SPA fallback + cache
+
+RewriteEngine On
+RewriteBase /tv/
+
+# Arquivos físicos passam direto
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# SPA: tudo que não existe → index.html
+RewriteRule ^ index.html [L]
+
+# Cache para assets com hash (imutáveis)
+<FilesMatch "\.(js|css|woff2?|ttf|eot|svg|png|jpg|jpeg|gif|webp|ico)$">
+  Header set Cache-Control "public, max-age=31536000, immutable"
+</FilesMatch>
+
+# HTML e PHP: nunca cachear
+<FilesMatch "\.(html|php)$">
+  Header set Cache-Control "no-store, no-cache, must-revalidate"
+  Header set Pragma "no-cache"
+</FilesMatch>
+
+# SSE: manter conexão aberta sem timeout
+<FilesMatch "sse\.php$">
+  Header set Cache-Control "no-cache"
+  Header set X-Accel-Buffering "no"
+</FilesMatch>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRankingData } from "@/hooks/useRankingData";
+import { useSSE } from "@/hooks/useSSE";
 import { RankingCard } from "./RankingCard";
 import { AnimatePresence } from "framer-motion";
 import { useAudio } from "@/hooks/useAudio";
@@ -11,6 +12,7 @@ import { OvertakeNotification } from "../Effects/OvertakeNotification";
 
 export function RankingBoard() {
   const { data: ranking, isLoading, isError } = useRankingData();
+  useSSE(); // conexão SSE — atualização instantânea via webhook
   const { playSound } = useAudio();
   const [selectedSeller, setSelectedSeller] = useState<SellerRecord | null>(null);
   const [notification, setNotification] = useState<{ seller: string; message: string; type: 'overtake' | 'goal' | 'champion' } | null>(null);
