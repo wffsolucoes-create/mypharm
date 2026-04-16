@@ -37,3 +37,4 @@ node_modules/
 
 # Cache file-based da TV (JSON gerado em runtime)
 storage_tv_cache/*.json
+tv/api/cache/*.json
