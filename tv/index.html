@@ -2008,10 +2008,8 @@
           btnFs.setAttribute('aria-label', on ? 'Sair da tela cheia' : 'Tela cheia');
         }
         btnFs.addEventListener('click', function () {
-          if (window.soundManager) {
-            soundManager.unlock();
-            soundManager.play('clickSoft');
-          }
+          // Importante para TVs: prioriza o requestFullscreen no gesto do clique.
+          // Em alguns browsers, tocar áudio antes pode bloquear a tela cheia.
           if (fullscreenActive()) {
             var exit =
               document.exitFullscreen ||
@@ -2030,6 +2028,12 @@
               var p = req.call(el);
               if (p && typeof p.catch === 'function') p.catch(function () {});
             }
+          }
+          if (window.soundManager) {
+            setTimeout(function () {
+              soundManager.unlock();
+              soundManager.play('clickSoft');
+            }, 0);
           }
         });
         document.addEventListener('fullscreenchange', syncFullscreenBtn);
