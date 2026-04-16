@@ -160,19 +160,19 @@ function getPeriodDates(): array {
 }
 
 /**
- * Verifica se a data do deal está dentro do período (timezone Brasil).
+ * Verifica se a data de fechamento do deal está dentro do período.
+ * Usa closed_at (Data de fechamento) como referência — mesmo campo
+ * usado no filtro do painel do RD Station.
+ * Compara só YYYY-MM-DD sem converter timezone para não cortar deals válidos.
  */
 function dealInPeriod(array $deal, array $period): bool {
-    $dateStr = $deal['closed_at'] ?? $deal['created_at'] ?? '';
+    $dateStr = $deal['closed_at'] ?? '';
     if ($dateStr === '') {
-        return false;
+        return true;
     }
-    try {
-        $dt = new DateTime((string)$dateStr);
-        $dt->setTimezone(new DateTimeZone('America/Sao_Paulo'));
-        $date = $dt->format('Y-m-d');
-    } catch (Exception $e) {
-        return false;
+    $date = substr((string)$dateStr, 0, 10);
+    if (strlen($date) !== 10) {
+        return true;
     }
     return $date >= $period['start'] && $date <= $period['end'];
 }
@@ -237,9 +237,8 @@ try {
         }
 
         foreach ($deals as $deal) {
-            // A API já filtra por win=true e start_date/end_date.
-            // Não re-filtrar localmente para bater exatamente com o painel do RD.
             if (empty($deal['win'])) continue;
+            if (!dealInPeriod($deal, $period)) continue;
 
             // Extrair nome e email do vendedor
             $nomeCrmRaw = trim((string)($deal['user']['name'] ?? ''));
