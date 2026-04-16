@@ -30,6 +30,63 @@ define('CACHE_TTL', 60);
 // Diretório do cache
 define('CACHE_DIR', __DIR__ . '/cache');
 
+/**
+ * Segmento de URL do projeto (ex.: "mypharm" em XAMPP/htdocs/mypharm).
+ * Vazio = ficheiros na raiz do domínio (ex.: Hostinger public_html = site).
+ * Sobrescrever com .env: MYPHARM_WEB_PATH=mypharm  ou  MYPHARM_WEB_PATH=
+ */
+function mypharm_web_public_prefix(): string
+{
+    if (array_key_exists('MYPHARM_WEB_PATH', $_ENV)) {
+        return trim((string) $_ENV['MYPHARM_WEB_PATH'], '/');
+    }
+
+    $projectRoot = realpath(dirname(__DIR__, 2));
+    $docRoot = !empty($_SERVER['DOCUMENT_ROOT']) ? realpath($_SERVER['DOCUMENT_ROOT']) : false;
+    if ($projectRoot && $docRoot && strpos($projectRoot, $docRoot) === 0) {
+        $rest = trim(str_replace('\\', '/', substr($projectRoot, strlen($docRoot))), '/');
+        if ($rest === '' || $rest === '.') {
+            return '';
+        }
+        $parts = explode('/', $rest);
+        return $parts[0] !== '' ? $parts[0] : '';
+    }
+
+    return 'mypharm';
+}
+
+/**
+ * URL pública para um ficheiro em uploads/ (coluna foto_perfil = caminho relativo a uploads/, ex. avatars/x.jpg).
+ */
+function foto_perfil_public_url(string $relative): string
+{
+    $relative = trim(str_replace('\\', '/', $relative));
+    if ($relative === '') {
+        return '';
+    }
+    if (preg_match('#^https?://#i', $relative)) {
+        return $relative;
+    }
+    // Caminho absoluto web já pronto
+    if ($relative[0] === '/') {
+        return $relative;
+    }
+
+    $relative = ltrim($relative, '/');
+    // Coluna pode ser "avatars/x.jpg" ou "uploads/avatars/x.jpg" (como em api.php)
+    if (stripos($relative, 'uploads/') === 0) {
+        $path = '/' . $relative;
+    } else {
+        $path = '/uploads/' . $relative;
+    }
+
+    $prefix = mypharm_web_public_prefix();
+    if ($prefix !== '') {
+        return '/' . $prefix . $path;
+    }
+    return $path;
+}
+
 // Função para buscar foto do usuário no banco
 function getFotoFromDB($nomeCrm, $email = '') {
     try {
@@ -45,8 +102,7 @@ function getFotoFromDB($nomeCrm, $email = '') {
             $stmt->execute([$email]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($result && !empty($result['foto_perfil'])) {
-                // Retorna URL completa
-                return '/mypharm/uploads/' . $result['foto_perfil'];
+                return foto_perfil_public_url($result['foto_perfil']);
             }
         }
 
@@ -63,7 +119,7 @@ function getFotoFromDB($nomeCrm, $email = '') {
             $stmt->execute(['%' . $primeiroNome . '%']);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($result && !empty($result['foto_perfil'])) {
-                return '/mypharm/uploads/' . $result['foto_perfil'];
+                return foto_perfil_public_url($result['foto_perfil']);
             }
         }
 
@@ -151,7 +207,7 @@ $NAME_ALIASES = [
 ];
 
 // foto: deixar vazio ('') exibe as iniciais do nome no frontend.
-// Para usar foto real: coloque a URL completa (ex: '/mypharm/uploads/avatars/arquivo.png')
+// URL completa ou caminho a partir de uploads/ (ex.: avatars/arquivo.png). Prefixo /mypharm vem de MYPHARM_WEB_PATH ou deteção automática.
 $SELLER_CONFIG = [
     'Vitória Carvalho' => [
         'nome_exibicao' => 'Jessica Vitória',
