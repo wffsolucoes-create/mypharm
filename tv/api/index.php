@@ -75,15 +75,20 @@ function fetchDeals(string $token, int $page, int $limit, string $startDate, str
 }
 
 /**
- * Extrai o valor monetário de um deal
+ * Extrai o valor monetário de um deal.
+ * O RD Station pode popular amount_total, amount_montly e/ou amount_unique.
+ * Usa a soma dos componentes quando disponíveis; senão, usa amount_total.
  */
 function getAmountFromDeal(array $deal): float {
-    $amount = (float)($deal['amount_total'] ?? 0);
-    if ($amount <= 0) {
-        $amount  = (float)($deal['amount_montly'] ?? 0);
-        $amount += (float)($deal['amount_unique'] ?? 0);
+    $monthly = (float)($deal['amount_montly'] ?? 0);
+    $unique  = (float)($deal['amount_unique'] ?? 0);
+    $total   = (float)($deal['amount_total'] ?? 0);
+
+    $sum = $monthly + $unique;
+    if ($sum > 0) {
+        return $sum;
     }
-    return $amount;
+    return $total;
 }
 
 /**
@@ -232,8 +237,9 @@ try {
         }
 
         foreach ($deals as $deal) {
+            // A API já filtra por win=true e start_date/end_date.
+            // Não re-filtrar localmente para bater exatamente com o painel do RD.
             if (empty($deal['win'])) continue;
-            if (!dealInPeriod($deal, $period)) continue;
 
             // Extrair nome e email do vendedor
             $nomeCrmRaw = trim((string)($deal['user']['name'] ?? ''));
