@@ -626,7 +626,8 @@
 
     // ── Update UI for a position ──
     function updateUI(pos, url) {
-      var card = document.querySelector('[data-position="' + pos + '"]');
+      var card = document.querySelector('.award-card[data-position="' + pos + '"]');
+      if (!card) return;
       var status = card.querySelector('[data-status]');
       var removeBtn = card.querySelector('[data-remove="' + pos + '"]');
       var previewEl = document.getElementById('preview-award-' + pos);
@@ -665,13 +666,14 @@
 
     // ── Load existing config ──
     function loadConfig() {
-      fetch(API)
+      fetch(API + '?_=' + Date.now(), { cache: 'no-store' })
         .then(function (r) { return r.json(); })
         .then(function (json) {
-          if (json.success && json.data) {
+          if (json.success && json.data && typeof json.data === 'object' && !Array.isArray(json.data)) {
             ['1', '2', '3'].forEach(function (pos) {
-              if (json.data[pos] && json.data[pos].url) {
-                updateUI(pos, json.data[pos].url);
+              var row = json.data[pos];
+              if (row && row.url) {
+                updateUI(pos, row.url);
               }
             });
           }
@@ -681,12 +683,16 @@
         });
     }
 
-    // ── File input change ──
+    // ── File input change (cada cartão é isolado pelo próprio .award-card) ──
     ['1', '2', '3'].forEach(function (pos) {
-      var input = document.querySelector('[data-input="' + pos + '"]');
-      var zone = document.querySelector('[data-zone="' + pos + '"]');
-      var preview = document.querySelector('[data-preview="' + pos + '"]');
-      var saveBtn = document.querySelector('[data-save="' + pos + '"]');
+      var card = document.querySelector('.award-card[data-position="' + pos + '"]');
+      if (!card) return;
+
+      var input = card.querySelector('[data-input="' + pos + '"]');
+      var zone = card.querySelector('[data-zone="' + pos + '"]');
+      var preview = card.querySelector('[data-preview="' + pos + '"]');
+      var saveBtn = card.querySelector('[data-save="' + pos + '"]');
+      var spinner = card.querySelector('[data-spinner="' + pos + '"]');
 
       // File selection
       input.addEventListener('change', function () {
@@ -735,22 +741,22 @@
         var file = pendingFiles[pos];
         if (!file) return;
 
-        var spinner = document.querySelector('[data-spinner="' + pos + '"]');
         spinner.style.display = 'inline-block';
         saveBtn.disabled = true;
 
         var formData = new FormData();
-        formData.append('position', pos);
-        formData.append('image', file);
+        formData.append('position', String(pos));
+        formData.append('image', file, file.name);
 
         fetch(API, { method: 'POST', body: formData })
           .then(function (r) { return r.json(); })
           .then(function (json) {
             spinner.style.display = 'none';
-            if (json.success) {
-              showToast('Premiação do ' + pos + 'º lugar salva com sucesso!', 'success');
+            if (json.success && json.data && json.data.url) {
+              var savedPos = json.position != null ? String(json.position) : pos;
+              showToast('Premiação do ' + savedPos + 'º lugar salva com sucesso!', 'success');
               pendingFiles[pos] = null;
-              updateUI(pos, json.data.url);
+              updateUI(savedPos, json.data.url);
               saveBtn.disabled = true;
             } else {
               showToast(json.message || 'Erro ao salvar.', 'error');
@@ -765,7 +771,7 @@
       });
 
       // Remove button
-      var removeBtn = document.querySelector('[data-remove="' + pos + '"]');
+      var removeBtn = card.querySelector('[data-remove="' + pos + '"]');
       removeBtn.addEventListener('click', function () {
         if (!confirm('Remover a premiação do ' + pos + 'º lugar?')) return;
 

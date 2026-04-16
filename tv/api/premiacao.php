@@ -22,6 +22,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $uploadDir  = __DIR__ . '/../uploads/premiacao/';
 $configFile = __DIR__ . '/../uploads/premiacao/config.json';
 
+$labelsDefault = ['1' => '1º Lugar', '2' => '2º Lugar', '3' => '3º Lugar'];
+
+/**
+ * Garante sempre três slots com chaves string '1','2','3' (nunca array reindexado).
+ */
+function premiacao_normalize_config(array $raw): array
+{
+    global $labelsDefault;
+    $out = [];
+    foreach (['1', '2', '3'] as $k) {
+        $slot = isset($raw[$k]) && is_array($raw[$k]) ? $raw[$k] : [];
+        $out[$k] = [
+            'url'   => isset($slot['url']) ? (string) $slot['url'] : '',
+            'label' => (isset($slot['label']) && $slot['label'] !== '')
+                ? (string) $slot['label']
+                : $labelsDefault[$k],
+        ];
+    }
+    return $out;
+}
+
 // Garante que o diretório existe
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
@@ -29,28 +50,25 @@ if (!is_dir($uploadDir)) {
 
 // ── GET: retorna configuração atual ──────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $defaults = [
-        '1' => ['url' => '', 'label' => '1º Lugar'],
-        '2' => ['url' => '', 'label' => '2º Lugar'],
-        '3' => ['url' => '', 'label' => '3º Lugar'],
-    ];
-
+    $saved = [];
     if (file_exists($configFile)) {
-        $saved = json_decode(file_get_contents($configFile), true);
-        if (is_array($saved)) {
-            $defaults = array_merge($defaults, $saved);
+        $decoded = json_decode(file_get_contents($configFile), true);
+        if (is_array($decoded)) {
+            $saved = $decoded;
         }
     }
 
-    echo json_encode(['success' => true, 'data' => $defaults]);
+    $data = premiacao_normalize_config($saved);
+
+    echo json_encode(['success' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 // ── POST: upload de imagem ──────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $position = isset($_POST['position']) ? $_POST['position'] : null;
+    $position = isset($_POST['position']) ? trim((string) $_POST['position']) : '';
 
-    if (!in_array($position, ['1', '2', '3'])) {
+    if (!in_array($position, ['1', '2', '3'], true)) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Posição inválida. Use 1, 2 ou 3.']);
         exit;
@@ -71,11 +89,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $labels = ['1' => '1º Lugar', '2' => '2º Lugar', '3' => '3º Lugar'];
+        $labels = $labelsDefault;
         $config[$position] = ['url' => '', 'label' => $labels[$position]];
+        $config = premiacao_normalize_config($config);
         file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
-        echo json_encode(['success' => true, 'message' => 'Premiação removida.']);
+        echo json_encode([
+            'success'  => true,
+            'message'  => 'Premiação removida.',
+            'position' => $position,
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
@@ -130,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $relativeUrl = 'uploads/premiacao/' . $filename;
-    $labels = ['1' => '1º Lugar', '2' => '2º Lugar', '3' => '3º Lugar'];
+    $labels = $labelsDefault;
     $label = isset($_POST['label']) && $_POST['label'] ? $_POST['label'] : $labels[$position];
 
     $config[$position] = [
@@ -138,13 +161,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'label' => $label,
     ];
 
+    $config = premiacao_normalize_config($config);
     file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
     echo json_encode([
-        'success' => true,
-        'message' => 'Imagem salva com sucesso!',
-        'data'    => $config[$position],
-    ]);
+        'success'  => true,
+        'message'  => 'Imagem salva com sucesso!',
+        'position' => $position,
+        'data'     => $config[$position],
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 

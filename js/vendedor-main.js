@@ -1,6 +1,10 @@
 (function () {
     const API_URL = 'api_gestao.php';
+    /** Sessão / perfil / foto / senha ficam em api.php (igual visitador). */
+    const MAIN_PHP_API = 'api.php';
     const REFRESH_MS = 45000; // Painel alimentado por gestao_pedidos (importação)
+    let __vdCsrfToken = '';
+    let __vdPerfilUiInited = false;
 
     function clearLocalStoragePreservingMyPharmTheme() {
         const backup = {};
@@ -81,6 +85,258 @@
             return { success: false, error: `Erro ${res.status}` };
         }
     }
+
+    async function fetchVdMainCsrf() {
+        try {
+            const q = new URLSearchParams({ action: 'csrf_token' });
+            const res = await fetch(`${MAIN_PHP_API}?${q.toString()}`, { credentials: 'include', cache: 'no-store' });
+            const text = await res.text();
+            const j = text ? JSON.parse(text) : {};
+            if (j && j.token) __vdCsrfToken = j.token;
+        } catch (_) { /* ignore */ }
+    }
+
+    async function mainPhpGet(action, params = {}) {
+        const query = new URLSearchParams({ action, ...params });
+        const res = await fetch(`${MAIN_PHP_API}?${query.toString()}`, { credentials: 'include', cache: 'no-store' });
+        const text = await res.text();
+        try {
+            return text ? JSON.parse(text) : {};
+        } catch (_) {
+            return { success: false, error: `Erro ${res.status}` };
+        }
+    }
+
+    async function mainPhpPost(action, data = {}) {
+        const headers = { 'Content-Type': 'application/json' };
+        if (__vdCsrfToken) headers['X-CSRF-Token'] = __vdCsrfToken;
+        const res = await fetch(`${MAIN_PHP_API}?action=${encodeURIComponent(action)}`, {
+            method: 'POST',
+            credentials: 'include',
+            headers,
+            body: JSON.stringify(data)
+        });
+        const text = await res.text();
+        try {
+            return text ? JSON.parse(text) : {};
+        } catch (_) {
+            return { success: false, error: `Erro ${res.status}` };
+        }
+    }
+
+    function applyVdAvatarInHeader(initial, fotoFlag) {
+        const av = document.getElementById('vdAvatar');
+        const img = document.getElementById('userAvatarImg');
+        if (!av || !img) return;
+        if (fotoFlag) {
+            const url = `${MAIN_PHP_API}?action=get_foto_perfil&t=${Date.now()}`;
+            img.src = url;
+            img.alt = 'Foto de perfil';
+            img.style.display = 'block';
+            av.style.display = 'none';
+            img.onerror = function () {
+                img.style.display = 'none';
+                av.style.display = 'flex';
+                av.textContent = (initial || 'V').charAt(0).toUpperCase();
+                img.src = '';
+                localStorage.removeItem('foto_perfil');
+            };
+        } else {
+            img.src = '';
+            img.onerror = null;
+            img.style.display = 'none';
+            av.style.display = 'flex';
+            av.textContent = (initial || 'V').charAt(0).toUpperCase();
+        }
+    }
+
+    function initVendedorMeuPerfilUi() {
+        if (__vdPerfilUiInited) return;
+        const modal = document.getElementById('modalMeuPerfil');
+        if (!modal) return;
+        __vdPerfilUiInited = true;
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeMeuPerfilModal();
+        });
+        const wrap = document.getElementById('avatarWrap');
+        const inputHeader = document.getElementById('inputFotoPerfil');
+        if (wrap) {
+            wrap.style.cursor = 'pointer';
+            wrap.onclick = function (ev) {
+                if (ev && ev.target && ev.target.closest && ev.target.closest('#inputFotoPerfil')) return;
+                openMeuPerfilModal();
+            };
+        }
+        if (inputHeader) {
+            inputHeader.onchange = function () { inputHeader.value = ''; };
+        }
+    }
+
+    async function openMeuPerfilModal() {
+        const modal = document.getElementById('modalMeuPerfil');
+        if (!modal) return;
+        await fetchVdMainCsrf();
+        modal.style.display = 'flex';
+        const sa = document.getElementById('perfilSenhaAtual');
+        const sn = document.getElementById('perfilSenhaNova');
+        const sc = document.getElementById('perfilSenhaConfirma');
+        if (sa) sa.value = '';
+        if (sn) sn.value = '';
+        if (sc) sc.value = '';
+        try {
+            const r = await mainPhpGet('get_meu_perfil');
+            if (r && r.success) {
+                const nomeEl = document.getElementById('perfilNome');
+                const usuEl = document.getElementById('perfilUsuario');
+                const waEl = document.getElementById('perfilWhatsapp');
+                if (nomeEl) nomeEl.value = r.nome || '';
+                if (usuEl) usuEl.value = r.usuario || '';
+                if (waEl) waEl.value = r.whatsapp || '';
+                if (r.foto_perfil) {
+                    try { localStorage.setItem('foto_perfil', r.foto_perfil); } catch (e2) { /* ignore */ }
+                } else {
+                    try { localStorage.removeItem('foto_perfil'); } catch (e3) { /* ignore */ }
+                }
+                const initial = (r.nome || 'V').charAt(0).toUpperCase();
+                applyVdAvatarInHeader(initial, r.foto_perfil || null);
+                const img = document.getElementById('perfilFotoImg');
+                const av = document.getElementById('perfilAvatarInicial');
+                if (r.foto_perfil && img && av) {
+                    img.onerror = function () {
+                        img.style.display = 'none';
+                        av.style.display = '';
+                        av.textContent = initial;
+                    };
+                    img.src = `${MAIN_PHP_API}?action=get_foto_perfil&t=${Date.now()}`;
+                    img.style.display = '';
+                    av.style.display = 'none';
+                } else if (img && av) {
+                    img.onerror = null;
+                    img.src = '';
+                    img.style.display = 'none';
+                    av.style.display = '';
+                    av.textContent = initial;
+                }
+            }
+        } catch (e) {
+            console.error('Perfil', e);
+        }
+        const inputModal = document.getElementById('inputFotoPerfilModal');
+        if (inputModal) {
+            inputModal.onchange = function () {
+                const file = inputModal.files && inputModal.files[0];
+                if (!file || !file.type.match(/^image\//)) return;
+                if (file.size > 3 * 1024 * 1024) {
+                    alert('Escolha uma foto de até 3 MB.');
+                    inputModal.value = '';
+                    return;
+                }
+                const formData = new FormData();
+                formData.append('foto', file);
+                (async function () {
+                    try {
+                        const response = await fetch(`${MAIN_PHP_API}?action=upload_foto_perfil`, {
+                            method: 'POST',
+                            body: formData,
+                            credentials: 'include'
+                        });
+                        const text = await response.text();
+                        let res = null;
+                        try { res = text ? JSON.parse(text) : null; } catch (_) {}
+                        if (res && res.success && res.foto_perfil) {
+                            localStorage.setItem('foto_perfil', res.foto_perfil);
+                            const nome = (document.getElementById('perfilNome') && document.getElementById('perfilNome').value) || 'V';
+                            applyVdAvatarInHeader(nome.charAt(0), res.foto_perfil);
+                            const img2 = document.getElementById('perfilFotoImg');
+                            const av2 = document.getElementById('perfilAvatarInicial');
+                            if (img2) {
+                                img2.src = `${MAIN_PHP_API}?action=get_foto_perfil&t=${Date.now()}`;
+                                img2.style.display = 'block';
+                            }
+                            if (av2) av2.style.display = 'none';
+                        } else {
+                            const msg = (res && res.error) ? res.error : (!response.ok ? `Erro do servidor (${response.status}).` : 'Não foi possível alterar a foto.');
+                            alert(msg);
+                        }
+                    } catch (err) {
+                        alert('Erro ao enviar a foto. Verifique a conexão.');
+                    }
+                    inputModal.value = '';
+                })();
+            };
+        }
+    }
+
+    function closeMeuPerfilModal() {
+        const modal = document.getElementById('modalMeuPerfil');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function isStrongPasswordVd(password) {
+        if (!password || password.length < 8) return false;
+        if (!/[A-Z]/.test(password)) return false;
+        if (!/[^a-zA-Z0-9]/.test(password)) return false;
+        return true;
+    }
+
+    async function salvarMeuPerfil() {
+        const nomeEl = document.getElementById('perfilNome');
+        const nome = (nomeEl && nomeEl.value || '').trim();
+        const whatsapp = (document.getElementById('perfilWhatsapp') && document.getElementById('perfilWhatsapp').value || '').trim();
+        const senhaAtual = document.getElementById('perfilSenhaAtual') ? document.getElementById('perfilSenhaAtual').value : '';
+        const senhaNova = document.getElementById('perfilSenhaNova') ? document.getElementById('perfilSenhaNova').value : '';
+        const senhaConfirma = document.getElementById('perfilSenhaConfirma') ? document.getElementById('perfilSenhaConfirma').value : '';
+        if (!nome) {
+            alert('Nome é obrigatório.');
+            return;
+        }
+        if (senhaNova !== '' && senhaNova !== senhaConfirma) {
+            alert('A nova senha e a confirmação não conferem.');
+            return;
+        }
+        if (senhaNova !== '' && !isStrongPasswordVd(senhaNova)) {
+            alert('A nova senha deve ter no mínimo 8 caracteres, 1 letra maiúscula e 1 caractere especial.');
+            return;
+        }
+        const btn = document.getElementById('btnSalvarPerfil');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Salvando...';
+        }
+        await fetchVdMainCsrf();
+        try {
+            const payload = { nome, whatsapp };
+            if (senhaNova !== '') {
+                payload.senha_atual = senhaAtual;
+                payload.senha_nova = senhaNova;
+            }
+            const res = await mainPhpPost('update_meu_perfil', payload);
+            if (res && res.success) {
+                if (res.nome) {
+                    const vdName = document.getElementById('vdUserName');
+                    if (vdName) vdName.textContent = res.nome;
+                    localStorage.setItem('userName', res.nome);
+                    const av = document.getElementById('vdAvatar');
+                    if (av) av.textContent = res.nome.charAt(0).toUpperCase();
+                }
+                applyVdAvatarInHeader((res.nome || nome).charAt(0), localStorage.getItem('foto_perfil'));
+                closeMeuPerfilModal();
+                alert('Perfil atualizado.');
+            } else {
+                alert(res && res.error ? res.error : 'Não foi possível salvar.');
+            }
+        } catch (e) {
+            alert('Erro ao salvar. Tente novamente.');
+        }
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Salvar';
+        }
+    }
+
+    window.openMeuPerfilModal = openMeuPerfilModal;
+    window.closeMeuPerfilModal = closeMeuPerfilModal;
+    window.salvarMeuPerfil = salvarMeuPerfil;
 
     function setText(id, value) {
         const el = document.getElementById(id);
@@ -1259,7 +1515,7 @@
         hideError();
         const nome = getDashboardVendedoraName(session);
         setText('vdUserName', nome);
-        setText('vdAvatar', nome ? nome.charAt(0).toUpperCase() : 'V');
+        applyVdAvatarInHeader(nome ? nome.charAt(0).toUpperCase() : 'V', localStorage.getItem('foto_perfil'));
 
         const range = currentMonthRange();
         const data = await apiGet('vendedor_dashboard_gestao', range);
@@ -1713,7 +1969,9 @@
         // Preenche nome e avatar em todas as páginas do vendedor
         const nomeHeader = getDashboardVendedoraName(session);
         setText('vdUserName', nomeHeader);
-        setText('vdAvatar', nomeHeader ? nomeHeader.charAt(0).toUpperCase() : 'V');
+        await fetchVdMainCsrf();
+        initVendedorMeuPerfilUi();
+        applyVdAvatarInHeader(nomeHeader ? nomeHeader.charAt(0).toUpperCase() : 'V', localStorage.getItem('foto_perfil'));
         bindUi();
         // Só carrega dados pesados do dashboard na página principal (vendedor.html)
         const isDashboard = !!document.getElementById('vdPctMetaDiaria');
