@@ -10,6 +10,25 @@ Coloque aqui os arquivos MP3 com estes nomes EXATOS:
   warning.mp3          — falha de atualização / alerta crítico
   click-soft.mp3       — clique em botões principais
 
+Ativação dos sons (manifesto)
+-----------------------------
+O frontend agora usa um catálogo para evitar erros 404 quando os MP3 ainda
+não existem. Edite este arquivo após subir os sons:
+
+  assets/sounds/manifest.json
+
+Exemplo:
+{
+  "available": [
+    "ranking-update.mp3",
+    "rank-up.mp3",
+    "top3-enter.mp3",
+    "meta-hit.mp3",
+    "warning.mp3",
+    "click-soft.mp3"
+  ]
+}
+
 Onde obter (licenças próprias — verifique termos de cada site):
   • https://mixkit.co/free-sound-effects/  (Interface, Technology)
   • https://pixabay.com/sound-effects/     (ui notification)

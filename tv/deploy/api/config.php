@@ -1,15 +1,35 @@
 <?php
 /**
  * Configuração da integração com RD Station CRM (API v1)
- * 
- * A API v1 usa o token diretamente como query parameter.
- * Base: https://crm.rdstation.com/api/v1
+ * Lê o token de variável de ambiente para evitar segredo fixo no código.
  */
+
+// Carrega .env da raiz do projeto quando existir
+$envPath = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . '.env';
+if (file_exists($envPath)) {
+    $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if ($lines !== false) {
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || $line[0] === '#') {
+                continue;
+            }
+            $parts = explode('=', $line, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+            $key = trim($parts[0]);
+            $value = trim(trim($parts[1]), "\"'");
+            putenv("$key=$value");
+            $_ENV[$key] = $value;
+        }
+    }
+}
 
 // ============================================================
 // TOKEN DE ACESSO - RD Station CRM API v1
 // ============================================================
-define('RD_API_TOKEN', '69b244e342d1f9001391ae62');
+define('RD_API_TOKEN', $_ENV['RDSTATION_CRM_TOKEN'] ?? '');
 
 // URL base da API v1 do RD Station CRM
 define('RD_API_BASE', 'https://crm.rdstation.com/api/v1');

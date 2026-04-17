@@ -2,10 +2,16 @@
 /**
  * Script para importar os dados do CSV do Phusion para o Banco de Dados MySQL
  */
-header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json; charset=UTF-8');
 
+require_once dirname(__DIR__, 2) . '/config.php';
 require_once __DIR__ . '/db.php';
+
+if (!isset($_SESSION['user_id']) || (($_SESSION['user_tipo'] ?? '') !== 'admin')) {
+    http_response_code(403);
+    echo json_encode(["status" => "error", "message" => "Acesso negado."]);
+    exit;
+}
 
 try {
     $pdo = getDB();

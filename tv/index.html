@@ -317,6 +317,104 @@
       background: rgba(255, 255, 255, 0.06);
     }
 
+    .site-header__actions .sound-kit {
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 520px) {
+      .site-header__actions .sound-kit #sound-volume {
+        width: 56px;
+      }
+    }
+
+    /* Aviso: permitir áudio (política dos navegadores) */
+    .sound-consent-banner {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 9998;
+      padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0));
+      background: linear-gradient(180deg, rgba(3, 7, 18, 0) 0%, rgba(3, 7, 18, 0.97) 18%);
+      pointer-events: none;
+    }
+
+    .sound-consent-banner[hidden] {
+      display: none !important;
+    }
+
+    .sound-consent-banner__content {
+      pointer-events: auto;
+      max-width: 720px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.65rem 1rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 12px;
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      background: rgba(15, 23, 42, 0.95);
+      box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
+    }
+
+    .sound-consent-banner__text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      line-height: 1.35;
+      min-width: 0;
+    }
+
+    .sound-consent-banner__text strong {
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+
+    .sound-consent-banner__actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .sound-consent-banner__primary {
+      font-family: inherit;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 0.45rem 0.9rem;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      box-shadow: 0 2px 12px rgba(99, 102, 241, 0.35);
+    }
+
+    .sound-consent-banner__primary:hover {
+      filter: brightness(1.08);
+    }
+
+    .sound-consent-banner__ghost {
+      font-family: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.4rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .sound-consent-banner__ghost:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
     .site-header__btn--accent {
       background: rgba(99, 102, 241, 0.15);
       border-color: rgba(99, 102, 241, 0.3);
@@ -442,18 +540,6 @@
       justify-content: flex-start;
       gap: 0.65rem;
       padding: 0 0.85rem;
-    }
-
-    .nav-drawer__body .sound-kit {
-      width: 100%;
-      justify-content: space-between;
-      box-sizing: border-box;
-    }
-
-    .nav-drawer__body .sound-kit #sound-volume {
-      flex: 1;
-      max-width: 160px;
-      min-width: 72px;
     }
 
     .nav-drawer__body > a.site-header__btn {
@@ -1757,6 +1843,17 @@
     </div>
 
     <nav class="site-header__actions" aria-label="Ações">
+      <div class="sound-kit" id="sound-kit" title="Áudio do painel">
+        <button type="button" class="site-header__btn site-header__btn--icon" id="btn-sound" title="Som ligado" aria-label="Som ligado" aria-pressed="true">🔊</button>
+        <label class="sound-kit__vol" for="sound-volume" title="Volume dos efeitos">
+          <span class="sound-kit__vol-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" />
+            </svg>
+          </span>
+          <input type="range" id="sound-volume" min="0" max="100" value="80" step="1" aria-label="Volume dos efeitos sonoros" />
+        </label>
+      </div>
       <button
         type="button"
         class="site-header__btn site-header__btn--icon site-header__btn--menu"
@@ -1774,6 +1871,19 @@
       </button>
     </nav>
   </header>
+
+  <div id="sound-consent-banner" class="sound-consent-banner" role="region" aria-label="Permissão de áudio" hidden>
+    <div class="sound-consent-banner__content">
+      <div class="sound-consent-banner__text">
+        <strong>Sons do painel</strong>
+        <span>Os navegadores bloqueiam áudio até você interagir. Use o botão abaixo ou 🔊 no topo para ativar.</span>
+      </div>
+      <div class="sound-consent-banner__actions">
+        <button type="button" class="sound-consent-banner__primary" id="btn-sound-allow">Permitir sons</button>
+        <button type="button" class="sound-consent-banner__ghost" id="btn-sound-banner-close">Fechar aviso</button>
+      </div>
+    </div>
+  </div>
 
   <div class="nav-drawer-backdrop" id="nav-drawer-backdrop" aria-hidden="true"></div>
   <aside
@@ -1798,17 +1908,6 @@
         </svg>
         <span>Tela cheia</span>
       </button>
-      <div class="sound-kit" id="sound-kit" title="Áudio do painel">
-        <button type="button" class="site-header__btn site-header__btn--icon" id="btn-sound" title="Som ligado" aria-label="Som ligado" aria-pressed="true">🔊</button>
-        <label class="sound-kit__vol" for="sound-volume" title="Volume dos efeitos">
-          <span class="sound-kit__vol-icon" aria-hidden="true">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" />
-            </svg>
-          </span>
-          <input type="range" id="sound-volume" min="0" max="100" value="45" step="1" aria-label="Volume dos efeitos sonoros" />
-        </label>
-      </div>
       <a href="api/divergencias.php" class="site-header__btn site-header__btn--accent" title="Divergências / Vendas"><span aria-hidden="true">🛍</span> Vendas</a>
       <a href="premiacao.html" class="site-header__btn site-header__btn--purple" title="Gerenciar Premiações"><span aria-hidden="true">🏅</span> Premiação</a>
       <a href="api/import_csv.php" class="site-header__btn site-header__btn--purple" title="Importar CSV"><span aria-hidden="true">☁</span> Importar</a>
@@ -1928,7 +2027,10 @@
   <script src="../js/ranking-animations.js"></script>
   <script src="../js/presentation-mode.js"></script>
   <script>
-    window.soundManager = new MyPharmSoundManager({ baseUrl: '../assets/sounds/' });
+    window.soundManager = new MyPharmSoundManager({
+      baseUrl: 'public/audio/',
+      autoUnlock: true
+    });
     soundManager.init();
     window.confettiManager = new MyPharmConfettiManager(document.getElementById('confetti-canvas'));
     window.rankingAnimations = RankingAnimations.init();
@@ -2171,12 +2273,72 @@
           }
           syncUi();
         });
-        if (vol) {
-          vol.addEventListener('input', function () {
-            soundManager.unlock();
-            soundManager.setVolume(Number(vol.value) / 100);
-          });
+        function applyVolumeFromUi() {
+          if (!vol) return;
+          soundManager.unlock();
+          var n = Number(vol.value);
+          if (isNaN(n)) return;
+          soundManager.setVolume(Math.max(0, Math.min(1, n / 100)));
         }
+        if (vol) {
+          vol.addEventListener('input', applyVolumeFromUi);
+          vol.addEventListener('change', applyVolumeFromUi);
+        }
+
+        function setupSoundConsentBanner() {
+          var ban = document.getElementById('sound-consent-banner');
+          var allowBtn = document.getElementById('btn-sound-allow');
+          var closeBtn = document.getElementById('btn-sound-banner-close');
+          if (!ban) return;
+
+          function bannerDismissed() {
+            try {
+              return !!sessionStorage.getItem('mypharm_tv_sound_banner_dismissed');
+            } catch (e) {
+              return false;
+            }
+          }
+
+          function setBannerDismissed() {
+            try {
+              sessionStorage.setItem('mypharm_tv_sound_banner_dismissed', '1');
+            } catch (e2) {}
+          }
+
+          function syncBanner() {
+            if (!window.soundManager) return;
+            if (soundManager.unlocked || bannerDismissed()) {
+              ban.setAttribute('hidden', '');
+              return;
+            }
+            ban.removeAttribute('hidden');
+          }
+
+          document.addEventListener('mypharm-sound-unlocked', syncBanner);
+
+          if (allowBtn) {
+            allowBtn.addEventListener('click', function () {
+              setBannerDismissed();
+              soundManager.unlock();
+              if (!soundManager.enabled) soundManager.enable();
+              soundManager.play('clickSoft');
+              setTimeout(function () {
+                if (window.soundManager) soundManager.play('clickSoft', { force: true });
+              }, 450);
+              syncUi();
+              syncBanner();
+            });
+          }
+          if (closeBtn) {
+            closeBtn.addEventListener('click', function () {
+              setBannerDismissed();
+              syncBanner();
+            });
+          }
+          syncBanner();
+        }
+
+        setupSoundConsentBanner();
         syncUi();
       }
 
@@ -2765,6 +2927,9 @@
             renderPodium(list.slice(0, 3));
             renderOthers(list.slice(3), previousMap);
 
+            if (window.soundManager) {
+              soundManager.play('sessionEnter');
+            }
             if (hasChanged) {
               triggerRankingFx(previousMap, list);
             }

@@ -1,7 +1,15 @@
 <?php
-header('Access-Control-Allow-Origin: *');
+header('Content-Type: application/json; charset=UTF-8');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Access-Control-Allow-Headers: Content-Type, X-Requested-With');
+
+require_once dirname(__DIR__, 2) . '/config.php';
+
+if (!isset($_SESSION['user_id']) || (($_SESSION['user_tipo'] ?? '') !== 'admin')) {
+    http_response_code(403);
+    echo json_encode(["status" => "error", "message" => "Acesso negado."]);
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
@@ -9,13 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Content-Type: application/json; charset=UTF-8');
     echo json_encode(["status" => "error", "message" => "Apenas requisições POST são permitidas."]);
     exit;
 }
 
 if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-    header('Content-Type: application/json; charset=UTF-8');
     echo json_encode(["status" => "error", "message" => "Nenhum arquivo enviado ou ocorreu um erro no upload."]);
     exit;
 }
@@ -25,7 +31,6 @@ $fileName = $_FILES['file']['name'];
 $fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
 
 if ($fileExtension !== 'csv') {
-    header('Content-Type: application/json; charset=UTF-8');
     echo json_encode(["status" => "error", "message" => "Apenas arquivos CSV são permitidos."]);
     exit;
 }
@@ -38,6 +43,5 @@ if(move_uploaded_file($fileTmpPath, $destPath)) {
     // Ele não sabe que foi via upload, só vai ler o arquivo salvo e atualizar o banco.
     require_once __DIR__ . '/import_csv.php';
 } else {
-    header('Content-Type: application/json; charset=UTF-8');
     echo json_encode(["status" => "error", "message" => "Erro ao mover o arquivo enviado para o servidor."]);
 }

@@ -8,11 +8,12 @@
  * Política de autoplay: use unlock() após primeiro gesto do usuário antes de play().
  *
  * Onde os sons são disparados (tv/index.html):
- * - rankingUpdate → dados do ranking mudaram (debounce longo no manager)
- * - rankUp        → consultora subiu de posição (prioridade abaixo de top3/meta)
+ * - rankingUpdate → valores/dados do ranking mudaram (debounce longo no manager)
+ * - rankUp        → consultora ultrapassou outra (subiu de posição; abaixo de top3/meta)
  * - top3Enter     → passou a ocupar posição 1–3 vindo de fora do pódio
  * - metaHit       → percentual_meta cruzou de abaixo de 100% para 100% ou mais
  * - warning       → falha ao atualizar dados após o primeiro carregamento com sucesso
+ * - sessionEnter  → fanfare a cada carga/atualização bem-sucedida do ranking (TV)
  * - clickSoft     → tela cheia, configurações, fechar modal, ligar som
  */
 (function (global) {
@@ -20,17 +21,19 @@
 
   /** Nome lógico → arquivo em baseUrl */
   var SOUND_FILES = {
-    rankingUpdate: 'ranking-update.mp3',
-    rankUp: 'rank-up.mp3',
-    top3Enter: 'top3-enter.mp3',
-    metaHit: 'meta-hit.mp3',
-    warning: 'warning.mp3',
-    clickSoft: 'click-soft.mp3'
+    rankingUpdate: '../dist/audio/u_oepgi4ep3v-som_matricula-464025.mp3',
+    rankUp: '../dist/audio/universfield-new-notification-036-485897.mp3',
+    top3Enter: 'champion.wav',
+    metaHit: '../dist/audio/susan-lu4esm-aplausos-433039.mp3',
+    warning: 'alert.wav',
+    sessionEnter: '../dist/audio/u_ss015dykrt-brass-fanfare-reverberated-146263.mp3',
+    clickSoft: 'alert.wav'
   };
 
   /** Prioridade para interrupção (maior = mais importante). */
   var PRIORITY = {
     warning: 100,
+    sessionEnter: 92,
     top3Enter: 85,
     metaHit: 75,
     rankUp: 65,
@@ -40,19 +43,56 @@
 
   var DEFAULT_BASE = '../assets/sounds/';
   var DEFAULT_PREFIX = 'mypharm_tv_';
+  var DEFAULT_CATALOG_FILE = 'manifest.json';
+
+  function mergeUniqueLists(a, b) {
+    var seen = {};
+    var out = [];
+    function add(arr) {
+      if (!arr || !arr.length) return;
+      for (var i = 0; i < arr.length; i++) {
+        var s = String(arr[i]);
+        if (s && !seen[s]) {
+          seen[s] = true;
+          out.push(s);
+        }
+      }
+    }
+    add(a);
+    add(b);
+    return out;
+  }
+
+  function allSoundFilePaths() {
+    var seen = {};
+    var out = [];
+    for (var k in SOUND_FILES) {
+      if (!Object.prototype.hasOwnProperty.call(SOUND_FILES, k)) continue;
+      var fn = SOUND_FILES[k];
+      if (fn && !seen[fn]) {
+        seen[fn] = true;
+        out.push(fn);
+      }
+    }
+    return out;
+  }
 
   function SoundManager(options) {
     options = options || {};
     this.baseUrl = (options.baseUrl || DEFAULT_BASE).replace(/\/?$/, '/');
+    /** Se true, libera reprodução sem esperar gesto (ex.: TV com autoplay permitido no Firefox). */
+    this.autoUnlock = !!options.autoUnlock;
     this.prefix = options.storagePrefix || DEFAULT_PREFIX;
     this.storageKeys = {
       enabled: this.prefix + 'sound_enabled',
       volume: this.prefix + 'sound_volume'
     };
+    this.catalogFile = options.catalogFile || DEFAULT_CATALOG_FILE;
+    this.catalogLoaded = false;
 
     this.enabled = true;
     /** Volume linear 0–1 aplicado em cada elemento Audio */
-    this.volume = 0.45;
+    this.volume = 0.8;
     /** Navegador liberou reprodução após gesto */
     this.unlocked = false;
 
@@ -73,9 +113,38 @@
       top3Enter: 5000,
       metaHit: 6500,
       warning: 4500,
+      sessionEnter: 13000,
       clickSoft: 140
     };
   }
+
+  SoundManager.prototype._resolveMediaUrl = function (relativePath) {
+    var rel = this.baseUrl + relativePath;
+    try {
+      if (typeof window !== 'undefined' && window.location && window.URL) {
+        return new URL(rel, window.location.href).href;
+      }
+    } catch (e) {}
+    return rel;
+  };
+
+  SoundManager.prototype._setCatalog = function (availableNames) {
+    var allow = {};
+    for (var i = 0; i < availableNames.length; i++) {
+      allow[String(availableNames[i])] = true;
+    }
+    for (var key in SOUND_FILES) {
+      if (!Object.prototype.hasOwnProperty.call(SOUND_FILES, key)) continue;
+      var fileKey = SOUND_FILES[key];
+      var url = this._resolveMediaUrl(fileKey);
+      this._entries[key] = {
+        url: url,
+        ok: !!allow[fileKey],
+        el: null
+      };
+    }
+    this.catalogLoaded = true;
+  };
 
   SoundManager.prototype.loadPreferences = function () {
     try {
@@ -85,7 +154,10 @@
       var vol = localStorage.getItem(this.storageKeys.volume);
       if (vol != null && vol !== '') {
         var v = parseFloat(vol);
-        if (!isNaN(v)) this.volume = Math.max(0, Math.min(1, v));
+        if (!isNaN(v)) {
+          if (v > 1 && v <= 100) v = v / 100;
+          this.volume = Math.max(0, Math.min(1, v));
+        }
       }
     } catch (e) {
       /* storage indisponível */
@@ -154,44 +226,33 @@
   SoundManager.prototype.init = function () {
     this.loadPreferences();
     var self = this;
-    for (var key in SOUND_FILES) {
-      if (!Object.prototype.hasOwnProperty.call(SOUND_FILES, key)) continue;
-      var url = this.baseUrl + SOUND_FILES[key];
-      var entry = { url: url, ok: true, el: null };
-      var a = new Audio();
-      a.preload = 'auto';
-      (function (k, ent, audio) {
-        audio.addEventListener(
-          'error',
-          function () {
-            ent.ok = false;
-            ent.el = null;
-          },
-          { once: true }
-        );
-        audio.addEventListener(
-          'canplaythrough',
-          function () {
-            if (ent.ok !== false) ent.ok = true;
-          },
-          { once: true }
-        );
-        try {
-          audio.src = ent.url;
-          audio.load();
-        } catch (err) {
-          ent.ok = false;
-        }
-        ent.el = audio;
-      })(key, entry, a);
-      this._entries[key] = entry;
-    }
+    var defaultList = allSoundFilePaths();
+    // Catálogo síncrono: sem isto, play() falha até o fetch terminar e todos os sons
+    // disparados no primeiro frame / antes do manifest eram ignorados (catalogLoaded false).
+    self._setCatalog(defaultList);
 
-    var unlock = function () {
-      self.unlock();
-    };
-    document.addEventListener('pointerdown', unlock, { once: true, passive: true });
-    document.addEventListener('keydown', unlock, { once: true });
+    fetch(this.baseUrl + this.catalogFile + '?_=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('missing catalog');
+        return r.json();
+      })
+      .then(function (json) {
+        var available = (json && Array.isArray(json.available)) ? json.available : [];
+        self._setCatalog(mergeUniqueLists(available, defaultList));
+      })
+      .catch(function () {
+        self._setCatalog(defaultList);
+      });
+
+    if (this.autoUnlock) {
+      this.unlock();
+    } else {
+      var unlock = function () {
+        self.unlock();
+      };
+      document.addEventListener('pointerdown', unlock, { once: true, passive: true });
+      document.addEventListener('keydown', unlock, { once: true });
+    }
 
     return this;
   };
@@ -205,6 +266,11 @@
     this.unlocked = true;
     /* “silêncio” de desbloqueio: alguns navegadores exigem play() vazio; não tocamos arquivo. */
     this._flushPending();
+    if (typeof document !== 'undefined' && typeof CustomEvent !== 'undefined') {
+      try {
+        document.dispatchEvent(new CustomEvent('mypharm-sound-unlocked'));
+      } catch (e) {}
+    }
   };
 
   SoundManager.prototype._flushPending = function () {
@@ -219,7 +285,7 @@
 
   /**
    * Toca um som por nome lógico.
-   * @param {string} soundName rankingUpdate | rankUp | top3Enter | metaHit | warning | clickSoft
+   * @param {string} soundName rankingUpdate | rankUp | top3Enter | metaHit | warning | sessionEnter | clickSoft
    * @param {{ force?: boolean }} opts
    */
   SoundManager.prototype.play = function (soundName, opts) {
@@ -227,6 +293,7 @@
     if (!SOUND_FILES[soundName]) return;
 
     if (!this.enabled) return;
+    if (!this.catalogLoaded) return;
 
     if (!this.unlocked) {
       var pp = PRIORITY[soundName] || 0;
@@ -246,6 +313,9 @@
     try {
       audio = new Audio(entry.url);
       audio.volume = this.volume;
+      try {
+        audio.currentTime = 0;
+      } catch (eCt) {}
     } catch (e) {
       return;
     }
@@ -281,11 +351,23 @@
     );
 
     var playPromise = audio.play();
+    function clearIfStillActive() {
+      if (self._active === audio) {
+        self._active = null;
+        self._playingPriority = 0;
+      }
+    }
     if (playPromise && typeof playPromise.catch === 'function') {
       playPromise.catch(function () {
-        if (self._active === audio) {
-          self._active = null;
-          self._playingPriority = 0;
+        try {
+          audio.load();
+          audio.currentTime = 0;
+          var p2 = audio.play();
+          if (p2 && typeof p2.catch === 'function') {
+            p2.catch(clearIfStillActive);
+          }
+        } catch (e2) {
+          clearIfStillActive();
         }
       });
     }
