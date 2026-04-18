@@ -2083,7 +2083,7 @@
         <img
           id="site-header-logo"
           class="site-header__logo-img"
-          src="/mypharm/imagens/logoMypharm1.png"
+          src="../imagens/logoMypharm1.png"
           alt="My Pharm — Farmácia de manipulação"
           width="200"
           height="64"
@@ -2353,16 +2353,17 @@
     (function () {
       var logo = document.getElementById('site-header-logo');
       if (!logo) return;
+      /* 1º: relativo ao /tv/ — funciona em Hostinger (public_html/tv → ../imagens) e em /mypharm/tv */
+      var urls = [new URL('../imagens/logoMypharm1.png', location.href).href];
       var path = (location.pathname || '/').replace(/\/index\.html?$/i, '').replace(/\/$/, '');
-      var urls = [];
       if (/^(.+)\/tv$/i.test(path)) {
-        urls.push(path.replace(/\/tv$/i, '') + '/imagens/logoMypharm1.png');
+        var fromPath = path.replace(/\/tv$/i, '') + '/imagens/logoMypharm1.png';
+        if (urls.indexOf(fromPath) === -1) urls.push(fromPath);
       }
-      var def = '/mypharm/imagens/logoMypharm1.png';
-      if (urls.length === 0 || urls[0] !== def) {
-        urls.push(def);
+      /* Legado XAMPP com pasta /mypharm no URL */
+      if (urls.indexOf('/mypharm/imagens/logoMypharm1.png') === -1) {
+        urls.push('/mypharm/imagens/logoMypharm1.png');
       }
-      urls.push(new URL('../imagens/logoMypharm1.png', location.href).href);
       var ix = 0;
       logo.addEventListener('error', function tryNext() {
         ix += 1;
