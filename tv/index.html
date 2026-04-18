@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- TV MyPharm: este ficheiro é o que deve abrir em /mypharm/tv/ (DirectoryIndex index.html). -->
+<!-- TV MyPharm: produção típica https://dominio/tv/ ; local XAMPP pode ser /mypharm/tv/ -->
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
@@ -2087,7 +2087,6 @@
           alt="My Pharm — Farmácia de manipulação"
           width="200"
           height="64"
-          onerror="if(!this.dataset.fb){this.dataset.fb='m';this.src='/mypharm/imagens/logoMypharm1.png';}else if(this.dataset.fb==='m'){this.dataset.fb='r';this.src=new URL('../imagens/logoMypharm1.png',location.href).href;}else{this.onerror=null;}"
         />
       </a>
     </div>
@@ -2312,7 +2311,7 @@
     </div>
   </div>
 
-  <script src="../js/sound-manager.js?v=20260418"></script>
+  <script src="../js/sound-manager.js?v=20260419"></script>
   <script>
     (function () {
       try {
@@ -2325,9 +2324,9 @@
       } catch (e) {}
     })();
   </script>
-  <script src="../js/confetti-manager.js?v=20260418"></script>
-  <script src="../js/ranking-animations.js?v=20260418"></script>
-  <script src="../js/presentation-mode.js?v=20260418"></script>
+  <script src="../js/confetti-manager.js?v=20260419"></script>
+  <script src="../js/ranking-animations.js?v=20260419"></script>
+  <script src="../js/presentation-mode.js?v=20260419"></script>
   <script>
     window.soundManager = new MyPharmSoundManager({ baseUrl: '../assets/sounds/' });
     soundManager.init();
@@ -2359,8 +2358,6 @@
         container.appendChild(p);
       }
     })();
-
-    /* Logo: src principal é /imagens/ (raiz public_html). onerror no <img> cobre /mypharm/ e relativo. */
 
     /* ==========================================================
        HEADER ACTIONS

@@ -1,5 +1,7 @@
 RewriteEngine On
-RewriteBase /mypharm/tv/
+# Produção Hostinger (https://dominio/tv/): /tv/
+# XAMPP com pasta mypharm: altere para RewriteBase /mypharm/tv/
+RewriteBase /tv/
 
 # Assets estáticos: redireciona para dist/
 RewriteRule ^favicon\.svg$ dist/favicon.svg [L]
