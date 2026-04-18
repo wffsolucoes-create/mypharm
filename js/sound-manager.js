@@ -1,38 +1,32 @@
 /**
  * MyPharm — SoundManager (identidade sonora premium, arquivos MP3)
  *
- * Troca de sons no futuro:
- * - Substitua os arquivos em /assets/sounds/ mantendo os MESMOS nomes, ou
- * - Altere o mapa SOUND_FILES abaixo para apontar para novos nomes.
+ * Troca de sons: edite os MP3 em tv/public/audio/ ou o mapa SOUND_FILES abaixo.
  *
  * Política de autoplay: use unlock() após primeiro gesto do usuário antes de play().
  *
+ * Todos os ficheiros em tv/public/audio/ (baseUrl ./ na página /tv/index.html).
  * Onde os sons são disparados (tv/index.html):
- * - iniciar / clicarusuario / ficarsemvemda → tv/public/audio/*.mp3
- * - pedido + aplausos quando há nova venda (salesGain no poll); pedido não toca a cada refresh vazio
- * - rankingUpdate, rankUp, top3Enter, metaHit → efeitos legados (reservados)
- * - warning       → falha ao atualizar dados após o primeiro carregamento com sucesso
- * - sessionEnter  → fanfare (legado)
- * - clickSoft     → tela cheia, configurações, fechar modal, ligar som
+ * - iniciar / pedido / aplausos / clicarusuario / ficarsemvemda / passagem
+ * - rankingUpdate, rankUp, top3Enter, metaHit, warning, sessionEnter, clickSoft → mapeados para MP3 desta pasta
  */
 (function (global) {
   'use strict';
 
-  /** Nome lógico → arquivo em baseUrl */
+  /** Nome lógico → caminho relativo à pasta tv/ (ex.: public/audio/iniciar.mp3) */
   var SOUND_FILES = {
-    rankingUpdate: '../dist/audio/u_oepgi4ep3v-som_matricula-464025.mp3',
-    rankUp: '../dist/audio/universfield-new-notification-036-485897.mp3',
-    top3Enter: 'champion.wav',
-    metaHit: '../dist/audio/susan-lu4esm-aplausos-433039.mp3',
-    warning: 'alert.wav',
-    sessionEnter: '../dist/audio/u_ss015dykrt-brass-fanfare-reverberated-146263.mp3',
-    clickSoft: 'alert.wav',
-    /** TV — tv/public/audio (paths relativos a baseUrl ../assets/sounds/) */
-    iniciar: '../../tv/public/audio/iniciar.mp3',
-    pedido: '../../tv/public/audio/pedido.mp3',
-    aplausos: '../../tv/public/audio/aplausos.mp3',
-    clicarusuario: '../../tv/public/audio/clicarusuario.mp3',
-    ficarsemvemda: '../../tv/public/audio/ficarsemvemda.mp3'
+    rankingUpdate: 'public/audio/passagem.mp3',
+    rankUp: 'public/audio/pedido.mp3',
+    top3Enter: 'public/audio/aplausos.mp3',
+    metaHit: 'public/audio/aplausos.mp3',
+    warning: 'public/audio/passagem.mp3',
+    sessionEnter: 'public/audio/iniciar.mp3',
+    clickSoft: 'public/audio/clicarusuario.mp3',
+    iniciar: 'public/audio/iniciar.mp3',
+    pedido: 'public/audio/pedido.mp3',
+    aplausos: 'public/audio/aplausos.mp3',
+    clicarusuario: 'public/audio/clicarusuario.mp3',
+    ficarsemvemda: 'public/audio/ficarsemvemda.mp3'
   };
 
   /** Prioridade para interrupção (maior = mais importante). */
@@ -51,7 +45,8 @@
     clickSoft: 25
   };
 
-  var DEFAULT_BASE = '../assets/sounds/';
+  /** Página da TV: /mypharm/tv/ ou /tv/ — sons em ./public/audio/ */
+  var DEFAULT_BASE = './';
   var DEFAULT_PREFIX = 'mypharm_tv_';
   var DEFAULT_CATALOG_FILE = 'manifest.json';
 
