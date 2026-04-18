@@ -7,7 +7,7 @@
  * 
  * Usa cache local para performance e para preservar posicao_anterior.
  * 
- * Baseado no padrão comprovado de rdstation_tv.php do projeto mypharm.
+ * Agregação alinhada a api/rdstation_tv.php (rdtvAccumulateWonLostPage + rdtvIsInPeriod + valor do deal).
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../../api/rdstation_tv.php';
 
 // ============================================================
 // FUNÇÕES AUXILIARES
@@ -75,20 +76,42 @@ function fetchDeals(string $token, int $page, int $limit, string $startDate, str
 }
 
 /**
- * Extrai o valor monetário de um deal.
- * O RD Station pode popular amount_total, amount_montly e/ou amount_unique.
- * Usa a soma dos componentes quando disponíveis; senão, usa amount_total.
+ * Valor do deal igual ao painel / rdstation_tv (amount_total &gt; 0 senão monthly+unique).
  */
-function getAmountFromDeal(array $deal): float {
-    $monthly = (float)($deal['amount_montly'] ?? 0);
-    $unique  = (float)($deal['amount_unique'] ?? 0);
-    $total   = (float)($deal['amount_total'] ?? 0);
-
-    $sum = $monthly + $unique;
-    if ($sum > 0) {
-        return $sum;
+function tvDealValorRd(array $deal): float {
+    $amount = (float)($deal['amount_total'] ?? 0);
+    if ($amount <= 0) {
+        return rdtvGetAmountFromDeal($deal);
     }
-    return $total;
+    return $amount;
+}
+
+/**
+ * Nome agregado no RD (rdtvResolveNome) → chave em $SELLER_CONFIG na TV.
+ */
+function tvRdtvNameToConfigKey(string $rdtvNome): string {
+    static $map = [
+        'Jessica Vitoria'           => 'Vitória Carvalho',
+        'Carla'                     => 'Carla Pires - Consultora',
+        'Clara Leticia'             => 'Clara Letícia',
+        'Ananda Reis'               => 'Ananda',
+    ];
+    return $map[$rdtvNome] ?? $rdtvNome;
+}
+
+/**
+ * Nome para bucket de agregação: prioriza mapeamento RD (igual Gestão/TV corrida); senão canonical local.
+ */
+function tvResolveSellerAggregationKey(string $nomeCrmRaw): string {
+    $nomeCrmRaw = trim($nomeCrmRaw);
+    if ($nomeCrmRaw === '') {
+        return '';
+    }
+    $rd = rdtvResolveNome($nomeCrmRaw);
+    if ($rd !== null) {
+        return tvRdtvNameToConfigKey($rd);
+    }
+    return canonicalSellerName($nomeCrmRaw);
 }
 
 /**
@@ -160,24 +183,6 @@ function getPeriodDates(): array {
 }
 
 /**
- * Verifica se a data de fechamento do deal está dentro do período.
- * Usa closed_at (Data de fechamento) como referência — mesmo campo
- * usado no filtro do painel do RD Station.
- * Compara só YYYY-MM-DD sem converter timezone para não cortar deals válidos.
- */
-function dealInPeriod(array $deal, array $period): bool {
-    $dateStr = $deal['closed_at'] ?? '';
-    if ($dateStr === '') {
-        return true;
-    }
-    $date = substr((string)$dateStr, 0, 10);
-    if (strlen($date) !== 10) {
-        return true;
-    }
-    return $date >= $period['start'] && $date <= $period['end'];
-}
-
-/**
  * Lê o cache anterior
  */
 function readCache(): ?array {
@@ -237,10 +242,13 @@ try {
         }
 
         foreach ($deals as $deal) {
-            // RD pode marcar venda por "win=true" ou por status textual "won".
-            $isWon = !empty($deal['win']) || strtolower((string)($deal['status'] ?? '')) === 'won';
-            if (!$isWon) continue;
-            if (!dealInPeriod($deal, $period)) continue;
+            // Igual rdtvAccumulateWonLostPage: só negócios com win explícito na API.
+            if (empty($deal['win'])) {
+                continue;
+            }
+            if (!rdtvIsInPeriod($deal, $period['start'], $period['end'])) {
+                continue;
+            }
 
             // Extrair nome e email do vendedor
             $nomeCrmRaw = trim((string)($deal['user']['name'] ?? $deal['user_name'] ?? ''));
@@ -249,11 +257,15 @@ try {
                 // Fallback: se o nome não vier no payload, usa o prefixo do email.
                 $nomeCrmRaw = preg_replace('/@.*/', '', $emailVendedor) ?: '';
             }
-            if ($nomeCrmRaw === '') continue;
-            $nomeCrm = canonicalSellerName($nomeCrmRaw);
+            if ($nomeCrmRaw === '') {
+                continue;
+            }
+            $nomeCrm = tvResolveSellerAggregationKey($nomeCrmRaw);
+            if ($nomeCrm === '') {
+                continue;
+            }
 
-            // Extrair valor
-            $amount = getAmountFromDeal($deal);
+            $amount = tvDealValorRd($deal);
 
             // Agrupar (preserva email da primeira ocorrência)
             if (!isset($porVendedor[$nomeCrm])) {
