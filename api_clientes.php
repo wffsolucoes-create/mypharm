@@ -1340,9 +1340,9 @@ if ($action === 'exportar_busca_csv') {
         exit;
     }
 
-    header('Content-Type: text/csv; charset=UTF-8');
-    header('Content-Disposition: attachment; filename="clientes_busca_' . date('Y-m-d_His') . '.csv"');
-    header('Cache-Control: no-store');
+    header('Content-Type: text/csv; charset=UTF-8', true);
+    header('Content-Disposition: attachment; filename="clientes_busca_' . date('Y-m-d_His') . '.csv"', true);
+    header('Cache-Control: no-store', true);
 
     $out = fopen('php://output', 'w');
     if ($out === false) {

@@ -10,12 +10,20 @@ set_time_limit(0);
 ini_set('display_errors', '1');
 ini_set('memory_limit', '256M');
 
-require_once __DIR__ . '/config.php';
+/** Raiz do repositório MyPharm (caminho absoluto no disco). */
+$MYPHARM_ROOT = realpath(dirname(__DIR__));
+if ($MYPHARM_ROOT === false) {
+    http_response_code(500);
+    exit('Erro: não foi possível resolver a pasta raiz do projeto (acima de scripts/).');
+}
 
+require_once $MYPHARM_ROOT . DIRECTORY_SEPARATOR . 'config.php';
+
+// Web: só localhost. CLI (php.exe): permitido para importação manual.
 $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
-if (!in_array($remoteAddr, ['127.0.0.1', '::1'])) {
+if (PHP_SAPI !== 'cli' && !in_array($remoteAddr, ['127.0.0.1', '::1'], true)) {
     http_response_code(403);
-    exit('Acesso negado: execute apenas localmente.');
+    exit('Acesso negado: execute apenas localmente (ou use: php scripts/importar_clientes.php).');
 }
 
 $pdo = getConnection();
@@ -87,11 +95,21 @@ function normCep(?string $v): ?string
     return ($d !== null && strlen($d) === 8) ? $d : null;
 }
 
+/** Telefone só dígitos; cabe em VARCHAR(20). Aceita 8–20 dígitos (DDD+celular, erros de digitação, exterior). */
 function normTel(?string $v): ?string
 {
     $d = onlyDigits($v);
-    if ($d === null) return null;
-    return (strlen($d) >= 8 && strlen($d) <= 11) ? $d : null;
+    if ($d === null) {
+        return null;
+    }
+    $len = strlen($d);
+    if ($len < 8) {
+        return null;
+    }
+    if ($len > 20) {
+        $d = substr($d, 0, 20);
+    }
+    return $d;
 }
 
 function isNomeInvalido(string $nome): bool
@@ -109,17 +127,32 @@ function ns(?string $v): ?string
     return ($r !== '') ? $r : null;
 }
 
+/** True se a linha do CSV tem algum dado além da filial (coluna 0). Evita perder linhas só com e-mail/endereço. */
+function csvLinhaTemDadosCliente(array $row): bool
+{
+    for ($i = 1; $i <= 19; $i++) {
+        if (!isset($row[$i])) {
+            continue;
+        }
+        if (trim((string) $row[$i]) !== '') {
+            return true;
+        }
+    }
+    return false;
+}
+
 // ── 3. Limpar tabela para reimportar do zero ──────────────────────────────────
 // Garante que uma re-execução não duplique registros sem CPF
 $pdo->exec("TRUNCATE TABLE clientes");
 
 // ── 4. Processar CSVs ─────────────────────────────────────────────────────────
 
+$dadosDir = $MYPHARM_ROOT . DIRECTORY_SEPARATOR . 'dados';
 $csvFiles = [
-    2023 => __DIR__ . '/dados/Relatório de Clientes 2023.csv',
-    2024 => __DIR__ . '/dados/Relatório de Clientes 2024.csv',
-    2025 => __DIR__ . '/dados/Relatório de Clientes 2025.csv',
-    2026 => __DIR__ . '/dados/Relatório de Clientes 2026.csv',
+    2023 => $dadosDir . DIRECTORY_SEPARATOR . 'Relatório de Clientes 2023.csv',
+    2024 => $dadosDir . DIRECTORY_SEPARATOR . 'Relatório de Clientes 2024.csv',
+    2025 => $dadosDir . DIRECTORY_SEPARATOR . 'Relatório de Clientes 2025.csv',
+    2026 => $dadosDir . DIRECTORY_SEPARATOR . 'Relatório de Clientes 2026.csv',
 ];
 
 // Colunas para o INSERT
@@ -209,7 +242,7 @@ foreach ($csvFiles as $ano => $path) {
         $batch = [];
     };
 
-    while (($row = fgetcsv($fh, 4096, ';')) !== false) {
+    while (($row = fgetcsv($fh, 0, ';')) !== false) {
         $lineNum++;
         if ($lineNum === 1) continue;
 
@@ -238,7 +271,7 @@ foreach ($csvFiles as $ano => $path) {
         $nomeValido = isNomeInvalido($nome) ? 0 : 1;
         if ($nomeValido === 0) $fInvalid++;
 
-        if ($nome === '' && $dataCad === null && $telefone === null && $cpf === null) {
+        if (!csvLinhaTemDadosCliente($row)) {
             $fSkipped++;
             continue;
         }

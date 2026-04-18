@@ -2,6 +2,8 @@
     'use strict';
 
     const API = 'api_clientes.php';
+    /** Evita overlay infinito se o PHP/rede não responder (timeout em todos os GET JSON). */
+    const API_FETCH_DEFAULT_TIMEOUT_MS = 120000;
     const CLI_MAIN_API = 'api.php';
     const SIDEBAR_KEY  = 'mypharm_sidebar_collapsed';
     const THEME_KEY    = 'mypharm_theme';
@@ -12,20 +14,44 @@
     var __cliMensagensApi = [];
     var __cliMensagensRecebidasApi = [];
     var _cliCurrentSection = 'visao-geral';
+    /** Quantas vezes loadSection('analise-compras') correu nesta sessão (1ª = só filtros; 2ª+ = recalcular). */
+    var _cliAnaliseSectionLoads = 0;
 
     var CLI_LOADING_TEXT_DEFAULT = 'Carregando dados...';
+    /** Empilha carregamentos (loadSection + executarAnalise + municípios) sem fechar o overlay cedo. */
+    var __cliLoadingDepth = 0;
 
-    /** Overlay full-screen igual ao index (loadingOverlay + styles.css). */
+    /** Overlay full-screen (visual clientes.html + styles.css). */
     function cliShowPageLoading(message) {
+        __cliLoadingDepth++;
         var el = document.getElementById('loadingOverlay');
         if (!el) return;
         var txt = el.querySelector('.loading-text');
-        if (txt && message) txt.textContent = message;
+        if (txt) {
+            txt.textContent = (message && String(message).trim()) ? String(message).trim() : CLI_LOADING_TEXT_DEFAULT;
+        }
         el.style.display = 'flex';
         el.setAttribute('aria-busy', 'true');
     }
 
     function cliHidePageLoading() {
+        if (__cliLoadingDepth > 0) {
+            __cliLoadingDepth--;
+        }
+        if (__cliLoadingDepth > 0) {
+            return;
+        }
+        var el = document.getElementById('loadingOverlay');
+        if (!el) return;
+        el.style.display = 'none';
+        el.setAttribute('aria-busy', 'false');
+        var txt = el.querySelector('.loading-text');
+        if (txt) txt.textContent = CLI_LOADING_TEXT_DEFAULT;
+    }
+
+    /** Se o overlay ficar órfão (bug de contagem), força fechar. */
+    function cliResetPageLoading() {
+        __cliLoadingDepth = 0;
         var el = document.getElementById('loadingOverlay');
         if (!el) return;
         el.style.display = 'none';
@@ -1277,11 +1303,29 @@
         });
     }
 
-    async function apiFetch(params) {
+    /**
+     * @param {Record<string, string>} params
+     * @param {{ timeoutMs?: number }} [opts] timeoutMs omitido = 120s; use 0 para desativar abort.
+     */
+    async function apiFetch(params, opts) {
+        opts = opts || {};
         const url = API + '?' + new URLSearchParams(params).toString();
-        const r = await fetch(url, { credentials: 'include' });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
+        const ctrl = new AbortController();
+        var t = null;
+        var timeoutMs = opts.timeoutMs;
+        if (timeoutMs === undefined || timeoutMs === null) {
+            timeoutMs = API_FETCH_DEFAULT_TIMEOUT_MS;
+        }
+        if (timeoutMs > 0) {
+            t = setTimeout(function () { ctrl.abort(); }, timeoutMs);
+        }
+        try {
+            const r = await fetch(url, { credentials: 'include', cache: 'no-store', signal: ctrl.signal });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        } finally {
+            if (t) clearTimeout(t);
+        }
     }
 
     // ── Tema (paridade index.html: theme-toggle + chave por usuário) ───────────
@@ -1440,13 +1484,20 @@
         if (b) b.addEventListener('click', function () { refreshClientesData(); });
     }
 
-    // ── CARREGAMENTO POR SEÇÃO ─────────────────────────────────────────────────
-    function loadSection(name) {
-        if (name === 'visao-geral') loadVisaoGeral();
-        if (name === 'evolucao')    loadEvolucao();
-        if (name === 'geografico')  loadGeografico();
-        if (name === 'analise-compras') loadAnaliseCompras();
-        if (name === 'busca')       initBusca();
+    // ── CARREGAMENTO POR SEÇÃO (overlay igual ao index: «Carregando dados...») ─
+    async function loadSection(name) {
+        cliShowPageLoading(CLI_LOADING_TEXT_DEFAULT);
+        try {
+            if (name === 'visao-geral') await loadVisaoGeral();
+            if (name === 'evolucao') await loadEvolucao();
+            if (name === 'geografico') await loadGeografico();
+            if (name === 'analise-compras') await loadAnaliseCompras();
+            if (name === 'busca') await initBusca();
+        } catch (err) {
+            console.error('loadSection', name, err);
+        } finally {
+            cliHidePageLoading();
+        }
     }
 
     function renderCliCruzamento(d) {
@@ -1769,6 +1820,43 @@
     let _buscaParams = {};
     let _buscaSort = 'data_cadastro';
     let _buscaSortDir = 'desc';
+    var _cliBuscaToolbarBound = false;
+
+    /** Botões da busca ligados no load da página (evita clique antes de initBusca terminar). */
+    function bindCliBuscaToolbarOnce() {
+        if (_cliBuscaToolbarBound) return;
+        _cliBuscaToolbarBound = true;
+
+        const btnBusca = document.getElementById('cliBuscaBtn');
+        const inpQ = document.getElementById('cliBuscaQ');
+        if (btnBusca) btnBusca.addEventListener('click', function () { _buscaPg = 1; executarBusca(); });
+        if (inpQ) inpQ.addEventListener('keydown', function (e) { if (e.key === 'Enter') { _buscaPg = 1; executarBusca(); } });
+
+        const btnPrint = document.getElementById('cliBuscaBtnPrint');
+        const btnCsv = document.getElementById('cliBuscaBtnCsv');
+        if (btnPrint) btnPrint.addEventListener('click', function (e) { e.preventDefault(); cliBuscaImprimir(); });
+        if (btnCsv) btnCsv.addEventListener('click', function (e) { e.preventDefault(); cliBuscaBaixarCsv(); });
+
+        const thead = document.getElementById('cliBuscaThead');
+        if (thead) {
+            thead.querySelectorAll('.cli-th-sort').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const col = btn.getAttribute('data-sort');
+                    if (!col) return;
+                    if (_buscaSort === col) {
+                        _buscaSortDir = _buscaSortDir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        _buscaSort = col;
+                        _buscaSortDir = (col === 'data_cadastro' || col === 'fonte_ano' || col === 'receita_aprovada_gestao' || col === 'valor_itens_recusados' || col === 'ultima_compra_aprovada') ? 'desc' : 'asc';
+                    }
+                    atualizarIconesOrdenacaoBusca();
+                    _buscaPg = 1;
+                    executarBusca();
+                });
+            });
+        }
+        atualizarIconesOrdenacaoBusca();
+    }
 
     function atualizarIconesOrdenacaoBusca() {
         const thead = document.getElementById('cliBuscaThead');
@@ -1838,7 +1926,10 @@
                 if (typeof window.uiToast === 'function') window.uiToast('Erro ao baixar CSV.', 'error'); else window.alert('Erro ao baixar CSV.');
                 return;
             }
-            if (ct.indexOf('csv') === -1 && ct.indexOf('text/plain') === -1) {
+            var ctLow = ct.toLowerCase();
+            var tipoCsvOk = !ct || ctLow.indexOf('csv') !== -1 || ctLow.indexOf('text/plain') !== -1
+                || ctLow.indexOf('octet-stream') !== -1 || ctLow.indexOf('application/download') !== -1;
+            if (!tipoCsvOk) {
                 if (typeof window.uiToast === 'function') window.uiToast('Resposta inesperada do servidor.', 'error'); else window.alert('Resposta inesperada.');
                 return;
             }
@@ -1892,6 +1983,7 @@
             }
             selMun.disabled = true;
             selMun.title = 'Carregando…';
+            cliShowPageLoading('Carregando municípios...');
             try {
                 const list = await apiFetch({ action: 'lista_municipios', uf: uf });
                 (list || []).forEach(function (m) {
@@ -1901,6 +1993,9 @@
                     selMun.appendChild(opt);
                 });
             } catch (e) { /* ignore */ }
+            finally {
+                cliHidePageLoading();
+            }
             selMun.disabled = false;
             selMun.title = '';
         }
@@ -1929,9 +2024,10 @@
         if (su && su.value) params.uf = su.value;
         if (sm && sm.value) params.municipio = sm.value;
 
+        cliShowPageLoading('Carregando análise...');
         if (meta) meta.textContent = 'Carregando…';
         try {
-            const d = await apiFetch(params);
+            const d = await apiFetch(params, { timeoutMs: 120000 });
             if (!d || !d.ok) {
                 if (meta) meta.textContent = (d && d.error) ? d.error : 'Não foi possível carregar a análise.';
                 return;
@@ -2048,13 +2144,36 @@
             if (metTxt) metTxt.textContent = d.metodologia || '';
         } catch (e) {
             console.error('analiseCompras:', e);
-            if (meta) meta.textContent = 'Erro ao carregar análise.';
+            if (meta) {
+                var aborted = e && (e.name === 'AbortError' || (String(e.message || '').indexOf('aborted') !== -1));
+                meta.textContent = aborted ? 'Tempo esgotado ao carregar a análise. Tente de novo ou reduza o filtro.' : 'Erro ao carregar análise.';
+            }
+        } finally {
+            cliHidePageLoading();
         }
+    }
+
+    function cliAnaliseMostrarAvisoCargaManual() {
+        var meta = document.getElementById('cliAnaliseMeta');
+        if (meta) {
+            meta.textContent = 'Clique em «Atualizar análise» para carregar os indicadores. Em bases grandes, escolha UF (e município) antes — o cálculo por nome em toda a base é pesado.';
+        }
+        var tbody = document.getElementById('cliAnaliseTopBody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" class="cli-empty" style="padding:20px;">Indicadores ainda não carregados. Use o botão «Atualizar análise» acima.</td></tr>';
+        }
+        var metTxt = document.getElementById('cliAnaliseMetodologia');
+        if (metTxt) metTxt.textContent = '';
     }
 
     async function loadAnaliseCompras() {
         await initAnaliseComprasFiltros();
-        await executarAnaliseCompras();
+        _cliAnaliseSectionLoads++;
+        if (_cliAnaliseSectionLoads > 1) {
+            await executarAnaliseCompras();
+        } else {
+            cliAnaliseMostrarAvisoCargaManual();
+        }
     }
 
     async function initBusca() {
@@ -2072,6 +2191,7 @@
             }
             selMun.disabled = true;
             selMun.title = 'Carregando…';
+            cliShowPageLoading('Carregando municípios...');
             try {
                 const list = await apiFetch({ action: 'lista_municipios', uf: uf });
                 (list || []).forEach(function (m) {
@@ -2081,6 +2201,9 @@
                     selMun.appendChild(opt);
                 });
             } catch (e) { /* ignore */ }
+            finally {
+                cliHidePageLoading();
+            }
             selMun.disabled = false;
             selMun.title = '';
         }
@@ -2095,36 +2218,6 @@
         } catch (_) {}
 
         if (selUf) selUf.addEventListener('change', function () { carregarMunicipiosBusca(); });
-
-        const btnBusca = document.getElementById('cliBuscaBtn');
-        const inpQ     = document.getElementById('cliBuscaQ');
-        if (btnBusca) btnBusca.addEventListener('click', function () { _buscaPg = 1; executarBusca(); });
-        if (inpQ) inpQ.addEventListener('keydown', function (e) { if (e.key === 'Enter') { _buscaPg = 1; executarBusca(); } });
-
-        const btnPrint = document.getElementById('cliBuscaBtnPrint');
-        const btnCsv = document.getElementById('cliBuscaBtnCsv');
-        if (btnPrint) btnPrint.addEventListener('click', cliBuscaImprimir);
-        if (btnCsv) btnCsv.addEventListener('click', cliBuscaBaixarCsv);
-
-        const thead = document.getElementById('cliBuscaThead');
-        if (thead) {
-            thead.querySelectorAll('.cli-th-sort').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    const col = btn.getAttribute('data-sort');
-                    if (!col) return;
-                    if (_buscaSort === col) {
-                        _buscaSortDir = _buscaSortDir === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        _buscaSort = col;
-                        _buscaSortDir = (col === 'data_cadastro' || col === 'fonte_ano' || col === 'receita_aprovada_gestao' || col === 'valor_itens_recusados' || col === 'ultima_compra_aprovada') ? 'desc' : 'asc';
-                    }
-                    atualizarIconesOrdenacaoBusca();
-                    _buscaPg = 1;
-                    executarBusca();
-                });
-            });
-        }
-        atualizarIconesOrdenacaoBusca();
     }
 
     async function executarBusca() {
@@ -2354,6 +2447,8 @@
         setupAvatarUploadCli();
         initAdminNotificationsCli();
         loadNotificacoesFromAPICli();
+
+        bindCliBuscaToolbarOnce();
 
         // Restaurar seção salva
         const saved = localStorage.getItem(SECTION_KEY) || 'visao-geral';

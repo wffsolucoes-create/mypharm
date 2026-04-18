@@ -296,6 +296,65 @@
         .cli-cruzamento-stat strong { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; color: var(--cli-accent); }
         .cli-cruzamento-stat span { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
         .cli-cruzamento-amostra { margin-top: 10px; padding: 10px 12px; background: rgba(15,23,42,0.04); border-radius: 8px; font-size: 0.8rem; max-height: 160px; overflow: auto; }
+
+        /* Análise de Compras — KPIs alinhados a gestao-comercial.html (kpi-grid / kpi-card) */
+        #cliMain #cliAnaliseKpis.kpi-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin: 16px 0 18px;
+        }
+        @media (max-width: 1200px) {
+            #cliMain #cliAnaliseKpis.kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (max-width: 900px) {
+            #cliMain #cliAnaliseKpis.kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 520px) {
+            #cliMain #cliAnaliseKpis.kpi-grid { grid-template-columns: 1fr; }
+        }
+        body.gc-compact-ui #cliMain #cliAnaliseKpis .kpi-card {
+            padding: 12px 14px;
+            min-height: 118px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        body.gc-compact-ui #cliMain #cliAnaliseKpis .kpi-icon {
+            width: 34px;
+            height: 34px;
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+        }
+        body.gc-compact-ui #cliMain #cliAnaliseKpis .kpi-label {
+            font-size: 0.68rem;
+            margin-bottom: 4px;
+            line-height: 1.35;
+        }
+        body.gc-compact-ui #cliMain #cliAnaliseKpis .kpi-value {
+            font-size: 1.45rem;
+            line-height: 1.15;
+            color: var(--primary, #E63946);
+            font-variant-numeric: tabular-nums;
+        }
+        body.gc-compact-ui #cliMain #cliAnaliseKpis .kpi-sub {
+            margin-top: 6px;
+            font-size: 0.72rem;
+            line-height: 1.35;
+        }
+        #cliAnaliseKpis .kpi-card:nth-child(9)::before {
+            background: linear-gradient(90deg, #6366f1, #a5b4fc);
+        }
+        #cliAnaliseKpis .kpi-card:nth-child(10)::before {
+            background: linear-gradient(90deg, #64748b, #94a3b8);
+        }
+        #cliAnaliseKpis .kpi-card:nth-child(9) .kpi-icon {
+            background: rgba(99, 102, 241, 0.14);
+            color: #6366f1;
+        }
+        #cliAnaliseKpis .kpi-card:nth-child(10) .kpi-icon {
+            background: rgba(100, 116, 139, 0.14);
+            color: #64748b;
+        }
         [data-theme="dark"] .cli-cruzamento-amostra { background: rgba(255,255,255,0.06); }
 
         @media print {
@@ -580,7 +639,17 @@
             border-top: 1px dashed var(--border, #e2e8f0);
         }
         .cli-analise-toolbar {
-            display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 18px;
+            display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin-bottom: 16px;
+        }
+        .cli-analise-toolbar--panel {
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border, #e2e8f0);
+            background: var(--bg-secondary, rgba(148, 163, 184, 0.08));
+            margin-bottom: 14px;
+        }
+        .cli-analise-meta + .gc-block-title {
+            margin-top: 4px;
         }
         .cli-analise-toolbar select {
             padding: 8px 12px; border: 1px solid var(--border, #d1d5db); border-radius: 8px;
@@ -599,6 +668,33 @@
         .cli-analise-table td { padding: 9px 12px; border-bottom: 1px solid var(--border, #f0f0f0); vertical-align: middle; }
         .cli-analise-table th.cli-analise-num, .cli-analise-table td.cli-analise-num { text-align: right; font-variant-numeric: tabular-nums; }
         .cli-analise-table tbody tr:hover td { background: var(--bg-hover, #f9fafb); }
+
+        /* Overlay de carregamento — mesmo padrão visual do index/dashboard (fundo claro esmaecido + blur) */
+        #loadingOverlay.loading-overlay {
+            z-index: 100000;
+            pointer-events: auto;
+        }
+        [data-theme="light"] #loadingOverlay.loading-overlay,
+        html[data-theme="light"] #loadingOverlay.loading-overlay {
+            background: rgba(245, 246, 250, 0.88);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        [data-theme="dark"] #loadingOverlay.loading-overlay {
+            background: rgba(15, 17, 23, 0.88);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        #loadingOverlay .loading-spinner {
+            border-color: rgba(203, 213, 225, 0.95);
+            border-top-color: var(--primary, #E63946);
+            border-width: 3px;
+        }
+        #loadingOverlay .loading-text {
+            color: var(--text-secondary, #64748b);
+            font-weight: 500;
+            letter-spacing: 0.01em;
+        }
     </style>
 </head>
 <body class="gc-compact-ui">
@@ -972,7 +1068,7 @@
                         <p class="gc-tab-head__desc">Recorrência, potencial (pipeline), volume por ano e ranking de clientes com compras repetidas — útil para planejar rotas e novas praças (ex.: Ariquemes).</p>
                     </header>
                     <div class="gc-block">
-                        <div class="cli-analise-toolbar cli-no-print">
+                        <div class="cli-analise-toolbar cli-analise-toolbar--panel cli-no-print">
                             <div>
                                 <label class="cli-mapa-pro-label" for="cliAnaliseUf">UF</label>
                                 <select id="cliAnaliseUf" aria-label="UF análise"><option value="">Brasil (todos)</option></select>
@@ -988,17 +1084,68 @@
                             </button>
                         </div>
                         <p id="cliAnaliseMeta" class="cli-analise-meta" role="status"></p>
-                        <div class="cli-cruzamento-stats" id="cliAnaliseKpis">
-                            <div class="cli-cruzamento-stat"><strong id="cliAkCad">—</strong><span>Clientes no filtro</span></div>
-                            <div class="cli-cruzamento-stat"><strong id="cliAkRec">—</strong><span>Compras recorrentes (2+ pedidos)</span></div>
-                            <div class="cli-cruzamento-stat"><strong id="cliAkUma">—</strong><span>Uma compra aprovada</span></div>
-                            <div class="cli-cruzamento-stat"><strong id="cliAkSem">—</strong><span>Sem compra aprovada</span></div>
-                            <div class="cli-cruzamento-stat"><strong id="cliAkRecPct">—</strong><span>% recorrentes na base</span></div>
-                            <div class="cli-cruzamento-stat"><strong id="cliAkReceita">—</strong><span>Receita aprovada (R$)</span></div>
-                            <div class="cli-cruzamento-stat"><strong id="cliAkTicket">—</strong><span>Ticket médio (compradores)</span></div>
-                            <div class="cli-cruzamento-stat"><strong id="cliAkPedidos">—</strong><span>Pedidos aprovados distintos</span></div>
-                            <div class="cli-cruzamento-stat"><strong id="cliAkPipe">—</strong><span>Pipeline rec./carrinho (R$)</span></div>
-                            <div class="cli-cruzamento-stat"><strong id="cliAkPipeCli">—</strong><span>Só pipeline (sem aprovado)</span></div>
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-chart-pie"></i></span> Indicadores do filtro</h3>
+                        <div class="kpi-grid gc-kpi-grid" id="cliAnaliseKpis" role="list">
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-users"></i></div>
+                                <div class="kpi-label">Clientes no filtro</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkCad">—</div>
+                                <div class="kpi-sub">Cadastros no recorte geográfico</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-rotate"></i></div>
+                                <div class="kpi-label">Compras recorrentes</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkRec">—</div>
+                                <div class="kpi-sub">2 ou mais pedidos aprovados</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-check-circle"></i></div>
+                                <div class="kpi-label">Uma compra aprovada</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkUma">—</div>
+                                <div class="kpi-sub">Exatamente um pedido aprovado</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-user-slash"></i></div>
+                                <div class="kpi-label">Sem compra aprovada</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkSem">—</div>
+                                <div class="kpi-sub">Sem pedido aprovado na gestão</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-percent"></i></div>
+                                <div class="kpi-label">% recorrentes na base</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkRecPct">—</div>
+                                <div class="kpi-sub">Sobre clientes no filtro</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-sack-dollar"></i></div>
+                                <div class="kpi-label">Receita aprovada (R$)</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkReceita">—</div>
+                                <div class="kpi-sub">Soma de preço líquido — gestão</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-receipt"></i></div>
+                                <div class="kpi-label">Ticket médio</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkTicket">—</div>
+                                <div class="kpi-sub">Por comprador (compradores)</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-cart-shopping"></i></div>
+                                <div class="kpi-label">Pedidos distintos</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkPedidos">—</div>
+                                <div class="kpi-sub">Pedidos aprovados (vínculo nome)</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-filter-circle-dollar"></i></div>
+                                <div class="kpi-label">Pipeline rec./carrinho</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkPipe">—</div>
+                                <div class="kpi-sub">Itens recusados + no carrinho (R$)</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-hourglass-half"></i></div>
+                                <div class="kpi-label">Só pipeline</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkPipeCli">—</div>
+                                <div class="kpi-sub">Clientes sem aprovado, com pipeline</div>
+                            </div>
                         </div>
                     </div>
                     <div class="gc-block">
@@ -1121,8 +1268,8 @@
         </div>
     </div>
 
-    <!-- Loading overlay (mesmo padrão de index.html) -->
-    <div class="loading-overlay" id="loadingOverlay" style="display:none;" role="status" aria-live="polite" aria-busy="false">
+    <!-- Loading overlay (visual alinhado ao dashboard / index — tema claro) -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;" role="status" aria-live="polite" aria-busy="false">
         <div class="loading-spinner" aria-hidden="true"></div>
         <div class="loading-text">Carregando dados...</div>
     </div>
@@ -1131,6 +1278,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>
-    <script src="js/clientes.js?v=20260422-cruzamento-compras"></script>
+    <script src="js/clientes.js?v=20260417-analise-only"></script>
 </body>
 </html>
