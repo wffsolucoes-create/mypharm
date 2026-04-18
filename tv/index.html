@@ -2083,10 +2083,11 @@
         <img
           id="site-header-logo"
           class="site-header__logo-img"
-          src="../imagens/logoMypharm1.png"
+          src="/imagens/logoMypharm1.png"
           alt="My Pharm — Farmácia de manipulação"
           width="200"
           height="64"
+          onerror="if(!this.dataset.fb){this.dataset.fb='m';this.src='/mypharm/imagens/logoMypharm1.png';}else if(this.dataset.fb==='m'){this.dataset.fb='r';this.src=new URL('../imagens/logoMypharm1.png',location.href).href;}else{this.onerror=null;}"
         />
       </a>
     </div>
@@ -2311,10 +2312,22 @@
     </div>
   </div>
 
-  <script src="../js/sound-manager.js?v=20260417"></script>
-  <script src="../js/confetti-manager.js?v=20260417"></script>
-  <script src="../js/ranking-animations.js?v=20260417"></script>
-  <script src="../js/presentation-mode.js?v=20260417"></script>
+  <script src="../js/sound-manager.js?v=20260418"></script>
+  <script>
+    (function () {
+      try {
+        var p = window.MyPharmSoundManager && window.MyPharmSoundManager.prototype;
+        if (!p || typeof p.isSoundIdEnabled !== 'function') {
+          console.warn(
+            '[MyPharm TV] /js/sound-manager.js desatualizado no servidor. Faça upload do ficheiro do repositório e limpe cache (Ctrl+Shift+R). Os pedidos a ranking-update.mp3 indicam JS antigo.'
+          );
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <script src="../js/confetti-manager.js?v=20260418"></script>
+  <script src="../js/ranking-animations.js?v=20260418"></script>
+  <script src="../js/presentation-mode.js?v=20260418"></script>
   <script>
     window.soundManager = new MyPharmSoundManager({ baseUrl: '../assets/sounds/' });
     soundManager.init();
@@ -2347,33 +2360,7 @@
       }
     })();
 
-    /* ==========================================================
-       HEADER LOGO FALLBACK
-       ========================================================== */
-    (function () {
-      var logo = document.getElementById('site-header-logo');
-      if (!logo) return;
-      /* Ordem: ../imagens (irmão de /tv/); se URL for /mypharm/tv/, ../../imagens = raiz do site (logo em public_html/imagens) */
-      var urls = [new URL('../imagens/logoMypharm1.png', location.href).href];
-      if ((location.pathname || '').indexOf('/mypharm/') === 0) {
-        urls.push(new URL('../../imagens/logoMypharm1.png', location.href).href);
-      }
-      var path = (location.pathname || '/').replace(/\/index\.html?$/i, '').replace(/\/$/, '');
-      if (/^(.+)\/tv$/i.test(path)) {
-        var fromPath = path.replace(/\/tv$/i, '') + '/imagens/logoMypharm1.png';
-        if (urls.indexOf(fromPath) === -1) urls.push(fromPath);
-      }
-      var ix = 0;
-      logo.addEventListener('error', function tryNext() {
-        ix += 1;
-        if (ix < urls.length) {
-          logo.src = urls[ix];
-        } else {
-          logo.removeEventListener('error', tryNext);
-        }
-      });
-      logo.src = urls[0];
-    })();
+    /* Logo: src principal é /imagens/ (raiz public_html). onerror no <img> cobre /mypharm/ e relativo. */
 
     /* ==========================================================
        HEADER ACTIONS
