@@ -39,6 +39,9 @@ function fetchDeals(string $token, int $page, int $limit, string $startDate, str
         'start_date' => $startDate,
         'end_date'   => $endDate,
     ];
+    if ($startDate !== '' && $endDate !== '') {
+        $params['closed_at_period'] = 'true';
+    }
 
     $url = RD_API_BASE . '/deals?' . http_build_query($params);
 
@@ -183,26 +186,72 @@ function getPeriodDates(): array {
 }
 
 /**
- * Lê o cache anterior
+ * Cache só do ficheiro versionado — evita servir ranking.json antigo após mudanças de regra.
  */
-function readCache(): ?array {
-    $file = CACHE_DIR . '/ranking.json';
-    if (!file_exists($file)) return null;
-    $age = time() - filemtime($file);
+function readCacheVersioned(): ?array {
+    $file = tv_ranking_cache_path();
+    if (!file_exists($file)) {
+        return null;
+    }
+    $data = json_decode((string)file_get_contents($file), true);
+    if (!is_array($data) || $data === []) {
+        return null;
+    }
     return [
-        'age'  => $age,
-        'data' => json_decode(file_get_contents($file), true),
+        'age'  => time() - filemtime($file),
+        'data' => $data,
     ];
 }
 
 /**
- * Salva o cache
+ * Versão atual primeiro, depois ranking.json legado (fallback / posição anterior).
+ */
+function readCacheAny(): ?array {
+    foreach ([tv_ranking_cache_path(), CACHE_DIR . '/ranking.json'] as $file) {
+        if (!file_exists($file)) {
+            continue;
+        }
+        $data = json_decode((string)file_get_contents($file), true);
+        if (!is_array($data) || $data === []) {
+            continue;
+        }
+        return [
+            'age'  => time() - filemtime($file),
+            'data' => $data,
+        ];
+    }
+    return null;
+}
+
+/**
+ * Salva o cache na versão corrente.
  */
 function writeCache(array $data): void {
     if (!is_dir(CACHE_DIR)) {
         mkdir(CACHE_DIR, 0755, true);
     }
-    file_put_contents(CACHE_DIR . '/ranking.json', json_encode($data, JSON_UNESCAPED_UNICODE));
+    file_put_contents(tv_ranking_cache_path(), json_encode($data, JSON_UNESCAPED_UNICODE));
+}
+
+/**
+ * Negócio ganho: a API às vezes omite win=true; alinha ao que o RD mostra como ganho.
+ */
+function tvDealIsWon(array $deal): bool {
+    if (!empty($deal['win'])) {
+        return true;
+    }
+    $st = strtolower(trim((string)($deal['status'] ?? '')));
+    if (in_array($st, ['won', 'win', 'ganho', 'ganha'], true)) {
+        return true;
+    }
+    $stage = $deal['deal_stage'] ?? null;
+    if (is_array($stage)) {
+        $sn = strtolower(trim((string)($stage['name'] ?? '')));
+        if ($sn !== '' && (strpos($sn, 'aprovad') !== false || strpos($sn, 'ganh') !== false)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // ============================================================
@@ -210,9 +259,11 @@ function writeCache(array $data): void {
 // ============================================================
 
 try {
-    // 1. Verificar cache válido
-    $cache = readCache();
-    if ($cache && $cache['age'] < CACHE_TTL && !empty($cache['data'])) {
+    $forceFresh = isset($_GET['fresh']) && (string)$_GET['fresh'] === '1';
+
+    // 1. Cache válido (fresh=1 ignora — útil após mudar regra/fuso sem esperar TTL)
+    $cache = readCacheVersioned();
+    if (!$forceFresh && $cache && $cache['age'] < CACHE_TTL && !empty($cache['data'])) {
         echo json_encode($cache['data'], JSON_UNESCAPED_UNICODE);
         exit;
     }
@@ -242,8 +293,7 @@ try {
         }
 
         foreach ($deals as $deal) {
-            // Igual rdtvAccumulateWonLostPage: só negócios com win explícito na API.
-            if (empty($deal['win'])) {
+            if (!tvDealIsWon($deal)) {
                 continue;
             }
             if (!rdtvIsInPeriod($deal, $period['start'], $period['end'])) {
@@ -333,11 +383,12 @@ try {
     }
     unset($seller);
 
-    // 6. Mapear posição anterior a partir do cache
-    if ($cache && !empty($cache['data'])) {
+    // 6. Mapear posição anterior a partir do último JSON conhecido (versionado ou legado)
+    $cachePrev = readCacheAny();
+    if ($cachePrev && !empty($cachePrev['data'])) {
         // Indexar cache anterior por nome
         $prevPositions = [];
-        foreach ($cache['data'] as $prev) {
+        foreach ($cachePrev['data'] as $prev) {
             $prevPositions[$prev['nome']] = $prev['posicao_atual'];
         }
         foreach ($ranking as &$seller) {
@@ -357,7 +408,7 @@ try {
 
 } catch (Exception $e) {
     // Fallback resiliente: se RD estiver indisponível, devolve último cache conhecido.
-    $fallback = readCache();
+    $fallback = readCacheAny();
     if ($fallback && !empty($fallback['data']) && is_array($fallback['data'])) {
         echo json_encode($fallback['data'], JSON_UNESCAPED_UNICODE);
         exit;

@@ -34,6 +34,19 @@ define('CACHE_TTL', 60);
 define('CACHE_DIR', __DIR__ . '/cache');
 
 /**
+ * Incrementar quando mudar regra de agregação, fuso ou formato do ranking — invalida ficheiro de cache antigo.
+ */
+define('TV_RANKING_CACHE_VERSION', '6');
+
+/**
+ * Caminho do JSON cacheado do ranking (não usar ranking.json fixo: deploy antigo mantinha dados obsoletos).
+ */
+function tv_ranking_cache_path(): string
+{
+    return CACHE_DIR . '/ranking_v' . TV_RANKING_CACHE_VERSION . '.json';
+}
+
+/**
  * Segmento de URL do projeto (ex.: "mypharm" em XAMPP/htdocs/mypharm).
  * Vazio = ficheiros na raiz do domínio (ex.: Hostinger public_html = site).
  * Sobrescrever com .env: MYPHARM_WEB_PATH=mypharm  ou  MYPHARM_WEB_PATH=

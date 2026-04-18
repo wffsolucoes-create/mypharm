@@ -90,8 +90,16 @@ function rdtvFetchDeals(string $token, int $page, int $limit, string $startDate 
     if ($win !== null) {
         $params['win'] = $win;
     }
-    if ($startDate) $params['start_date'] = $startDate;
-    if ($endDate)   $params['end_date']   = $endDate;
+    if ($startDate !== '') {
+        $params['start_date'] = $startDate;
+    }
+    if ($endDate !== '') {
+        $params['end_date'] = $endDate;
+    }
+    // Sem closed_at_period, start_date/end_date são ignorados pela API; o funil usa data de fechamento.
+    if ($startDate !== '' && $endDate !== '' && $win !== null) {
+        $params['closed_at_period'] = 'true';
+    }
 
     $url = RDSTATION_API_BASE . '/deals?' . http_build_query($params);
 
@@ -126,8 +134,15 @@ function rdtvFetchDeals(string $token, int $page, int $limit, string $startDate 
 function rdtvFetchDealsPair(string $token, int $page, int $limit, string $startDate, string $endDate): array
 {
     $params = ['token' => $token, 'page' => $page, 'limit' => $limit];
-    if ($startDate) $params['start_date'] = $startDate;
-    if ($endDate) $params['end_date'] = $endDate;
+    if ($startDate !== '') {
+        $params['start_date'] = $startDate;
+    }
+    if ($endDate !== '') {
+        $params['end_date'] = $endDate;
+    }
+    if ($startDate !== '' && $endDate !== '') {
+        $params['closed_at_period'] = 'true';
+    }
 
     $urlWon  = RDSTATION_API_BASE . '/deals?' . http_build_query($params + ['win' => 'true']);
     $urlLost = RDSTATION_API_BASE . '/deals?' . http_build_query($params + ['win' => 'false']);
@@ -208,11 +223,14 @@ function rdtvFetchDealsPairBatch(string $token, array $pages, int $limit, string
     $byPage = [];
     foreach ($pages as $page) {
         $params = ['token' => $token, 'page' => $page, 'limit' => $limit];
-        if ($startDate) {
+        if ($startDate !== '') {
             $params['start_date'] = $startDate;
         }
-        if ($endDate) {
+        if ($endDate !== '') {
             $params['end_date'] = $endDate;
+        }
+        if ($startDate !== '' && $endDate !== '') {
+            $params['closed_at_period'] = 'true';
         }
         $urlWon = RDSTATION_API_BASE . '/deals?' . http_build_query($params + ['win' => 'true']);
         $urlLost = RDSTATION_API_BASE . '/deals?' . http_build_query($params + ['win' => 'false']);
