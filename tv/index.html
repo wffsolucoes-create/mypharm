@@ -2311,10 +2311,10 @@
     </div>
   </div>
 
-  <script src="../js/sound-manager.js"></script>
-  <script src="../js/confetti-manager.js"></script>
-  <script src="../js/ranking-animations.js"></script>
-  <script src="../js/presentation-mode.js"></script>
+  <script src="../js/sound-manager.js?v=20260417"></script>
+  <script src="../js/confetti-manager.js?v=20260417"></script>
+  <script src="../js/ranking-animations.js?v=20260417"></script>
+  <script src="../js/presentation-mode.js?v=20260417"></script>
   <script>
     window.soundManager = new MyPharmSoundManager({ baseUrl: '../assets/sounds/' });
     soundManager.init();
@@ -2353,16 +2353,15 @@
     (function () {
       var logo = document.getElementById('site-header-logo');
       if (!logo) return;
-      /* 1º: relativo ao /tv/ — funciona em Hostinger (public_html/tv → ../imagens) e em /mypharm/tv */
+      /* Ordem: ../imagens (irmão de /tv/); se URL for /mypharm/tv/, ../../imagens = raiz do site (logo em public_html/imagens) */
       var urls = [new URL('../imagens/logoMypharm1.png', location.href).href];
+      if ((location.pathname || '').indexOf('/mypharm/') === 0) {
+        urls.push(new URL('../../imagens/logoMypharm1.png', location.href).href);
+      }
       var path = (location.pathname || '/').replace(/\/index\.html?$/i, '').replace(/\/$/, '');
       if (/^(.+)\/tv$/i.test(path)) {
         var fromPath = path.replace(/\/tv$/i, '') + '/imagens/logoMypharm1.png';
         if (urls.indexOf(fromPath) === -1) urls.push(fromPath);
-      }
-      /* Legado XAMPP com pasta /mypharm no URL */
-      if (urls.indexOf('/mypharm/imagens/logoMypharm1.png') === -1) {
-        urls.push('/mypharm/imagens/logoMypharm1.png');
       }
       var ix = 0;
       logo.addEventListener('error', function tryNext() {
