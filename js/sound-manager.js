@@ -8,12 +8,10 @@
  * Política de autoplay: use unlock() após primeiro gesto do usuário antes de play().
  *
  * Onde os sons são disparados (tv/index.html):
- * - rankingUpdate → valores/dados do ranking mudaram (debounce longo no manager)
- * - rankUp        → consultora ultrapassou outra (subiu de posição; abaixo de top3/meta)
- * - top3Enter     → passou a ocupar posição 1–3 vindo de fora do pódio
- * - metaHit       → percentual_meta cruzou de abaixo de 100% para 100% ou mais
+ * - iniciar / pedido / aplausos / clicarusuario / ficarsemvemda → tv/public/audio/*.mp3
+ * - rankingUpdate, rankUp, top3Enter, metaHit → efeitos legados (reservados)
  * - warning       → falha ao atualizar dados após o primeiro carregamento com sucesso
- * - sessionEnter  → fanfare a cada carga/atualização bem-sucedida do ranking (TV)
+ * - sessionEnter  → fanfare (legado)
  * - clickSoft     → tela cheia, configurações, fechar modal, ligar som
  */
 (function (global) {
@@ -27,17 +25,28 @@
     metaHit: '../dist/audio/susan-lu4esm-aplausos-433039.mp3',
     warning: 'alert.wav',
     sessionEnter: '../dist/audio/u_ss015dykrt-brass-fanfare-reverberated-146263.mp3',
-    clickSoft: 'alert.wav'
+    clickSoft: 'alert.wav',
+    /** TV — tv/public/audio (paths relativos a baseUrl ../assets/sounds/) */
+    iniciar: '../../tv/public/audio/iniciar.mp3',
+    pedido: '../../tv/public/audio/pedido.mp3',
+    aplausos: '../../tv/public/audio/aplausos.mp3',
+    clicarusuario: '../../tv/public/audio/clicarusuario.mp3',
+    ficarsemvemda: '../../tv/public/audio/ficarsemvemda.mp3'
   };
 
   /** Prioridade para interrupção (maior = mais importante). */
   var PRIORITY = {
     warning: 100,
     sessionEnter: 92,
+    iniciar: 88,
     top3Enter: 85,
+    aplausos: 78,
     metaHit: 75,
     rankUp: 65,
+    pedido: 48,
+    ficarsemvemda: 42,
     rankingUpdate: 45,
+    clicarusuario: 38,
     clickSoft: 25
   };
 
@@ -85,8 +94,11 @@
     this.prefix = options.storagePrefix || DEFAULT_PREFIX;
     this.storageKeys = {
       enabled: this.prefix + 'sound_enabled',
-      volume: this.prefix + 'sound_volume'
+      volume: this.prefix + 'sound_volume',
+      soundMask: this.prefix + 'sound_mask'
     };
+    /** { nomeLógico: boolean } — false = não tocar esse efeito (persistido em localStorage). */
+    this.soundMask = {};
     this.catalogFile = options.catalogFile || DEFAULT_CATALOG_FILE;
     this.catalogLoaded = false;
 
@@ -114,7 +126,12 @@
       metaHit: 6500,
       warning: 4500,
       sessionEnter: 13000,
-      clickSoft: 140
+      clickSoft: 140,
+      iniciar: 60000,
+      pedido: 12000,
+      aplausos: 3500,
+      clicarusuario: 500,
+      ficarsemvemda: 3300000
     };
   }
 
@@ -162,6 +179,52 @@
     } catch (e) {
       /* storage indisponível */
     }
+  };
+
+  SoundManager.prototype._defaultSoundMask = function () {
+    var m = {};
+    for (var k in SOUND_FILES) {
+      if (Object.prototype.hasOwnProperty.call(SOUND_FILES, k)) {
+        m[k] = true;
+      }
+    }
+    return m;
+  };
+
+  /** Carrega preferências de quais sons tocar (merge com defaults). */
+  SoundManager.prototype.loadSoundMask = function () {
+    this.soundMask = this._defaultSoundMask();
+    try {
+      var raw = localStorage.getItem(this.storageKeys.soundMask);
+      if (!raw) return;
+      var o = JSON.parse(raw);
+      if (o && typeof o === 'object') {
+        for (var k in o) {
+          if (Object.prototype.hasOwnProperty.call(this.soundMask, k)) {
+            this.soundMask[k] = !!o[k];
+          }
+        }
+      }
+    } catch (e) {
+      this.soundMask = this._defaultSoundMask();
+    }
+  };
+
+  /** @param {string} id chave em SOUND_FILES */
+  SoundManager.prototype.isSoundIdEnabled = function (id) {
+    if (!SOUND_FILES[id]) return true;
+    if (!this.soundMask || typeof this.soundMask !== 'object') return true;
+    return this.soundMask[id] !== false;
+  };
+
+  /** @param {string} id */
+  SoundManager.prototype.setSoundIdEnabled = function (id, enabled) {
+    if (!SOUND_FILES[id]) return;
+    if (!this.soundMask) this.soundMask = this._defaultSoundMask();
+    this.soundMask[id] = !!enabled;
+    try {
+      localStorage.setItem(this.storageKeys.soundMask, JSON.stringify(this.soundMask));
+    } catch (e) {}
   };
 
   SoundManager.prototype.savePreferences = function () {
@@ -225,6 +288,7 @@
    */
   SoundManager.prototype.init = function () {
     this.loadPreferences();
+    this.loadSoundMask();
     var self = this;
     var defaultList = allSoundFilePaths();
     // Catálogo síncrono: sem isto, play() falha até o fetch terminar e todos os sons
@@ -294,6 +358,7 @@
 
     if (!this.enabled) return;
     if (!this.catalogLoaded) return;
+    if (!this.isSoundIdEnabled(soundName)) return;
 
     if (!this.unlocked) {
       var pp = PRIORITY[soundName] || 0;

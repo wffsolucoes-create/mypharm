@@ -1,15 +1,12 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { RankingBoard } from './components/Ranking/RankingBoard';
 import { SettingsModal } from './components/Settings/SettingsModal';
-import { DealsPage } from './components/Deals/DealsPage';
-import { ImportPage } from './components/Import/ImportPage';
-import { Trophy, ShoppingBag, UploadCloud } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import { SoundToggle } from './components/SoundToggle/SoundToggle';
 
 function Dashboard() {
   return (
     <div className="h-screen overflow-hidden bg-background text-white font-sans selection:bg-primary/30">
-      {/* Background com gradiente sutil */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0c1445] via-background to-background" />
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/5 blur-[120px] rounded-full" />
@@ -29,23 +26,9 @@ function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-              <SoundToggle />
-              <Link
-                to="/vendas"
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/15 to-cyan-500/15 border border-emerald-500/30 text-emerald-400 hover:from-emerald-500/25 hover:to-cyan-500/25 hover:text-emerald-300 transition-all duration-300 text-sm font-semibold shadow-lg shadow-emerald-500/5 hover:shadow-emerald-500/10"
-              >
-                <ShoppingBag size={16} />
-                Vendas
-              </Link>
-              <Link
-                to="/import"
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500/15 to-purple-500/15 border border-indigo-500/30 text-indigo-400 hover:from-indigo-500/25 hover:to-purple-500/25 hover:text-indigo-300 transition-all duration-300 text-sm font-semibold shadow-lg shadow-indigo-500/5 hover:shadow-indigo-500/10"
-              >
-                <UploadCloud size={16} />
-                Importar
-              </Link>
-              <SettingsModal />
-            </div>
+            <SoundToggle />
+            <SettingsModal />
+          </div>
         </header>
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
           <RankingBoard />
@@ -61,7 +44,6 @@ function TVMode() {
 
   return (
     <div className="min-h-screen bg-background text-white font-sans overflow-hidden">
-      {/* Background premium TV */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0c1445] via-background to-background" />
         <div className="absolute top-0 left-1/4 w-[600px] h-[300px] bg-primary/8 blur-[100px] rounded-full" />
@@ -108,11 +90,9 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/tv" element={<TVMode />} />
-        <Route path="/vendas" element={<DealsPage />} />
-        <Route path="/import" element={<ImportPage />} />
       </Routes>
     </BrowserRouter>
-  )
+  );
 }
 
-export default App
+export default App;

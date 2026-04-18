@@ -317,104 +317,6 @@
       background: rgba(255, 255, 255, 0.06);
     }
 
-    .site-header__actions .sound-kit {
-      flex-shrink: 0;
-    }
-
-    @media (max-width: 520px) {
-      .site-header__actions .sound-kit #sound-volume {
-        width: 56px;
-      }
-    }
-
-    /* Aviso: permitir áudio (política dos navegadores) */
-    .sound-consent-banner {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      z-index: 9998;
-      padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0));
-      background: linear-gradient(180deg, rgba(3, 7, 18, 0) 0%, rgba(3, 7, 18, 0.97) 18%);
-      pointer-events: none;
-    }
-
-    .sound-consent-banner[hidden] {
-      display: none !important;
-    }
-
-    .sound-consent-banner__content {
-      pointer-events: auto;
-      max-width: 720px;
-      margin: 0 auto;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.65rem 1rem;
-      padding: 0.65rem 0.85rem;
-      border-radius: 12px;
-      border: 1px solid rgba(99, 102, 241, 0.35);
-      background: rgba(15, 23, 42, 0.95);
-      box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
-    }
-
-    .sound-consent-banner__text {
-      display: flex;
-      flex-direction: column;
-      gap: 0.2rem;
-      font-size: 0.78rem;
-      color: var(--text-dim);
-      line-height: 1.35;
-      min-width: 0;
-    }
-
-    .sound-consent-banner__text strong {
-      color: var(--text);
-      font-size: 0.85rem;
-    }
-
-    .sound-consent-banner__actions {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.45rem;
-    }
-
-    .sound-consent-banner__primary {
-      font-family: inherit;
-      font-size: 0.78rem;
-      font-weight: 700;
-      padding: 0.45rem 0.9rem;
-      border-radius: 10px;
-      border: none;
-      cursor: pointer;
-      color: #fff;
-      background: linear-gradient(135deg, #6366f1, #4f46e5);
-      box-shadow: 0 2px 12px rgba(99, 102, 241, 0.35);
-    }
-
-    .sound-consent-banner__primary:hover {
-      filter: brightness(1.08);
-    }
-
-    .sound-consent-banner__ghost {
-      font-family: inherit;
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 0.4rem 0.65rem;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      cursor: pointer;
-      color: var(--text-muted);
-      background: rgba(255, 255, 255, 0.04);
-    }
-
-    .sound-consent-banner__ghost:hover {
-      color: var(--text);
-      background: rgba(255, 255, 255, 0.08);
-    }
-
     .site-header__btn--accent {
       background: rgba(99, 102, 241, 0.15);
       border-color: rgba(99, 102, 241, 0.3);
@@ -540,6 +442,18 @@
       justify-content: flex-start;
       gap: 0.65rem;
       padding: 0 0.85rem;
+    }
+
+    .nav-drawer__body .sound-kit {
+      width: 100%;
+      justify-content: space-between;
+      box-sizing: border-box;
+    }
+
+    .nav-drawer__body .sound-kit #sound-volume {
+      flex: 1;
+      max-width: 160px;
+      min-width: 72px;
     }
 
     .nav-drawer__body > a.site-header__btn {
@@ -1489,6 +1403,66 @@
       opacity: 1;
     }
 
+    .sound-settings-card {
+      max-width: 420px;
+      max-height: min(85vh, 520px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sound-settings-card .modal-body {
+      overflow-y: auto;
+      flex: 1;
+      padding-top: 0.5rem;
+    }
+    .sound-settings-intro {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 0.85rem;
+      line-height: 1.45;
+    }
+    .sound-settings-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    .sound-settings-list > li {
+      margin: 0;
+      padding: 0;
+    }
+    label.sound-settings-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      padding: 0.55rem 0.65rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.45);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    label.sound-settings-item:hover {
+      border-color: rgba(99, 102, 241, 0.25);
+      background: rgba(30, 41, 59, 0.35);
+    }
+    label.sound-settings-item input {
+      margin-top: 0.2rem;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent-bright);
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .sound-settings-item span {
+      flex: 1;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      cursor: pointer;
+      line-height: 1.35;
+    }
+
     /* Gradient top accent */
     .modal-card::before {
       content: '';
@@ -1843,17 +1817,6 @@
     </div>
 
     <nav class="site-header__actions" aria-label="Ações">
-      <div class="sound-kit" id="sound-kit" title="Áudio do painel">
-        <button type="button" class="site-header__btn site-header__btn--icon" id="btn-sound" title="Som ligado" aria-label="Som ligado" aria-pressed="true">🔊</button>
-        <label class="sound-kit__vol" for="sound-volume" title="Volume dos efeitos">
-          <span class="sound-kit__vol-icon" aria-hidden="true">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" />
-            </svg>
-          </span>
-          <input type="range" id="sound-volume" min="0" max="100" value="80" step="1" aria-label="Volume dos efeitos sonoros" />
-        </label>
-      </div>
       <button
         type="button"
         class="site-header__btn site-header__btn--icon site-header__btn--menu"
@@ -1871,19 +1834,6 @@
       </button>
     </nav>
   </header>
-
-  <div id="sound-consent-banner" class="sound-consent-banner" role="region" aria-label="Permissão de áudio" hidden>
-    <div class="sound-consent-banner__content">
-      <div class="sound-consent-banner__text">
-        <strong>Sons do painel</strong>
-        <span>Os navegadores bloqueiam áudio até você interagir. Use o botão abaixo ou 🔊 no topo para ativar.</span>
-      </div>
-      <div class="sound-consent-banner__actions">
-        <button type="button" class="sound-consent-banner__primary" id="btn-sound-allow">Permitir sons</button>
-        <button type="button" class="sound-consent-banner__ghost" id="btn-sound-banner-close">Fechar aviso</button>
-      </div>
-    </div>
-  </div>
 
   <div class="nav-drawer-backdrop" id="nav-drawer-backdrop" aria-hidden="true"></div>
   <aside
@@ -1908,14 +1858,25 @@
         </svg>
         <span>Tela cheia</span>
       </button>
-      <a href="api/divergencias.php" class="site-header__btn site-header__btn--accent" title="Divergências / Vendas"><span aria-hidden="true">🛍</span> Vendas</a>
-      <a href="premiacao.html" class="site-header__btn site-header__btn--purple" title="Gerenciar Premiações"><span aria-hidden="true">🏅</span> Premiação</a>
-      <a href="api/import_csv.php" class="site-header__btn site-header__btn--purple" title="Importar CSV"><span aria-hidden="true">☁</span> Importar</a>
+      <div class="sound-kit" id="sound-kit" title="Áudio do painel">
+        <button type="button" class="site-header__btn site-header__btn--icon" id="btn-sound" title="Som ligado" aria-label="Som ligado" aria-pressed="true">🔊</button>
+        <label class="sound-kit__vol" for="sound-volume" title="Volume dos efeitos">
+          <span class="sound-kit__vol-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" />
+            </svg>
+          </span>
+          <input type="range" id="sound-volume" min="0" max="100" value="45" step="1" aria-label="Volume dos efeitos sonoros" />
+        </label>
+      </div>
+      <a href="premiacao.html" class="site-header__btn site-header__btn--purple" title="Gerenciar premiações e imagens do pódio"><span aria-hidden="true">🏅</span> Premiação</a>
       <button type="button" class="site-header__btn site-header__btn--accent" id="btn-presentation" title="Modo apresentação" aria-label="Modo apresentação" aria-pressed="false">
         <span aria-hidden="true">🎥</span>
         <span class="presentation-label">Apresentação</span>
       </button>
-      <button type="button" class="site-header__btn site-header__btn--purple" id="btn-config" title="Configurações" aria-label="Configurações"><span aria-hidden="true">⚙</span> Configurações</button>
+      <button type="button" class="site-header__btn site-header__btn--purple" id="btn-sound-settings" title="Configurar sons do painel" aria-label="Configurações de som">
+        <span aria-hidden="true">⚙</span> Configurações
+      </button>
     </div>
   </aside>
 
@@ -2005,6 +1966,22 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="sound-settings-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="sound-settings-title">
+    <div class="modal-card sound-settings-card">
+      <button type="button" class="modal-close" id="sound-settings-close" aria-label="Fechar configurações">✕</button>
+      <div class="modal-header" style="padding-bottom: 0.5rem;">
+        <div class="modal-info" style="width: 100%;">
+          <div class="modal-name" id="sound-settings-title" style="font-size: 1.15rem;">Configurações de som</div>
+          <div class="modal-team" style="margin-top: 0.2rem;">Marque ou desmarque cada efeito</div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <p class="sound-settings-intro">Desmarque para <strong>não tocar</strong> aquele som. O botão 🔊 do menu continua a ligar ou desligar todo o áudio.</p>
+        <ul class="sound-settings-list" id="sound-settings-list"></ul>
+      </div>
+    </div>
+  </div>
+
   <div class="live-alert" id="live-alert" role="status" aria-live="polite"></div>
   <div class="top3-entry-badge" id="top3-entry-badge" aria-live="polite"></div>
   <div class="leader-spotlight" id="leader-spotlight" aria-hidden="true">
@@ -2027,10 +2004,7 @@
   <script src="../js/ranking-animations.js"></script>
   <script src="../js/presentation-mode.js"></script>
   <script>
-    window.soundManager = new MyPharmSoundManager({
-      baseUrl: 'public/audio/',
-      autoUnlock: true
-    });
+    window.soundManager = new MyPharmSoundManager({ baseUrl: '../assets/sounds/' });
     soundManager.init();
     window.confettiManager = new MyPharmConfettiManager(document.getElementById('confetti-canvas'));
     window.rankingAnimations = RankingAnimations.init();
@@ -2145,17 +2119,6 @@
         syncFullscreenBtn();
       }
 
-      var btnConfig = document.getElementById('btn-config');
-      if (btnConfig) {
-        btnConfig.addEventListener('click', function () {
-          if (window.soundManager) {
-            soundManager.unlock();
-            soundManager.play('clickSoft');
-          }
-          window.location.href = 'premiacao.html';
-        });
-      }
-
       var btnPresentation = document.getElementById('btn-presentation');
       if (btnPresentation) {
         btnPresentation.addEventListener('click', function () {
@@ -2216,14 +2179,21 @@
         if (a && drawer.contains(a)) closeDrawer();
         var b = e.target.closest && e.target.closest('button.site-header__btn');
         if (b && drawer.contains(b) && !e.target.closest('#sound-kit')) {
-          if (b.id === 'btn-config' || b.id === 'btn-presentation' || b.id === 'btn-fullscreen') {
+          if (b.id === 'btn-presentation' || b.id === 'btn-fullscreen' || b.id === 'btn-sound-settings') {
             setTimeout(closeDrawer, 120);
           }
         }
       });
 
       document.addEventListener('keydown', function (e) {
-        if (e.key !== 'Escape' || !isOpen()) return;
+        if (e.key !== 'Escape') return;
+        var soundOv = document.getElementById('sound-settings-overlay');
+        if (soundOv && soundOv.classList.contains('modal-open')) {
+          soundOv.classList.remove('modal-open');
+          soundOv.setAttribute('aria-hidden', 'true');
+          return;
+        }
+        if (!isOpen()) return;
         var modal = document.getElementById('modal-overlay');
         if (modal && modal.classList.contains('modal-open')) return;
         closeDrawer();
@@ -2237,11 +2207,17 @@
       var API = 'api/index.php';
       var AWARD_API = 'api/premiacao.php';
       var REFRESH_MS = 15000;
+      /** Sem aumento de vendas (qtd/valor) neste período → som ficarsemvemda. */
+      var IDLE_NO_SALES_MS = 60 * 60 * 1000;
+      /** Verificação do idle (não precisa ser a cada segundo para janela de 1 h). */
+      var IDLE_NO_SALES_POLL_MS = 60 * 1000;
       var allSellers = []; // store for modal access
       var awardImages = {}; // { '1': 'url', '2': 'url', '3': 'url' }
       var isFetching = false;
       var lastSnapshot = '';
       var hasFirstLoad = false;
+      var tvRankingReady = false;
+      var lastSaleAt = Date.now();
       var liveAlertEl = document.getElementById('live-alert');
       var confettiCanvas = document.getElementById('confetti-canvas');
       var confettiCtx = confettiCanvas && confettiCanvas.getContext ? confettiCanvas.getContext('2d') : null;
@@ -2273,73 +2249,94 @@
           }
           syncUi();
         });
-        function applyVolumeFromUi() {
-          if (!vol) return;
-          soundManager.unlock();
-          var n = Number(vol.value);
-          if (isNaN(n)) return;
-          soundManager.setVolume(Math.max(0, Math.min(1, n / 100)));
-        }
         if (vol) {
-          vol.addEventListener('input', applyVolumeFromUi);
-          vol.addEventListener('change', applyVolumeFromUi);
+          vol.addEventListener('input', function () {
+            soundManager.unlock();
+            soundManager.setVolume(Number(vol.value) / 100);
+          });
         }
-
-        function setupSoundConsentBanner() {
-          var ban = document.getElementById('sound-consent-banner');
-          var allowBtn = document.getElementById('btn-sound-allow');
-          var closeBtn = document.getElementById('btn-sound-banner-close');
-          if (!ban) return;
-
-          function bannerDismissed() {
-            try {
-              return !!sessionStorage.getItem('mypharm_tv_sound_banner_dismissed');
-            } catch (e) {
-              return false;
-            }
-          }
-
-          function setBannerDismissed() {
-            try {
-              sessionStorage.setItem('mypharm_tv_sound_banner_dismissed', '1');
-            } catch (e2) {}
-          }
-
-          function syncBanner() {
-            if (!window.soundManager) return;
-            if (soundManager.unlocked || bannerDismissed()) {
-              ban.setAttribute('hidden', '');
-              return;
-            }
-            ban.removeAttribute('hidden');
-          }
-
-          document.addEventListener('mypharm-sound-unlocked', syncBanner);
-
-          if (allowBtn) {
-            allowBtn.addEventListener('click', function () {
-              setBannerDismissed();
-              soundManager.unlock();
-              if (!soundManager.enabled) soundManager.enable();
-              soundManager.play('clickSoft');
-              setTimeout(function () {
-                if (window.soundManager) soundManager.play('clickSoft', { force: true });
-              }, 450);
-              syncUi();
-              syncBanner();
-            });
-          }
-          if (closeBtn) {
-            closeBtn.addEventListener('click', function () {
-              setBannerDismissed();
-              syncBanner();
-            });
-          }
-          syncBanner();
-        }
-
-        setupSoundConsentBanner();
         syncUi();
+      }
+
+      /**
+       * Modal de configuração: desliga efeitos sonoros por tipo (localStorage via soundManager).
+       */
+      function setupSoundSettingsPanel() {
+        var defs = [
+          { id: 'iniciar', label: 'Ao iniciar o painel' },
+          { id: 'pedido', label: 'A cada atualização automática do ranking' },
+          { id: 'aplausos', label: 'Quando houver nova venda' },
+          { id: 'clicarusuario', label: 'Ao abrir o detalhe da consultora' },
+          { id: 'ficarsemvemda', label: 'Alerta após 1 hora sem vendas' },
+          { id: 'clickSoft', label: 'Cliques no menu, tela cheia e fechar' },
+          { id: 'warning', label: 'Aviso de erro ao atualizar dados' }
+        ];
+        var ov = document.getElementById('sound-settings-overlay');
+        var list = document.getElementById('sound-settings-list');
+        var closeBtn = document.getElementById('sound-settings-close');
+        var btnOpen = document.getElementById('btn-sound-settings');
+        if (!list || !ov || !window.soundManager) return;
+
+        function closeSoundSettings() {
+          ov.classList.remove('modal-open');
+          ov.setAttribute('aria-hidden', 'true');
+        }
+
+        function openSoundSettings() {
+          var items = list.querySelectorAll('input[type="checkbox"][data-sound-id]');
+          for (var i = 0; i < items.length; i++) {
+            var sid = items[i].getAttribute('data-sound-id');
+            if (sid) items[i].checked = soundManager.isSoundIdEnabled(sid);
+          }
+          ov.classList.add('modal-open');
+          ov.setAttribute('aria-hidden', 'false');
+        }
+
+        list.innerHTML = '';
+        for (var j = 0; j < defs.length; j++) {
+          (function (item) {
+            var li = document.createElement('li');
+            var label = document.createElement('label');
+            label.className = 'sound-settings-item';
+            var cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.setAttribute('data-sound-id', item.id);
+            cb.checked = soundManager.isSoundIdEnabled(item.id);
+            cb.id = 'sound-cb-' + item.id;
+            var span = document.createElement('span');
+            span.textContent = item.label;
+            label.appendChild(cb);
+            label.appendChild(span);
+            li.appendChild(label);
+            cb.addEventListener('change', function () {
+              soundManager.setSoundIdEnabled(item.id, cb.checked);
+            });
+            list.appendChild(li);
+          })(defs[j]);
+        }
+
+        if (closeBtn) {
+          closeBtn.addEventListener('click', function () {
+            if (window.soundManager) {
+              soundManager.unlock();
+              soundManager.play('clickSoft');
+            }
+            closeSoundSettings();
+          });
+        }
+        ov.addEventListener('click', function (e) {
+          if (e.target === ov) closeSoundSettings();
+        });
+
+        if (btnOpen) {
+          btnOpen.addEventListener('click', function () {
+            if (window.soundManager) {
+              soundManager.unlock();
+              soundManager.play('clickSoft');
+            }
+            openSoundSettings();
+          });
+        }
       }
 
       function showLiveAlert(message) {
@@ -2475,22 +2472,12 @@
         };
       }
 
-      /** Prioridade sonora: top3Enter > metaHit > rankUp > rankingUpdate (discreto, com debounce no manager). */
-      function pickRankingSoundKey(summary, audioEv) {
-        if (audioEv.top3Enter) return 'top3Enter';
-        if (audioEv.metaHit) return 'metaHit';
-        if (summary.movedUp > 0 && summary.bestMove) return 'rankUp';
-        return 'rankingUpdate';
-      }
-
       /**
-       * Efeitos visuais + um único som por ciclo (sem sobreposição — soundManager.stopAll internamente).
-       * Sons: rank-up.mp3 | top3-enter.mp3 | meta-hit.mp3 | ranking-update.mp3
+       * Efeitos visuais (sons da TV: iniciar / pedido / aplausos / clicarusuario / ficarsemvemda no fetch/modal).
        */
       function triggerRankingFx(previousMap, list) {
         var summary = summarizeChanges(previousMap, list);
         var audioEv = computeAudioEvents(previousMap, list);
-        var soundKey = pickRankingSoundKey(summary, audioEv);
         var leaderForFx = audioEv.leaderSeller || (list && list.length ? list[0] : null);
 
         if (window.rankingAnimations) {
@@ -2536,9 +2523,6 @@
           }
         }
 
-        if (window.soundManager) {
-          soundManager.play(soundKey);
-        }
       }
 
       function snapshotOf(list) {
@@ -2573,6 +2557,10 @@
       var modalClose = document.getElementById('modal-close');
 
       function openModal(seller) {
+        if (window.soundManager) {
+          soundManager.unlock();
+          soundManager.play('clicarusuario');
+        }
         var pos = seller.posicao_atual || 0;
         var prev = seller.posicao_anterior || pos;
         var pct = Number(seller.percentual_meta) || 0;
@@ -2913,9 +2901,26 @@
             allSellers = list;
 
             var currentSnapshot = snapshotOf(list);
+            var wasFirstFetch = !hasFirstLoad;
+            var pollSummary = summarizeChanges(previousMap, list);
             var hasChanged = hasFirstLoad && currentSnapshot !== lastSnapshot;
             lastSnapshot = currentSnapshot;
             hasFirstLoad = true;
+            tvRankingReady = true;
+
+            if (window.soundManager) {
+              if (wasFirstFetch) {
+                soundManager.play('iniciar');
+                lastSaleAt = Date.now();
+              } else {
+                if (pollSummary.salesGain > 0) {
+                  lastSaleAt = Date.now();
+                  soundManager.play('aplausos');
+                } else {
+                  soundManager.play('pedido');
+                }
+              }
+            }
 
             var n = list.length;
             var badgeEl = document.getElementById('others-count');
@@ -2927,9 +2932,6 @@
             renderPodium(list.slice(0, 3));
             renderOthers(list.slice(3), previousMap);
 
-            if (window.soundManager) {
-              soundManager.play('sessionEnter');
-            }
             if (hasChanged) {
               triggerRankingFx(previousMap, list);
             }
@@ -2954,8 +2956,15 @@
       }
 
       setupSoundUi();
+      setupSoundSettingsPanel();
       fetchAndRenderRanking();
       setInterval(fetchAndRenderRanking, REFRESH_MS);
+      setInterval(function () {
+        if (!tvRankingReady || !window.soundManager || !soundManager.enabled) return;
+        if (Date.now() - lastSaleAt < IDLE_NO_SALES_MS) return;
+        soundManager.play('ficarsemvemda');
+        lastSaleAt = Date.now();
+      }, IDLE_NO_SALES_POLL_MS);
       document.addEventListener('visibilitychange', function () {
         if (!document.hidden) {
           fetchAndRenderRanking();

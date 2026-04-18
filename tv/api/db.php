@@ -2,7 +2,7 @@
 /**
  * Conexão com o Banco de Dados MySQL via PDO.
  * Usa as mesmas credenciais do .env na raiz do projeto MyPharm (igual a config.php).
- * Cria a tabela phusion_pedidos automaticamente se não existir.
+ * Tabela `usuarios` vem do MyPharm; não há mais import Phusion na TV.
  */
 
 /**
@@ -64,7 +64,7 @@ function getDB()
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]);
-            setupTables($pdo);
+            setupTvApiTables($pdo);
         } catch (PDOException $e) {
             if (!headers_sent()) {
                 header('Content-Type: application/json; charset=utf-8');
@@ -77,17 +77,7 @@ function getDB()
     return $pdo;
 }
 
-function setupTables($pdo)
+function setupTvApiTables(PDO $pdo): void
 {
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS phusion_pedidos (
-            id            INT AUTO_INCREMENT PRIMARY KEY,
-            pedido_id     VARCHAR(50)  NOT NULL,
-            data_aprovacao DATE         NULL,
-            cliente       VARCHAR(255) NOT NULL,
-            vendedora     VARCHAR(255) DEFAULT NULL,
-            valor         DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-            criado_em     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ");
+    /* Importação Phusion / divergências removidos — sem tabelas extra aqui. */
 }
