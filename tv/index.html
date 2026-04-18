@@ -2311,22 +2311,26 @@
     </div>
   </div>
 
-  <script src="../js/sound-manager.js?v=20260419"></script>
+  <script src="../js/sound-manager.js?v=20260420"></script>
   <script>
+    /* Servidor ainda com JS antigo: evita crash; envie js/sound-manager.js do repo + pasta assets/sounds/ */
     (function () {
-      try {
-        var p = window.MyPharmSoundManager && window.MyPharmSoundManager.prototype;
-        if (!p || typeof p.isSoundIdEnabled !== 'function') {
-          console.warn(
-            '[MyPharm TV] /js/sound-manager.js desatualizado no servidor. Faça upload do ficheiro do repositório e limpe cache (Ctrl+Shift+R). Os pedidos a ranking-update.mp3 indicam JS antigo.'
-          );
-        }
-      } catch (e) {}
+      var P = window.MyPharmSoundManager && window.MyPharmSoundManager.prototype;
+      if (!P || typeof P.isSoundIdEnabled === 'function') return;
+      P.isSoundIdEnabled = function () {
+        return true;
+      };
+      P.setSoundIdEnabled = function () {};
+      if (typeof P.loadSoundMask !== 'function') {
+        P.loadSoundMask = function () {
+          this.soundMask = this.soundMask || {};
+        };
+      }
     })();
   </script>
-  <script src="../js/confetti-manager.js?v=20260419"></script>
-  <script src="../js/ranking-animations.js?v=20260419"></script>
-  <script src="../js/presentation-mode.js?v=20260419"></script>
+  <script src="../js/confetti-manager.js?v=20260420"></script>
+  <script src="../js/ranking-animations.js?v=20260420"></script>
+  <script src="../js/presentation-mode.js?v=20260420"></script>
   <script>
     window.soundManager = new MyPharmSoundManager({ baseUrl: '../assets/sounds/' });
     soundManager.init();
