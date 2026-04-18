@@ -20,6 +20,91 @@
     var SIDEBAR_COLLAPSED_KEY = 'mypharm_sidebar_collapsed';
     var GC_ACTIVE_TAB_KEY = 'gc_active_tab';
 
+    /** Som de moeda + burst visual (aprovado em revenda / transferência de comissão). Opcional: tv/public/audio/moeda.mp3 */
+    var GC_COIN_AUDIO_CANDIDATES = ['tv/public/audio/moeda.mp3'];
+
+    function gcResolveAssetUrl(relPath) {
+        try {
+            return new URL(relPath, window.location.href).href;
+        } catch (e) {
+            return relPath;
+        }
+    }
+
+    function gcPlayVendaAprovadaMoedaSynth() {
+        try {
+            var AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return;
+            var ctx = new AC();
+            var now = ctx.currentTime;
+            var g = ctx.createGain();
+            g.connect(ctx.destination);
+            g.gain.setValueAtTime(0.0001, now);
+            g.gain.exponentialRampToValueAtTime(0.2, now + 0.015);
+            g.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+            function ping(freq, t0, dur) {
+                var o = ctx.createOscillator();
+                o.type = 'sine';
+                o.frequency.setValueAtTime(freq, t0);
+                o.connect(g);
+                o.start(t0);
+                o.stop(t0 + dur);
+            }
+            ping(1318.51, now, 0.12);
+            ping(1760, now + 0.04, 0.1);
+            setTimeout(function () {
+                try {
+                    ctx.close();
+                } catch (e2) {}
+            }, 400);
+        } catch (e) {}
+    }
+
+    function gcPlayVendaAprovadaMoeda() {
+        var i = 0;
+        function attempt() {
+            if (i >= GC_COIN_AUDIO_CANDIDATES.length) {
+                gcPlayVendaAprovadaMoedaSynth();
+                return;
+            }
+            var url = gcResolveAssetUrl(GC_COIN_AUDIO_CANDIDATES[i++]);
+            var a = new Audio(url);
+            a.volume = 0.4;
+            a.addEventListener(
+                'error',
+                function () {
+                    attempt();
+                },
+                { once: true }
+            );
+            var p = a.play();
+            if (p && typeof p.catch === 'function') {
+                p.catch(function () {
+                    attempt();
+                });
+            }
+        }
+        attempt();
+    }
+
+    function gcApprovalBurstFx(approveBtn) {
+        if (!approveBtn || !approveBtn.classList) return;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return;
+        }
+        var tr = approveBtn.closest ? approveBtn.closest('tr') : null;
+        approveBtn.classList.add('gc-approval-burst');
+        if (tr) tr.classList.add('gc-approval-row-flash');
+        requestAnimationFrame(function () {
+            approveBtn.classList.add('gc-approval-burst--active');
+        });
+        window.setTimeout(function () {
+            approveBtn.classList.remove('gc-approval-burst--active');
+            approveBtn.classList.remove('gc-approval-burst');
+            if (tr) tr.classList.remove('gc-approval-row-flash');
+        }, 720);
+    }
+
     function gcHideSidebarFlyoutTooltip() {
         var tip = document.getElementById('gcSidebarFlyoutTooltip');
         if (tip) {
@@ -2912,6 +2997,11 @@
             showError(data && data.error ? String(data.error) : 'Falha ao registrar decisão.');
             return;
         }
+        if (isAprovar) {
+            var btnCt = document.querySelector('#gcComissaoTransferTbody .gc-ct-btn-apr[data-id="' + String(id) + '"]');
+            gcPlayVendaAprovadaMoeda();
+            gcApprovalBurstFx(btnCt);
+        }
         await gcLoadComissaoTransferList();
         showSuccess(isAprovar ? 'Transferência aprovada.' : 'Transferência recusada.');
     }
@@ -3132,6 +3222,11 @@
         if (!data || data.success !== true) {
             showError(data && data.error ? String(data.error) : 'Falha ao registrar decisão.');
             return;
+        }
+        if (isAprovar) {
+            var btnRv = document.querySelector('#gcRevendaTbody .gc-rev-apr[data-id="' + String(id) + '"]');
+            gcPlayVendaAprovadaMoeda();
+            gcApprovalBurstFx(btnRv);
         }
         await gcLoadRevendaList();
         showSuccess(isAprovar ? 'Revenda aprovada.' : 'Revenda recusada.');

@@ -1,7 +1,7 @@
 /* MyPharm TV — camada de animações premium */
 
 .ranking-update-flash {
-  animation: rankingScreenPulse 620ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation: rankingScreenPulse 540ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 @keyframes rankingScreenPulse {
@@ -23,7 +23,7 @@
 }
 
 #podium-row.top3-shift .podium-slot {
-  animation: top3Shift 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: top3Shift 0.75s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes top3Shift {
@@ -120,7 +120,9 @@
   text-transform: uppercase;
 }
 
+/* Destaque de Top 3 passou para o overlay em tela cheia (tv/index.html). */
 .top3-entry-badge {
+  display: none !important;
   position: fixed;
   right: 1rem;
   top: 5.6rem;

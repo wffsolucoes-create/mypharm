@@ -10,7 +10,7 @@
     var start = parseFloat(el.getAttribute('data-anim-from') || '0') || 0;
     var target = Number(toValue) || 0;
     var t0 = performance.now();
-    var ms = duration || 900;
+    var ms = duration || 680;
     function step(now) {
       var p = Math.min(1, (now - t0) / ms);
       var ease = 1 - Math.pow(1 - p, 3);
@@ -52,7 +52,7 @@
           (function (el, t, idx) {
             setTimeout(function () {
               el.style.width = t + '%';
-            }, 140 + idx * 52);
+            }, 115 + idx * 42);
           })(bar, target, i);
         }
       }
@@ -60,7 +60,7 @@
       var pctEls = root.querySelectorAll('.rank-card__pct-val[data-pct-target]');
       for (var j = 0; j < pctEls.length; j++) {
         var pctEl = pctEls[j];
-        animateNumber(pctEl, Number(pctEl.getAttribute('data-pct-target')) || 0, '%', 780, this.reducedMotion);
+        animateNumber(pctEl, Number(pctEl.getAttribute('data-pct-target')) || 0, '%', 620, this.reducedMotion);
       }
     },
     showTop3EntryBadge: function (name) {
@@ -108,13 +108,25 @@
       }
       this.highlightSellerPhoto(seller, reason);
     },
+    /** Só o brilho no 1º lugar do pódio (sem cartão no canto) — uso com overlay full screen na TV. */
+    animatePodiumFirstPlaceEmphasis: function () {
+      var firstSlot = document.querySelector('.podium-slot--1st');
+      if (!firstSlot) return;
+      firstSlot.classList.remove('leader-emphasis');
+      void firstSlot.offsetWidth;
+      firstSlot.classList.add('leader-emphasis');
+      var ms = this.reducedMotion ? 900 : 3200;
+      setTimeout(function () {
+        firstSlot.classList.remove('leader-emphasis');
+      }, ms);
+    },
     animateTop3Change: function (list, top3Name) {
       var row = document.getElementById('podium-row');
       if (row && !this.reducedMotion) {
         row.classList.remove('top3-shift');
         void row.offsetWidth;
         row.classList.add('top3-shift');
-        setTimeout(function () { row.classList.remove('top3-shift'); }, 1200);
+        setTimeout(function () { row.classList.remove('top3-shift'); }, 950);
       }
       this.showTop3EntryBadge(top3Name || (list && list[0] && list[0].nome) || '');
     }

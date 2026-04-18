@@ -3726,3 +3726,91 @@ body.gc-compact-ui #gcMain .gc-kpi-grid .kpi-sub {
     word-break: break-word;
 }
 
+/* Aprovação (revenda / transferência): burst + brilho no botão, flash suave na linha */
+.gc-ct-icon-btn.gc-approval-burst {
+    position: relative;
+    z-index: 1;
+    overflow: visible;
+}
+
+.gc-ct-icon-btn.gc-approval-burst--active::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 12px;
+    pointer-events: none;
+    z-index: -1;
+    background: radial-gradient(circle at 50% 45%, rgba(250, 204, 21, 0.45), transparent 62%);
+    animation: gcAprBurstCore 0.68s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.gc-ct-icon-btn.gc-approval-burst--active::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 10px;
+    pointer-events: none;
+    z-index: -1;
+    border: 1px solid rgba(34, 197, 94, 0.45);
+    box-shadow:
+        0 0 0 1px rgba(250, 204, 21, 0.2),
+        0 0 16px rgba(250, 204, 21, 0.28);
+    animation: gcAprBurstRing 0.68s ease-out forwards;
+}
+
+@keyframes gcAprBurstCore {
+    0% {
+        opacity: 0;
+        transform: scale(0.65);
+    }
+    42% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.12);
+    }
+}
+
+@keyframes gcAprBurstRing {
+    0% {
+        opacity: 0;
+        transform: scale(0.88);
+    }
+    38% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.06);
+    }
+}
+
+tr.gc-approval-row-flash td {
+    animation: gcAprRowFlash 0.7s ease-out forwards;
+}
+
+@keyframes gcAprRowFlash {
+    0%,
+    100% {
+        background-color: transparent;
+    }
+    35% {
+        background-color: rgba(34, 197, 94, 0.07);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gc-ct-icon-btn.gc-approval-burst--active::before,
+    .gc-ct-icon-btn.gc-approval-burst--active::after {
+        animation: none !important;
+        opacity: 0 !important;
+    }
+
+    tr.gc-approval-row-flash td {
+        animation: none !important;
+    }
+}
+

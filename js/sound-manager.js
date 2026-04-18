@@ -8,7 +8,8 @@
  * Política de autoplay: use unlock() após primeiro gesto do usuário antes de play().
  *
  * Onde os sons são disparados (tv/index.html):
- * - iniciar / pedido / aplausos / clicarusuario / ficarsemvemda → tv/public/audio/*.mp3
+ * - iniciar / clicarusuario / ficarsemvemda → tv/public/audio/*.mp3
+ * - pedido + aplausos quando há nova venda (salesGain no poll); pedido não toca a cada refresh vazio
  * - rankingUpdate, rankUp, top3Enter, metaHit → efeitos legados (reservados)
  * - warning       → falha ao atualizar dados após o primeiro carregamento com sucesso
  * - sessionEnter  → fanfare (legado)

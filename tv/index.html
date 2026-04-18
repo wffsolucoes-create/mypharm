@@ -498,6 +498,185 @@
     }
 
     /* ============================================================
+       ABERTURA INICIAL (1× ao carregar — sincronizado com som "iniciar")
+       ============================================================ */
+    .tv-intro-fx-root {
+      position: fixed;
+      inset: 0;
+      z-index: 11;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .tv-intro-spark {
+      position: fixed;
+      width: 5px;
+      height: 5px;
+      margin-left: -2.5px;
+      margin-top: -2.5px;
+      border-radius: 50%;
+      pointer-events: none;
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.95), rgba(251, 191, 36, 0.65) 45%, transparent 72%);
+      box-shadow: 0 0 10px rgba(167, 139, 250, 0.45);
+      opacity: 0;
+      animation: tvIntroSparkFly 0.82s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes tvIntroSparkFly {
+      0% {
+        opacity: 0;
+        transform: translate(0, 0) scale(0.35);
+      }
+      22% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translate(var(--tv-sx), var(--tv-sy)) scale(1);
+      }
+    }
+
+    .site-header__logo-link.tv-intro-logo-shine {
+      position: relative;
+      overflow: visible;
+    }
+
+    .site-header__logo-link.tv-intro-logo-shine::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 14px;
+      pointer-events: none;
+      background: linear-gradient(
+        115deg,
+        transparent 0%,
+        transparent 38%,
+        rgba(255, 255, 255, 0.42) 48%,
+        rgba(167, 139, 250, 0.35) 52%,
+        transparent 62%,
+        transparent 100%
+      );
+      background-size: 220% 100%;
+      opacity: 0;
+      animation: tvIntroLogoShine 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes tvIntroLogoShine {
+      0% {
+        opacity: 0;
+        background-position: 130% 0;
+      }
+      18% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        background-position: -30% 0;
+      }
+    }
+
+    .site-header.tv-intro-hero-pulse {
+      animation: tvIntroHeaderPulse 0.88s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes tvIntroHeaderPulse {
+      0% {
+        filter: brightness(0.94);
+      }
+      35% {
+        filter: brightness(1.06);
+      }
+      100% {
+        filter: brightness(1);
+      }
+    }
+
+    main.page-main.tv-intro-dashboard-reveal {
+      animation: tvIntroDashboardReveal 1.05s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes tvIntroDashboardReveal {
+      0% {
+        opacity: 0.86;
+        transform: translateY(14px) scale(0.992);
+        filter: saturate(0.92) brightness(0.96);
+      }
+      55% {
+        opacity: 1;
+        filter: saturate(1.05) brightness(1.02);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: saturate(1) brightness(1);
+      }
+    }
+
+    .podium-panel.tv-intro-panel-glow,
+    .others-panel.tv-intro-panel-glow {
+      animation: tvIntroPanelGlow 1.02s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes tvIntroPanelGlow {
+      0% {
+        box-shadow: 0 0 0 rgba(99, 102, 241, 0);
+      }
+      40% {
+        box-shadow:
+          0 0 0 1px rgba(99, 102, 241, 0.22),
+          0 12px 40px rgba(34, 211, 238, 0.08);
+      }
+      100% {
+        box-shadow: 0 0 0 rgba(99, 102, 241, 0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tv-intro-spark {
+        animation: none !important;
+        opacity: 0 !important;
+      }
+
+      .site-header__logo-link.tv-intro-logo-shine::after {
+        animation: tvIntroLogoShineReduced 0.45s ease-out forwards;
+      }
+
+      @keyframes tvIntroLogoShineReduced {
+        0% {
+          opacity: 0;
+        }
+        50% {
+          opacity: 0.55;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      .site-header.tv-intro-hero-pulse {
+        animation: none !important;
+      }
+
+      main.page-main.tv-intro-dashboard-reveal {
+        animation: tvIntroDashboardReduced 0.4s ease-out forwards;
+      }
+
+      @keyframes tvIntroDashboardReduced {
+        0% {
+          opacity: 0.92;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .podium-panel.tv-intro-panel-glow,
+      .others-panel.tv-intro-panel-glow {
+        animation: none !important;
+      }
+    }
+
+    /* ============================================================
        PODIUM PANEL
        ============================================================ */
     .podium-panel {
@@ -630,11 +809,11 @@
     }
 
     .podium-slot.podium-move-up .podium-avatar-wrap {
-      animation: moverUpPulse 1s ease;
+      animation: moverUpPulse 0.8s ease;
     }
 
     .podium-slot.podium-move-down .podium-avatar-wrap {
-      animation: moverDownPulse 1s ease;
+      animation: moverDownPulse 0.8s ease;
     }
 
     .podium-slot--2nd.podium-visible {
@@ -983,7 +1162,7 @@
       border-radius: 14px;
       border: 1px solid var(--border);
       background: linear-gradient(135deg, rgba(15, 23, 42, 0.6), rgba(30, 41, 59, 0.3));
-      transition: all 0.65s cubic-bezier(0.22, 0.61, 0.36, 1);
+      transition: all 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
       opacity: 0;
       transform: translateX(40px);
       position: relative;
@@ -1017,18 +1196,18 @@
     .rank-card.rank-card--up {
       border-color: rgba(16, 185, 129, 0.45);
       box-shadow: 0 0 20px rgba(16, 185, 129, 0.22);
-      animation: rankUpFlash 1s ease;
+      animation: rankUpFlash 0.85s ease;
     }
 
     .rank-card.rank-card--down {
       border-color: rgba(251, 146, 60, 0.45);
       box-shadow: 0 0 16px rgba(251, 146, 60, 0.22);
-      animation: rankDownFlash 1s ease;
+      animation: rankDownFlash 0.85s ease;
     }
 
     .rank-card.rank-card--gain .rank-card__vendas,
     .rank-card.rank-card--gain .rank-card__meta {
-      animation: salesGainFlash 1s ease;
+      animation: salesGainFlash 0.85s ease;
     }
 
     @keyframes rankUpFlash {
@@ -1143,7 +1322,7 @@
     .rank-card__bar-fill {
       height: 100%;
       border-radius: 999px;
-      transition: width 1.8s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: width 1.35s cubic-bezier(0.16, 1, 0.3, 1);
       position: relative;
     }
 
@@ -1315,47 +1494,147 @@
     }
 
     /* ============================================================
-       LIVE CHANGE FX (alert + confetti)
+       LIVE CHANGE FX — overlay em tela cheia (substitui faixa pequena)
        ============================================================ */
     .live-alert {
-      position: fixed;
-      top: 16px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-10px);
-      z-index: 1200;
-      min-width: 260px;
-      max-width: min(90vw, 560px);
-      padding: 0.7rem 1rem;
-      border-radius: 12px;
-      border: 1px solid rgba(34, 211, 238, 0.35);
-      background: linear-gradient(120deg, rgba(8, 47, 73, 0.9), rgba(30, 64, 175, 0.9));
-      color: #e0f2fe;
-      font-size: 0.8rem;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45), 0 0 24px rgba(34, 211, 238, 0.2);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.35s ease, transform 0.35s ease;
-      text-align: center;
-      backdrop-filter: blur(8px);
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
     }
 
-    .live-alert.live-alert--visible {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-
-    .confetti-canvas {
+    .ranking-cinematic {
       position: fixed;
       inset: 0;
-      z-index: 1150;
+      z-index: 1280;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: min(4vw, 2.5rem);
       pointer-events: none;
       opacity: 0;
-      transition: opacity 0.2s ease;
+      visibility: hidden;
+      transition: opacity 0.45s ease, visibility 0.45s ease;
+      background: none;
     }
 
-    .confetti-canvas.confetti-canvas--active {
+    .ranking-cinematic__backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 110% 85% at 50% 45%, rgba(99, 102, 241, 0.28), transparent 62%),
+        radial-gradient(ellipse 80% 70% at 50% 100%, rgba(34, 211, 238, 0.12), transparent 55%),
+        linear-gradient(165deg, rgba(3, 7, 18, 0.94) 0%, rgba(15, 23, 42, 0.92) 45%, rgba(3, 7, 18, 0.96) 100%);
+      backdrop-filter: blur(14px) saturate(1.2);
+    }
+
+    .ranking-cinematic.ranking-cinematic--visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .ranking-cinematic .confetti-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      display: block;
+    }
+
+    .ranking-cinematic__content {
+      position: relative;
+      z-index: 2;
+      max-width: min(96vw, 52rem);
+      text-align: center;
+      animation: rankingCinematicIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes rankingCinematicIn {
+      0% {
+        opacity: 0;
+        transform: translateY(22px) scale(0.96);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .ranking-cinematic__eyebrow {
+      font-size: clamp(0.62rem, 1.5vw, 0.78rem);
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #a5b4fc;
+      margin-bottom: 1rem;
+      text-shadow: 0 0 20px rgba(129, 140, 248, 0.35);
+    }
+
+    .ranking-cinematic__avatar-block {
+      margin: 0 auto 1.25rem;
+    }
+
+    .ranking-cinematic__avatar-ring {
+      width: clamp(100px, 22vw, 160px);
+      height: clamp(100px, 22vw, 160px);
+      margin: 0 auto;
+      border-radius: 999px;
+      padding: 3px;
+      background: conic-gradient(from 210deg, #22d3ee, #a5b4fc, #34d399, #fbbf24, #22d3ee);
+      box-shadow: 0 0 40px rgba(99, 102, 241, 0.35);
+    }
+
+    .ranking-cinematic__avatar {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      object-fit: cover;
+      display: block;
+      border: 3px solid rgba(15, 23, 42, 0.95);
+      background: rgba(15, 23, 42, 0.8);
+    }
+
+    .ranking-cinematic__message {
+      font-size: clamp(1.35rem, 4.2vw, 2.85rem);
+      font-weight: 900;
+      line-height: 1.22;
+      color: #f8fafc;
+      text-shadow: 0 4px 32px rgba(0, 0, 0, 0.45), 0 0 28px rgba(34, 211, 238, 0.12);
+      letter-spacing: -0.02em;
+    }
+
+    .ranking-cinematic__sub {
+      margin-top: 1rem;
+      font-size: clamp(1rem, 2.6vw, 1.45rem);
+      font-weight: 700;
+      color: #22d3ee;
+      text-shadow: 0 0 18px rgba(34, 211, 238, 0.25);
+    }
+
+    .ranking-cinematic__sub[hidden],
+    .ranking-cinematic__avatar-block[hidden] {
+      display: none !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ranking-cinematic__content {
+        animation: none !important;
+      }
+    }
+
+    #confetti-canvas {
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+
+    #confetti-canvas.confetti-canvas--active {
       opacity: 1;
     }
 
@@ -1795,6 +2074,7 @@
   <div class="bg-effects" aria-hidden="true"></div>
   <div class="bg-grid" aria-hidden="true"></div>
   <div class="particles" id="particles" aria-hidden="true"></div>
+  <div class="tv-intro-fx-root" id="tv-intro-fx-root" aria-hidden="true"></div>
 
   <!-- Header -->
   <header class="site-header">
@@ -1869,6 +2149,9 @@
           <input type="range" id="sound-volume" min="0" max="100" value="45" step="1" aria-label="Volume dos efeitos sonoros" />
         </label>
       </div>
+      <button type="button" class="site-header__btn site-header__btn--purple" id="btn-consultants-visibility" title="Escolher quem aparece no ranking" aria-haspopup="dialog">
+        <span aria-hidden="true">👁</span> Consultoras no ranking
+      </button>
       <a href="premiacao.html" class="site-header__btn site-header__btn--purple" title="Gerenciar premiações e imagens do pódio"><span aria-hidden="true">🏅</span> Premiação</a>
       <button type="button" class="site-header__btn site-header__btn--accent" id="btn-presentation" title="Modo apresentação" aria-label="Modo apresentação" aria-pressed="false">
         <span aria-hidden="true">🎥</span>
@@ -1966,6 +2249,22 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="consultants-visibility-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="consultants-visibility-title">
+    <div class="modal-card sound-settings-card">
+      <button type="button" class="modal-close" id="consultants-visibility-close" aria-label="Fechar">✕</button>
+      <div class="modal-header" style="padding-bottom: 0.5rem;">
+        <div class="modal-info" style="width: 100%;">
+          <div class="modal-name" id="consultants-visibility-title" style="font-size: 1.15rem;">Consultoras no ranking</div>
+          <div class="modal-team" style="margin-top: 0.2rem;">Desmarque para ocultar na TV</div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <p class="sound-settings-intro">Cada nome vem do ranking atual. <strong>Desmarque</strong> quem não deve aparecer no pódio e na lista.</p>
+        <ul class="sound-settings-list" id="consultants-visibility-list"></ul>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="sound-settings-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="sound-settings-title">
     <div class="modal-card sound-settings-card">
       <button type="button" class="modal-close" id="sound-settings-close" aria-label="Fechar configurações">✕</button>
@@ -1983,6 +2282,20 @@
   </div>
 
   <div class="live-alert" id="live-alert" role="status" aria-live="polite"></div>
+  <div class="ranking-cinematic" id="ranking-cinematic" aria-hidden="true" role="status" aria-live="polite">
+    <div class="ranking-cinematic__backdrop" aria-hidden="true"></div>
+    <canvas class="confetti-canvas" id="confetti-canvas"></canvas>
+    <div class="ranking-cinematic__content">
+      <p class="ranking-cinematic__eyebrow" id="ranking-cinematic-eyebrow">My Pharm · Ranking ao vivo</p>
+      <div class="ranking-cinematic__avatar-block" id="ranking-cinematic-avatar-block" hidden>
+        <div class="ranking-cinematic__avatar-ring">
+          <img class="ranking-cinematic__avatar" id="ranking-cinematic-avatar" src="" alt="" width="160" height="160" />
+        </div>
+      </div>
+      <p class="ranking-cinematic__message" id="ranking-cinematic-message"></p>
+      <p class="ranking-cinematic__sub" id="ranking-cinematic-sub" hidden></p>
+    </div>
+  </div>
   <div class="top3-entry-badge" id="top3-entry-badge" aria-live="polite"></div>
   <div class="leader-spotlight" id="leader-spotlight" aria-hidden="true">
     <div class="leader-spotlight__card">
@@ -1997,7 +2310,6 @@
       </div>
     </div>
   </div>
-  <canvas class="confetti-canvas" id="confetti-canvas"></canvas>
 
   <script src="../js/sound-manager.js"></script>
   <script src="../js/confetti-manager.js"></script>
@@ -2179,7 +2491,7 @@
         if (a && drawer.contains(a)) closeDrawer();
         var b = e.target.closest && e.target.closest('button.site-header__btn');
         if (b && drawer.contains(b) && !e.target.closest('#sound-kit')) {
-          if (b.id === 'btn-presentation' || b.id === 'btn-fullscreen' || b.id === 'btn-sound-settings') {
+          if (b.id === 'btn-presentation' || b.id === 'btn-fullscreen' || b.id === 'btn-sound-settings' || b.id === 'btn-consultants-visibility') {
             setTimeout(closeDrawer, 120);
           }
         }
@@ -2187,10 +2499,22 @@
 
       document.addEventListener('keydown', function (e) {
         if (e.key !== 'Escape') return;
+        var cinematic = document.getElementById('ranking-cinematic');
+        if (cinematic && cinematic.classList.contains('ranking-cinematic--visible')) {
+          cinematic.classList.remove('ranking-cinematic--visible');
+          cinematic.setAttribute('aria-hidden', 'true');
+          return;
+        }
         var soundOv = document.getElementById('sound-settings-overlay');
         if (soundOv && soundOv.classList.contains('modal-open')) {
           soundOv.classList.remove('modal-open');
           soundOv.setAttribute('aria-hidden', 'true');
+          return;
+        }
+        var consVisOv = document.getElementById('consultants-visibility-overlay');
+        if (consVisOv && consVisOv.classList.contains('modal-open')) {
+          consVisOv.classList.remove('modal-open');
+          consVisOv.setAttribute('aria-hidden', 'true');
           return;
         }
         if (!isOpen()) return;
@@ -2221,6 +2545,8 @@
       var liveAlertEl = document.getElementById('live-alert');
       var confettiCanvas = document.getElementById('confetti-canvas');
       var confettiCtx = confettiCanvas && confettiCanvas.getContext ? confettiCanvas.getContext('2d') : null;
+      /** Última lista completa da API (antes do filtro de ocultação) — para o modal e re-render. */
+      var lastRankingFullList = null;
 
       /**
        * UI de áudio: sincroniza botão e slider com soundManager (preferências em localStorage).
@@ -2258,14 +2584,91 @@
         syncUi();
       }
 
+      var TV_LS_HIDDEN_CONSULTANTS = 'mypharm_tv_hidden_consultants';
+
+      function normalizeConsultantName(n) {
+        return String(n == null ? '' : n).trim();
+      }
+
+      function getHiddenConsultantsArray() {
+        try {
+          var raw = localStorage.getItem(TV_LS_HIDDEN_CONSULTANTS);
+          if (!raw) return [];
+          var arr = JSON.parse(raw);
+          return Array.isArray(arr) ? arr : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function setHiddenConsultantsArray(arr) {
+        localStorage.setItem(TV_LS_HIDDEN_CONSULTANTS, JSON.stringify(arr));
+      }
+
+      function getHiddenConsultantsSet() {
+        var arr = getHiddenConsultantsArray();
+        var o = {};
+        for (var i = 0; i < arr.length; i++) {
+          var k = normalizeConsultantName(arr[i]);
+          if (k) o[k] = true;
+        }
+        return o;
+      }
+
+      function isConsultantHidden(nome) {
+        return !!getHiddenConsultantsSet()[normalizeConsultantName(nome)];
+      }
+
+      function setConsultantHidden(nome, hidden) {
+        var k = normalizeConsultantName(nome);
+        if (!k) return;
+        var arr = getHiddenConsultantsArray();
+        var next = [];
+        var seen = {};
+        for (var i = 0; i < arr.length; i++) {
+          var n = normalizeConsultantName(arr[i]);
+          if (!n || n === k) continue;
+          if (!seen[n]) {
+            next.push(n);
+            seen[n] = true;
+          }
+        }
+        if (hidden) {
+          if (!seen[k]) next.push(k);
+        }
+        setHiddenConsultantsArray(next);
+      }
+
+      function filterAndRenumberRanking(listFull) {
+        var hidden = getHiddenConsultantsSet();
+        var vis = [];
+        for (var i = 0; i < listFull.length; i++) {
+          var s = listFull[i];
+          if (!hidden[normalizeConsultantName(s.nome)]) vis.push(s);
+        }
+        var out = [];
+        for (var j = 0; j < vis.length; j++) {
+          var row = vis[j];
+          var o = {};
+          for (var key in row) {
+            if (Object.prototype.hasOwnProperty.call(row, key)) o[key] = row[key];
+          }
+          var np = j + 1;
+          o.posicao_atual = np;
+          o.posicao_anterior = np;
+          out.push(o);
+        }
+        return out;
+      }
+
       /**
        * Modal de configuração: desliga efeitos sonoros por tipo (localStorage via soundManager).
        */
       function setupSoundSettingsPanel() {
         var defs = [
           { id: 'iniciar', label: 'Ao iniciar o painel' },
-          { id: 'pedido', label: 'A cada atualização automática do ranking' },
-          { id: 'aplausos', label: 'Quando houver nova venda' },
+          { id: 'pedido', label: 'Quando surgir novo pedido (venda nova no ranking)' },
+          { id: 'aplausos', label: 'Quando houver nova venda (celebração)' },
           { id: 'clicarusuario', label: 'Ao abrir o detalhe da consultora' },
           { id: 'ficarsemvemda', label: 'Alerta após 1 hora sem vendas' },
           { id: 'clickSoft', label: 'Cliques no menu, tela cheia e fechar' },
@@ -2339,14 +2742,66 @@
         }
       }
 
-      function showLiveAlert(message) {
-        if (!liveAlertEl) return;
-        liveAlertEl.textContent = message;
-        liveAlertEl.classList.add('live-alert--visible');
+      /** Duração mínima do destaque em tela cheia (ms). */
+      var RANKING_CINEMATIC_MS = 5000;
+
+      /**
+       * Aviso de mudança no ranking: overlay em tela inteira, ~5 s.
+       * opts: { eyebrow, avatarUrl, subtitle, durationMs }
+       */
+      function showLiveAlert(message, opts) {
+        opts = opts || {};
+        var ms = opts.durationMs != null ? Number(opts.durationMs) : RANKING_CINEMATIC_MS;
+        if (ms < 5000) ms = 5000;
+
+        if (liveAlertEl) {
+          liveAlertEl.textContent = message || '';
+        }
+
+        var root = document.getElementById('ranking-cinematic');
+        var msgEl = document.getElementById('ranking-cinematic-message');
+        var subEl = document.getElementById('ranking-cinematic-sub');
+        var eyeEl = document.getElementById('ranking-cinematic-eyebrow');
+        var avBlock = document.getElementById('ranking-cinematic-avatar-block');
+        var avImg = document.getElementById('ranking-cinematic-avatar');
+
+        if (!root || !msgEl) return;
+
+        msgEl.textContent = message || '';
+
+        if (eyeEl) {
+          eyeEl.textContent = opts.eyebrow || 'My Pharm · Ranking ao vivo';
+        }
+
+        if (opts.subtitle) {
+          subEl.textContent = opts.subtitle;
+          subEl.hidden = false;
+        } else {
+          subEl.textContent = '';
+          subEl.hidden = true;
+        }
+
+        if (opts.avatarUrl && avBlock && avImg) {
+          avImg.src = opts.avatarUrl;
+          avImg.alt = opts.avatarAlt || '';
+          avBlock.hidden = false;
+        } else if (avBlock) {
+          avImg.src = '';
+          avBlock.hidden = true;
+        }
+
+        root.classList.remove('ranking-cinematic--visible');
+        void root.offsetWidth;
+        root.classList.add('ranking-cinematic--visible');
+        root.setAttribute('aria-hidden', 'false');
+
         clearTimeout(showLiveAlert._t);
         showLiveAlert._t = setTimeout(function () {
-          liveAlertEl.classList.remove('live-alert--visible');
-        }, 2600);
+          root.classList.remove('ranking-cinematic--visible');
+          root.setAttribute('aria-hidden', 'true');
+          if (avBlock) avBlock.hidden = true;
+          if (subEl) subEl.hidden = true;
+        }, ms);
       }
 
       function runConfettiBurst(intensity) {
@@ -2363,22 +2818,35 @@
 
         var colors = ['#22d3ee', '#6366f1', '#f59e0b', '#34d399', '#f472b6', '#fb923c'];
         var parts = [];
-        var count = Math.max(26, Math.min(120, intensity || 60));
-        for (var i = 0; i < count; i++) {
-          parts.push({
-            x: Math.random() * w,
-            y: -10 - Math.random() * 80,
-            vx: -2 + Math.random() * 4,
-            vy: 2 + Math.random() * 5,
-            g: 0.08 + Math.random() * 0.08,
-            s: 3 + Math.random() * 5,
-            a: Math.random() * Math.PI,
-            va: -0.2 + Math.random() * 0.4,
-            c: colors[Math.floor(Math.random() * colors.length)]
-          });
+        var count = Math.max(40, Math.min(130, intensity || 70));
+        var emitters = [
+          [w * 0.5, h * 0.48],
+          [w * 0.25, h * 0.5],
+          [w * 0.75, h * 0.5],
+          [w * 0.5, h * 0.62]
+        ];
+        var per = Math.ceil(count / emitters.length);
+        for (var e = 0; e < emitters.length; e++) {
+          var cx = emitters[e][0];
+          var cy = emitters[e][1];
+          for (var i = 0; i < per; i++) {
+            var ang = Math.random() * Math.PI * 2;
+            var sp = 2.5 + Math.random() * 5.5;
+            parts.push({
+              x: cx + (Math.random() * 28 - 14),
+              y: cy + (Math.random() * 28 - 14),
+              vx: Math.cos(ang) * sp,
+              vy: Math.sin(ang) * sp - 0.8,
+              g: 0.07 + Math.random() * 0.08,
+              s: 3 + Math.random() * 5,
+              a: Math.random() * Math.PI,
+              va: -0.2 + Math.random() * 0.4,
+              c: colors[Math.floor(Math.random() * colors.length)]
+            });
+          }
         }
         var start = performance.now();
-        var duration = 2200;
+        var duration = 5200;
         (function frame(nowTs) {
           var elapsed = nowTs - start;
           confettiCtx.clearRect(0, 0, w, h);
@@ -2486,19 +2954,49 @@
         }
 
         if (summary.movedUp > 0 && summary.bestMove) {
-          showLiveAlert('🚀 ' + summary.bestMove.nome + ' subiu ' + summary.bestMove.steps + ' posição(ões) e está em #' + summary.bestMove.pos + '!');
+          var upOpts = {};
+          if (audioEv.leaderChanged && leaderForFx) {
+            upOpts.eyebrow = 'Nova líder do ranking';
+            upOpts.avatarUrl = avatar(leaderForFx);
+            upOpts.avatarAlt = leaderForFx.nome || '';
+            upOpts.subtitle = fmtBRL(leaderForFx.vendas_valor);
+          }
+          showLiveAlert(
+            '🚀 ' +
+              summary.bestMove.nome +
+              ' subiu ' +
+              summary.bestMove.steps +
+              ' posição(ões) e está em #' +
+              summary.bestMove.pos +
+              '!',
+            upOpts
+          );
           if (audioEv.leaderChanged) {
             if (window.confettiManager) confettiManager.triggerLeaderCelebration();
             else runConfettiBurst(90);
           }
         } else if (summary.salesGain > 0) {
-          showLiveAlert('📈 Atualização automática: ' + summary.salesGain + ' consultora(s) aumentaram vendas.');
+          showLiveAlert('📈 Atualização automática: ' + summary.salesGain + ' consultora(s) aumentaram vendas.', {});
         } else if (audioEv.metaHit) {
-          showLiveAlert('🎯 Meta atingida ou superada no painel.');
+          var metaOpts = {
+            eyebrow: 'Meta atingida',
+            subtitle: audioEv.metaHitSeller ? fmtBRL(audioEv.metaHitSeller.vendas_valor) : ''
+          };
+          if (audioEv.metaHitSeller) {
+            metaOpts.avatarUrl = avatar(audioEv.metaHitSeller);
+            metaOpts.avatarAlt = audioEv.metaHitSeller.nome || '';
+          }
+          showLiveAlert('🎯 Meta atingida ou superada no painel.', metaOpts);
           if (window.confettiManager) confettiManager.triggerMetaCelebration();
           else runConfettiBurst(34);
         } else if (audioEv.top3Enter) {
-          showLiveAlert('👑 Mudança no Top 3.');
+          var t3Opts = { eyebrow: 'Top 3 — Ranking ao vivo' };
+          if (audioEv.top3Seller) {
+            t3Opts.avatarUrl = avatar(audioEv.top3Seller);
+            t3Opts.avatarAlt = audioEv.top3Seller.nome || '';
+            t3Opts.subtitle = '#' + (Number(audioEv.top3Seller.posicao_atual) || 3) + ' · ' + (audioEv.top3Seller.nome || '');
+          }
+          showLiveAlert('👑 Mudança no Top 3.', t3Opts);
           if (window.confettiManager) confettiManager.triggerLeaderCelebration();
           else runConfettiBurst(50);
         }
@@ -2507,19 +3005,8 @@
           if (audioEv.top3Enter) {
             rankingAnimations.animateTop3Change(list, audioEv.top3Seller ? audioEv.top3Seller.nome : '');
           }
-          if (audioEv.metaHit && audioEv.metaHitSeller) {
-            rankingAnimations.highlightSellerPhoto({
-              nome: audioEv.metaHitSeller.nome,
-              foto: avatar(audioEv.metaHitSeller),
-              vendasFmt: fmtBRL(audioEv.metaHitSeller.vendas_valor)
-            }, 'Meta batida (100%+)');
-          }
           if (audioEv.leaderChanged && leaderForFx) {
-            rankingAnimations.animateLeaderHighlight({
-              nome: leaderForFx.nome,
-              foto: avatar(leaderForFx),
-              vendasFmt: fmtBRL(leaderForFx.vendas_valor)
-            }, 'Nova líder do ranking');
+            rankingAnimations.animatePodiumFirstPlaceEmphasis();
           }
         }
 
@@ -2824,7 +3311,7 @@
 
           var pctPrev = prevStats ? (Number(prevStats.percentual_meta) || 0) : 0;
           html +=
-            '<article class="rank-card' + moveClass + gainClass + '" data-seller-name="' + esc(s.nome) + '" style="transition-delay:' + (j * 0.08) + 's">' +
+            '<article class="rank-card' + moveClass + gainClass + '" data-seller-name="' + esc(s.nome) + '" style="transition-delay:' + (j * 0.055) + 's">' +
             changeHtml +
             '<div class="rank-card__badge">' + esc(String(pos)) + '</div>' +
             '<img class="rank-card__avatar" src="' + avatar(s) + '" alt="" />' +
@@ -2855,7 +3342,7 @@
 
             setTimeout(function() {
               card.classList.add('card-visible');
-            }, 180 + idx * 180);
+            }, 130 + idx * 95);
           })(cards[k], k, rest[k]);
         }
         if (window.rankingAnimations) {
@@ -2870,6 +3357,174 @@
             pcts[pi].textContent = pcts[pi].getAttribute('data-pct-target') + '%';
           }
         }
+      }
+
+      function reRenderRankingFromCache() {
+        if (!lastRankingFullList || !lastRankingFullList.length) return;
+        var list = filterAndRenumberRanking(lastRankingFullList);
+        var previousMap = {};
+        for (var p = 0; p < allSellers.length; p++) {
+          var prev = allSellers[p];
+          previousMap[prev.nome] = {
+            posicao_atual: Number(prev.posicao_atual) || 0,
+            vendas_valor: Number(prev.vendas_valor) || 0,
+            vendas_qtd: Number(prev.vendas_qtd) || 0,
+            percentual_meta: Number(prev.percentual_meta) || 0
+          };
+        }
+        allSellers = list;
+        lastSnapshot = snapshotOf(list);
+
+        var n = list.length;
+        var badgeEl = document.getElementById('others-count');
+        if (badgeEl) {
+          badgeEl.textContent =
+            n === 0 ? '0 consultoras' : n === 1 ? '1 consultora' : n + ' consultoras';
+        }
+
+        renderPodium(list.slice(0, 3));
+        renderOthers(list.slice(3), previousMap);
+      }
+
+      function buildConsultantsVisibilityList() {
+        var listEl = document.getElementById('consultants-visibility-list');
+        if (!listEl) return;
+        listEl.innerHTML = '';
+        if (!lastRankingFullList || !lastRankingFullList.length) {
+          var empty = document.createElement('li');
+          empty.style.padding = '0.5rem 0';
+          empty.style.color = 'var(--text-muted)';
+          empty.style.fontSize = '0.9rem';
+          empty.textContent = 'Ainda não há dados do ranking. Aguarde o carregamento.';
+          listEl.appendChild(empty);
+          return;
+        }
+        var seen = {};
+        for (var i = 0; i < lastRankingFullList.length; i++) {
+          var s = lastRankingFullList[i];
+          var nk = normalizeConsultantName(s.nome);
+          if (!nk || seen[nk]) continue;
+          seen[nk] = true;
+          (function (nomeOriginal) {
+            var li = document.createElement('li');
+            var label = document.createElement('label');
+            label.className = 'sound-settings-item';
+            var cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = !isConsultantHidden(nomeOriginal);
+            var span = document.createElement('span');
+            span.textContent = nomeOriginal;
+            label.appendChild(cb);
+            label.appendChild(span);
+            li.appendChild(label);
+            cb.addEventListener('change', function () {
+              setConsultantHidden(nomeOriginal, !cb.checked);
+              reRenderRankingFromCache();
+              if (window.soundManager) {
+                soundManager.unlock();
+                soundManager.play('clickSoft');
+              }
+            });
+            listEl.appendChild(li);
+          })(s.nome);
+        }
+      }
+
+      function setupConsultantsVisibilityModal() {
+        var ov = document.getElementById('consultants-visibility-overlay');
+        var closeBtn = document.getElementById('consultants-visibility-close');
+        var btnOpen = document.getElementById('btn-consultants-visibility');
+        if (!ov) return;
+
+        function closeModal() {
+          ov.classList.remove('modal-open');
+          ov.setAttribute('aria-hidden', 'true');
+        }
+
+        function openModal() {
+          buildConsultantsVisibilityList();
+          ov.classList.add('modal-open');
+          ov.setAttribute('aria-hidden', 'false');
+        }
+
+        if (closeBtn) {
+          closeBtn.addEventListener('click', function () {
+            if (window.soundManager) {
+              soundManager.unlock();
+              soundManager.play('clickSoft');
+            }
+            closeModal();
+          });
+        }
+        ov.addEventListener('click', function (e) {
+          if (e.target === ov) closeModal();
+        });
+
+        if (btnOpen) {
+          btnOpen.addEventListener('click', function () {
+            if (window.soundManager) {
+              soundManager.unlock();
+              soundManager.play('clickSoft');
+            }
+            openModal();
+          });
+        }
+      }
+
+      var tvIntroOpeningDone = false;
+
+      /**
+       * Abertura premium na primeira carga (sincronizado com soundManager.play('iniciar')).
+       * Não altera o fluxo de áudio; apenas classes CSS + partículas leves no logo.
+       */
+      function tvRunIntroOpeningAnimation() {
+        if (tvIntroOpeningDone) return;
+        tvIntroOpeningDone = true;
+
+        var root = document.getElementById('tv-intro-fx-root');
+        var logo = document.getElementById('site-header-logo');
+        var logoLink = logo && logo.closest ? logo.closest('.site-header__logo-link') : null;
+        var header = document.querySelector('.site-header');
+        var mainEl = document.querySelector('main.page-main');
+        var podium = document.querySelector('.podium-panel');
+        var others = document.querySelector('.others-panel');
+
+        if (logoLink) logoLink.classList.add('tv-intro-logo-shine');
+        if (header) header.classList.add('tv-intro-hero-pulse');
+        if (mainEl) mainEl.classList.add('tv-intro-dashboard-reveal');
+        if (podium) podium.classList.add('tv-intro-panel-glow');
+        if (others) others.classList.add('tv-intro-panel-glow');
+
+        var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!reduced && root) {
+          var rect = logo ? logo.getBoundingClientRect() : null;
+          var cx = rect ? rect.left + rect.width / 2 : window.innerWidth * 0.22;
+          var cy = rect ? rect.top + rect.height / 2 : 56;
+          var n = 16;
+          for (var i = 0; i < n; i++) {
+            var sp = document.createElement('div');
+            sp.className = 'tv-intro-spark';
+            sp.style.left = cx + 'px';
+            sp.style.top = cy + 'px';
+            var ang = (Math.PI * 2 * i) / n + (Math.random() - 0.5) * 0.45;
+            var dist = 52 + Math.random() * 56;
+            sp.style.setProperty('--tv-sx', Math.cos(ang) * dist + 'px');
+            sp.style.setProperty('--tv-sy', Math.sin(ang) * dist + 'px');
+            sp.style.animationDelay = i * 0.018 + 's';
+            root.appendChild(sp);
+          }
+          window.setTimeout(function () {
+            if (root) root.innerHTML = '';
+          }, 1100);
+        }
+
+        window.setTimeout(function () {
+          if (logoLink) logoLink.classList.remove('tv-intro-logo-shine');
+          if (header) header.classList.remove('tv-intro-hero-pulse');
+          if (mainEl) mainEl.classList.remove('tv-intro-dashboard-reveal');
+          if (podium) podium.classList.remove('tv-intro-panel-glow');
+          if (others) others.classList.remove('tv-intro-panel-glow');
+        }, 1150);
       }
 
       function fetchAndRenderRanking() {
@@ -2887,7 +3542,9 @@
             if (!Array.isArray(data) || (data.error && data.message)) {
               throw new Error((data && data.message) || 'Resposta inválida');
             }
-            var list = sorted(data);
+            var listFull = sorted(data);
+            lastRankingFullList = listFull;
+            var list = filterAndRenumberRanking(listFull);
             var previousMap = {};
             for (var p = 0; p < allSellers.length; p++) {
               var prev = allSellers[p];
@@ -2915,9 +3572,10 @@
               } else {
                 if (pollSummary.salesGain > 0) {
                   lastSaleAt = Date.now();
-                  soundManager.play('aplausos');
-                } else {
                   soundManager.play('pedido');
+                  window.setTimeout(function () {
+                    if (window.soundManager) soundManager.play('aplausos');
+                  }, 720);
                 }
               }
             }
@@ -2931,6 +3589,10 @@
 
             renderPodium(list.slice(0, 3));
             renderOthers(list.slice(3), previousMap);
+
+            if (wasFirstFetch) {
+              tvRunIntroOpeningAnimation();
+            }
 
             if (hasChanged) {
               triggerRankingFx(previousMap, list);
@@ -2956,6 +3618,7 @@
       }
 
       setupSoundUi();
+      setupConsultantsVisibilityModal();
       setupSoundSettingsPanel();
       fetchAndRenderRanking();
       setInterval(fetchAndRenderRanking, REFRESH_MS);
