@@ -41,6 +41,14 @@ Options -Indexes
 # ----- Proteger pastas sensíveis (Dados, scripts) -----
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    # TV: JS em cache ou legado pede /assets/sounds/*.mp3 — servir desde tv/public/audio/
+    # Funciona na raiz (Hostinger) e com prefixo /mypharm/ (XAMPP).
+    RewriteRule ^(.*/)?assets/sounds/ranking-update\.mp3$ $1tv/public/audio/passagem.mp3 [L]
+    RewriteRule ^(.*/)?assets/sounds/rank-up\.mp3$ $1tv/public/audio/pedido.mp3 [L]
+    RewriteRule ^(.*/)?assets/sounds/top3-enter\.mp3$ $1tv/public/audio/aplausos.mp3 [L]
+    RewriteRule ^(.*/)?assets/sounds/meta-hit\.mp3$ $1tv/public/audio/aplausos.mp3 [L]
+    RewriteRule ^(.*/)?assets/sounds/warning\.mp3$ $1tv/public/audio/passagem.mp3 [L]
+    RewriteRule ^(.*/)?assets/sounds/click-soft\.mp3$ $1tv/public/audio/clicarusuario.mp3 [L]
     RewriteRule ^Dados/ - [F,L]
     RewriteRule ^scripts/importar_itens_cli\.php - [F,L]
 </IfModule>
