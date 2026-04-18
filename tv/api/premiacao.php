@@ -19,8 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-$uploadDir  = __DIR__ . '/../uploads/premiacao/';
-$configFile = __DIR__ . '/../uploads/premiacao/config.json';
+$uploadDir   = __DIR__ . '/../uploads/premiacao/';
+$configFile  = __DIR__ . '/../uploads/premiacao/config.json';
+$configExample = __DIR__ . '/../uploads/premiacao/config.json.example';
 
 $labelsDefault = ['1' => '1º Lugar', '2' => '2º Lugar', '3' => '3º Lugar'];
 
@@ -46,6 +47,10 @@ function premiacao_normalize_config(array $raw): array
 // Garante que o diretório existe
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
+}
+// Primeira instalação: copia modelo (config.json não vem do Git em produção)
+if (!file_exists($configFile) && is_readable($configExample)) {
+    @copy($configExample, $configFile);
 }
 
 // ── GET: retorna configuração atual ──────────────────────────

@@ -38,3 +38,11 @@ node_modules/
 # Cache file-based da TV (JSON gerado em runtime)
 storage_tv_cache/*.json
 tv/api/cache/*.json
+
+# TV — estado de produção (não versionar: deploy sobrescrevia premiações/imagens)
+tv/uploads/premiacao/*
+!tv/uploads/premiacao/.gitkeep
+!tv/uploads/premiacao/config.json.example
+
+# Sons legados em assets/sounds (opcional; evita voltar ficheiros apagados no servidor)
+assets/sounds/*.mp3
