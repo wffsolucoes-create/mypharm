@@ -13,6 +13,27 @@
     var __cliMensagensRecebidasApi = [];
     var _cliCurrentSection = 'visao-geral';
 
+    var CLI_LOADING_TEXT_DEFAULT = 'Carregando dados...';
+
+    /** Overlay full-screen igual ao index (loadingOverlay + styles.css). */
+    function cliShowPageLoading(message) {
+        var el = document.getElementById('loadingOverlay');
+        if (!el) return;
+        var txt = el.querySelector('.loading-text');
+        if (txt && message) txt.textContent = message;
+        el.style.display = 'flex';
+        el.setAttribute('aria-busy', 'true');
+    }
+
+    function cliHidePageLoading() {
+        var el = document.getElementById('loadingOverlay');
+        if (!el) return;
+        el.style.display = 'none';
+        el.setAttribute('aria-busy', 'false');
+        var txt = el.querySelector('.loading-text');
+        if (txt) txt.textContent = CLI_LOADING_TEXT_DEFAULT;
+    }
+
     function parseJsonCli(text) {
         if (!text || typeof text !== 'string') return null;
         const t = text.trim();
@@ -1352,12 +1373,13 @@
         if (btn) { btn.classList.add('active'); btn.setAttribute('aria-selected', 'true'); }
 
         _cliCurrentSection = name;
-        const titles = { 'visao-geral': 'Clientes', 'evolucao': 'Evolução de Cadastros', 'geografico': 'Distribuição Geográfica', 'busca': 'Busca de Clientes' };
+        const titles = { 'visao-geral': 'Clientes', 'evolucao': 'Evolução de Cadastros', 'geografico': 'Distribuição Geográfica', 'analise-compras': 'Análise de Compras', 'busca': 'Busca de Clientes' };
         setText('cliPageTitle', titles[name] || 'Clientes');
         const subs = {
             'visao-geral': 'Base importada · resumo e qualidade dos cadastros',
             'evolucao': 'Volume de novos cadastros ao longo do tempo',
             'geografico': 'Mapa de calor por UF e municípios',
+            'analise-compras': 'Recorrência, potencial e compras por ano · apoio a rotas (ex. Ariquemes)',
             'busca': 'Pesquisa na base · clique na linha para detalhes'
         };
         var subEl = document.getElementById('cliPageSubtitle');
@@ -1423,19 +1445,62 @@
         if (name === 'visao-geral') loadVisaoGeral();
         if (name === 'evolucao')    loadEvolucao();
         if (name === 'geografico')  loadGeografico();
+        if (name === 'analise-compras') loadAnaliseCompras();
         if (name === 'busca')       initBusca();
+    }
+
+    function renderCliCruzamento(d) {
+        const root = document.getElementById('cliCruzamentoPanel');
+        if (!root) return;
+        if (!d || !d.ok) {
+            root.innerHTML = '<p class="gc-chart-sub" style="margin:0;">Não foi possível calcular o cruzamento com pedidos (tabelas ou permissão).</p>';
+            return;
+        }
+        const t = d.totais || {};
+        const f = d.fontes || {};
+        const am = d.amostras || {};
+        const fontesTxt = [
+            f.gestao_pedidos_aprovados ? 'gestão aprovados' : null,
+            f.itens_orcamentos_recusado_carrinho ? 'itens recusado/carrinho' : null,
+            f.orcamentos_pedidos_nomes ? 'orcamentos_pedidos (nomes)' : null,
+        ].filter(Boolean).join(', ') || 'nenhuma tabela disponível';
+        const anoTxt = d.ano_filtrado ? 'Ano filtrado: ' + d.ano_filtrado + '.' : 'Todos os anos nas tabelas de pedidos.';
+        let html = '<p class="gc-chart-sub" style="margin:0 0 8px 0;">Fontes usadas: <strong>' + esc(fontesTxt) + '</strong>. ' + esc(anoTxt) + '</p>';
+        html += '<div class="cli-cruzamento-stats">';
+        html += '<div class="cli-cruzamento-stat"><strong>' + fmt(t.cadastro_nomes_distintos || 0) + '</strong><span>Nomes distintos no cadastro</span></div>';
+        html += '<div class="cli-cruzamento-stat"><strong>' + fmt(t.cadastro_com_match_pedido || 0) + '</strong><span>Cadastro com pelo menos um pedido (nome)</span></div>';
+        html += '<div class="cli-cruzamento-stat"><strong>' + fmt(t.cadastro_sem_match_pedido || 0) + '</strong><span>Cadastro sem pedido (nome)</span></div>';
+        html += '<div class="cli-cruzamento-stat"><strong>' + fmt(t.pedido_nomes_distintos_total || 0) + '</strong><span>Nomes distintos nos pedidos (união)</span></div>';
+        html += '<div class="cli-cruzamento-stat"><strong>' + fmt(t.pedido_nomes_distintos_somente_aprovados || 0) + '</strong><span>Só em gestão aprovada</span></div>';
+        html += '<div class="cli-cruzamento-stat"><strong>' + fmt(t.pedido_nomes_distintos_recusado_ou_carrinho_ou_orc || 0) + '</strong><span>Recusado/carrinho (+ orç. se houver)</span></div>';
+        html += '<div class="cli-cruzamento-stat"><strong>' + fmt(t.pedido_sem_match_cadastro || 0) + '</strong><span>Pedido sem match no cadastro</span></div>';
+        html += '</div>';
+        if (d.metodologia) {
+            html += '<p class="gc-chart-sub" style="margin:0 0 8px 0;">' + esc(d.metodologia) + '</p>';
+        }
+        const ac = am.cadastro_sem_compra_nome || [];
+        const ap = am.pedido_sem_cadastro_norm || [];
+        if (ac.length) {
+            html += '<div class="cli-cruzamento-amostra"><strong>Amostra cadastro sem compra (até 40):</strong><br>' + ac.map(esc).join(' · ') + '</div>';
+        }
+        if (ap.length) {
+            html += '<div class="cli-cruzamento-amostra"><strong>Amostra nome em pedido sem cadastro (normalizado, até 40):</strong><br>' + ap.map(esc).join(' · ') + '</div>';
+        }
+        root.innerHTML = html;
     }
 
     // ══ VISÃO GERAL ═══════════════════════════════════════════════════════════
     async function loadVisaoGeral() {
         try {
-            const [resumo, porMes, porUf, porSexo, porFonteAno] = await Promise.all([
+            const [resumo, porMes, porUf, porSexo, porFonteAno, cruzamento] = await Promise.all([
                 apiFetch({ action: 'resumo' }),
                 apiFetch({ action: 'por_mes' }),
                 apiFetch({ action: 'por_uf' }),
                 apiFetch({ action: 'por_sexo' }),
                 apiFetch({ action: 'por_fonte_ano' }),
+                apiFetch({ action: 'cruzamento_compras' }).catch(function () { return null; }),
             ]);
+            renderCliCruzamento(cruzamento);
 
             const total = Number(resumo.total || 0);
             setText('kpiTotal',       fmt(total));
@@ -1702,45 +1767,399 @@
     // ══ BUSCA ═════════════════════════════════════════════════════════════════
     let _buscaPg = 1;
     let _buscaParams = {};
+    let _buscaSort = 'data_cadastro';
+    let _buscaSortDir = 'desc';
 
-    async function initBusca() {
-        // carregar UFs
+    function atualizarIconesOrdenacaoBusca() {
+        const thead = document.getElementById('cliBuscaThead');
+        if (!thead) return;
+        thead.querySelectorAll('.cli-th-sort').forEach(function (btn) {
+            const col = btn.getAttribute('data-sort');
+            const i = btn.querySelector('i');
+            if (!i) return;
+            i.className = 'fas fa-sort';
+            if (col === _buscaSort) {
+                i.className = _buscaSortDir === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+            }
+        });
+    }
+
+    function cliBuscaMontarParamsExport() {
+        const o = {
+            action: 'exportar_busca_csv',
+            q: (document.getElementById('cliBuscaQ') || {}).value || '',
+            uf: (document.getElementById('cliBuscaUf') || {}).value || '',
+            municipio: (document.getElementById('cliBuscaMunicipio') || {}).value || '',
+            tipo: (document.getElementById('cliBuscaTipo') || {}).value || '',
+            ano: (document.getElementById('cliBuscaAno') || {}).value || '',
+            sort: _buscaSort,
+            dir: _buscaSortDir
+        };
+        return new URLSearchParams(o);
+    }
+
+    function cliBuscaAtualizarPrintMeta() {
+        const meta = document.getElementById('cliBuscaPrintMeta');
+        if (!meta) return;
+        const q = (document.getElementById('cliBuscaQ') || {}).value || '';
+        const uf = (document.getElementById('cliBuscaUf') || {}).value || '';
+        const mun = (document.getElementById('cliBuscaMunicipio') || {}).value || '';
+        const tipo = (document.getElementById('cliBuscaTipo') || {}).value || '';
+        const ano = (document.getElementById('cliBuscaAno') || {}).value || '';
+        const parts = [];
+        if (q) parts.push('Texto: «' + q + '»');
+        if (uf) parts.push('UF: ' + uf);
+        if (mun) parts.push('Município: ' + mun);
+        if (tipo) parts.push('Tipo: ' + tipo);
+        if (ano) parts.push('Ano CSV: ' + ano);
+        parts.push('Ordem: ' + _buscaSort + ' ' + _buscaSortDir);
+        const info = document.getElementById('cliBuscaInfo');
+        const infoTxt = info ? info.textContent.trim() : '';
+        meta.textContent = (parts.length ? parts.join(' · ') + (infoTxt ? ' — ' : '') : '') + (infoTxt || '');
+        const pag = document.getElementById('cliBuscaPag');
+        if (pag && pag.style.display !== 'none') {
+            meta.textContent += ' · Impressão: só a página atual da tabela; use «Baixar CSV» para todos os registros do filtro.';
+        }
+    }
+
+    async function cliBuscaBaixarCsv() {
+        const url = API + '?' + cliBuscaMontarParamsExport().toString();
+        cliShowPageLoading('Gerando CSV...');
+        try {
+            const r = await fetch(url, { credentials: 'include', cache: 'no-store' });
+            const ct = (r.headers.get('Content-Type') || '').toLowerCase();
+            if (r.status === 400 && ct.indexOf('json') !== -1) {
+                const j = await r.json().catch(function () { return null; });
+                const msg = (j && j.message) ? j.message : 'Exportação recusada. Refine a busca.';
+                if (typeof window.uiToast === 'function') window.uiToast(msg, 'warning'); else window.alert(msg);
+                return;
+            }
+            if (!r.ok) {
+                if (typeof window.uiToast === 'function') window.uiToast('Erro ao baixar CSV.', 'error'); else window.alert('Erro ao baixar CSV.');
+                return;
+            }
+            if (ct.indexOf('csv') === -1 && ct.indexOf('text/plain') === -1) {
+                if (typeof window.uiToast === 'function') window.uiToast('Resposta inesperada do servidor.', 'error'); else window.alert('Resposta inesperada.');
+                return;
+            }
+            const blob = await r.blob();
+            let fname = 'clientes_busca.csv';
+            const disp = r.headers.get('Content-Disposition') || '';
+            const m = /filename\*?=(?:UTF-8'')?["']?([^"';]+)/i.exec(disp);
+            if (m && m[1]) fname = decodeURIComponent(m[1].replace(/["']/g, '').trim());
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fname;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(a.href);
+        } catch (e) {
+            if (typeof window.uiToast === 'function') window.uiToast('Falha na exportação.', 'error'); else window.alert('Falha na exportação.');
+        } finally {
+            cliHidePageLoading();
+        }
+    }
+
+    function cliBuscaImprimir() {
+        const bd = document.getElementById('cliModalBackdrop');
+        if (bd) bd.classList.remove('is-open');
+        cliBuscaAtualizarPrintMeta();
+        window.print();
+    }
+
+    let _cliAnaliseFiltrosProntos = false;
+
+    function fmtBrlCli(v) {
+        return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    async function initAnaliseComprasFiltros() {
+        if (_cliAnaliseFiltrosProntos) return;
+        _cliAnaliseFiltrosProntos = true;
+        const selUf = document.getElementById('cliAnaliseUf');
+        const selMun = document.getElementById('cliAnaliseMunicipio');
+        const btn = document.getElementById('cliAnaliseBtn');
+
+        async function carregarMunAnalise() {
+            if (!selMun || !selUf) return;
+            const uf = selUf.value;
+            selMun.innerHTML = '<option value="">Todos do estado</option>';
+            if (!uf) {
+                selMun.disabled = true;
+                selMun.title = 'Selecione UF';
+                return;
+            }
+            selMun.disabled = true;
+            selMun.title = 'Carregando…';
+            try {
+                const list = await apiFetch({ action: 'lista_municipios', uf: uf });
+                (list || []).forEach(function (m) {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    selMun.appendChild(opt);
+                });
+            } catch (e) { /* ignore */ }
+            selMun.disabled = false;
+            selMun.title = '';
+        }
+
         try {
             const ufs = await apiFetch({ action: 'lista_ufs' });
-            const sel = document.getElementById('cliBuscaUf');
-            if (sel) ufs.forEach(function (uf) {
+            if (selUf) ufs.forEach(function (uf) {
                 const opt = document.createElement('option');
-                opt.value = uf; opt.textContent = uf;
-                sel.appendChild(opt);
+                opt.value = uf;
+                opt.textContent = uf;
+                selUf.appendChild(opt);
             });
         } catch (_) {}
+
+        if (selUf) selUf.addEventListener('change', function () { carregarMunAnalise(); });
+        if (btn) btn.addEventListener('click', function () { executarAnaliseCompras(); });
+    }
+
+    async function executarAnaliseCompras() {
+        const meta = document.getElementById('cliAnaliseMeta');
+        const tbody = document.getElementById('cliAnaliseTopBody');
+        const metTxt = document.getElementById('cliAnaliseMetodologia');
+        const su = document.getElementById('cliAnaliseUf');
+        const sm = document.getElementById('cliAnaliseMunicipio');
+        const params = { action: 'analise_compras_clientes' };
+        if (su && su.value) params.uf = su.value;
+        if (sm && sm.value) params.municipio = sm.value;
+
+        if (meta) meta.textContent = 'Carregando…';
+        try {
+            const d = await apiFetch(params);
+            if (!d || !d.ok) {
+                if (meta) meta.textContent = (d && d.error) ? d.error : 'Não foi possível carregar a análise.';
+                return;
+            }
+            const filtro = d.filtro || {};
+            const partesF = [];
+            if (filtro.uf) partesF.push('UF: ' + filtro.uf);
+            if (filtro.municipio) partesF.push('Município: ' + filtro.municipio);
+            if (meta) meta.textContent = (partesF.length ? 'Filtro: ' + partesF.join(' · ') + '. ' : 'Brasil inteiro (use UF/município para focar, ex. RO · Ariquemes). ')
+                + 'Fontes: ' + (d.fontes && d.fontes.gestao_pedidos ? 'gestão' : 'sem gestão')
+                + (d.fontes && d.fontes.itens_orcamentos_pedidos ? ' + itens' : '') + '.';
+
+            const t = d.totais || {};
+            setText('cliAkCad', fmt(d.cadastro_total || 0));
+            setText('cliAkRec', fmt(t.clientes_recorrentes || 0));
+            setText('cliAkUma', fmt(t.clientes_uma_compra || 0));
+            setText('cliAkSem', fmt(t.clientes_sem_compra_aprovada || 0));
+            setText('cliAkRecPct', t.pct_recorrentes_sobre_base != null ? String(t.pct_recorrentes_sobre_base) + '%' : '—');
+            setText('cliAkReceita', fmtBrlCli(t.receita_aprovada_total));
+            setText('cliAkTicket', t.ticket_medio_compradores != null ? fmtBrlCli(t.ticket_medio_compradores) : '—');
+            setText('cliAkPedidos', fmt(t.pedidos_aprovados_distintos || 0));
+            setText('cliAkPipe', fmtBrlCli(t.valor_pipeline_rec_carrinho));
+            setText('cliAkPipeCli', fmt(t.clientes_somente_pipeline || 0));
+
+            const porAno = d.compras_por_ano || [];
+            if (porAno.length === 0) {
+                mkChart('cliChartAnaliseAno', {
+                    type: 'bar',
+                    data: { labels: ['—'], datasets: [{ label: 'Sem dados', data: [0], backgroundColor: '#e5e7eb', datalabels: { display: false } }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { display: false } }, scales: { y: { beginAtZero: true } } }
+                });
+            } else {
+                mkChart('cliChartAnaliseAno', {
+                    type: 'bar',
+                    data: {
+                        labels: porAno.map(function (r) { return String(r.ano); }),
+                        datasets: [
+                            {
+                                label: 'Receita aprovada (R$)',
+                                data: porAno.map(function (r) { return Number(r.receita || 0); }),
+                                backgroundColor: 'rgba(230, 57, 70, 0.75)',
+                                yAxisID: 'y',
+                                datalabels: { display: false },
+                            },
+                            {
+                                label: 'Pedidos distintos',
+                                data: porAno.map(function (r) { return Number(r.pedidos_distintos || 0); }),
+                                type: 'line',
+                                borderColor: '#457B9D',
+                                backgroundColor: 'rgba(69, 123, 157, 0.15)',
+                                borderWidth: 2,
+                                pointRadius: 4,
+                                yAxisID: 'y1',
+                                datalabels: { display: false },
+                            },
+                        ],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { position: 'top' },
+                            datalabels: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (ctx) {
+                                        var l = ctx.dataset.label || '';
+                                        if (l.indexOf('Receita') !== -1) return l + ': ' + fmtBrlCli(ctx.raw);
+                                        return l + ': ' + fmt(ctx.raw);
+                                    },
+                                },
+                            },
+                        },
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                position: 'left',
+                                beginAtZero: true,
+                                ticks: { callback: function (v) { return fmtBrlCli(v).replace(/\s/g, ''); } },
+                            },
+                            y1: {
+                                type: 'linear',
+                                position: 'right',
+                                beginAtZero: true,
+                                grid: { drawOnChartArea: false },
+                                ticks: { callback: function (v) { return fmt(v); } },
+                            },
+                        },
+                    },
+                });
+            }
+
+            const top = d.top_recorrentes || [];
+            if (tbody) {
+                if (top.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="cli-empty" style="padding:20px;">Nenhum cliente recorrente neste filtro (ou sem tabela de gestão).</td></tr>';
+                } else {
+                    let h = '';
+                    top.forEach(function (r) {
+                        h += '<tr>'
+                            + '<td>' + esc(r.nome) + '</td>'
+                            + '<td>' + esc(r.municipio || '—') + '</td>'
+                            + '<td>' + esc(r.uf || '—') + '</td>'
+                            + '<td class="cli-analise-num">' + fmt(r.pedidos_aprov) + '</td>'
+                            + '<td class="cli-analise-num">' + fmt(r.anos_com_compra) + '</td>'
+                            + '<td class="cli-analise-num">' + fmtBrlCli(r.receita) + '</td>'
+                            + '</tr>';
+                    });
+                    tbody.innerHTML = h;
+                }
+            }
+
+            if (metTxt) metTxt.textContent = d.metodologia || '';
+        } catch (e) {
+            console.error('analiseCompras:', e);
+            if (meta) meta.textContent = 'Erro ao carregar análise.';
+        }
+    }
+
+    async function loadAnaliseCompras() {
+        await initAnaliseComprasFiltros();
+        await executarAnaliseCompras();
+    }
+
+    async function initBusca() {
+        const selUf = document.getElementById('cliBuscaUf');
+        const selMun = document.getElementById('cliBuscaMunicipio');
+
+        async function carregarMunicipiosBusca() {
+            if (!selMun || !selUf) return;
+            const uf = selUf.value;
+            selMun.innerHTML = '<option value="">Todos os municípios</option>';
+            if (!uf) {
+                selMun.disabled = true;
+                selMun.title = 'Selecione um estado';
+                return;
+            }
+            selMun.disabled = true;
+            selMun.title = 'Carregando…';
+            try {
+                const list = await apiFetch({ action: 'lista_municipios', uf: uf });
+                (list || []).forEach(function (m) {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    selMun.appendChild(opt);
+                });
+            } catch (e) { /* ignore */ }
+            selMun.disabled = false;
+            selMun.title = '';
+        }
+
+        try {
+            const ufs = await apiFetch({ action: 'lista_ufs' });
+            if (selUf) ufs.forEach(function (uf) {
+                const opt = document.createElement('option');
+                opt.value = uf; opt.textContent = uf;
+                selUf.appendChild(opt);
+            });
+        } catch (_) {}
+
+        if (selUf) selUf.addEventListener('change', function () { carregarMunicipiosBusca(); });
 
         const btnBusca = document.getElementById('cliBuscaBtn');
         const inpQ     = document.getElementById('cliBuscaQ');
         if (btnBusca) btnBusca.addEventListener('click', function () { _buscaPg = 1; executarBusca(); });
         if (inpQ) inpQ.addEventListener('keydown', function (e) { if (e.key === 'Enter') { _buscaPg = 1; executarBusca(); } });
+
+        const btnPrint = document.getElementById('cliBuscaBtnPrint');
+        const btnCsv = document.getElementById('cliBuscaBtnCsv');
+        if (btnPrint) btnPrint.addEventListener('click', cliBuscaImprimir);
+        if (btnCsv) btnCsv.addEventListener('click', cliBuscaBaixarCsv);
+
+        const thead = document.getElementById('cliBuscaThead');
+        if (thead) {
+            thead.querySelectorAll('.cli-th-sort').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const col = btn.getAttribute('data-sort');
+                    if (!col) return;
+                    if (_buscaSort === col) {
+                        _buscaSortDir = _buscaSortDir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        _buscaSort = col;
+                        _buscaSortDir = (col === 'data_cadastro' || col === 'fonte_ano' || col === 'receita_aprovada_gestao' || col === 'valor_itens_recusados' || col === 'ultima_compra_aprovada') ? 'desc' : 'asc';
+                    }
+                    atualizarIconesOrdenacaoBusca();
+                    _buscaPg = 1;
+                    executarBusca();
+                });
+            });
+        }
+        atualizarIconesOrdenacaoBusca();
     }
 
     async function executarBusca() {
         const q    = (document.getElementById('cliBuscaQ')    || {}).value || '';
         const uf   = (document.getElementById('cliBuscaUf')   || {}).value || '';
+        const municipio = (document.getElementById('cliBuscaMunicipio') || {}).value || '';
         const tipo = (document.getElementById('cliBuscaTipo') || {}).value || '';
         const ano  = (document.getElementById('cliBuscaAno')  || {}).value || '';
 
-        _buscaParams = { action: 'buscar', q, uf, tipo, ano, pg: _buscaPg };
+        _buscaParams = {
+            action: 'buscar',
+            q: q,
+            uf: uf,
+            municipio: municipio,
+            tipo: tipo,
+            ano: ano,
+            pg: _buscaPg,
+            sort: _buscaSort,
+            dir: _buscaSortDir
+        };
 
         const tbody = document.getElementById('cliBuscaTbody');
         const info  = document.getElementById('cliBuscaInfo');
         const pag   = document.getElementById('cliBuscaPag');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="cli-loading"><i class="fas fa-spinner fa-spin"></i> Buscando...</td></tr>';
         if (info) info.textContent = '';
         if (pag) pag.style.display = 'none';
+        cliShowPageLoading('Buscando clientes...');
 
         try {
             const data = await apiFetch(_buscaParams);
             renderBuscaRows(data);
         } catch (e) {
-            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="cli-empty"><i class="fas fa-exclamation-triangle"></i> Erro ao buscar.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="13" class="cli-empty"><i class="fas fa-exclamation-triangle"></i> Erro ao buscar.</td></tr>';
+        } finally {
+            cliHidePageLoading();
         }
     }
 
@@ -1752,7 +2171,7 @@
         if (info) info.textContent = 'Total encontrado: ' + fmt(data.total) + ' registros';
 
         if (!data.rows || data.rows.length === 0) {
-            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="cli-empty"><i class="fas fa-users-slash"></i> Nenhum cliente encontrado.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="13" class="cli-empty"><i class="fas fa-users-slash"></i> Nenhum cliente encontrado.</td></tr>';
             if (pag) pag.style.display = 'none';
             return;
         }
@@ -1763,6 +2182,15 @@
             var d = new Date(s + 'T00:00:00');
             return d.getDate().toString().padStart(2,'0') + '/' + meses[d.getMonth()] + '/' + d.getFullYear();
         }
+        function fmtUltimaCompra(s) {
+            if (!s) return '—';
+            var t = String(s).trim();
+            if (!t) return '—';
+            var iso = t.indexOf(' ') !== -1 ? t.replace(' ', 'T') : t + 'T12:00:00';
+            var d = new Date(iso);
+            if (isNaN(d.getTime())) return '—';
+            return d.getDate().toString().padStart(2,'0') + '/' + meses[d.getMonth()] + '/' + d.getFullYear();
+        }
         function fmtCpf(c) {
             if (!c) return '—';
             return c.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
@@ -1771,6 +2199,13 @@
             if (!t) return '—';
             return t.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3');
         }
+        function fmtMoneyBrl(v) {
+            return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+        function moneyCellCls(v) {
+            var n = Number(v || 0);
+            return Math.abs(n) < 0.005 ? 'cli-td-num cli-td-num--muted' : 'cli-td-num';
+        }
 
         const rows = data.rows;
         let html = '';
@@ -1778,13 +2213,18 @@
             const badgeClass = r.nome_valido == 0 ? 'cli-badge--invalido' : (r.tipo_cadastro === 'Completo' ? 'cli-badge--completo' : 'cli-badge--simples');
             html += '<tr style="cursor:pointer;" onclick="cliAbrirModal(' + JSON.stringify(r).replace(/</g,'\\u003c') + ')">'
                 + '<td>' + esc(r.nome) + (r.nome_valido == 0 ? ' <span title="Nome inválido">⚠</span>' : '') + '</td>'
+                + '<td title="Gestão aprovada → itens de orçamento → cabeçalho de orçamento">' + esc(r.prescritor_cliente || '—') + '</td>'
+                + '<td title="prescritores_cadastro.visitador">' + esc(r.visitador_prescritor || '—') + '</td>'
+                + '<td class="' + moneyCellCls(r.receita_aprovada_gestao) + '">' + fmtMoneyBrl(r.receita_aprovada_gestao) + '</td>'
+                + '<td class="' + moneyCellCls(r.valor_itens_recusados) + '">' + fmtMoneyBrl(r.valor_itens_recusados) + '</td>'
+                + '<td>' + fmtUltimaCompra(r.ultima_compra_aprovada) + '</td>'
                 + '<td><span class="cli-badge ' + badgeClass + '">' + esc(r.tipo_cadastro) + '</span></td>'
                 + '<td>' + fmtTel(r.telefone) + '</td>'
-                + '<td>' + fmtCpf(r.cpf) + '</td>'
-                + '<td>' + esc(r.uf || '—') + '</td>'
+                + '<td class="cli-busca-print-hide">' + fmtCpf(r.cpf) + '</td>'
+                + '<td class="cli-busca-print-hide">' + esc(r.uf || '—') + '</td>'
                 + '<td>' + esc(r.municipio || '—') + '</td>'
                 + '<td>' + fmtDate(r.data_cadastro) + '</td>'
-                + '<td>' + (r.fonte_ano || '—') + '</td>'
+                + '<td class="cli-busca-print-hide">' + (r.fonte_ano || '—') + '</td>'
                 + '</tr>';
         });
         if (tbody) tbody.innerHTML = html;
@@ -1811,6 +2251,8 @@
         } else if (pag) {
             pag.style.display = 'none';
         }
+        atualizarIconesOrdenacaoBusca();
+        cliBuscaAtualizarPrintMeta();
     }
 
     function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -1825,6 +2267,15 @@
         }
         function fc(c) { return c ? c.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4') : '—'; }
         function ft(t) { return t ? t.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3') : '—'; }
+        function fm(v) { return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+        function fuc(s) {
+            if (!s) return '—';
+            var t = String(s).trim();
+            var iso = t.indexOf(' ') !== -1 ? t.replace(' ', 'T') : t + 'T12:00:00';
+            var d = new Date(iso);
+            if (isNaN(d.getTime())) return '—';
+            return d.getDate().toString().padStart(2,'0') + '/' + meses[d.getMonth()] + '/' + d.getFullYear();
+        }
 
         const campos = [
             ['Nome',            r.nome || '—'],
@@ -1839,6 +2290,11 @@
             ['CEP',             r.cep ? r.cep.replace(/^(\d{5})(\d{3})$/, '$1-$2') : '—'],
             ['Município / UF',  [r.municipio, r.uf].filter(Boolean).join(' — ') || '—'],
             ['Ano do CSV',      r.fonte_ano || '—'],
+            ['Receita aprovada (gestão)', fm(r.receita_aprovada_gestao)],
+            ['Última compra (gestão aprovada)', fuc(r.ultima_compra_aprovada)],
+            ['Prescritor (gestão / orçamento)', r.prescritor_cliente || '—'],
+            ['Visitador do prescritor (carteira)', r.visitador_prescritor || '—'],
+            ['Recusados + carrinho (valor líquido em itens)', fm(r.valor_itens_recusados)],
             ['Nome válido',     r.nome_valido == 1 ? 'Sim' : 'Não (parece telefone)'],
         ];
 

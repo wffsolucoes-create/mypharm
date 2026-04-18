@@ -186,6 +186,141 @@
             display: flex; align-items: center; gap: 6px;
         }
         .cli-search-btn:hover { filter: brightness(1.08); }
+        .cli-search-btn--ghost {
+            background: var(--bg-card, #fff);
+            color: var(--cli-accent);
+            border: 1px solid var(--cli-accent);
+        }
+        .cli-search-btn--ghost:hover { filter: none; background: var(--cli-accent-soft); }
+        .cli-busca-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+        .cli-busca-print-meta {
+            display: none;
+            font-size: 0.8rem;
+            color: var(--text-secondary, #4b5563);
+            margin: 0 0 10px 0;
+            line-height: 1.4;
+        }
+        .cli-th-sort {
+            background: none; border: none; font: inherit;
+            color: inherit; text-transform: inherit; letter-spacing: inherit;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+            padding: 0; margin: 0; white-space: nowrap;
+        }
+        .cli-th-sort:hover { color: var(--cli-accent); }
+        .cli-th-sort i { opacity: 0.55; font-size: 0.72rem; }
+        .cli-th-sort:focus { outline: 2px solid var(--cli-accent); outline-offset: 2px; border-radius: 4px; }
+        .cli-th-num, .cli-td-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .cli-table-wrap--busca {
+            border-radius: 12px;
+            border: 1px solid var(--border, #e5e7eb);
+            background: var(--bg-card, #fff);
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+        }
+        .cli-table--busca {
+            font-size: 0.8125rem;
+        }
+        .cli-table--busca thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            color: #475569;
+            font-weight: 600;
+            padding: 11px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 1px 0 #e2e8f0;
+        }
+        .cli-table--busca thead th.cli-th-num {
+            text-align: right;
+        }
+        .cli-table--busca tbody td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .cli-table--busca tbody tr:nth-child(even) td {
+            background: rgba(248, 250, 252, 0.65);
+        }
+        .cli-table--busca tbody tr:hover td {
+            background: rgba(241, 245, 249, 0.95);
+        }
+        .cli-table--busca .cli-td-num {
+            font-weight: 600;
+            color: #0f172a;
+            letter-spacing: -0.01em;
+        }
+        .cli-table--busca .cli-td-num--muted {
+            font-weight: 500;
+            color: var(--text-secondary, #64748b);
+        }
+        [data-theme="dark"] .cli-table-wrap--busca {
+            border-color: rgba(148, 163, 184, 0.25);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+        }
+        [data-theme="dark"] .cli-table--busca thead th {
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            color: #94a3b8;
+            border-bottom-color: #334155;
+            box-shadow: 0 1px 0 #334155;
+        }
+        [data-theme="dark"] .cli-table--busca tbody td { border-bottom-color: rgba(51, 65, 85, 0.5); }
+        [data-theme="dark"] .cli-table--busca tbody tr:nth-child(even) td { background: rgba(30, 41, 59, 0.45); }
+        [data-theme="dark"] .cli-table--busca tbody tr:hover td { background: rgba(51, 65, 85, 0.55); }
+        [data-theme="dark"] .cli-table--busca .cli-td-num { color: #f1f5f9; }
+        [data-theme="dark"] .cli-table--busca .cli-td-num--muted { color: #64748b; }
+        .cli-table--busca th.cli-th-num .cli-th-sort {
+            width: 100%;
+            justify-content: flex-end;
+            text-transform: inherit;
+            letter-spacing: inherit;
+            font-size: inherit;
+            font-weight: inherit;
+            color: inherit;
+        }
+        select#cliBuscaMunicipio:disabled {
+            opacity: 0.55; cursor: not-allowed;
+        }
+
+        .cli-cruzamento-panel { font-size: 0.88rem; line-height: 1.45; color: var(--text-primary, #111); }
+        .cli-cruzamento-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin: 14px 0;
+        }
+        .cli-cruzamento-stat {
+            background: var(--bg-card, #fff);
+            border: 1px solid var(--border, #e5e7eb);
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+        .cli-cruzamento-stat strong { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; color: var(--cli-accent); }
+        .cli-cruzamento-stat span { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+        .cli-cruzamento-amostra { margin-top: 10px; padding: 10px 12px; background: rgba(15,23,42,0.04); border-radius: 8px; font-size: 0.8rem; max-height: 160px; overflow: auto; }
+        [data-theme="dark"] .cli-cruzamento-amostra { background: rgba(255,255,255,0.06); }
+
+        @media print {
+            body { background: #fff !important; }
+            body * { visibility: hidden; }
+            /* Não forçar visibility em colunas ocultas (CPF, UF, Ano CSV na busca). */
+            #cliBuscaPrintArea, #cliBuscaPrintArea *:not(.cli-busca-print-hide) { visibility: visible; }
+            #cliBuscaPrintArea .cli-no-print { display: none !important; visibility: hidden !important; }
+            #cliBuscaPrintArea .cli-busca-print-hide,
+            #cliBuscaPrintArea .cli-busca-print-hide * {
+                display: none !important;
+                visibility: hidden !important;
+            }
+            #cliBuscaPrintArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .cli-table { font-size: 9pt; }
+            .cli-table--busca thead th { background: #f1f5f9 !important; box-shadow: none; }
+            .cli-th-sort { color: #000 !important; font-weight: 700; }
+            .cli-th-sort i { display: none !important; }
+            .cli-pag { display: none !important; }
+        }
 
         /* ── tabela ── */
         .cli-table-wrap { overflow-x: auto; }
@@ -444,6 +579,26 @@
             padding-top: 8px;
             border-top: 1px dashed var(--border, #e2e8f0);
         }
+        .cli-analise-toolbar {
+            display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 18px;
+        }
+        .cli-analise-toolbar select {
+            padding: 8px 12px; border: 1px solid var(--border, #d1d5db); border-radius: 8px;
+            background: var(--bg-input, #fff); font-size: 0.88rem; font-family: inherit; min-width: 160px;
+        }
+        .cli-analise-meta {
+            font-size: 0.82rem; color: var(--text-secondary, #64748b); margin: 0 0 14px 0; line-height: 1.45;
+        }
+        .cli-analise-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border, #e5e7eb); }
+        .cli-analise-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .cli-analise-table th {
+            text-align: left; padding: 10px 12px; background: var(--bg-table-head, #f3f4f6);
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary);
+            border-bottom: 2px solid var(--border);
+        }
+        .cli-analise-table td { padding: 9px 12px; border-bottom: 1px solid var(--border, #f0f0f0); vertical-align: middle; }
+        .cli-analise-table th.cli-analise-num, .cli-analise-table td.cli-analise-num { text-align: right; font-variant-numeric: tabular-nums; }
+        .cli-analise-table tbody tr:hover td { background: var(--bg-hover, #f9fafb); }
     </style>
 </head>
 <body class="gc-compact-ui">
@@ -482,6 +637,11 @@
                             data-section="geografico" aria-selected="false">
                         <i class="fas fa-map-location-dot" aria-hidden="true"></i>
                         <span>Distribuição Geográfica</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab"
+                            data-section="analise-compras" aria-selected="false">
+                        <i class="fas fa-chart-pie" aria-hidden="true"></i>
+                        <span>Análise de Compras</span>
                     </button>
                     <button type="button" class="nav-item gc-menu-item" role="tab"
                             data-section="busca" aria-selected="false">
@@ -662,6 +822,14 @@
                         </div>
                     </div>
 
+                    <div class="gc-block" id="cliCruzamentoBlock">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-cart-shopping"></i></span> Cadastro × pedidos (por nome)</h3>
+                        <p class="gc-chart-sub">Cruzamento entre a base <strong>clientes</strong> e nomes que aparecem em <strong>gestao_pedidos</strong> (aprovados) e em <strong>itens_orcamentos_pedidos</strong> (recusado / no carrinho). Opcionalmente <strong>orcamentos_pedidos</strong>, se existir coluna de nome. Nomes são normalizados (acentos e espaços) — não usa CPF.</p>
+                        <div id="cliCruzamentoPanel" class="cli-cruzamento-panel">
+                            <p class="gc-chart-sub" style="margin:0;">Carregando cruzamento…</p>
+                        </div>
+                    </div>
+
                     <div class="gc-block">
                         <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-chart-pie"></i></span> Perfil da base</h3>
                         <div class="gc-chart-grid gc-chart-grid--2">
@@ -797,6 +965,75 @@
                     </div>
                 </section>
 
+                <!-- ══ ANÁLISE DE COMPRAS ═════════════════════════════════════ -->
+                <section class="gc-section" id="cli-section-analise-compras" role="tabpanel" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Análise de Compras</p>
+                        <p class="gc-tab-head__desc">Recorrência, potencial (pipeline), volume por ano e ranking de clientes com compras repetidas — útil para planejar rotas e novas praças (ex.: Ariquemes).</p>
+                    </header>
+                    <div class="gc-block">
+                        <div class="cli-analise-toolbar cli-no-print">
+                            <div>
+                                <label class="cli-mapa-pro-label" for="cliAnaliseUf">UF</label>
+                                <select id="cliAnaliseUf" aria-label="UF análise"><option value="">Brasil (todos)</option></select>
+                            </div>
+                            <div>
+                                <label class="cli-mapa-pro-label" for="cliAnaliseMunicipio">Município</label>
+                                <select id="cliAnaliseMunicipio" aria-label="Município análise" disabled title="Selecione UF">
+                                    <option value="">Todos do estado</option>
+                                </select>
+                            </div>
+                            <button type="button" class="cli-search-btn" id="cliAnaliseBtn">
+                                <i class="fas fa-rotate"></i> Atualizar análise
+                            </button>
+                        </div>
+                        <p id="cliAnaliseMeta" class="cli-analise-meta" role="status"></p>
+                        <div class="cli-cruzamento-stats" id="cliAnaliseKpis">
+                            <div class="cli-cruzamento-stat"><strong id="cliAkCad">—</strong><span>Clientes no filtro</span></div>
+                            <div class="cli-cruzamento-stat"><strong id="cliAkRec">—</strong><span>Compras recorrentes (2+ pedidos)</span></div>
+                            <div class="cli-cruzamento-stat"><strong id="cliAkUma">—</strong><span>Uma compra aprovada</span></div>
+                            <div class="cli-cruzamento-stat"><strong id="cliAkSem">—</strong><span>Sem compra aprovada</span></div>
+                            <div class="cli-cruzamento-stat"><strong id="cliAkRecPct">—</strong><span>% recorrentes na base</span></div>
+                            <div class="cli-cruzamento-stat"><strong id="cliAkReceita">—</strong><span>Receita aprovada (R$)</span></div>
+                            <div class="cli-cruzamento-stat"><strong id="cliAkTicket">—</strong><span>Ticket médio (compradores)</span></div>
+                            <div class="cli-cruzamento-stat"><strong id="cliAkPedidos">—</strong><span>Pedidos aprovados distintos</span></div>
+                            <div class="cli-cruzamento-stat"><strong id="cliAkPipe">—</strong><span>Pipeline rec./carrinho (R$)</span></div>
+                            <div class="cli-cruzamento-stat"><strong id="cliAkPipeCli">—</strong><span>Só pipeline (sem aprovado)</span></div>
+                        </div>
+                    </div>
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-calendar-days"></i></span> Compras aprovadas por ano</h3>
+                        <div class="gc-chart-panel gc-chart-panel--wide">
+                            <p class="gc-chart-sub">Receita e pedidos distintos em gestão (vínculo nome cadastro × cliente/paciente no pedido).</p>
+                            <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--exec-forma"><canvas id="cliChartAnaliseAno" aria-label="Compras por ano"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-repeat"></i></span> Top clientes recorrentes (por receita)</h3>
+                        <p class="gc-chart-sub">Apenas cadastros com 2 ou mais pedidos aprovados no filtro geográfico.</p>
+                        <div class="cli-analise-table-wrap">
+                            <table class="cli-analise-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Cliente</th>
+                                        <th scope="col">Cidade</th>
+                                        <th scope="col">UF</th>
+                                        <th scope="col" class="cli-analise-num">Pedidos</th>
+                                        <th scope="col" class="cli-analise-num">Anos c/ compra</th>
+                                        <th scope="col" class="cli-analise-num">Receita (R$)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cliAnaliseTopBody">
+                                    <tr><td colspan="6" class="cli-empty" style="padding:20px;">Carregue a análise.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="gc-block">
+                        <p class="gc-chart-sub" id="cliAnaliseMetodologia" style="margin:0;"></p>
+                    </div>
+                </section>
+
                 <!-- ══ BUSCA ════════════════════════════════════════════════ -->
                 <section class="gc-section" id="cli-section-busca" role="tabpanel" aria-hidden="true">
                     <header class="gc-tab-head">
@@ -806,7 +1043,10 @@
                     <div class="gc-block">
                         <div class="cli-search-bar">
                             <input type="search" id="cliBuscaQ" placeholder="Nome, CPF, telefone, e-mail, município..." autocomplete="off">
-                            <select id="cliBuscaUf"><option value="">Todos os estados</option></select>
+                            <select id="cliBuscaUf" aria-label="UF"><option value="">Todos os estados</option></select>
+                            <select id="cliBuscaMunicipio" aria-label="Município" disabled title="Selecione um estado">
+                                <option value="">Todos os municípios</option>
+                            </select>
                             <select id="cliBuscaTipo">
                                 <option value="">Todos os tipos</option>
                                 <option value="Completo">Completo</option>
@@ -823,29 +1063,45 @@
                                 <i class="fas fa-magnifying-glass"></i> Buscar
                             </button>
                         </div>
-                        <div id="cliBuscaInfo" style="font-size:.82rem; color:var(--text-secondary); margin-bottom:12px;"></div>
-                        <div class="cli-table-wrap">
-                            <table class="cli-table">
-                                <thead>
+                        <div class="cli-busca-toolbar cli-no-print">
+                            <button type="button" class="cli-search-btn cli-search-btn--ghost" id="cliBuscaBtnPrint" title="Imprimir resultado atual (tabela)">
+                                <i class="fas fa-print"></i> Imprimir
+                            </button>
+                            <button type="button" class="cli-search-btn cli-search-btn--ghost" id="cliBuscaBtnCsv" title="Baixar CSV com os mesmos filtros da busca (até 80 mil linhas)">
+                                <i class="fas fa-file-csv"></i> Baixar CSV
+                            </button>
+                        </div>
+                        <div id="cliBuscaPrintArea">
+                        <p id="cliBuscaPrintMeta" class="cli-busca-print-meta cli-no-print" aria-hidden="true"></p>
+                        <div id="cliBuscaInfo" class="cli-no-print" style="font-size:.82rem; color:var(--text-secondary); margin-bottom:12px;"></div>
+                        <div class="cli-table-wrap cli-table-wrap--busca">
+                            <table class="cli-table cli-table--busca">
+                                <thead id="cliBuscaThead">
                                     <tr>
-                                        <th>Nome</th>
-                                        <th>Tipo</th>
-                                        <th>Telefone</th>
-                                        <th>CPF</th>
-                                        <th>UF</th>
-                                        <th>Município</th>
-                                        <th>Data Cad.</th>
-                                        <th>Ano CSV</th>
+                                        <th scope="col"><button type="button" class="cli-th-sort" data-sort="nome">Nome <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" title="Último prescritor: gestão aprovada; senão itens de orçamento; senão cabeçalho de orçamento (nome igual ao cadastro)"><button type="button" class="cli-th-sort" data-sort="prescritor_cliente">Prescritor <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" title="Visitador da carteira (prescritores_cadastro.visitador), pelo nome do prescritor"><button type="button" class="cli-th-sort" data-sort="visitador_prescritor">Visitador <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" class="cli-th-num" title="Soma de preço líquido — gestão aprovada (nome em cliente ou paciente)"><button type="button" class="cli-th-sort" data-sort="receita_aprovada_gestao">Receita aprov. <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" class="cli-th-num" title="Soma de valor líquido — itens recusado e no carrinho (paciente)"><button type="button" class="cli-th-sort" data-sort="valor_itens_recusados">Recusados <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" title="Maior data entre data_aprovacao e data_orcamento em gestão aprovada (nome cliente/paciente)"><button type="button" class="cli-th-sort" data-sort="ultima_compra_aprovada">Última compra <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col"><button type="button" class="cli-th-sort" data-sort="tipo_cadastro">Tipo <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col"><button type="button" class="cli-th-sort" data-sort="telefone">Telefone <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" class="cli-busca-print-hide"><button type="button" class="cli-th-sort" data-sort="cpf">CPF <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" class="cli-busca-print-hide"><button type="button" class="cli-th-sort" data-sort="uf">UF <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col"><button type="button" class="cli-th-sort" data-sort="municipio">Município <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col"><button type="button" class="cli-th-sort" data-sort="data_cadastro">Data Cad. <i class="fas fa-sort-down" aria-hidden="true"></i></button></th>
+                                        <th scope="col" class="cli-busca-print-hide"><button type="button" class="cli-th-sort" data-sort="fonte_ano">Ano CSV <i class="fas fa-sort" aria-hidden="true"></i></button></th>
                                     </tr>
                                 </thead>
                                 <tbody id="cliBuscaTbody">
-                                    <tr><td colspan="8" class="cli-empty"><i class="fas fa-magnifying-glass"></i>Use a busca acima para encontrar clientes.</td></tr>
+                                    <tr><td colspan="13" class="cli-empty"><i class="fas fa-magnifying-glass"></i>Use a busca acima para encontrar clientes.</td></tr>
                                 </tbody>
                             </table>
                         </div>
                         <div class="cli-pag" id="cliBuscaPag" style="display:none;">
                             <span class="cli-pag__info" id="cliBuscaPagInfo"></span>
                             <div class="cli-pag__btns" id="cliBuscaPagBtns"></div>
+                        </div>
                         </div>
                     </div>
                 </section>
@@ -865,10 +1121,16 @@
         </div>
     </div>
 
+    <!-- Loading overlay (mesmo padrão de index.html) -->
+    <div class="loading-overlay" id="loadingOverlay" style="display:none;" role="status" aria-live="polite" aria-busy="false">
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <div class="loading-text">Carregando dados...</div>
+    </div>
+
     <script src="js/ui-feedback.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>
-    <script src="js/clientes.js?v=20260414-chart-labels-uf"></script>
+    <script src="js/clientes.js?v=20260422-cruzamento-compras"></script>
 </body>
 </html>
