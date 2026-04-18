@@ -157,7 +157,7 @@ function canonicalSellerName(string $nomeCrm): string {
  * Calcula intervalo de datas do período
  */
 function getPeriodDates(): array {
-    $now = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
+    $now = new DateTime('now', new DateTimeZone(TV_TIMEZONE));
 
     switch (PERIODO_RANKING) {
         case 'semanal':
@@ -289,7 +289,7 @@ try {
     // 4. Montar ranking no formato SellerRecord
     global $SELLER_CONFIG;
     $ranking = [];
-    $now = (new DateTime('now', new DateTimeZone('America/Sao_Paulo')))->format('Y-m-d H:i:s');
+    $now = (new DateTime('now', new DateTimeZone(TV_TIMEZONE)))->format('Y-m-d H:i:s');
     $id = 1;
 
     foreach ($porVendedor as $nomeCrm => $dados) {

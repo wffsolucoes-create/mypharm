@@ -24,6 +24,9 @@ define('META_GLOBAL', 25000);
 // Período do ranking: 'mensal' (reseta dia 1), 'semanal' (reseta segunda), 'anual'
 define('PERIODO_RANKING', 'mensal');
 
+// Fuso para cálculo do período e campo ultima_atualizacao (alinhado ao restante do MyPharm em Rondônia)
+define('TV_TIMEZONE', 'America/Porto_Velho');
+
 // Tempo de cache em segundos (60 = 1 min)
 define('CACHE_TTL', 60);
 
