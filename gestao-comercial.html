@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#3B82F6">
+    <meta name="description" content="Painel executivo MyPharm: vendas, funil, equipe e financeiro com base no banco local.">
+    <title>Gestão Comercial | MyPharm</title>
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/ui-feedback.css">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260414-ui4">
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="gc-compact-ui">
+    <a href="#gcMain" class="gc-skip-link">Ir para o conteúdo</a>
+    <div id="gcApp" class="app-layout" style="display:none;">
+        <aside class="sidebar collapsed" id="gcSidebar" aria-label="Menu lateral">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <img src="imagens/logoMypharm1.png?v=20260402" alt="MyPharm" class="sidebar-brand-logo sidebar-brand-logo--expanded" width="280" height="72" decoding="async">
+                    <img src="imagens/IconeMyPharm.png?v=20260402" alt="MyPharm" class="sidebar-brand-logo sidebar-brand-logo--collapsed" width="40" height="40" decoding="async">
+                </div>
+            </div>
+            <button type="button" class="sidebar-toggle" id="gcSidebarToggle" aria-label="Expandir menu">
+                <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            </button>
+            <nav class="sidebar-nav" aria-label="Seções do relatório e atalhos">
+                <div class="nav-section-title" id="gcNavRelatorio">Relatório</div>
+                <div class="gc-sidebar-tablist" role="tablist" aria-labelledby="gcNavRelatorio">
+                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-executivo" data-section="executivo" aria-selected="false" aria-controls="gc-section-executivo">
+                        <i class="fas fa-chart-line" aria-hidden="true"></i>
+                        <span>Painel executivo</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-vendas" data-section="vendas" aria-selected="false" aria-controls="gc-section-vendas">
+                        <i class="fas fa-filter" aria-hidden="true"></i>
+                        <span>Gestão de vendas</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item active" role="tab" id="gc-tab-vendedores" data-section="vendedores" aria-selected="true" aria-controls="gc-section-vendedores">
+                        <i class="fas fa-users" aria-hidden="true"></i>
+                        <span>Equipe Comercial</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-relatorios" data-section="relatorios" aria-selected="false" aria-controls="gc-section-relatorios">
+                        <i class="fas fa-table-list" aria-hidden="true"></i>
+                        <span>Relatórios</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-comissoes" data-section="comissoes" aria-selected="false" aria-controls="gc-section-comissoes">
+                        <i class="fas fa-right-left" aria-hidden="true"></i>
+                        <span>Comissões (transferências)</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-revenda" data-section="revenda" aria-selected="false" aria-controls="gc-section-revenda">
+                        <i class="fas fa-store" aria-hidden="true"></i>
+                        <span>Revenda</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab" id="gc-tab-erros" data-section="erros" aria-selected="false" aria-controls="gc-section-erros">
+                        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                        <span>Controle de erros</span>
+                    </button>
+                </div>
+                <div class="nav-section-title">Atalhos</div>
+                <a class="nav-item" href="tv/index.html" target="_blank" rel="noopener noreferrer">
+                    <i class="fas fa-tv" aria-hidden="true"></i>
+                    <span>TV corrida de vendas</span>
+                    <span class="gc-sr-only"> (abre em nova aba)</span>
+                </a>
+                <a class="nav-item" href="index.html" title="Voltar ao painel administrativo MyPharm">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    <span>Painel administrativo</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="avatar-wrap sidebar-avatar-wrap" id="gcAvatarWrap" title="Foto de perfil">
+                        <div class="user-avatar" id="gcAvatar">A</div>
+                        <img class="avatar-img" id="gcAvatarImg" src="" alt="" width="36" height="36" style="display:none;">
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name" id="gcUserName">Administrador</div>
+                        <div class="user-role">Gestão Comercial</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <button type="button" class="mobile-menu-btn" id="gcMobileMenuBtn" aria-label="Abrir menu" aria-controls="gcSidebar" aria-expanded="false">
+            <i class="fas fa-bars" aria-hidden="true"></i>
+        </button>
+
+        <div class="main-content">
+            <div class="topbar">
+                <div class="topbar-left">
+                    <div>
+                        <h1 id="gcPageTitle">Gestão comercial</h1>
+                        <div class="gc-topbar-subtitle">Indicadores comerciais e financeiros do banco no período selecionado</div>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <div class="gc-topbar-period-wrap">
+                        <span class="gc-topbar-period-label">Período</span>
+                        <div class="gc-topbar-period-inputs">
+                            <label class="gc-topbar-date-label" for="gcDataDe">De</label>
+                            <input type="date" id="gcDataDe" class="gc-filter-date-input" autocomplete="off" title="Data inicial">
+                            <span class="gc-topbar-period-sep">até</span>
+                            <label class="gc-topbar-date-label" for="gcDataAte">Até</label>
+                            <input type="date" id="gcDataAte" class="gc-filter-date-input" autocomplete="off" title="Data final">
+                        </div>
+                    </div>
+                    <button type="button" id="gcApplyFiltersBtn" class="gc-filter-btn" title="Atualizar dados">
+                        <i class="fas fa-sync-alt" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="topbar-btn" id="gcThemeBtn" title="Alternar tema claro/escuro" aria-label="Alternar tema claro ou escuro" aria-pressed="false">
+                        <i class="fas fa-circle-half-stroke" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="logout-btn" id="gcLogoutBtn" aria-label="Encerrar sessão">
+                        <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair
+                    </button>
+                </div>
+            </div>
+
+            <main id="gcMain" class="page-content gc-analytics" tabindex="-1">
+                <section class="gc-section" id="gc-section-executivo" role="tabpanel" aria-labelledby="gc-tab-executivo" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Painel executivo</p>
+                        <p class="gc-tab-head__desc">Consolidação de KPIs e gráficos de receita, funil, canais e eficiência com base no banco de dados local no intervalo selecionado acima.</p>
+                    </header>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-gauge-high"></i></span> Indicadores-chave do período</h3>
+                        <p class="gc-note gc-note--tight">Indicadores-chave do período baseados somente no banco local (pedidos aprovados e itens do período).</p>
+                        <div class="kpi-grid gc-kpi-grid" role="list">
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-chart-line" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Receita</div>
+                                <div class="kpi-value gc-metric-value" id="gcCrescReceitaMes">—</div>
+                                <div class="kpi-sub">Pedidos aprovados no período</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-shopping-cart" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Vendas (pedidos)</div>
+                                <div class="kpi-value gc-metric-value" id="gcCrescNumVendas">—</div>
+                                <div class="kpi-sub">Volume no período</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-receipt" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Ticket médio</div>
+                                <div class="kpi-value gc-metric-value" id="gcCrescTicketMedio">—</div>
+                                <div class="kpi-sub">Valor médio por pedido</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-users" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Clientes (6 meses)</div>
+                                <div class="kpi-value gc-metric-value" id="gcCrescClientesAtivos6m">—</div>
+                                <div class="kpi-sub">Com atividade em 6 meses</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-arrow-trend-up" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Δ vs mês anterior</div>
+                                <div class="kpi-value gc-metric-value" id="gcCrescCrescimentoMesAnt">—</div>
+                                <div class="kpi-sub">Receita vs mês anterior</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-user-check" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Clientes atendidos</div>
+                                <div class="kpi-value gc-metric-value" id="gcExecClientesAtendidos">—</div>
+                                <div class="kpi-sub">Quantidade atendida no período</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-chart-pie" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Margem bruta</div>
+                                <div class="kpi-value gc-metric-value" id="gcRentMargemBruta">—</div>
+                                <div class="kpi-sub">Sobre a receita do período</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon"><i class="fas fa-funnel-dollar" aria-hidden="true"></i></div>
+                                <div class="kpi-label">Conversão</div>
+                                <div class="kpi-value gc-metric-value" id="gcEficConversao">—</div>
+                                <div class="kpi-sub">Taxa geral do funil</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gc-subsection">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-chart-column"></i></span> Análises gráficas</h3>
+                        <p class="gc-subsection__desc">Visão executiva para decisão comercial: resultado financeiro, saúde do funil, volume de clientes e produtividade do time.</p>
+                    <div class="gc-chart-grid">
+                        <div class="gc-chart-panel">
+                            <h4 class="gc-chart-title">Resultado financeiro do período</h4>
+                            <p class="gc-chart-sub">Receita, CMV e lucro operacional para leitura rápida de resultado.</p>
+                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecFinance" aria-label="Resultado financeiro"></canvas></div>
+                        </div>
+                        <div class="gc-chart-panel gc-chart-panel--exec-forma">
+                            <h4 class="gc-chart-title">Receita, CMV e lucro por forma farmacêutica</h4>
+                            <p class="gc-chart-sub">Compara as 3 linhas por forma para ver resultado e custo por segmento.</p>
+                            <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--exec-forma"><canvas id="gcChartExecCmvForma" aria-label="Receita CMV e lucro por forma farmacêutica"></canvas></div>
+                        </div>
+                        <div class="gc-chart-panel">
+                            <h4 class="gc-chart-title">Mix de receita por canal</h4>
+                            <p class="gc-chart-sub">Participação dos canais que mais geraram receita.</p>
+                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecCanais" aria-label="Mix de canais"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="gc-chart-grid gc-chart-grid--2">
+                        <div class="gc-chart-panel">
+                            <h4 class="gc-chart-title">Base de clientes e atendimento</h4>
+                            <p class="gc-chart-sub">Clientes e volume operacional: atendidos, ativos, no carrinho, perdidos e pedidos aprovados.</p>
+                            <div class="gc-chart-canvas-wrap"><canvas id="gcChartExecEfic" aria-label="Clientes e atendimento"></canvas></div>
+                            <div class="gc-quick-kpis" id="gcEficQuickKpis" role="list" aria-label="Resumo rápido de eficiência">
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Clientes atendidos</span><strong id="gcEficQuickLeads">—</strong></div>
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Pedidos</span><strong id="gcEficQuickVendas">—</strong></div>
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Fechamento médio</span><strong id="gcEficQuickTempo">—</strong></div>
+                            </div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcEficLeads">Leads: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcEficTempoFechamento">Tempo médio fechamento: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcEficTaxaPerda">Taxa perda cliente: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcEficLtv">LTV: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcEficCac">CAC: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcEficLtvCac">LTV/CAC: —</div>
+                        </div>
+                        <div class="gc-chart-panel">
+                            <h4 class="gc-chart-title">Produtividade comercial (time)</h4>
+                            <p class="gc-chart-sub">Top consultoras por receita no período e indicadores de rentabilidade/fidelização.</p>
+                            <div class="gc-chart-canvas-wrap" id="gcExecFidelChartWrap"><canvas id="gcChartExecFidel" aria-label="Produtividade comercial"></canvas></div>
+                            <div class="gc-chart-empty" id="gcExecFidelEmpty" style="display:none;">Sem base de performance por consultora no período.</div>
+                            <div class="gc-quick-kpis" id="gcFidelQuickKpis" role="list" aria-label="Resumo rápido de rentabilidade e fidelização">
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Lucro operacional</span><strong id="gcFidelQuickLucro">—</strong></div>
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Valor de venda</span><strong id="gcFidelQuickVendas">—</strong></div>
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Taxa recompra</span><strong id="gcFidelQuickRecompra">—</strong></div>
+                                <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Base ativa 90d</span><strong id="gcFidelQuickBase">—</strong></div>
+                            </div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcRentMargemContrib">Margem contrib.: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcRentCmv">CMV s/ faturamento: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcRentPontoEquilibrio">Ponto equilíbrio: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcRentLucroOper">Lucro operacional: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcFidTaxaRecompra">Taxa recompra: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcFidFreqMedia">Freq. média compra: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcFidBaseAtiva90">Base ativa 90d: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcFidNps">NPS: —</div>
+                            <div class="gc-chart-legend-text gc-metric-value" id="gcFidCsat">CSAT: —</div>
+                        </div>
+                    </div>
+                    </div>
+                    <div class="gc-callout">
+                        <strong>Dica:</strong> margem por atendente, forma farmacêutica, prescritor e produto estão na aba <strong>Gestão de vendas</strong>, com o mesmo período.
+                    </div>
+                </section>
+
+                <section class="gc-section" id="gc-section-vendas" role="tabpanel" aria-labelledby="gc-tab-vendas" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Gestão de vendas</p>
+                        <p class="gc-tab-head__desc">Funil operacional (itens e orçamentos), desempenho por canal e rankings de produtos, margem e prescritores — sempre no período do filtro global.</p>
+                    </header>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-filter"></i></span> Funil comercial</h3>
+                        <p class="gc-note gc-note--tight">Macro-funil e distribuição de status nos itens do período.</p>
+                        <div class="gc-chart-grid gc-chart-grid--2">
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Macro-funil</h4>
+                                <p class="gc-chart-sub">Volume agregado por etapa comercial.</p>
+                                <div class="gc-chart-canvas-wrap"><canvas id="gcChartVendasFunilMacro" aria-label="Macro funil"></canvas></div>
+                                <p class="gc-chart-legend-text gc-metric-value" id="gcVendasGargalo">Gargalo estimado: —</p>
+                            </div>
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Status nos itens</h4>
+                                <p class="gc-chart-sub">Distribuição por situação nos orçamentos/itens.</p>
+                                <div class="gc-chart-canvas-wrap"><canvas id="gcChartVendasEtapas" aria-label="Etapas status"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-broadcast-tower"></i></span> Performance por canal</h3>
+                        <div class="gc-chart-panel gc-chart-panel--wide">
+                            <h4 class="gc-chart-title">Receita e margem estimada por canal</h4>
+                            <p class="gc-chart-sub">Com base em pedidos aprovados e canal de atendimento registrado.</p>
+                            <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasCanais" aria-label="Canais vendas"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-lightbulb"></i></span> Inteligência comercial</h3>
+                        <p class="gc-note gc-note--tight">Rankings para priorizar prescritores e clientes com maior impacto de receita e ticket médio.</p>
+                        <div class="gc-chart-grid gc-chart-grid--2">
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Top clientes (receita)</h4>
+                                <p class="gc-chart-sub">Clientes com maior receita aprovada no período.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasTopProdQtd" aria-label="Top clientes"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Top prescritores (receita)</h4>
+                                <p class="gc-chart-sub">Top 20 maiores geradores de receita aprovada.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasTopPresc" aria-label="Top prescritores"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="gc-chart-grid gc-chart-grid--2 gc-stack-20">
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Ticket médio por cliente</h4>
+                                <p class="gc-chart-sub">Top 20 clientes com maior ticket médio.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasMargemProd" aria-label="Ticket médio por cliente"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Ticket médio por prescritor</h4>
+                                <p class="gc-chart-sub">Top 20 prescritores por ticket médio.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendasEspecialidade" aria-label="Ticket médio por prescritor"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="gc-chart-grid gc-chart-grid--2 gc-stack-20">
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Clientes novos x recorrentes</h4>
+                                <p class="gc-chart-sub" id="gcClientesMixSub">Distribuição da base no período (quem comprou 1x vs 2x+).</p>
+                                <div class="gc-chart-canvas-wrap"><canvas id="gcChartVendasClientesMix" aria-label="Clientes novos e recorrentes"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Distribuição de ticket por cliente</h4>
+                                <p class="gc-chart-sub">Quantidade de clientes por faixa de ticket médio.</p>
+                                <div class="gc-chart-canvas-wrap"><canvas id="gcChartVendasClientesFaixaTicket" aria-label="Faixas de ticket por cliente"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="gc-compare-banner">
+                            <i class="fas fa-circle-info" aria-hidden="true"></i>
+                            <span>Os próximos gráficos são de comparação fixa e não se aplicam aos filtros globais de período.</span>
+                        </div>
+                        <div class="gc-chart-grid gc-stack-20">
+                            <div class="gc-chart-panel gc-chart-panel--wide">
+                                <h4 class="gc-chart-title">Comparação acumulada — receita (R$)</h4>
+                                <p class="gc-chart-sub" id="gcVendasMesMesSub">Carregando…</p>
+                                <p class="gc-compare-meses-hint" id="gcCompareMesesHint">Todos os meses do ano estão disponíveis; por padrão só o mês atual e o anterior vêm marcados (não usa o filtro global).</p>
+                                <div class="gc-compare-meses-toolbar" role="group" aria-label="Meses exibidos no gráfico de receita">
+                                    <span class="gc-compare-meses-toolbar__label">Meses no gráfico</span>
+                                    <div class="gc-compare-meses-checks" id="gcCompareMesesChecks"></div>
+                                </div>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall gc-chart-canvas-wrap--comparativo"><canvas id="gcChartVendasMesMes" aria-label="Comparação acumulada de receita por dia entre meses"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel gc-chart-panel--wide">
+                                <h4 class="gc-chart-title">Comparação acumulada — quantidade de pedidos</h4>
+                                <p class="gc-chart-sub" id="gcPedidosMesMesSub">Carregando…</p>
+                                <p class="gc-compare-meses-hint" id="gcCompareMesesHintPedidos">Pedidos aprovados por dia de aprovação, mesma lógica do gráfico de receita. Seleção de meses independente (memorizada separadamente).</p>
+                                <div class="gc-compare-meses-toolbar" role="group" aria-label="Meses exibidos no gráfico de pedidos">
+                                    <span class="gc-compare-meses-toolbar__label">Meses no gráfico</span>
+                                    <div class="gc-compare-meses-checks" id="gcCompareMesesChecksPedidos"></div>
+                                </div>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall gc-chart-canvas-wrap--comparativo"><canvas id="gcChartPedidosMesMes" aria-label="Comparação acumulada de pedidos por dia entre meses"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="gc-section active" id="gc-section-vendedores" role="tabpanel" aria-labelledby="gc-tab-vendedores" aria-hidden="false">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Equipe comercial</p>
+                        <p class="gc-tab-head__desc">Filtre por consultora ou visualize a equipe inteira: KPIs, gráficos e produtividade.</p>
+                    </header>
+
+                    <div class="gc-filter-panel">
+                        <p class="gc-filter-panel__label" id="gcVendTabsLabel">Filtrar por consultora</p>
+                        <div id="gcVendedoresTabs" class="gc-vendedor-tabs" role="tablist" aria-labelledby="gcVendTabsLabel"></div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-users"></i></span> Painel da equipe</h3>
+                        <p class="gc-note gc-note--tight">Resumo conforme o filtro: com <strong>todas</strong>, meta e previsão somam a equipe; com <strong>uma consultora</strong>, mostram só dela. Metas vêm de <code>usuarios.meta_mensal</code>; previsão segue as faixas de comissão do painel do vendedor (individual + grupo sobre a receita do período).</p>
+                        <div class="gc-kpi-stack">
+                            <div class="kpi-grid gc-kpi-grid gc-kpi-grid--tight-bottom gc-kpi-grid--cols-3" role="list">
+                                <div class="kpi-card" role="listitem">
+                                    <div class="kpi-icon"><i class="fas fa-user-tie" aria-hidden="true"></i></div>
+                                    <div class="kpi-label">Consultoras</div>
+                                    <div class="kpi-value gc-metric-value" id="gcVendConsultorasAtivas">—</div>
+                                    <div class="kpi-sub">No filtro atual</div>
+                                </div>
+                                <div class="kpi-card" role="listitem">
+                                    <div class="kpi-icon"><i class="fas fa-hand-holding-usd" aria-hidden="true"></i></div>
+                                    <div class="kpi-label">Receita equipe</div>
+                                    <div class="kpi-value gc-metric-value" id="gcVendReceitaEquipe">—</div>
+                                    <div class="kpi-sub">Soma no período</div>
+                                </div>
+                                <div class="kpi-card" role="listitem">
+                                    <div class="kpi-icon"><i class="fas fa-percentage" aria-hidden="true"></i></div>
+                                    <div class="kpi-label">Conv. média</div>
+                                    <div class="kpi-value gc-metric-value" id="gcVendConversaoMedia">—</div>
+                                    <div class="kpi-sub">Média da equipe</div>
+                                </div>
+                                <div class="kpi-card" role="listitem">
+                                    <div class="kpi-icon"><i class="fas fa-stopwatch" aria-hidden="true"></i></div>
+                                    <div class="kpi-label">Tempo médio</div>
+                                    <div class="kpi-value gc-metric-value" id="gcVendTempoMedio">—</div>
+                                    <div class="kpi-sub">Orçamento → aprovação (média)</div>
+                                </div>
+                                <div class="kpi-card" role="listitem">
+                                    <div class="kpi-icon"><i class="fas fa-user-friends" aria-hidden="true"></i></div>
+                                    <div class="kpi-label">Clientes</div>
+                                    <div class="kpi-value gc-metric-value" id="gcVendClientesAtendidos">—</div>
+                                    <div class="kpi-sub">Atendidos no período</div>
+                                </div>
+                                <div class="kpi-card" role="listitem">
+                                    <div class="kpi-icon"><i class="fas fa-chart-bar" aria-hidden="true"></i></div>
+                                    <div class="kpi-label">Perda média</div>
+                                    <div class="kpi-value gc-metric-value" id="gcVendTaxaPerda">—</div>
+                                    <div class="kpi-sub">Taxa média</div>
+                                </div>
+                            </div>
+                            <section class="gc-kpi-section gc-kpi-section--metas" aria-labelledby="gcVendMetasHeading">
+                                <h4 class="gc-kpi-subhead" id="gcVendMetasHeading">Metas</h4>
+                                <div class="kpi-grid gc-kpi-grid gc-kpi-grid--cols-3" role="list">
+                                    <div class="kpi-card" role="listitem">
+                                        <div class="kpi-icon"><i class="fas fa-bullseye" aria-hidden="true"></i></div>
+                                        <div class="kpi-label">Meta (mensal)</div>
+                                        <div class="kpi-value gc-metric-value" id="gcVendMetaEquipe">—</div>
+                                        <div class="kpi-sub" id="gcVendMetaSub">Soma das metas cadastradas</div>
+                                    </div>
+                                    <div class="kpi-card" role="listitem">
+                                        <div class="kpi-icon"><i class="fas fa-tachometer-alt" aria-hidden="true"></i></div>
+                                        <div class="kpi-label">% da meta</div>
+                                        <div class="kpi-value gc-metric-value" id="gcVendPctMeta">—</div>
+                                        <div class="kpi-sub">Receita do período ÷ meta</div>
+                                    </div>
+                                    <div class="kpi-card" role="listitem">
+                                        <div class="kpi-icon"><i class="fas fa-coins" aria-hidden="true"></i></div>
+                                        <div class="kpi-label">Previsão de ganho</div>
+                                        <div class="kpi-value gc-metric-value" id="gcVendPrevisaoGanho">—</div>
+                                        <div class="kpi-sub" id="gcVendPrevisaoSub">Comissão ind. + grupo (estimada)</div>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                        <div class="gc-chart-grid gc-chart-grid--2">
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Ranking de vendedoras</h4>
+                                <p class="gc-chart-sub">Comparativo no período selecionado. Clique em uma barra para abrir o painel da vendedora.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendReceita" aria-label="Receita consultoras"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Aprovados × rejeitados</h4>
+                                <p class="gc-chart-sub">Pedidos por desfecho no período.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendAprovRej" aria-label="Aprovados rejeitados"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="gc-chart-panel gc-chart-panel--wide gc-stack-16 gc-chart-panel--vend-evo">
+                            <div class="gc-vend-evo-chart-head" role="group" aria-label="Legenda dos gráficos de evolução mensal">
+                                <div class="gc-vend-evo-chart-head__titles">
+                                    <h4 class="gc-chart-title">Evolução mensal da receita</h4>
+                                    <p class="gc-chart-sub" id="gcVendEvolucaoSub">Receita aprovada por mês e por consultora (todas), <strong>sempre o ano 2026</strong> — não acompanha o filtro de datas do painel.</p>
+                                </div>
+                                <div class="gc-vend-evo-chart-head__actions">
+                                    <button type="button" class="gc-vend-evo-todos-btn" id="gcBtnVendEvoTodos" title="Alterna: mostrar ou ocultar todas as séries nos três gráficos de evolução">Todos</button>
+                                </div>
+                            </div>
+                            <p class="gc-vend-evo-todos-hint" id="gcVendEvoTodosHint"><strong>Todos</strong> aplica aos três gráficos (receita, aprovados, rejeitados). Também dá para clicar em cada nome na legenda.</p>
+                            <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendEvolucao" aria-label="Evolução mensal vendedores"></canvas></div>
+                        </div>
+                        <div class="gc-chart-grid gc-chart-grid--2 gc-stack-16">
+                            <div class="gc-chart-panel gc-chart-panel--vend-evo">
+                                <h4 class="gc-chart-title">Evolução mensal — aprovados</h4>
+                                <p class="gc-chart-sub" id="gcVendEvolucaoAprovSub">Pedidos aprovados em gestão por mês e por consultora, <strong>ano 2026</strong> (fixo).</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendEvolucaoAprov" aria-label="Evolução mensal aprovados"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel gc-chart-panel--vend-evo">
+                                <h4 class="gc-chart-title">Evolução mensal — rejeitados</h4>
+                                <p class="gc-chart-sub" id="gcVendEvolucaoRejSub">Pedidos rejeitados em gestão por mês e por consultora, <strong>ano 2026</strong> (fixo).</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="gcChartVendEvolucaoRej" aria-label="Evolução mensal rejeitados"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-table"></i></span> Produtividade por consultora</h3>
+                        <p class="gc-note gc-note--tight">Detalhamento linha a linha para auditoria e coaching. <strong>Ticket médio</strong> = receita aprovada ÷ pedidos distintos pelo <strong>número do pedido</strong> (várias séries do mesmo número contam como 1 pedido).</p>
+                        <div class="gc-table-wrap">
+                            <table class="gc-table gc-table--prod" id="gcVendEquipeTable">
+                                <caption class="gc-sr-only">Desempenho individual no período: receita, pedidos e conversão. Use os cabeçalhos para ordenar.</caption>
+                                <thead>
+                                    <tr>
+                                        <th scope="col" data-sort="atendente"><button type="button" class="gc-th-sort">Consultora</button></th>
+                                        <th scope="col" data-sort="receita"><button type="button" class="gc-th-sort">Receita</button></th>
+                                        <th scope="col" data-sort="ticket"><button type="button" class="gc-th-sort">Ticket médio</button></th>
+                                        <th scope="col" data-sort="meta_mensal"><button type="button" class="gc-th-sort">Meta (mensal)</button></th>
+                                        <th scope="col" data-sort="falta_meta"><button type="button" class="gc-th-sort">Falta p/ meta</button></th>
+                                        <th scope="col" data-sort="previsao"><button type="button" class="gc-th-sort">Previsão ganho</button></th>
+                                        <th scope="col" data-sort="aprovados"><button type="button" class="gc-th-sort">Aprovados</button></th>
+                                        <th scope="col" data-sort="rejeitados"><button type="button" class="gc-th-sort">Rejeitados</button></th>
+                                        <th scope="col" data-sort="conversao"><button type="button" class="gc-th-sort">Conversão</button></th>
+                                        <th scope="col" data-sort="tempo"><button type="button" class="gc-th-sort">Tempo (orç. → aprov.)</button></th>
+                                        <th scope="col" data-sort="clientes"><button type="button" class="gc-th-sort">Clientes</button></th>
+                                        <th scope="col" data-sort="perda"><button type="button" class="gc-th-sort">Taxa de Perda</button></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcVendEquipeTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-calendar-week"></i></span> Relatório semanal</h3>
+                        <p class="gc-note gc-note--tight">Meta individual, vendas por semana (1 a 4), total vendido, atingimento e comissão estimada.</p>
+                        <div class="gc-table-wrap">
+                            <table class="gc-table gc-table--prod" id="gcRelSemanalTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" data-sort="consultora"><button type="button" class="gc-th-sort">Consultora</button></th>
+                                        <th scope="col" data-sort="meta"><button type="button" class="gc-th-sort">Meta (mensal)</button></th>
+                                        <th scope="col" data-sort="s1"><button type="button" class="gc-th-sort">Semana 1</button></th>
+                                        <th scope="col" data-sort="s2"><button type="button" class="gc-th-sort">Semana 2</button></th>
+                                        <th scope="col" data-sort="s3"><button type="button" class="gc-th-sort">Semana 3</button></th>
+                                        <th scope="col" data-sort="s4"><button type="button" class="gc-th-sort">Semana 4</button></th>
+                                        <th scope="col" data-sort="total_vendido"><button type="button" class="gc-th-sort">Receita</button></th>
+                                        <th scope="col" data-sort="pct"><button type="button" class="gc-th-sort">% Atingido</button></th>
+                                        <th scope="col" data-sort="falta"><button type="button" class="gc-th-sort">Falta p/ meta</button></th>
+                                        <th scope="col" data-sort="bonus"><button type="button" class="gc-th-sort">Bônus (R$)</button></th>
+                                        <th scope="col" data-sort="comissao"><button type="button" class="gc-th-sort">Comissão (R$)</button></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcRelSemanalTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-calendar-alt"></i></span> Relatório mensal</h3>
+                        <p class="gc-note gc-note--tight">Desempenho por consultora com score final e status calculados pelo sistema. <strong>Conversão</strong> = pedidos ÷ (orçamentos + pedidos + rejeitados), em % — a coluna <strong>Rejeitados</strong> soma linhas no carrinho e recusadas. A coluna <strong>Erros</strong> é a quantidade de registros no período (controle manual + perdas). <strong>Pts Erros</strong> segue a tabela por total de erros: 0→20, 1→18, 2→15, 3→12, 4 ou mais→5.</p>
+                        <div class="gc-table-wrap">
+                            <table class="gc-table gc-table--prod" id="gcRelMensalTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Vendedora</th>
+                                        <th scope="col">Meta</th>
+                                        <th scope="col">Venda mês</th>
+                                        <th scope="col">% Meta</th>
+                                        <th scope="col">Orçamentos</th>
+                                        <th scope="col">Pedidos</th>
+                                        <th scope="col">Conversão</th>
+                                        <th scope="col">Rejeitados</th>
+                                        <th scope="col">Erros</th>
+                                        <th scope="col">CRM</th>
+                                        <th scope="col">Pts Fat.</th>
+                                        <th scope="col">Pts Conv.</th>
+                                        <th scope="col">Pts Erros</th>
+                                        <th scope="col">Total</th>
+                                        <th scope="col">Score</th>
+                                        <th scope="col">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcRelMensalTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="gc-block gc-comissao-block">
+                        <div class="gc-comissao-head">
+                            <h3 class="gc-block-title gc-comissao-head__title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-sack-dollar"></i></span> Regras de comissão</h3>
+                            <div class="gc-comissao-head__actions">
+                                <span class="gc-comissao-mode-pill" id="gcComissaoModoLabel" aria-live="polite">Visualização</span>
+                                <button type="button" class="gc-comissao-btn gc-comissao-btn--outline" id="gcComissaoRegrasEditarBtn" aria-pressed="false">
+                                    <i class="fas fa-pen-to-square" aria-hidden="true"></i> Editar
+                                </button>
+                            </div>
+                        </div>
+                        <p class="gc-note gc-note--tight gc-comissao-lead">Use <strong>Editar</strong> para alterar faixas. <strong>Salvar</strong> grava no mês indicado. Os <strong>cálculos</strong> do relatório e % da equipe seguem o mês da data <strong>Até</strong> do filtro; o seletor de mês/ano serve para carregar ou gravar outro mês civil.</p>
+                        <div class="gc-comissao-hint" id="gcComissaoRegrasRefText" aria-live="polite"></div>
+                        <div class="gc-comissao-toolbar">
+                            <div class="gc-comissao-toolbar__period">
+                                <span class="gc-comissao-toolbar__label">Regras do mês</span>
+                                <select id="gcComissaoRegrasMes" class="gc-comissao-select" aria-label="Mês das regras"></select>
+                                <select id="gcComissaoRegrasAno" class="gc-comissao-select gc-comissao-select--ano" aria-label="Ano das regras"></select>
+                            </div>
+                            <div class="gc-comissao-toolbar__actions">
+                                <button type="button" class="gc-comissao-btn gc-comissao-btn--secondary" id="gcComissaoRegrasCarregarBtn">Carregar</button>
+                                <button type="button" class="gc-comissao-btn gc-comissao-btn--primary" id="gcComissaoRegrasSalvarBtn" disabled>Salvar</button>
+                                <span class="gc-comissao-save-msg" id="gcComissaoRegrasSalvarMsg" aria-live="polite"></span>
+                            </div>
+                        </div>
+                        <div id="gcComissaoRegrasTablesWrap" class="gc-comissao-tables" data-edit-mode="false">
+                            <div class="gc-comissao-grid">
+                                <div class="gc-comissao-subcard gc-comissao-subcard--ind">
+                                    <h4 class="gc-comissao-subcard__title"><span class="gc-comissao-subcard__accent gc-comissao-subcard__accent--ind"></span> Comissão individual</h4>
+                                    <p class="gc-comissao-subcard__desc">Faixas por % da meta e comissão aplicável.</p>
+                                    <div class="gc-table-wrap gc-comissao-table-wrap">
+                                        <table class="gc-table gc-table--prod gc-rel-comissao-table gc-comissao-table" id="gcRelComissaoIndTable">
+                                            <thead class="gc-comissao-thead">
+                                                <tr>
+                                                    <th scope="col">% Meta (texto)</th>
+                                                    <th scope="col">Faixa (texto)</th>
+                                                    <th scope="col" class="gc-num">Meta mín %</th>
+                                                    <th scope="col" class="gc-num">Meta máx %</th>
+                                                    <th scope="col" class="gc-num">Comissão %</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="gcRelComissaoIndTbody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="gc-comissao-col-stack">
+                                    <div class="gc-comissao-subcard gc-comissao-subcard--grupo">
+                                        <h4 class="gc-comissao-subcard__title"><span class="gc-comissao-subcard__accent gc-comissao-subcard__accent--grupo"></span> Meta da equipe (grupo)</h4>
+                                        <p class="gc-comissao-subcard__desc">Receita aprovada da equipe no período.</p>
+                                        <div class="gc-table-wrap gc-comissao-table-wrap">
+                                            <table class="gc-table gc-table--prod gc-rel-comissao-table gc-comissao-table" id="gcRelComissaoGrupoTable">
+                                                <thead class="gc-comissao-thead">
+                                                    <tr>
+                                                        <th scope="col">Meta grupo (texto)</th>
+                                                        <th scope="col" class="gc-num">Rev min R$</th>
+                                                        <th scope="col" class="gc-num">Rev máx R$</th>
+                                                        <th scope="col" class="gc-num">%</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="gcRelComissaoGrupoTbody"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div class="gc-comissao-subcard gc-comissao-subcard--bonus">
+                                        <h4 class="gc-comissao-subcard__title"><span class="gc-comissao-subcard__accent gc-comissao-subcard__accent--bonus"></span> Bônus por meta e score</h4>
+                                        <p class="gc-comissao-subcard__desc">Primeira regra que atender aplica o prêmio.</p>
+                                        <div class="gc-table-wrap gc-comissao-table-wrap">
+                                            <table class="gc-table gc-table--prod gc-rel-comissao-table gc-comissao-table" id="gcRelComissaoPremioTable">
+                                                <thead class="gc-comissao-thead">
+                                                    <tr>
+                                                        <th scope="col">Regra de bônus</th>
+                                                        <th scope="col" class="gc-num">Prêmio R$</th>
+                                                        <th scope="col">% meta</th>
+                                                        <th scope="col" class="gc-num">Valor</th>
+                                                        <th scope="col">Score</th>
+                                                        <th scope="col" class="gc-num">Valor</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="gcRelComissaoPremioTbody"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="gc-section" id="gc-section-relatorios" role="tabpanel" aria-labelledby="gc-tab-relatorios" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Relatórios comerciais</p>
+                        <p class="gc-tab-head__desc">Relatório de <strong>Pedidos</strong> no mesmo formato da página do visitador (aprovados, recusados e no carrinho), com agrupamento por número, séries expansíveis e impressão.</p>
+                    </header>
+
+                    <div class="gc-block">
+                        <div class="gc-pedidos-vd">
+                            <div class="gc-pedidos-vd-filters">
+                                <div class="gc-pedidos-vd-filters-row gc-pedidos-vd-filters-row--main">
+                                    <label for="gcPedidosRelFiltroStatus">Status
+                                        <select id="gcPedidosRelFiltroStatus" class="gc-pedidos-vd-select-status">
+                                            <option value="" selected>Todos</option>
+                                            <option value="Aprovado">Aprovado</option>
+                                            <option value="Recusado">Recusado</option>
+                                            <option value="No carrinho">No carrinho</option>
+                                        </select>
+                                    </label>
+                                    <label>Visitador (carteira)
+                                        <select id="gcPedidosRelVisitador" aria-label="Filtrar por visitador da carteira">
+                                            <option value="">Todos</option>
+                                        </select>
+                                    </label>
+                                    <label>Prescritor
+                                        <select id="gcPedidosRelPrescritor" aria-label="Filtrar por prescritor">
+                                            <option value="">Todos</option>
+                                        </select>
+                                    </label>
+                                    <label>Vendedor
+                                        <select id="gcPedidosRelVendedor" aria-label="Filtrar por vendedor (atendente)">
+                                            <option value="">Todos</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div class="gc-pedidos-vd-filters-row gc-pedidos-vd-filters-row--tools">
+                                    <div class="gc-pedidos-vd-search-wrap">
+                                        <i class="fas fa-search gc-pedidos-vd-search-icon" aria-hidden="true"></i>
+                                        <input type="text" id="gcPedidosRelSearch" placeholder="Buscar por prescritor, cliente ou número..." autocomplete="off" aria-label="Buscar pedidos">
+                                    </div>
+                                    <button type="button" class="gc-filter-btn" id="gcPedidosRelBuscarListaBtn">
+                                        <i class="fas fa-rotate-right" aria-hidden="true"></i> Buscar lista
+                                    </button>
+                                    <button type="button" class="gc-filter-btn gc-filter-btn--secondary" id="gcPedidosRelPrintBtn">
+                                        <i class="fas fa-print" aria-hidden="true"></i> Imprimir
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="gc-pedidos-vd-cards" id="gcPedidosRelCards">
+                                <div class="gc-pedidos-vd-card gc-pedidos-vd-card--accent-success">
+                                    <div class="gc-pedidos-vd-card-label">Valor aprovado</div>
+                                    <div class="gc-pedidos-vd-card-value" id="gcPedidosRelCardValorAprov">R$ 0,00</div>
+                                </div>
+                                <div class="gc-pedidos-vd-card gc-pedidos-vd-card--accent-danger" title="Recusados + No carrinho">
+                                    <div class="gc-pedidos-vd-card-label">Valor recusados</div>
+                                    <div class="gc-pedidos-vd-card-value" id="gcPedidosRelCardValorReprov">R$ 0,00</div>
+                                </div>
+                                <div class="gc-pedidos-vd-card gc-pedidos-vd-card--accent-success">
+                                    <div class="gc-pedidos-vd-card-label">Pedidos aprovados</div>
+                                    <div class="gc-pedidos-vd-card-value" id="gcPedidosRelCardQtd">0 pedidos</div>
+                                </div>
+                                <div class="gc-pedidos-vd-card gc-pedidos-vd-card--accent-danger">
+                                    <div class="gc-pedidos-vd-card-label">Pedidos recusados</div>
+                                    <div class="gc-pedidos-vd-card-value" id="gcPedidosRelCardQtdRecusados">0 pedidos</div>
+                                </div>
+                            </div>
+                            <p class="gc-api-inline-msg" id="gcPedidosRelMsg" hidden></p>
+
+                            <div class="gc-pedidos-vd-table-card">
+                                <div class="gc-pedidos-vd-table-scroll">
+                                    <table class="gc-pedidos-vd-table" id="gcPedidosRelTable">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="numero_pedido" title="Ordenar">Nº Pedido <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="serie_pedido" title="Ordenar">Série <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="data_aprovacao" title="Ordenar">Data aprovação <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="data_orcamento" title="Ordenar">Data orçamento <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="prescritor" title="Ordenar">Prescritor <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="cliente" title="Ordenar">Cliente <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort gc-pedidos-vd-th-num" data-sort-col="valor" title="Ordenar">Valor <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                                <th scope="col" class="gc-pedidos-vd-th-sort" data-sort-col="tipo" title="Ordenar">Status <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="gcPedidosRelTbody"></tbody>
+                                    </table>
+                                </div>
+                                <div class="gc-pedidos-vd-pagination" id="gcPedidosRelPagination" aria-live="polite"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="gc-section gc-ct-surface" id="gc-section-comissoes" role="tabpanel" aria-labelledby="gc-tab-comissoes" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Gerenciamento de comissões</p>
+                        <p class="gc-tab-head__desc">Solicitações de <strong>transferência de comissão</strong> entre consultoras (ex.: aprovação indevida). Ao <strong>aprovar</strong>, o valor do pedido é <strong>debitado da origem</strong> e <strong>creditado ao destino</strong> no cálculo de comissão.</p>
+                    </header>
+                    <div class="gc-block gc-ct-block">
+                        <div class="gc-ct-toolbar">
+                            <div class="gc-ct-toolbar__intro">
+                                <h3 class="gc-ct-toolbar__title"><i class="fas fa-right-left" aria-hidden="true"></i> Transferências entre consultoras</h3>
+                                <p class="gc-ct-toolbar__hint">Filtre por status e use <strong>Atualizar</strong> para recarregar a fila.</p>
+                            </div>
+                            <div class="gc-ct-toolbar__controls">
+                                <label class="gc-ct-label">Status
+                                    <select id="gcComissaoTransferFiltroStatus" class="gc-filter-select gc-ct-select" aria-label="Filtrar por status">
+                                        <option value="todas">Todas</option>
+                                        <option value="pendente" selected>Pendentes</option>
+                                        <option value="aprovada">Aprovadas</option>
+                                        <option value="recusada">Recusadas</option>
+                                        <option value="cancelada">Canceladas (pela consultora)</option>
+                                    </select>
+                                </label>
+                                <button type="button" class="gc-filter-btn gc-ct-btn-refresh" id="gcComissaoTransferAtualizarBtn">
+                                    <i class="fas fa-rotate-right" aria-hidden="true"></i> Atualizar
+                                </button>
+                            </div>
+                        </div>
+                        <p class="gc-ct-msg" id="gcComissaoTransferMsg" role="status" aria-live="polite" hidden></p>
+                        <div class="gc-table-wrap gc-comissao-transfer-wrap">
+                            <table class="gc-table gc-table--prod gc-ct-table" id="gcComissaoTransferTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" class="gc-ct-th-id">ID</th>
+                                        <th scope="col">Destino (recebe)</th>
+                                        <th scope="col">Origem (débito)</th>
+                                        <th scope="col" class="gc-ct-th-num">Valor</th>
+                                        <th scope="col" class="gc-ct-th-ref">Ref.</th>
+                                        <th scope="col" class="gc-ct-th-num">Nº pedido</th>
+                                        <th scope="col" class="gc-ct-th-num">Série</th>
+                                        <th scope="col">Motivo</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col" class="gc-ct-th-date">Data</th>
+                                        <th scope="col" class="gc-ct-th-acoes">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcComissaoTransferTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Modal: detalhe de transferência de comissão -->
+                <div class="gc-ct-modal-backdrop" id="gcCtModalBackdrop" aria-hidden="true">
+                    <div class="gc-ct-modal" role="dialog" aria-modal="true" aria-labelledby="gcCtModalTitle">
+                        <div class="gc-ct-modal__header">
+                            <h3 class="gc-ct-modal__title" id="gcCtModalTitle"><i class="fas fa-right-left"></i> Solicitação de transferência</h3>
+                            <button type="button" class="gc-ct-modal__close" id="gcCtModalClose" aria-label="Fechar">&times;</button>
+                        </div>
+                        <div class="gc-ct-modal__body" id="gcCtModalBody"></div>
+                        <div class="gc-ct-modal__footer" id="gcCtModalFooter"></div>
+                    </div>
+                </div>
+
+                <section class="gc-section gc-ct-surface" id="gc-section-revenda" role="tabpanel" aria-labelledby="gc-tab-revenda" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Revenda</p>
+                        <p class="gc-tab-head__desc">As consultoras lançam <strong>revendas</strong> pelo portal do vendedor (fora dos pedidos importados). Aqui a gestão <strong>aprova ou recusa</strong>, como nas transferências de comissão. Ao aprovar, o valor entra na <strong>receita da consultora</strong> no período do filtro global, somando à meta e à comissão estimada.</p>
+                    </header>
+                    <div class="gc-block gc-ct-block">
+                        <div class="gc-ct-toolbar">
+                            <div class="gc-ct-toolbar__intro">
+                                <h3 class="gc-ct-toolbar__title"><i class="fas fa-store" aria-hidden="true"></i> Revendas aguardando aprovação</h3>
+                            </div>
+                            <div class="gc-ct-toolbar__controls">
+                                <label class="gc-ct-label">Status
+                                    <select id="gcRevendaFiltroStatus" class="gc-filter-select gc-ct-select" aria-label="Filtrar revendas por status">
+                                        <option value="pendente" selected>Pendentes</option>
+                                        <option value="aprovada">Aprovadas</option>
+                                        <option value="recusada">Recusadas</option>
+                                        <option value="cancelada">Canceladas</option>
+                                        <option value="todas">Todas</option>
+                                    </select>
+                                </label>
+                                <button type="button" class="gc-filter-btn gc-ct-btn-refresh" id="gcRevendaFilaAtualizarBtn">
+                                    <i class="fas fa-rotate-right" aria-hidden="true"></i> Atualizar
+                                </button>
+                            </div>
+                        </div>
+                        <p class="gc-ct-msg" id="gcRevendaMsg" role="status" aria-live="polite" hidden></p>
+                        <div class="gc-table-wrap gc-comissao-transfer-wrap">
+                            <table class="gc-table gc-table--prod gc-ct-table" id="gcRevendaTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" class="gc-ct-th-id">ID</th>
+                                        <th scope="col">Consultora</th>
+                                        <th scope="col" class="gc-ct-th-date">Data venda</th>
+                                        <th scope="col" class="gc-ct-th-id">Nº Pedido</th>
+                                        <th scope="col" class="gc-ct-th-id">Série</th>
+                                        <th scope="col">Produto</th>
+                                        <th scope="col" class="gc-ct-th-num">Valor</th>
+                                        <th scope="col">Observações</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col" class="gc-ct-th-date">Lançado em</th>
+                                        <th scope="col" class="gc-ct-th-acoes">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcRevendaTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="gc-section" id="gc-section-erros" role="tabpanel" aria-labelledby="gc-tab-erros" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Controle de erros</p>
+                        <p class="gc-tab-head__desc">Lançamento manual de erros por consultora, com pontuação e histórico salvo em banco para auditoria e cálculo de score.</p>
+                    </header>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-pen-to-square"></i></span> Novo lançamento</h3>
+                        <div class="gc-filter-panel gc-erro-panel">
+                            <div class="gc-filters-row gc-erro-form-grid">
+                                <label>Consultora
+                                    <select id="gcErroVendedor"></select>
+                                </label>
+                                <label>Data do erro
+                                    <input type="date" id="gcErroData">
+                                </label>
+                                <label>Classificação
+                                    <select id="gcErroClassificacao">
+                                        <option value="leve">Leve</option>
+                                        <option value="medio">Médio</option>
+                                        <option value="grave">Grave</option>
+                                    </select>
+                                </label>
+                                <label>Pedido (opcional)
+                                    <input type="text" id="gcErroPedidoRef" placeholder="Ex.: 12345/2026">
+                                </label>
+                                <label>Tipo do erro
+                                    <select id="gcErroTipo">
+                                        <option value="">Selecione o tipo do erro</option>
+                                    </select>
+                                    <input type="text" id="gcErroTipoOutro" class="gc-erro-tipo-outro" maxlength="120" placeholder="Especifique o novo tipo" style="display:none;" autocomplete="off" aria-label="Especificar outro tipo de erro">
+                                </label>
+                            </div>
+                            <div class="gc-filters-row gc-erro-form-actions">
+                                <label class="gc-erro-desc-label">Descrição
+                                    <textarea id="gcErroDescricao" rows="3" placeholder="Descreva o erro e o contexto."></textarea>
+                                </label>
+                                <button type="button" class="gc-filter-btn" id="gcErroSalvarBtn">
+                                    <i class="fas fa-save" aria-hidden="true"></i> Salvar erro
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-list-check"></i></span> Histórico de erros</h3>
+                        <div class="gc-quick-kpis gc-erro-resumo-kpis" role="list" aria-label="Resumo de erros no período">
+                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Total de erros</span><strong id="gcErroResumoTotal">—</strong></div>
+                            <div class="gc-quick-kpi" role="listitem"><span class="gc-quick-kpi__label">Pontos descontados</span><strong id="gcErroResumoPontos">—</strong></div>
+                        </div>
+                        <div class="gc-filters-row gc-stack-16 gc-erro-filtros">
+                            <label>Filtrar consultora
+                                <select id="gcErroFiltroVendedor">
+                                    <option value="">Todas</option>
+                                </select>
+                            </label>
+                            <label>Buscar
+                                <input type="text" id="gcErroFiltroBusca" placeholder="Tipo, descrição ou pedido">
+                            </label>
+                            <button type="button" id="gcErroAtualizarBtn" class="gc-filter-btn">
+                                <i class="fas fa-rotate-right" aria-hidden="true"></i> Atualizar lista
+                            </button>
+                        </div>
+                        <div class="gc-table-wrap">
+                            <table class="gc-table gc-table--prod" id="gcErrosTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Data</th>
+                                        <th scope="col">Consultora</th>
+                                        <th scope="col">Tipo</th>
+                                        <th scope="col">Classificação</th>
+                                        <th scope="col">Pontos</th>
+                                        <th scope="col">Pedido</th>
+                                        <th scope="col">Descrição</th>
+                                        <th scope="col">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gcErrosTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+    <!-- Modal detalhe do pedido (paridade visitador — api.php) -->
+    <div id="gcModalDetalhePedido" class="gc-modal-det-ped" aria-hidden="true">
+        <div class="gc-modal-det-ped__backdrop" onclick="gcCloseModalDetalhePedidoGc()" aria-hidden="true"></div>
+        <div class="gc-modal-det-ped__card" role="dialog" aria-modal="true" aria-labelledby="gcModalDetalhePedidoTitle">
+            <div class="gc-modal-det-ped__head">
+                <h3 id="gcModalDetalhePedidoTitle" class="gc-modal-det-ped__title"><i class="fas fa-file-invoice" aria-hidden="true"></i> Detalhe do pedido</h3>
+                <button type="button" class="gc-modal-det-ped__close" onclick="gcCloseModalDetalhePedidoGc()" aria-label="Fechar">&times;</button>
+            </div>
+            <div class="gc-modal-det-ped__body">
+                <div id="gcModalDetalhePedidoLoading" class="gc-modal-det-ped__loading"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Carregando…</div>
+                <div id="gcModalDetalhePedidoError" class="gc-modal-det-ped__err" style="display:none;"></div>
+                <div id="gcModalDetalhePedidoContent" style="display:none;">
+                    <div class="gc-modal-det-ped__fields-wrap">
+                        <div id="gcModalDetalhePedidoFields" class="gc-modal-det-ped__fields"></div>
+                    </div>
+                    <div id="gcModalDetalhePedidoItensGestaoWrap" class="gc-modal-det-ped__tbl-wrap" style="display:none;">
+                        <div class="gc-modal-det-ped__sec-title">Itens (Gestão de pedidos)</div>
+                        <div class="gc-modal-det-ped__scroll">
+                            <table class="gc-modal-det-ped__tbl">
+                                <thead><tr><th>#</th><th>Produto</th><th>Forma</th><th class="gc-num">Qtd</th><th class="gc-num">Preço liq.</th></tr></thead>
+                                <tbody id="gcModalDetalhePedidoItensGestao"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="gcModalDetalhePedidoItensOrcamentoWrap" class="gc-modal-det-ped__tbl-wrap" style="display:none;">
+                        <div class="gc-modal-det-ped__sec-title">Itens (Orçamento)</div>
+                        <div class="gc-modal-det-ped__scroll">
+                            <table class="gc-modal-det-ped__tbl">
+                                <thead><tr><th>#</th><th>Descrição</th><th>Canal</th><th class="gc-num">Qtd</th><th class="gc-num">Valor liq.</th><th>Inclusão</th><th>Aprovador</th></tr></thead>
+                                <tbody id="gcModalDetalhePedidoItensOrcamento"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="gc-modal-det-ped__tbl-wrap">
+                        <div class="gc-modal-det-ped__sec-title">Componentes</div>
+                        <div class="gc-modal-det-ped__scroll">
+                            <table class="gc-modal-det-ped__tbl">
+                                <thead><tr><th>#</th><th>Descrição</th><th class="gc-num">Qtd calc.</th></tr></thead>
+                                <tbody id="gcModalDetalhePedidoComponentes"></tbody>
+                            </table>
+                        </div>
+                        <p id="gcModalDetalhePedidoComponentesEmpty" class="gc-modal-det-ped__empty" style="display:none;">Nenhum componente disponível.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="gc-modal-det-ped__foot">
+                <button type="button" class="gc-filter-btn gc-filter-btn--secondary" onclick="gcCloseModalDetalhePedidoGc()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="gcLoadingOverlay" class="gc-loading-overlay" aria-hidden="true">
+        <div class="gc-loading-overlay-content" role="status" aria-live="polite" aria-atomic="true">
+            <span class="gc-loading-spinner" aria-hidden="true"></span>
+            <span class="gc-loading-text">Carregando indicadores…</span>
+        </div>
+    </div>
+
+    <script defer src="js/ui-feedback.js"></script>
+    <script defer src="js/gestao-comercial.js?v=20260412-revver"></script>
+</body>
+</html>

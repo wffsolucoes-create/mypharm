@@ -1,0 +1,51 @@
+# Credenciais e configuração local
+.env
+
+# Dados de clientes (CSVs pesados)
+Dados/
+
+# Sistema operacional
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# IDEs e editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cursor
+.cursor/
+
+# Claude Code (permissões locais)
+.claude/
+
+# Cookies / sessão de teste local
+.tmp_cookie.txt
+
+# Estado local / migração / patches temporários
+.migrated_usuario_id
+fix_dashboard_patch.php
+fix_*.patch
+
+# Logs de debug
+debug*.log
+api_debug.log
+api_output.json
+api_output_mes3.json
+
+# Dependências Node
+node_modules/
+
+# Cache file-based da TV (JSON gerado em runtime)
+storage_tv_cache/*.json
+tv/api/cache/*.json
+
+# TV — estado de produção (não versionar: deploy sobrescrevia premiações/imagens)
+tv/uploads/premiacao/*
+!tv/uploads/premiacao/.gitkeep
+!tv/uploads/premiacao/config.json.example
+
+# Sons legados em assets/sounds (opcional; evita voltar ficheiros apagados no servidor)
+assets/sounds/*.mp3

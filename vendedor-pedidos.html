@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#E63946">
+    <title>Pedidos | MyPharm</title>
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/visitador-inline.css">
+    <link rel="stylesheet" href="css/visitador.css">
+    <link rel="stylesheet" href="css/vendedor.css?v=20260326cards11">
+    <style>
+        body { visibility: hidden; }
+        #vdLoadingOverlay {
+            position: fixed; inset: 0; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: var(--bg-primary, #1a1d24);
+            gap: 1rem;
+        }
+        #vdLoadingOverlay .vd-spinner {
+            width: 48px; height: 48px;
+            border: 4px solid var(--border-color, rgba(255,255,255,0.15));
+            border-top-color: var(--primary, #E63946);
+            border-radius: 50%;
+            animation: vdSpin 0.9s linear infinite;
+        }
+        #vdLoadingOverlay .vd-loading-text {
+            color: var(--text-secondary, rgba(255,255,255,0.7));
+            font-size: 0.9rem;
+        }
+        @keyframes vdSpin { to { transform: rotate(360deg); } }
+
+        /* ── Pedidos page — identical to gestão comercial ── */
+        .vdped-wrap { margin-top: 0; }
+
+        .vdped-page-header { margin-bottom: 20px; }
+        .vdped-page-header__inner { display: flex; align-items: flex-start; gap: 14px; }
+        .vdped-icon {
+            width: 48px; height: 48px; border-radius: 12px;
+            background: rgba(220,38,38,0.12); color: #dc2626;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.25rem; flex-shrink: 0;
+        }
+        .vdped-title { margin: 0 0 6px 0; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text-primary); }
+        .vdped-sub { margin: 0; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.45; max-width: 720px; }
+
+        .vdped-filters {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+            padding: 16px 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 20px;
+        }
+        .vdped-filters-row {
+            display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; margin-bottom: 12px;
+        }
+        .vdped-filters-row:last-child { margin-bottom: 0; }
+        .vdped-filters-row label {
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+            color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px; min-width: 0;
+        }
+        .vdped-filters-row input[type="date"],
+        .vdped-filters-row select {
+            padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+            background: var(--bg-input, var(--bg-body)); color: var(--text-primary);
+            font-size: 0.9rem; font-family: inherit;
+        }
+        .vdped-search-wrap { position: relative; flex: 1 1 300px; min-width: 240px; }
+        .vdped-search-wrap input {
+            width: 100%; box-sizing: border-box; padding: 10px 14px 10px 40px;
+            border: 1px solid var(--border); border-radius: 8px;
+            background: var(--bg-input, var(--bg-body)); color: var(--text-primary); font-size: 0.9rem;
+        }
+        .vdped-search-icon {
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+            color: var(--text-secondary); font-size: 0.85rem; pointer-events: none;
+        }
+
+        .vdped-cards {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px; margin-bottom: 20px;
+        }
+        .vdped-card {
+            border: 1px solid var(--border); border-radius: 12px; padding: 18px;
+            background: var(--bg-card); box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            position: relative; overflow: hidden;
+        }
+        .vdped-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, #2563eb, #1d4ed8);
+        }
+        .vdped-card--success::before { background: linear-gradient(90deg, #059669, #047857); }
+        .vdped-card-label {
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 10px;
+        }
+        .vdped-card-value { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); word-break: break-word; }
+
+        .vdped-table-card {
+            border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column;
+        }
+        .vdped-table-scroll { overflow-x: auto; overflow-y: auto; flex: 1; min-height: 400px; }
+        .vdped-table { width: 100%; border-collapse: collapse; min-width: 860px; font-size: 0.87rem; }
+        .vdped-table thead th {
+            position: sticky; top: 0; z-index: 1;
+            background: var(--bg-body); border-bottom: 2px solid var(--border);
+            padding: 14px 16px; text-align: left;
+            font-size: 0.71rem; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.04em; color: var(--text-secondary); white-space: nowrap;
+            cursor: pointer; user-select: none;
+        }
+        .vdped-table thead th i { opacity: 0.35; margin-left: 4px; font-size: 0.8rem; }
+        .vdped-table thead th.th-num { text-align: right; }
+        .vdped-table tbody td {
+            padding: 12px 16px; border-bottom: 1px solid var(--border);
+            vertical-align: middle; color: var(--text-primary);
+        }
+        .vdped-table tbody tr[role="button"]:hover { background: rgba(37,99,235,0.05) !important; }
+        .vdped-table tbody tr[role="button"]:focus { outline: 2px solid var(--primary,#E63946); outline-offset:-2px; }
+
+        .vdped-pagination {
+            display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+            gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border);
+            font-size: 0.86rem; color: var(--text-secondary);
+        }
+        .vdped-pag-btns { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .vdped-pag-btns button {
+            min-width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--bg-body); color: var(--text-primary); cursor: pointer; font-size: 0.85rem;
+        }
+        .vdped-pag-btns button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* modal — reusa gc-modal-det-ped do gestao-comercial.css */
+    </style>
+</head>
+<body>
+    <script>!(function(){if(!localStorage.getItem('loggedIn')){window.location.replace('index.html');return;}document.body.style.visibility='visible';})();</script>
+    <div id="vdLoadingOverlay" role="status" aria-live="polite" aria-label="Carregando">
+        <div class="vd-spinner"></div>
+        <span class="vd-loading-text">Carregando...</span>
+    </div>
+    <div id="vdApp" style="display:none;">
+        <header>
+            <div class="brand">
+                <div class="logo-container">
+                    <img src="imagens/logoMypharm.png?v=20260402" alt="MyPharm">
+                </div>
+                <div class="brand-text-col">
+                    <span class="brand-title">Portal Alta Performance</span>
+                    <span class="brand-subtitle">Vendas & Conversão</span>
+                </div>
+            </div>
+            <nav class="visitador-nav" aria-label="Menu principal">
+                <a href="vendedor.html" class="visitador-nav-link">
+                    <i class="fas fa-chart-line"></i><span class="d-none-mobile">Gestão Geral</span>
+                </a>
+                <a href="vendedor-pedidos.html" class="visitador-nav-link active">
+                    <i class="fas fa-list-alt"></i><span class="d-none-mobile">Pedidos</span>
+                </a>
+                <a href="vendedor-revenda.html" class="visitador-nav-link">
+                    <i class="fas fa-store"></i><span class="d-none-mobile">Revenda</span>
+                </a>
+                <a href="vendedor-comissao-transferencias.html" class="visitador-nav-link">
+                    <i class="fas fa-hand-holding-usd"></i><span class="d-none-mobile">Comissão</span>
+                </a>
+            </nav>
+            <div class="user-menu">
+                <div class="theme-toggle" id="vdThemeBtn" title="Alternar tema">
+                    <div class="theme-toggle-knob">
+                        <i class="fas fa-sun icon-sun"></i>
+                        <i class="fas fa-moon icon-moon"></i>
+                    </div>
+                </div>
+                <div class="notifications-wrap">
+                    <button type="button" class="btn-notifications" id="btnNotifications" onclick="toggleNotificationsPanel(event)" title="Mensagens e notificações" aria-label="Notificações">
+                        <span class="btn-notifications-icon" aria-hidden="true"><i class="fas fa-bell"></i></span>
+                        <span class="notifications-badge" id="notificationsBadge" style="display:none;">0</span>
+                    </button>
+                    <div class="notifications-backdrop" id="notificationsBackdrop" onclick="closeNotificationsPanel()" aria-hidden="true"></div>
+                    <div class="notifications-panel" id="notificationsPanel">
+                        <div class="notifications-panel-header">
+                            <span><i class="fas fa-bell"></i> Mensagens e alertas</span>
+                            <button type="button" class="notifications-panel-close" onclick="closeNotificationsPanel()" aria-label="Fechar">&times;</button>
+                        </div>
+                        <div class="notifications-body">
+                            <div class="notifications-list" id="notificationsListAll">
+                                <div class="notifications-empty" id="notificationsEmptyAll">
+                                    <i class="fas fa-inbox"></i>
+                                    <p>Nenhuma mensagem no momento.</p>
+                                </div>
+                            </div>
+                            <div class="notifications-send-wrap">
+                                <label class="notifications-send-label">Enviar mensagem para usuário</label>
+                                <select id="notifParaUsuarioSelect" class="notifications-send-select"></select>
+                                <textarea id="notifMensagemUsuarioInput" class="notifications-send-textarea" placeholder="Sua mensagem..." rows="3"></textarea>
+                                <button type="button" id="btnEnviarMsgUsuario" class="notifications-send-btn" onclick="enviarMensagemUsuarioUI()"><i class="fas fa-paper-plane"></i> Enviar para usuário</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="user-profile">
+                    <div class="avatar-wrap" id="avatarWrap" title="Clique para alterar foto de perfil">
+                        <div class="avatar" id="vdAvatar">V</div>
+                        <img class="avatar-img" id="userAvatarImg" src="" alt="" style="display:none;">
+                        <input type="file" id="inputFotoPerfil" accept="image/*" style="display:none;">
+                    </div>
+                    <div class="d-none-mobile" style="cursor:pointer;" onclick="openMeuPerfilModal()">
+                        <div id="vdUserName" style="font-weight:600; font-size:0.95rem;">Vendedor</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Meu Painel</div>
+                    </div>
+                </div>
+                <button class="btn-logout" id="vdLogoutBtn">
+                    <i class="fas fa-sign-out-alt"></i> <span class="d-none-mobile">Sair</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="dashboard-container">
+            <div class="welcome-section" style="display:block;">
+
+                <div class="vdped-page-header">
+                    <div class="vdped-page-header__inner">
+                        <div class="vdped-icon"><i class="fas fa-list-alt"></i></div>
+                        <div>
+                            <h1 class="vdped-title">Pedidos do Vendedor</h1>
+                            <p class="vdped-sub">Acompanhe os pedidos aprovados e recusados da sua carteira. Clique em qualquer linha para ver os detalhes.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vdped-filters">
+                    <div class="vdped-filters-row">
+                        <label>De
+                            <input type="date" id="vdPedidosDataDe">
+                        </label>
+                        <label>Até
+                            <input type="date" id="vdPedidosDataAte">
+                        </label>
+                        <label>Status
+                            <select id="vdPedidosFiltroStatus">
+                                <option value="">Todos</option>
+                                <option value="Aprovado" selected>Aprovados</option>
+                                <option value="Recusado">Recusados / No carrinho</option>
+                            </select>
+                        </label>
+                        <div class="vdped-search-wrap">
+                            <i class="fas fa-search vdped-search-icon"></i>
+                            <input type="text" id="vdSearchPedidos" placeholder="Buscar por prescritor, cliente ou número…" autocomplete="off">
+                        </div>
+                        <button type="button" onclick="printVendedorPedidosFiltrados()" style="padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.85rem; font-weight:700; cursor:pointer; white-space:nowrap; align-self:flex-end;">
+                            <i class="fas fa-print" style="margin-right:6px;"></i>Imprimir filtrados
+                        </button>
+                    </div>
+                </div>
+
+                <div class="vdped-cards">
+                    <div class="vdped-card vdped-card--success">
+                        <div class="vdped-card-label"><i class="fas fa-coins" style="margin-right:6px;"></i>Valor total</div>
+                        <div class="vdped-card-value" id="vdPedidosCardValor">R$ 0,00</div>
+                    </div>
+                    <div class="vdped-card">
+                        <div class="vdped-card-label"><i class="fas fa-list-ol" style="margin-right:6px;"></i>Quantidade</div>
+                        <div class="vdped-card-value" id="vdPedidosCardQuantidade">0 pedidos</div>
+                    </div>
+                </div>
+
+                <div class="vdped-table-card">
+                    <div class="vdped-table-scroll">
+                        <table class="vdped-table">
+                            <thead>
+                                <tr>
+                                    <th id="vdPedidosThNumero"        onclick="sortVendedorPedidosBy('numero_pedido')" title="Ordenar">Nº Pedido <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThSerie"         onclick="sortVendedorPedidosBy('serie_pedido')"  title="Ordenar">Séries <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThDataAprovacao" onclick="sortVendedorPedidosBy('data_aprovacao')" title="Ordenar">Data Aprovação <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThDataOrcamento" onclick="sortVendedorPedidosBy('data_orcamento')" title="Ordenar">Data Orçamento <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThPrescritor"    onclick="sortVendedorPedidosBy('prescritor')"    title="Ordenar">Prescritor <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThCliente"       onclick="sortVendedorPedidosBy('cliente')"       title="Ordenar">Cliente <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThValor"         onclick="sortVendedorPedidosBy('valor')"         title="Ordenar" class="th-num">Valor <i class="fas fa-sort"></i></th>
+                                    <th id="vdPedidosThStatus"        onclick="sortVendedorPedidosBy('tipo')"          title="Ordenar">Status <i class="fas fa-sort"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody id="vdPedidosTbody">
+                                <tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="vdPedidosPagination" class="vdped-pagination"></div>
+                </div>
+
+                <div class="vd-error" id="vdError" style="display:none;"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Detalhe do Pedido — mesmas classes do gestão comercial -->
+    <div id="modalDetalhePedido" class="gc-modal-det-ped" aria-hidden="true">
+        <div class="gc-modal-det-ped__backdrop" onclick="closeModalDetalhePedido()" aria-hidden="true"></div>
+        <div class="gc-modal-det-ped__card" role="dialog" aria-modal="true" aria-labelledby="modalDetalhePedidoTitle">
+            <div class="gc-modal-det-ped__head">
+                <h3 id="modalDetalhePedidoTitle" class="gc-modal-det-ped__title"><i class="fas fa-file-invoice" aria-hidden="true"></i> Detalhe do pedido</h3>
+                <button type="button" class="gc-modal-det-ped__close" onclick="closeModalDetalhePedido()" aria-label="Fechar">&times;</button>
+            </div>
+            <div class="gc-modal-det-ped__body">
+                <div id="modalDetalhePedidoLoading" class="gc-modal-det-ped__loading"><i class="fas fa-spinner fa-spin"></i> Carregando…</div>
+                <div id="modalDetalhePedidoError" class="gc-modal-det-ped__err" style="display:none;"></div>
+                <div id="modalDetalhePedidoContent" style="display:none;">
+                    <div class="gc-modal-det-ped__fields-wrap">
+                        <div id="modalDetalhePedidoFields" class="gc-modal-det-ped__fields"></div>
+                    </div>
+                    <div id="modalDetalhePedidoItensGestaoWrap" class="gc-modal-det-ped__tbl-wrap" style="display:none;">
+                        <div class="gc-modal-det-ped__sec-title">Itens (Gestão de pedidos)</div>
+                        <div class="gc-modal-det-ped__scroll">
+                            <table class="gc-modal-det-ped__tbl">
+                                <thead><tr><th>#</th><th>Produto</th><th>Forma</th><th class="gc-num">Qtd</th><th class="gc-num">Preço liq.</th></tr></thead>
+                                <tbody id="modalDetalhePedidoItensGestao"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="modalDetalhePedidoItensOrcamentoWrap" class="gc-modal-det-ped__tbl-wrap" style="display:none;">
+                        <div class="gc-modal-det-ped__sec-title">Itens (Orçamento)</div>
+                        <div class="gc-modal-det-ped__scroll">
+                            <table class="gc-modal-det-ped__tbl">
+                                <thead><tr><th>#</th><th>Descrição</th><th>Canal</th><th class="gc-num">Qtd</th><th class="gc-num">Valor liq.</th><th>Inclusão</th><th>Aprovador</th></tr></thead>
+                                <tbody id="modalDetalhePedidoItensOrcamento"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="gc-modal-det-ped__tbl-wrap">
+                        <div class="gc-modal-det-ped__sec-title">Componentes</div>
+                        <div class="gc-modal-det-ped__scroll">
+                            <table class="gc-modal-det-ped__tbl">
+                                <thead><tr><th>#</th><th>Descrição</th><th class="gc-num">Qtd calc.</th></tr></thead>
+                                <tbody id="modalDetalhePedidoComponentes"></tbody>
+                            </table>
+                        </div>
+                        <p id="modalDetalhePedidoComponentesEmpty" class="gc-modal-det-ped__empty" style="display:none;">Nenhum componente disponível.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="gc-modal-det-ped__foot">
+                <button type="button" class="gc-filter-btn gc-filter-btn--secondary" onclick="closeModalDetalhePedido()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Meu perfil (api.php — igual visitador) -->
+    <div id="modalMeuPerfil"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:2500; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div
+            style="background:var(--bg-card); border-radius:16px; width:100%; max-width:420px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:0;"><i class="fas fa-user-circle" style="color:var(--primary); margin-right:8px;"></i>Meu perfil</h2>
+                <button type="button" onclick="closeMeuPerfilModal()"
+                    style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px; border-radius:6px;">&times;</button>
+            </div>
+            <div style="padding:24px;">
+                <div style="text-align:center; margin-bottom:24px;">
+                    <div class="perfil-foto-wrap" id="perfilFotoWrap" style="position:relative; display:inline-block;">
+                        <div class="avatar perfil-foto-inicial" id="perfilAvatarInicial" style="width:96px; height:96px; font-size:2.5rem;">V</div>
+                        <img class="avatar-img perfil-foto-img" id="perfilFotoImg" src="" alt="Foto" style="display:none; width:96px; height:96px; border-radius:50%; object-fit:cover;">
+                        <input type="file" id="inputFotoPerfilModal" accept="image/*" style="display:none;">
+                        <button type="button" onclick="document.getElementById('inputFotoPerfilModal').click()"
+                            style="margin-top:10px; padding:8px 16px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-size:0.85rem; font-weight:600;">
+                            <i class="fas fa-camera"></i> Alterar foto
+                        </button>
+                    </div>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">Nome</label>
+                    <input type="text" id="perfilNome" placeholder="Seu nome"
+                        style="width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); font-size:0.95rem; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">Usuário (login)</label>
+                    <input type="text" id="perfilUsuario" readonly
+                        style="width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-secondary); font-size:0.95rem; box-sizing:border-box; cursor:not-allowed;">
+                </div>
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">WhatsApp</label>
+                    <input type="text" id="perfilWhatsapp" placeholder="(00) 00000-0000"
+                        style="width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); font-size:0.95rem; box-sizing:border-box;">
+                </div>
+                <div style="border-top:1px solid var(--border); padding-top:20px; margin-top:20px;">
+                    <div style="font-size:0.9rem; font-weight:700; color:var(--text-primary); margin-bottom:12px;"><i class="fas fa-lock" style="margin-right:6px; color:var(--text-secondary);"></i>Alterar senha</div>
+                    <div style="margin-bottom:12px;">
+                        <input type="password" id="perfilSenhaAtual" placeholder="Senha atual"
+                            style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <input type="password" id="perfilSenhaNova" placeholder="Nova senha (8+, 1 maiúscula, 1 especial)"
+                            style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <input type="password" id="perfilSenhaConfirma" placeholder="Confirmar nova senha"
+                            style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                </div>
+            </div>
+            <div style="padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" onclick="closeMeuPerfilModal()"
+                    style="padding:10px 20px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-weight:600;">Fechar</button>
+                <button type="button" id="btnSalvarPerfil" onclick="salvarMeuPerfil()"
+                    style="padding:10px 20px; border-radius:10px; border:none; background:var(--primary); color:white; cursor:pointer; font-weight:600;">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/vendedor-main.js?v=20260415-perfil-api"></script>
+</body>
+</html>

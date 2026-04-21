@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Premiação — Ranking My Pharm</title>
+  <link rel="icon" type="image/svg+xml" href="dist/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Reset & Tokens ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base: #030712;
+      --bg-card: rgba(15, 23, 42, 0.75);
+      --bg-card-hover: rgba(30, 41, 59, 0.85);
+      --border: rgba(99, 102, 241, 0.18);
+      --border-hover: rgba(99, 102, 241, 0.4);
+      --cyan: #22d3ee;
+      --gold: #fbbf24;
+      --silver: #94a3b8;
+      --bronze: #cd7f32;
+      --purple: #a78bfa;
+      --text: #f1f5f9;
+      --text-muted: #64748b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --font: 'Outfit', system-ui, -apple-system, sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font);
+      background: var(--bg-base);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ─── Background ─── */
+    .bg-effects {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 60% 45% at 20% 20%, rgba(99,102,241,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 50% at 80% 80%, rgba(34,211,238,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 50% 50%, rgba(147,51,234,0.06) 0%, transparent 70%);
+    }
+
+    /* ─── Header ─── */
+    .page-header {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.8rem 1.5rem;
+      background: rgba(3, 7, 18, 0.85);
+      backdrop-filter: blur(20px) saturate(1.4);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .page-header__left {
+      display: flex; align-items: center; gap: 1rem;
+    }
+
+    .page-header__back {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.45rem 0.9rem;
+      font-size: 0.75rem; font-weight: 600;
+      color: var(--text-muted);
+      background: rgba(99,102,241,0.08);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none;
+      transition: all 0.25s ease;
+    }
+    .page-header__back:hover {
+      color: var(--text);
+      background: rgba(99,102,241,0.18);
+      border-color: var(--border-hover);
+      transform: translateX(-2px);
+    }
+
+    .page-header__title {
+      font-size: 1.15rem; font-weight: 700;
+      background: linear-gradient(135deg, var(--gold), #f59e0b);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-header__subtitle {
+      font-size: 0.65rem; color: var(--text-muted); font-weight: 500;
+    }
+
+    /* ─── Main Layout ─── */
+    .page-main {
+      position: relative; z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 3rem;
+    }
+
+    .section-title {
+      text-align: center;
+      font-size: 0.7rem; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+
+    /* ─── Award Cards Grid ─── */
+    .awards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 800px) {
+      .awards-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Award Card ─── */
+    .award-card {
+      position: relative;
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .award-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 60px rgba(99,102,241,0.12);
+    }
+
+    .award-card--gold { --accent: var(--gold); }
+    .award-card--silver { --accent: var(--silver); }
+    .award-card--bronze { --accent: var(--bronze); }
+
+    .award-card__header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(0,0,0,0.2), transparent);
+    }
+
+    .award-card__position {
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+
+    .award-card__badge {
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 800;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #000));
+      color: #000;
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+
+    .award-card__label {
+      font-size: 0.8rem; font-weight: 700; color: var(--accent);
+    }
+
+    .award-card__status {
+      font-size: 0.6rem; font-weight: 600;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .award-card__status--active {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+    }
+    .award-card__status--empty {
+      background: rgba(100, 116, 139, 0.15);
+      color: var(--text-muted);
+    }
+
+    /* ─── Upload Area ─── */
+    .award-card__body {
+      padding: 1.25rem;
+    }
+
+    .upload-zone {
+      position: relative;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 200px;
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.4);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .upload-zone:hover,
+    .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(15, 23, 42, 0.7);
+      box-shadow: inset 0 0 30px color-mix(in srgb, var(--accent) 8%, transparent);
+    }
+
+    .upload-zone__input {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      opacity: 0; cursor: pointer;
+    }
+
+    .upload-zone__placeholder {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 0.6rem;
+      pointer-events: none;
+    }
+
+    .upload-zone__icon {
+      font-size: 2.5rem;
+      opacity: 0.5;
+      transition: transform 0.3s ease;
+    }
+    .upload-zone:hover .upload-zone__icon {
+      transform: translateY(-4px) scale(1.1);
+    }
+
+    .upload-zone__text {
+      font-size: 0.72rem; font-weight: 600;
+      color: var(--text-muted);
+      text-align: center; line-height: 1.4;
+    }
+
+    .upload-zone__hint {
+      font-size: 0.58rem;
+      color: var(--text-muted);
+      opacity: 0.6;
+    }
+
+    /* Preview state */
+    .upload-zone--has-image .upload-zone__placeholder { display: none; }
+
+    .upload-zone__preview {
+      display: none;
+      width: 100%; height: 100%;
+      min-height: 200px;
+      object-fit: contain;
+      padding: 0.5rem;
+      pointer-events: none;
+    }
+    .upload-zone--has-image .upload-zone__preview {
+      display: block;
+    }
+
+    /* ─── Card Actions ─── */
+    .award-card__actions {
+      display: flex; gap: 0.5rem;
+      padding: 0 1.25rem 1.25rem;
+    }
+
+    .btn {
+      flex: 1;
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 0.4rem;
+      padding: 0.55rem 0.8rem;
+      font-family: var(--font);
+      font-size: 0.68rem; font-weight: 600;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .btn--save {
+      background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05));
+      color: var(--success);
+    }
+    .btn--save:hover:not(:disabled) {
+      background: linear-gradient(135deg, rgba(16,185,129,0.3), rgba(16,185,129,0.15));
+      border-color: var(--success);
+      transform: translateY(-1px);
+    }
+    .btn--save:disabled {
+      opacity: 0.35; cursor: not-allowed;
+    }
+
+    .btn--remove {
+      background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(239,68,68,0.03));
+      color: var(--danger);
+      flex: 0.5;
+    }
+    .btn--remove:hover:not(:disabled) {
+      background: linear-gradient(135deg, rgba(239,68,68,0.25), rgba(239,68,68,0.1));
+      border-color: var(--danger);
+      transform: translateY(-1px);
+    }
+    .btn--remove:disabled {
+      opacity: 0.35; cursor: not-allowed;
+    }
+
+    /* ─── Toast Notification ─── */
+    .toast {
+      position: fixed;
+      bottom: 2rem; left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      padding: 0.7rem 1.5rem;
+      font-family: var(--font);
+      font-size: 0.75rem; font-weight: 600;
+      border-radius: 10px;
+      backdrop-filter: blur(16px);
+      z-index: 1000;
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+    }
+    .toast--visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .toast--success {
+      background: rgba(16,185,129,0.2);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+    .toast--error {
+      background: rgba(239,68,68,0.2);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+    }
+
+    /* ─── Info Banner ─── */
+    .info-banner {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      margin-bottom: 2rem;
+      background: rgba(34, 211, 238, 0.06);
+      border: 1px solid rgba(34, 211, 238, 0.15);
+      border-radius: 12px;
+      font-size: 0.7rem; color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .info-banner__icon {
+      font-size: 1.2rem; flex-shrink: 0; margin-top: 0.1rem;
+    }
+    .info-banner strong { color: var(--cyan); }
+
+    /* ─── Preview Section ─── */
+    .preview-section {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .preview-podium {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 2rem;
+      padding: 2rem 0;
+    }
+
+    .preview-slot {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 0.5rem;
+    }
+
+    .preview-avatar-wrap {
+      position: relative;
+      width: 80px; height: 80px;
+    }
+
+    .preview-avatar {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 3px solid var(--border);
+      object-fit: cover;
+    }
+
+    .preview-award-img {
+      position: absolute;
+      top: -28px; left: 50%;
+      transform: translateX(-50%);
+      width: 48px; height: 48px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+      animation: awardBob 2.5s ease-in-out infinite;
+      z-index: 2;
+    }
+
+    @keyframes awardBob {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(-5px); }
+    }
+
+    .preview-name {
+      font-size: 0.7rem; font-weight: 600; color: var(--text);
+    }
+
+    .preview-pedestal {
+      width: 90px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; font-weight: 800;
+      color: rgba(255,255,255,0.12);
+      border-radius: 8px 8px 0 0;
+    }
+    .preview-slot--1 .preview-pedestal {
+      height: 100px;
+      background: linear-gradient(180deg, rgba(99,102,241,0.3), rgba(99,102,241,0.08));
+      border: 1px solid rgba(99,102,241,0.2);
+    }
+    .preview-slot--2 .preview-pedestal {
+      height: 70px;
+      background: linear-gradient(180deg, rgba(100,116,139,0.2), rgba(100,116,139,0.06));
+      border: 1px solid rgba(100,116,139,0.15);
+    }
+    .preview-slot--3 .preview-pedestal {
+      height: 55px;
+      background: linear-gradient(180deg, rgba(205,127,50,0.2), rgba(205,127,50,0.06));
+      border: 1px solid rgba(205,127,50,0.15);
+    }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Animations ─── */
+    .award-card {
+      opacity: 0;
+      transform: translateY(20px);
+      animation: cardIn 0.5s ease forwards;
+    }
+    .award-card:nth-child(1) { animation-delay: 0.1s; }
+    .award-card:nth-child(2) { animation-delay: 0.25s; }
+    .award-card:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes cardIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-effects" aria-hidden="true"></div>
+
+  <!-- Header -->
+  <header class="page-header">
+    <div class="page-header__left">
+      <a href="index.html" class="page-header__back">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Voltar ao Ranking
+      </a>
+      <div>
+        <div class="page-header__title">🏅 Premiação</div>
+        <div class="page-header__subtitle">Gerencie as imagens de premiação do pódio</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="page-main">
+
+    <div class="info-banner">
+      <span class="info-banner__icon">💡</span>
+      <div>
+        Faça upload das imagens que serão exibidas <strong>acima do avatar</strong> dos vendedores no pódio do ranking.
+        Use imagens com <strong>fundo transparente (PNG)</strong> para o melhor resultado visual.
+        Tamanho recomendado: <strong>128×128px</strong> ou maior.
+      </div>
+    </div>
+
+    <p class="section-title">Configurar Premiações por Posição</p>
+
+    <!-- Awards Grid -->
+    <div class="awards-grid">
+      <!-- 1st Place -->
+      <div class="award-card award-card--gold" data-position="1">
+        <div class="award-card__header">
+          <div class="award-card__position">
+            <div class="award-card__badge">1</div>
+            <span class="award-card__label">1º Lugar</span>
+          </div>
+          <span class="award-card__status award-card__status--empty" data-status>Sem imagem</span>
+        </div>
+        <div class="award-card__body">
+          <div class="upload-zone" data-zone="1">
+            <input type="file" class="upload-zone__input" accept="image/*" data-input="1" />
+            <div class="upload-zone__placeholder">
+              <span class="upload-zone__icon">🏆</span>
+              <span class="upload-zone__text">Arraste ou clique para<br>selecionar a imagem</span>
+              <span class="upload-zone__hint">PNG, JPG, WEBP ou SVG — Máx. 5MB</span>
+            </div>
+            <img class="upload-zone__preview" data-preview="1" src="" alt="Preview" />
+          </div>
+        </div>
+        <div class="award-card__actions">
+          <button class="btn btn--save" data-save="1" disabled>
+            <span class="spinner" style="display:none" data-spinner="1"></span>
+            Salvar Premiação
+          </button>
+          <button class="btn btn--remove" data-remove="1" disabled>Remover</button>
+        </div>
+      </div>
+
+      <!-- 2nd Place -->
+      <div class="award-card award-card--silver" data-position="2">
+        <div class="award-card__header">
+          <div class="award-card__position">
+            <div class="award-card__badge">2</div>
+            <span class="award-card__label">2º Lugar</span>
+          </div>
+          <span class="award-card__status award-card__status--empty" data-status>Sem imagem</span>
+        </div>
+        <div class="award-card__body">
+          <div class="upload-zone" data-zone="2">
+            <input type="file" class="upload-zone__input" accept="image/*" data-input="2" />
+            <div class="upload-zone__placeholder">
+              <span class="upload-zone__icon">🥈</span>
+              <span class="upload-zone__text">Arraste ou clique para<br>selecionar a imagem</span>
+              <span class="upload-zone__hint">PNG, JPG, WEBP ou SVG — Máx. 5MB</span>
+            </div>
+            <img class="upload-zone__preview" data-preview="2" src="" alt="Preview" />
+          </div>
+        </div>
+        <div class="award-card__actions">
+          <button class="btn btn--save" data-save="2" disabled>
+            <span class="spinner" style="display:none" data-spinner="2"></span>
+            Salvar Premiação
+          </button>
+          <button class="btn btn--remove" data-remove="2" disabled>Remover</button>
+        </div>
+      </div>
+
+      <!-- 3rd Place -->
+      <div class="award-card award-card--bronze" data-position="3">
+        <div class="award-card__header">
+          <div class="award-card__position">
+            <div class="award-card__badge">3</div>
+            <span class="award-card__label">3º Lugar</span>
+          </div>
+          <span class="award-card__status award-card__status--empty" data-status>Sem imagem</span>
+        </div>
+        <div class="award-card__body">
+          <div class="upload-zone" data-zone="3">
+            <input type="file" class="upload-zone__input" accept="image/*" data-input="3" />
+            <div class="upload-zone__placeholder">
+              <span class="upload-zone__icon">🥉</span>
+              <span class="upload-zone__text">Arraste ou clique para<br>selecionar a imagem</span>
+              <span class="upload-zone__hint">PNG, JPG, WEBP ou SVG — Máx. 5MB</span>
+            </div>
+            <img class="upload-zone__preview" data-preview="3" src="" alt="Preview" />
+          </div>
+        </div>
+        <div class="award-card__actions">
+          <button class="btn btn--save" data-save="3" disabled>
+            <span class="spinner" style="display:none" data-spinner="3"></span>
+            Salvar Premiação
+          </button>
+          <button class="btn btn--remove" data-remove="3" disabled>Remover</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Preview -->
+    <section class="preview-section">
+      <p class="section-title">Pré-visualização no Pódio</p>
+      <div class="preview-podium">
+        <!-- 2nd -->
+        <div class="preview-slot preview-slot--2">
+          <div class="preview-avatar-wrap">
+            <img class="preview-award-img" id="preview-award-2" src="" alt="" style="display:none" />
+            <img class="preview-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Crect width='80' height='80' fill='%231e293b'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' fill='%2364748b' font-size='28' font-family='sans-serif'%3E2º%3C/text%3E%3C/svg%3E" alt="" />
+          </div>
+          <span class="preview-name">2º Lugar</span>
+          <div class="preview-pedestal">2</div>
+        </div>
+        <!-- 1st -->
+        <div class="preview-slot preview-slot--1">
+          <div class="preview-avatar-wrap">
+            <img class="preview-award-img" id="preview-award-1" src="" alt="" style="display:none" />
+            <img class="preview-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Crect width='80' height='80' fill='%231e293b'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' fill='%2364748b' font-size='28' font-family='sans-serif'%3E1º%3C/text%3E%3C/svg%3E" alt="" />
+          </div>
+          <span class="preview-name">1º Lugar</span>
+          <div class="preview-pedestal">1</div>
+        </div>
+        <!-- 3rd -->
+        <div class="preview-slot preview-slot--3">
+          <div class="preview-avatar-wrap">
+            <img class="preview-award-img" id="preview-award-3" src="" alt="" style="display:none" />
+            <img class="preview-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Crect width='80' height='80' fill='%231e293b'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' fill='%2364748b' font-size='28' font-family='sans-serif'%3E3º%3C/text%3E%3C/svg%3E" alt="" />
+          </div>
+          <span class="preview-name">3º Lugar</span>
+          <div class="preview-pedestal">3</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    var API = 'api/premiacao.php';
+
+    // Pending files per position
+    var pendingFiles = { '1': null, '2': null, '3': null };
+    // Current saved URLs
+    var savedUrls = { '1': '', '2': '', '3': '' };
+
+    // ── Toast ──
+    function showToast(msg, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast toast--' + (type || 'success');
+      requestAnimationFrame(function () {
+        toast.classList.add('toast--visible');
+      });
+      setTimeout(function () {
+        toast.classList.remove('toast--visible');
+      }, 3500);
+    }
+
+    // ── Update UI for a position ──
+    function updateUI(pos, url) {
+      var card = document.querySelector('.award-card[data-position="' + pos + '"]');
+      if (!card) return;
+      var status = card.querySelector('[data-status]');
+      var removeBtn = card.querySelector('[data-remove="' + pos + '"]');
+      var previewEl = document.getElementById('preview-award-' + pos);
+
+      if (url) {
+        status.textContent = 'Ativo';
+        status.className = 'award-card__status award-card__status--active';
+        removeBtn.disabled = false;
+
+        var zone = card.querySelector('[data-zone="' + pos + '"]');
+        var preview = card.querySelector('[data-preview="' + pos + '"]');
+        preview.src = url;
+        zone.classList.add('upload-zone--has-image');
+
+        if (previewEl) {
+          previewEl.src = url;
+          previewEl.style.display = 'block';
+        }
+
+        savedUrls[pos] = url;
+      } else {
+        status.textContent = 'Sem imagem';
+        status.className = 'award-card__status award-card__status--empty';
+        removeBtn.disabled = true;
+
+        var zone = card.querySelector('[data-zone="' + pos + '"]');
+        zone.classList.remove('upload-zone--has-image');
+
+        if (previewEl) {
+          previewEl.style.display = 'none';
+        }
+
+        savedUrls[pos] = '';
+      }
+    }
+
+    // ── Load existing config ──
+    function loadConfig() {
+      fetch(API + '?_=' + Date.now(), { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (json) {
+          if (json.success && json.data && typeof json.data === 'object' && !Array.isArray(json.data)) {
+            ['1', '2', '3'].forEach(function (pos) {
+              var row = json.data[pos];
+              if (row && row.url) {
+                updateUI(pos, row.url);
+              }
+            });
+          }
+        })
+        .catch(function () {
+          showToast('Não foi possível carregar as premiações.', 'error');
+        });
+    }
+
+    // ── File input change (cada cartão é isolado pelo próprio .award-card) ──
+    ['1', '2', '3'].forEach(function (pos) {
+      var card = document.querySelector('.award-card[data-position="' + pos + '"]');
+      if (!card) return;
+
+      var input = card.querySelector('[data-input="' + pos + '"]');
+      var zone = card.querySelector('[data-zone="' + pos + '"]');
+      var preview = card.querySelector('[data-preview="' + pos + '"]');
+      var saveBtn = card.querySelector('[data-save="' + pos + '"]');
+      var spinner = card.querySelector('[data-spinner="' + pos + '"]');
+
+      // File selection
+      input.addEventListener('change', function () {
+        if (this.files && this.files[0]) {
+          var file = this.files[0];
+          if (file.size > 5 * 1024 * 1024) {
+            showToast('Arquivo muito grande! Máximo 5MB.', 'error');
+            return;
+          }
+          pendingFiles[pos] = file;
+          var reader = new FileReader();
+          reader.onload = function (e) {
+            preview.src = e.target.result;
+            zone.classList.add('upload-zone--has-image');
+            saveBtn.disabled = false;
+
+            var previewEl = document.getElementById('preview-award-' + pos);
+            if (previewEl) {
+              previewEl.src = e.target.result;
+              previewEl.style.display = 'block';
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+
+      // Drag & Drop
+      zone.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        zone.classList.add('drag-over');
+      });
+      zone.addEventListener('dragleave', function () {
+        zone.classList.remove('drag-over');
+      });
+      zone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          input.files = e.dataTransfer.files;
+          input.dispatchEvent(new Event('change'));
+        }
+      });
+
+      // Save button
+      saveBtn.addEventListener('click', function () {
+        var file = pendingFiles[pos];
+        if (!file) return;
+
+        spinner.style.display = 'inline-block';
+        saveBtn.disabled = true;
+
+        var formData = new FormData();
+        formData.append('position', String(pos));
+        formData.append('image', file, file.name);
+
+        fetch(API, { method: 'POST', body: formData })
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            spinner.style.display = 'none';
+            if (json.success && json.data && json.data.url) {
+              var savedPos = json.position != null ? String(json.position) : pos;
+              showToast('Premiação do ' + savedPos + 'º lugar salva com sucesso!', 'success');
+              pendingFiles[pos] = null;
+              updateUI(savedPos, json.data.url);
+              saveBtn.disabled = true;
+            } else {
+              showToast(json.message || 'Erro ao salvar.', 'error');
+              saveBtn.disabled = false;
+            }
+          })
+          .catch(function () {
+            spinner.style.display = 'none';
+            saveBtn.disabled = false;
+            showToast('Erro de conexão ao salvar.', 'error');
+          });
+      });
+
+      // Remove button
+      var removeBtn = card.querySelector('[data-remove="' + pos + '"]');
+      removeBtn.addEventListener('click', function () {
+        if (!confirm('Remover a premiação do ' + pos + 'º lugar?')) return;
+
+        var formData = new FormData();
+        formData.append('position', pos);
+        formData.append('action', 'remove');
+
+        fetch(API, { method: 'POST', body: formData })
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            if (json.success) {
+              showToast('Premiação removida.', 'success');
+              updateUI(pos, '');
+              pendingFiles[pos] = null;
+              zone.classList.remove('upload-zone--has-image');
+              preview.src = '';
+              saveBtn.disabled = true;
+            } else {
+              showToast(json.message || 'Erro ao remover.', 'error');
+            }
+          })
+          .catch(function () {
+            showToast('Erro de conexão.', 'error');
+          });
+      });
+    });
+
+    // Init
+    loadConfig();
+  </script>
+</body>
+</html>

@@ -1,0 +1,2134 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#E63946">
+    <title>Painel do Visitador | MyPharm</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
+    <link rel="apple-touch-icon" href="imagens/IconeMyPharm.png?v=20260402">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js carregado antes de app.js no final do <body> (scripts síncronos abaixo de app.js quebrariam a ordem) -->
+    <!-- Mapa (Leaflet) para confirmação de local no tablet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script defer src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <link rel="stylesheet" href="css/visitador-inline.css">
+    <link rel="stylesheet" href="css/visitador.css">
+    <!-- Fallback: painel Mensagens e Enviar mensagem (funciona mesmo se visitador.css não carregar no servidor/hosting) -->
+    <style>
+        #notificationsPanel.notifications-panel { display: none; position: absolute; top: calc(100% + 10px); right: 0; width: 380px; max-width: calc(100vw - 2rem); max-height: 540px; min-height: 320px; background: var(--bg-card, #1e1e2e); border: 1px solid var(--border, #333); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); z-index: 1100; flex-direction: column; overflow: hidden; }
+        #notificationsPanel.notifications-panel.open { display: flex !important; }
+        .notifications-wrap { position: relative; z-index: 1150; flex-shrink: 0; }
+        .btn-notifications {
+            width: 44px !important;
+            height: 44px !important;
+            min-width: 44px !important;
+            min-height: 44px !important;
+            border-radius: 12px !important;
+            border: 1px solid var(--border, #cbd5e1) !important;
+            background: var(--bg-body, #f8fafc) !important;
+            color: var(--text-primary, #0f172a) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            position: relative !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            line-height: 1 !important;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .btn-notifications-icon { display: inline-flex !important; align-items: center !important; justify-content: center !important; width: 24px; height: 24px; }
+        .btn-notifications .fa-bell {
+            font-family: "Font Awesome 6 Free","Font Awesome 5 Free",sans-serif !important;
+            font-weight: 900 !important;
+            font-size: 1.1rem !important;
+            line-height: 1 !important;
+            font-style: normal !important;
+            display: inline-block !important;
+            text-rendering: auto;
+            -webkit-font-smoothing: antialiased;
+        }
+        .notifications-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 999px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            box-shadow: 0 0 0 2px var(--bg-card, #fff);
+        }
+        .notifications-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border, #333); flex-shrink: 0; }
+        .notifications-body { display: flex; flex-direction: column; overflow: hidden; flex: 1; min-height: 0; }
+        .notifications-list { flex: 1; overflow-y: auto; padding: 12px; }
+        @media (max-width: 1024px) {
+            #notificationsPanel.notifications-panel { position: fixed; left: 50%; top: 50%; right: auto; transform: translate(-50%, -50%); width: 90vw; max-width: 420px; max-height: 88vh; min-height: 380px; }
+        }
+        .notifications-send-wrap { display: block; padding: 14px 18px; border-top: 1px solid var(--border, #333); background: var(--bg-card, #1e1e2e); box-sizing: border-box; flex-shrink: 0; }
+        .notifications-send-label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary, #94a3b8); margin-bottom: 8px; }
+        .notifications-send-select, .notifications-send-textarea { display: block; width: 100%; padding: 10px 12px; margin-bottom: 10px; border: 1px solid var(--border, #333); border-radius: 8px; font-size: 0.9rem; box-sizing: border-box; background: var(--bg-body, #252530); color: var(--text-primary, #f1f5f9); }
+        .notifications-send-textarea { resize: vertical; min-height: 72px; }
+        .notifications-send-btn { display: block; width: 100%; padding: 10px 14px; margin-top: 4px; border: none; border-radius: 8px; background: var(--primary, #3b82f6); color: #fff; font-weight: 600; font-size: 0.9rem; cursor: pointer; box-sizing: border-box; }
+        .notifications-send-btn i { margin-right: 6px; }
+        .visita-img-slots {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .visita-img-slot {
+            position: relative;
+            height: 100px;
+            border-radius: 12px;
+            border: 1px dashed var(--border, #cbd5e1);
+            background: linear-gradient(180deg, rgba(148,163,184,0.14), rgba(148,163,184,0.08));
+            color: var(--text-secondary, #64748b);
+            cursor: pointer;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.18s ease;
+        }
+        .visita-img-slot:hover {
+            border-color: var(--primary, #3b82f6);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(2, 6, 23, 0.12);
+        }
+        .visita-img-slot-plus {
+            font-size: 1.55rem;
+            line-height: 1;
+            font-weight: 700;
+        }
+        .visita-img-slot-hint {
+            position: absolute;
+            bottom: 8px;
+            left: 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            opacity: 0.85;
+        }
+        .visita-img-slot.is-processing {
+            border-style: solid;
+            border-color: rgba(59,130,246,0.35);
+            background: var(--bg-body);
+        }
+        .visita-img-slot-processing {
+            font-size: 0.74rem;
+            font-weight: 600;
+            color: var(--text-secondary, #64748b);
+        }
+        .visita-img-slot.is-filled {
+            border-style: solid;
+            border-color: rgba(59,130,246,0.35);
+            background-color: #0f172a;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            color: transparent;
+        }
+        .visita-img-slot-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(15,23,42,0.1) 0%, rgba(15,23,42,0.45) 100%);
+        }
+        .visita-img-slot-chip {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(15,23,42,0.78);
+            color: #fff;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+        .visita-img-slot-remove {
+            position: absolute;
+            top: 7px;
+            right: 7px;
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(15,23,42,0.72);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            z-index: 2;
+        }
+        .visita-img-slot-remove:hover {
+            background: rgba(239,68,68,0.92);
+        }
+        @media (max-width: 700px) {
+            .visita-img-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .visita-img-slot { height: 90px; }
+        }
+        .dv-imagens-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .dv-imagem-thumb {
+            width: 100%;
+            height: 94px;
+            border: 1px solid var(--border, #cbd5e1);
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--bg-body);
+            cursor: pointer;
+            padding: 0;
+        }
+        .dv-imagem-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .dv-imagem-thumb:hover {
+            border-color: var(--primary, #3b82f6);
+            box-shadow: 0 8px 18px rgba(2, 6, 23, 0.12);
+            transform: translateY(-1px);
+        }
+        .dv-imagem-lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 3900;
+            background: rgba(0, 0, 0, 0.82);
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+        .dv-imagem-lightbox img {
+            max-width: min(96vw, 980px);
+            max-height: 88vh;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.18);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+            background: #0f172a;
+        }
+        .dv-imagem-lightbox-close {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            width: 38px;
+            height: 38px;
+            border: 1px solid rgba(255,255,255,0.22);
+            border-radius: 10px;
+            background: rgba(15,23,42,0.65);
+            color: #fff;
+            font-size: 1.35rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+        @media (max-width: 700px) {
+            .dv-imagens-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .dv-imagem-thumb { height: 86px; }
+        }
+
+        /* Modal Bonificação - padrão SaaS moderno */
+        .bonus-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 3200;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+            background: rgba(2, 6, 23, 0.62);
+            backdrop-filter: blur(4px);
+        }
+        .bonus-modal-overlay.is-open {
+            display: flex;
+            animation: bonusModalFadeIn 180ms ease;
+        }
+        .bonus-modal-card {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            width: min(1120px, 100%);
+            max-height: 92vh;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 26px 70px rgba(2, 6, 23, 0.36);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: bonusModalScaleIn 210ms ease;
+        }
+        .bonus-modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(180deg, rgba(148,163,184,0.08) 0%, rgba(148,163,184,0.02) 100%);
+        }
+        .bonus-modal-title {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .bonus-modal-title i { color: #f59e0b; }
+        .bonus-modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.4rem;
+            cursor: pointer;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+        }
+        .bonus-modal-close:hover {
+            background: rgba(148,163,184,0.14);
+            color: var(--text-primary);
+        }
+        .bonus-modal-body {
+            padding: 18px 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .bonus-modal-footer {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border);
+            text-align: right;
+        }
+        .bonus-modal-btn-secondary {
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg-body);
+            color: var(--text-primary);
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .bonus-modal-loading {
+            text-align: center;
+            padding: 28px;
+            color: var(--text-secondary);
+        }
+        .bonus-section { margin-bottom: 14px; }
+        .bonus-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .bonus-kpi-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            background: var(--bg-body);
+        }
+        .bonus-kpi-label {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .bonus-kpi-value {
+            font-size: 1.48rem;
+            line-height: 1.1;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+        .bonus-kpi-value.is-danger { color: #ef4444; }
+        .bonus-kpi-value.is-warning { color: #f59e0b; }
+        .bonus-panel {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-body);
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .bonus-panel-title {
+            margin: 0 0 10px 0;
+            font-size: 0.98rem;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+        .bonus-form-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .bonus-form-field label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+        .bonus-form-field input {
+            width: 100%;
+            height: 42px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            padding: 0 12px;
+            box-sizing: border-box;
+        }
+        .bonus-form-field input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.14);
+        }
+        .bonus-form-full { margin-top: 10px; }
+        .bonus-form-actions {
+            margin-top: 12px;
+            text-align: right;
+        }
+        .bonus-btn-primary {
+            height: 42px;
+            border: 1px solid #1d4ed8;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+            color: #fff;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            padding: 0 18px;
+            cursor: pointer;
+            box-shadow: 0 8px 18px rgba(37,99,235,0.28);
+        }
+        .bonus-btn-primary:hover {
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+        }
+        .bonus-table-wrap {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: auto;
+            background: var(--bg-card);
+        }
+        .bonus-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 620px;
+            font-size: 0.84rem;
+        }
+        .bonus-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: var(--bg-body);
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+            font-weight: 800;
+            text-align: left;
+            padding: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-size: 0.72rem;
+        }
+        .bonus-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .bonus-table td.num, .bonus-table th.num { text-align: right; }
+        .bonus-table tbody tr:hover td { background: rgba(148,163,184,0.08); }
+        .bonus-empty {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 12px;
+        }
+        .bonus-error {
+            text-align: center;
+            padding: 24px;
+            color: var(--danger);
+        }
+        @keyframes bonusModalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes bonusModalScaleIn {
+            from { opacity: 0; transform: translateY(8px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @media (max-width: 980px) {
+            .bonus-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .bonus-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 640px) {
+            .bonus-modal-overlay { padding: 10px; align-items: flex-end; }
+            .bonus-modal-card { max-height: 94vh; border-radius: 14px; }
+            .bonus-modal-body { padding: 14px; }
+            .bonus-kpi-grid { grid-template-columns: 1fr; }
+            .bonus-form-grid { grid-template-columns: 1fr; }
+            .bonus-form-actions { text-align: stretch; }
+            .bonus-btn-primary { width: 100%; }
+        }
+    </style>
+    <style>body{visibility:hidden;}</style>
+</head>
+
+<body>
+    <script>!(function(){if(!localStorage.getItem('loggedIn')){window.location.replace('index.html');return;}document.body.style.visibility='visible';})();</script>
+    <!-- Loading -->
+    <div class="loading-overlay" id="loadingOverlay" style="display:none;">
+        <div class="loading-spinner"></div>
+        <div style="font-weight:600; color:var(--text-primary); margin-top:20px;">Carregando dados...</div>
+    </div>
+
+    <header>
+        <div class="brand">
+            <!-- LOGO: Container escuro para logo branca -->
+            <div class="logo-container">
+                <img src="imagens/logoMypharm.png?v=20260402" alt="MyPharm"
+                    onerror="this.onerror=null;this.src='https://placehold.co/150x50?text=MyPharm';">
+            </div>
+            <div class="brand-text-col">
+                <span class="brand-title">Portal do Visitador</span>
+                <span class="brand-subtitle">Gestão de Performance</span>
+            </div>
+        </div>
+        <button type="button" class="visitador-nav-hamburger" id="visitadorNavHamburger" onclick="toggleVisitadorNavDrawer()" aria-label="Abrir menu" title="Menu">
+            <span class="hamburger-bar"></span>
+            <span class="hamburger-bar"></span>
+            <span class="hamburger-bar"></span>
+        </button>
+        <nav class="visitador-nav" id="visitadorNav" aria-label="Menu principal">
+            <a href="#" class="visitador-nav-link active" data-page="dashboard" onclick="return goVisitadorPage('dashboard', event)">
+                <i class="fas fa-home"></i>
+                <span>Início</span>
+            </a>
+            <a href="#" class="visitador-nav-link" data-page="agenda" onclick="return goVisitadorPage('agenda', event)">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Agenda</span>
+            </a>
+            <a href="#" class="visitador-nav-link" data-page="prescritores" onclick="return goVisitadorPage('prescritores', event)">
+                <i class="fas fa-user-md"></i>
+                <span>Prescritores</span>
+            </a>
+            <a href="#" class="visitador-nav-link" data-page="pedidos" onclick="return goVisitadorPage('pedidos', event)">
+                <i class="fas fa-list-alt"></i>
+                <span>Pedidos</span>
+            </a>
+            <a href="#" class="visitador-nav-link" data-page="roteiro" onclick="return goVisitadorPage('roteiro', event)">
+                <i class="fas fa-route"></i>
+                <span>Roteiro de Visitas</span>
+            </a>
+        </nav>
+        <div class="visitador-nav-drawer-overlay" id="visitadorNavDrawerOverlay" onclick="closeVisitadorNavDrawer()" aria-hidden="true"></div>
+        <div class="visitador-nav-drawer" id="visitadorNavDrawer">
+            <div class="visitador-nav-drawer-header">
+                <span>Menu</span>
+                <button type="button" class="visitador-nav-drawer-close" onclick="closeVisitadorNavDrawer()" aria-label="Fechar">&times;</button>
+            </div>
+            <a href="#" class="visitador-nav-drawer-link active" data-page="dashboard" onclick="return goVisitadorPageAndCloseDrawer('dashboard', event)">
+                <i class="fas fa-home"></i>
+                <span>Início</span>
+            </a>
+            <a href="#" class="visitador-nav-drawer-link" data-page="agenda" onclick="return goVisitadorPageAndCloseDrawer('agenda', event)">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Agenda</span>
+            </a>
+            <a href="#" class="visitador-nav-drawer-link" data-page="prescritores" onclick="return goVisitadorPageAndCloseDrawer('prescritores', event)">
+                <i class="fas fa-user-md"></i>
+                <span>Prescritores</span>
+            </a>
+            <a href="#" class="visitador-nav-drawer-link" data-page="pedidos" onclick="return goVisitadorPageAndCloseDrawer('pedidos', event)">
+                <i class="fas fa-list-alt"></i>
+                <span>Pedidos</span>
+            </a>
+            <a href="#" class="visitador-nav-drawer-link" data-page="roteiro" onclick="return goVisitadorPageAndCloseDrawer('roteiro', event)">
+                <i class="fas fa-route"></i>
+                <span>Roteiro de Visitas</span>
+            </a>
+        </div>
+        <div class="user-menu">
+            <!-- Toggle Tema Claro/Escuro -->
+            <div class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Alternar tema">
+                <div class="theme-toggle-knob">
+                    <i class="fas fa-sun icon-sun"></i>
+                    <i class="fas fa-moon icon-moon"></i>
+                </div>
+            </div>
+            <div class="notifications-wrap">
+                <button type="button" class="btn-notifications" id="btnNotifications" onclick="toggleNotificationsPanel(event)" title="Mensagens e notificações" aria-label="Notificações">
+                    <span class="btn-notifications-icon" aria-hidden="true">
+                        <i class="fas fa-bell"></i>
+                    </span>
+                    <span class="notifications-badge" id="notificationsBadge" style="display:none;">0</span>
+                </button>
+                <div class="notifications-backdrop" id="notificationsBackdrop" onclick="closeNotificationsPanel()" aria-hidden="true"></div>
+                <div class="notifications-panel" id="notificationsPanel">
+                    <div class="notifications-panel-header">
+                        <span><i class="fas fa-bell"></i> Mensagens e alertas</span>
+                        <button type="button" class="notifications-panel-close" onclick="closeNotificationsPanel()" aria-label="Fechar">&times;</button>
+                    </div>
+                    <div class="notifications-body">
+                        <div class="notifications-list" id="notificationsListAll">
+                            <div class="notifications-empty" id="notificationsEmptyAll">
+                                <i class="fas fa-inbox"></i>
+                                <p>Nenhuma mensagem no momento.</p>
+                            </div>
+                        </div>
+                        <div class="notifications-send-wrap">
+                            <label class="notifications-send-label">Enviar mensagem para usuário</label>
+                            <select id="notifParaUsuarioSelect" class="notifications-send-select"></select>
+                            <textarea id="notifMensagemUsuarioInput" class="notifications-send-textarea" placeholder="Sua mensagem..." rows="3"></textarea>
+                            <button type="button" id="btnEnviarMsgUsuario" class="notifications-send-btn" onclick="enviarMensagemUsuarioUI()"><i class="fas fa-paper-plane"></i> Enviar para usuário</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="user-profile">
+                <div class="avatar-wrap" id="avatarWrap" title="Clique para alterar foto de perfil">
+                <div class="avatar" id="userAvatar">U</div>
+                    <img class="avatar-img" id="userAvatarImg" src="" alt="" style="display:none;">
+                    <input type="file" id="inputFotoPerfil" accept="image/*" style="display:none;">
+                </div>
+                <div class="d-none-mobile">
+                    <div id="visName" style="font-weight:600; font-size:0.95rem;">Visitador</div>
+                    <div id="visSubtitle" style="font-size:0.75rem; color:var(--text-secondary);">Minha Carteira</div>
+                </div>
+            </div>
+            <button id="btnVoltarInicioAdmin" class="btn-logout" onclick="window.location.href='index.html'" style="display:none;">
+                <i class="fas fa-home"></i> <span class="d-none-mobile">Início</span>
+            </button>
+            <button class="btn-logout" onclick="doLogout()">
+                <i class="fas fa-sign-out-alt"></i> <span class="d-none-mobile">Sair</span>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <div id="dashboardContent">
+        <div class="welcome-section" style="display: block;">
+            <div style="margin-bottom: 24px; display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:16px;">
+                <div>
+                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                        <h1 id="greeting" style="margin:0;">Olá, Visitador!</h1>
+                        <div style="display:flex; gap:10px; flex-shrink:0; align-items:center; flex-wrap:wrap;">
+                            <button type="button" id="btnIniciarRota" onclick="toggleRota()"
+                                style="padding:12px 22px; border-radius:12px; border:none; background:#DC2626; color:white; font-weight:700; font-size:0.95rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s;"
+                                title="Iniciar rota do dia: ativa GPS e registra o percurso. Pause para almoço e finalize ao fechar o dia.">
+                                <i class="fas fa-route" id="iconIniciarRota" style="font-size:1rem;"></i>
+                                <span id="labelIniciarRota">Iniciar Rota</span>
+                            </button>
+                            <button type="button" id="btnFinalizarRota" onclick="finishRotaFromUI()" style="display:none; padding:8px 14px; border-radius:10px; border:none; background:#DC2626; color:white; font-size:0.85rem; cursor:pointer; font-weight:600;"
+                                title="Encerrar a rota do dia (todos os pontos já registrados serão mantidos).">Finalizar rota</button>
+                        </div>
+                    </div>
+                    <p style="margin:8px 0 0 0;">Acompanhe suas metas e o desempenho da sua carteira.</p>
+                <p id="ultimaAtualizacao"
+                    style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; opacity:0.7;">
+                    <i class="fas fa-clock" style="margin-right:4px;"></i>Última atualização: --
+                </p>
+                </div>
+            </div>
+            <div class="meta-grid">
+                <!-- LINHA 1: METAS DE VISITAS E PREMIAÇÃO -->
+
+                <!-- Meta Semanal Visitas -->
+                <div class="card" style="margin-bottom:0; padding:14px 20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Visitas
+                            Semanais</span>
+                        <span style="font-size:0.8rem; font-weight:700; color:#10B981;"
+                            id="pctMetaVisitaSemana">0%</span>
+                    </div>
+                    <div
+                        style="height:8px; background:#E2E8F0; border-radius:4px; overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);">
+                        <div id="barMetaVisitaSemana"
+                            style="width:0%; height:100%; background:linear-gradient(90deg, #10B981, #34D399); transition:width 1.5s ease-out; border-radius:4px;">
+                        </div>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                        <span id="labelMetaVisitaSemana">0 / 30</span>
+                        <span>Meta Semanal</span>
+                    </div>
+                    <div id="visitasPorSemanaLabel" style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px; display:none;"></div>
+                </div>
+
+                <!-- Meta Mensal Visitas -->
+                <div class="card" style="margin-bottom:0; padding:14px 20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Visitas
+                            Mensais</span>
+                        <span style="font-size:0.8rem; font-weight:700; color:#F59E0B;" id="pctMetaVisitaMes">0%</span>
+                    </div>
+                    <div
+                        style="height:8px; background:#E2E8F0; border-radius:4px; overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);">
+                        <div id="barMetaVisitaMes"
+                            style="width:0%; height:100%; background:linear-gradient(90deg, #F59E0B, #FBBF24); transition:width 1.5s ease-out; border-radius:4px;">
+                        </div>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                        <span id="labelMetaVisitaMes">0 / 0</span>
+                        <span>Meta Mês</span>
+                    </div>
+                </div>
+
+                <!-- Prêmio Visitas -->
+                <div class="card" id="cardPremioVisita"
+                    style="margin-bottom:0; padding:14px 20px; display:flex; flex-direction:column; justify-content:center; align-items:center; border:1px solid transparent;">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                        <i class="fas fa-trophy" style="color:#EC4899; font-size:0.85rem;"></i>
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Prêmio</span>
+                    </div>
+                    <div style="font-size:1.25rem; font-weight:700; color:var(--text-primary);" id="valorPremioVisita">
+                        R$ 0,00</div>
+                    <div style="font-size:0.7rem; color:var(--text-secondary);" id="statusPremioVisita">Meta de Visitas
+                    </div>
+                </div>
+
+                <!-- LINHA 2: METAS DE VALORES E COMISSÃO -->
+
+                <!-- Meta Mensal Vendas -->
+                <div class="card" style="margin-bottom:0; padding:14px 20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Meta Mensal</span>
+                        <span style="font-size:0.8rem; font-weight:700; color:var(--primary);"
+                            id="labelMetaMensal">0%</span>
+                    </div>
+                    <div
+                        style="height:8px; background:#E2E8F0; border-radius:4px; overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);">
+                        <div id="barMetaMensal"
+                            style="width:0%; height:100%; background:linear-gradient(90deg, var(--primary), #60A5FA); transition:width 1.5s ease-out; border-radius:4px;">
+                        </div>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                        <span id="valorMetaMensal">R$ 0,00</span>
+                        <span id="alvoMetaMensal">Meta: R$ 0,00</span>
+                    </div>
+                </div>
+
+                <!-- Meta Anual Vendas -->
+                <div class="card" style="margin-bottom:0; padding:14px 20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Meta Anual</span>
+                        <span style="font-size:0.8rem; font-weight:700; color:var(--success);"
+                            id="labelMetaAnual">0%</span>
+                    </div>
+                    <div
+                        style="height:8px; background:#E2E8F0; border-radius:4px; overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);">
+                        <div id="barMetaAnual"
+                            style="width:0%; height:100%; background:linear-gradient(90deg, var(--success), #34D399); transition:width 1.5s ease-out; border-radius:4px;">
+                        </div>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                        <span id="valorMetaAnual">R$ 0,00</span>
+                        <span id="alvoMetaAnual">Meta: R$ 0,00</span>
+                    </div>
+                </div>
+
+                <!-- Comissão -->
+                <div class="card"
+                    style="margin-bottom:0; padding:14px 20px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                        <i class="fas fa-coins" style="color:#F59E0B; font-size:0.85rem;"></i>
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Previsão de
+                            ganhos</span>
+                    </div>
+                    <div style="font-size:1.25rem; font-weight:700; color:var(--success);" id="comissaoAtual">R$ 0,00
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="kpi-row">
+            <div class="kpi-card-mini" id="cardVendasAprovadas">
+                <div class="kpi-icon-box" style="background:rgba(37,99,235,0.1); color:var(--primary);">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="kpi-details">
+                    <h3 id="kpiTotalVendido">R$ 0,00</h3>
+                    <span id="kpiTotalVendidoLabel">Vendas Aprovadas</span>
+                </div>
+            </div>
+            <div class="kpi-card-mini" id="cardRecusadosCarrinho">
+                <div class="kpi-icon-box" style="background:rgba(239,68,68,0.1); color:var(--danger);">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="kpi-details">
+                    <h3 id="kpiTotalPendentes">0</h3>
+                    <span>Recusados + Carrinho</span>
+                </div>
+            </div>
+            <div class="kpi-card-mini" id="cardPrescritores" style="cursor:pointer; position:relative;"
+                onclick="openPrescritoresModal()" title="Clique para ver todos os prescritores">
+                <div class="kpi-icon-box" style="background:rgba(139,92,246,0.1); color:#8B5CF6;">
+                    <i class="fas fa-user-md"></i>
+                </div>
+                <div class="kpi-details">
+                    <h3 id="kpiTotalCarteira">0</h3>
+                    <span>Prescritores Ativos</span>
+                </div>
+                <i class="fas fa-external-link-alt"
+                    style="position:absolute; top:12px; right:12px; font-size:0.7rem; color:var(--text-secondary); opacity:0.5;"></i>
+            </div>
+        </div>
+
+
+
+        <div class="dashboard-grid">
+            <!-- Coluna Esquerda: Gráficos e Tabelas -->
+            <div class="main-column">
+
+                <!-- Gráfico de Evolução -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Evolução Mensal de Vendas</div>
+                            <div class="card-subtitle">Performance financeira ao longo do ano</div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <select id="mesSelect"
+                                style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-size:0.85rem;">
+                                <option value="">Todos os Meses</option>
+                                <option value="1">Janeiro</option>
+                                <option value="2">Fevereiro</option>
+                                <option value="3">Março</option>
+                                <option value="4">Abril</option>
+                                <option value="5">Maio</option>
+                                <option value="6">Junho</option>
+                                <option value="7">Julho</option>
+                                <option value="8">Agosto</option>
+                                <option value="9">Setembro</option>
+                                <option value="10">Outubro</option>
+                                <option value="11">Novembro</option>
+                                <option value="12">Dezembro</option>
+                            </select>
+                            <select id="anoSelect"
+                                style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-size:0.85rem;">
+                                <option value="2026" selected>2026</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="height: 320px;">
+                        <canvas id="chartEvolucaoMENSAL"></canvas>
+                    </div>
+                </div>
+
+                <!-- Atenção Especial: prescritores com potencial porém inativos -->
+                    <div class="card" style="display:flex; flex-direction:column;">
+                        <div class="card-header" style="flex-shrink:0;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:36px; height:36px; border-radius:10px; background:rgba(239,68,68,0.12); display:flex; align-items:center; justify-content:center;">
+                                <i class="fas fa-triangle-exclamation" style="color:#EF4444; font-size:0.95rem;"></i>
+                                </div>
+                                <div>
+                                <div class="card-title" style="font-size:0.95rem;">Atenção Especial</div>
+                                <div class="card-subtitle" style="font-size:0.68rem;">Prescritores com potencial inativos</div>
+                                </div>
+                            </div>
+                        <span id="alertasCount" style="font-size:0.7rem; padding:3px 10px; border-radius:999px; background:rgba(239,68,68,0.12); color:#EF4444; font-weight:800;">0</span>
+                        </div>
+                    <div id="alertasContainer"
+                        style="flex:1; overflow-y:auto; max-height:380px; padding:4px 16px 16px 16px;">
+                        <div style="text-align:center; padding:20px 0; color:var(--text-secondary); font-size:0.85rem;">
+                            <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Analisando carteira...
+                            </div>
+                        </div>
+                    </div>
+
+                <!-- Dados dos 3 cards (Relatório Semanal, Agenda, Mapa) ficam em elementos ocultos para uso na página Relatório de visitas -->
+                <div id="dashboardRelatoriosVisitasFonte" style="display:none;">
+                    <span id="visitasDiaCount">0</span>
+                    <span id="visitasSemanaCount">0</span>
+                    <span id="visitasMesCount">0</span>
+                    <div id="visitasSemanaBody"></div>
+                    <span id="visitasAgendadasCount">0</span>
+                    <div id="visitasAgendadasBody"></div>
+                    <div id="visitasMapaResumo"></div>
+                    <div id="visitasMapaEmpty" style="display:none;"></div>
+                    <div id="dashboardVisitasMap" style="height:360px; width:100%;"></div>
+                    </div>
+
+            </div>
+
+            <!-- Coluna Direita: Metas -->
+            <div class="side-column">
+
+                <!-- Progresso da Meta Mensal -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Meta Mensal</div>
+                    </div>
+                    <div style="position:relative; height:180px; display:flex; justify-content:center;">
+                        <canvas id="chartMetaMensalGauge"></canvas>
+                        <div style="position:absolute; bottom:20px; text-align:center;">
+                            <div id="metaMensalPercent"
+                                style="font-size:1.5rem; font-weight:700; color:var(--primary);">0%</div>
+                            <span style="font-size:0.8rem; color:var(--text-secondary);">Atingido</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progresso da Meta Anual -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Meta Anual</div>
+                    </div>
+                    <div style="position:relative; height:180px; display:flex; justify-content:center;">
+                        <canvas id="chartMetaGauge"></canvas>
+                        <div style="position:absolute; bottom:20px; text-align:center;">
+                            <div id="metaPercent" style="font-size:1.5rem; font-weight:700;">0%</div>
+                            <span style="font-size:0.8rem; color:var(--text-secondary);">Atingido</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Distribuição por profissão (abaixo da Meta Anual) -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Distribuição por Profissão</div>
+                            <div class="card-subtitle">Prescritores da carteira por profissão</div>
+                        </div>
+                    </div>
+                    <div style="height: 220px;">
+                        <canvas id="chartProdutos"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        </div><!-- fim dashboardContent -->
+
+        <!-- Página Agenda (calendário mensal – substitui Relatório de visitas) -->
+        <div id="paginaAgenda" class="visitador-page" style="display:none; padding:0 24px 24px;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:20px;">
+                <div class="card" style="padding:14px 16px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
+                        <i class="fas fa-calendar-day" style="margin-right:6px; color:#0EA5E9;"></i>Visitas no dia
+                    </div>
+                    <div id="agendaKpiDiaCount" style="font-size:1.6rem; line-height:1; font-weight:800; color:var(--text-primary);">0</div>
+                </div>
+                <div class="card" style="padding:14px 16px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
+                        <i class="fas fa-calendar-week" style="margin-right:6px; color:#10B981;"></i>Visitas na semana
+                    </div>
+                    <div id="agendaKpiSemanaCount" style="font-size:1.6rem; line-height:1; font-weight:800; color:var(--text-primary);">0</div>
+                </div>
+                <div class="card" style="padding:14px 16px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
+                        <i class="fas fa-calendar-alt" style="margin-right:6px; color:#F59E0B;"></i>Visitas no mês
+                    </div>
+                    <div id="agendaKpiMesCount" style="font-size:1.6rem; line-height:1; font-weight:800; color:var(--text-primary);">0</div>
+                </div>
+            </div>
+            <div style="margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                <h2 style="margin:0; font-size:1.25rem; font-weight:700; color:var(--text-primary);">
+                    <i class="fas fa-calendar-alt" style="margin-right:8px; color:var(--primary);"></i>Agenda
+                </h2>
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <button type="button" onclick="openNovoAgendamentoModal()"
+                        style="padding:10px 18px; border-radius:10px; border:none; background:var(--success); color:white; font-weight:600; font-size:0.9rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-plus"></i> Novo agendamento
+                    </button>
+                    <button type="button" onclick="openNovoPrescritorModal()"
+                        style="padding:10px 18px; border-radius:10px; border:none; background:#0EA5E9; color:white; font-weight:600; font-size:0.9rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-user-plus"></i> Novo prescritor
+                    </button>
+                    <button type="button" onclick="openPrescritoresModal('')"
+                        style="padding:10px 18px; border-radius:10px; border:none; background:var(--primary); color:white; font-weight:600; font-size:0.9rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
+                        <i class="fas fa-user-md"></i> Atender prescritor
+                    </button>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom:24px; padding:16px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button type="button" id="agendaMesPrev" onclick="agendaMesAnterior()" style="padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer;"><i class="fas fa-chevron-left"></i></button>
+                        <h3 id="agendaMesTitulo" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary); min-width:180px; text-align:center;">Carregando...</h3>
+                        <button type="button" id="agendaMesNext" onclick="agendaMesProximo()" style="padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer;"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+                <div class="agenda-calendario-scroll">
+                    <div id="agendaCalendarioGrid">
+                        <div class="agenda-cal-header">
+                            <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+                        </div>
+                        <div id="agendaCalendarioDias">
+                            <!-- preenchido por JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="paginaAgendaList" style="display:none;"></div>
+        </div>
+
+        <!-- Modal Novo / Editar agendamento -->
+        <div id="modalNovoAgendamento" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+            <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:420px; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
+                <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                    <h3 id="modalNovoAgendamentoTitle" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-calendar-plus" style="margin-right:8px; color:var(--primary);"></i>Novo agendamento</h3>
+                    <button type="button" onclick="closeNovoAgendamentoModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+                </div>
+                <div style="padding:20px 24px;">
+                    <input type="hidden" id="novoAgendamentoId" value="">
+                    <div style="margin-bottom:16px;">
+                        <label for="novoAgendamentoPrescritor" style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Prescritor</label>
+                        <div class="agenda-prescritor-combo">
+                            <input type="text" id="novoAgendamentoPrescritor" autocomplete="off" spellcheck="false"
+                                placeholder="Digite para buscar na sua carteira…"
+                                style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                            <div id="novoAgendamentoPrescritorDropdown" class="agenda-prescritor-dropdown" role="listbox" aria-label="Sugestões de prescritores" hidden></div>
+                        </div>
+                        <p class="agenda-prescritor-combo-hint" style="margin:6px 0 0; font-size:0.7rem; color:var(--text-secondary);">Sugestões da carteira ao digitar; toque num nome ou escolha na lista.</p>
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Data</label>
+                        <input type="date" id="novoAgendamentoData" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Horário (opcional)</label>
+                        <input type="time" id="novoAgendamentoHora" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                </div>
+                <div style="padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px;">
+                    <button type="button" onclick="closeNovoAgendamentoModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Cancelar</button>
+                    <button type="button" id="btnSalvarNovoAgendamento" onclick="saveNovoAgendamento()" style="padding:10px 20px; border-radius:8px; border:none; background:var(--success); color:white; font-weight:600; cursor:pointer;"><i class="fas fa-check" style="margin-right:6px;"></i>Agendar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Página Prescritores (ajustar dados da carteira) -->
+        <div id="paginaPrescritores" class="visitador-page" style="display:none; padding:0 24px 32px;">
+            <div class="pedidos-page-header">
+                <h2>
+                    <span class="pedidos-icon"><i class="fas fa-user-md"></i></span>
+                    Prescritores
+                </h2>
+            </div>
+            <div class="pedidos-filters">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <label for="paginaPrescritoresDataDe">De</label>
+                    <input type="date" id="paginaPrescritoresDataDe" style="padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <label for="paginaPrescritoresDataAte">Até</label>
+                    <input type="date" id="paginaPrescritoresDataAte" style="padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button type="button" id="paginaPrescritoresBtnAtualizar" style="padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.85rem; font-weight:700; cursor:pointer; white-space:nowrap;">
+                        <i class="fas fa-sync-alt" style="margin-right:6px;"></i>Atualizar
+                    </button>
+                </div>
+                <div class="pedidos-search-wrap">
+                    <i class="fas fa-search pedidos-search-icon"></i>
+                    <input type="text" id="searchPrescritoresPage" placeholder="Buscar por prescritor..." autocomplete="off">
+                </div>
+            </div>
+            <div id="paginaPrescritoresCards" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:20px;">
+                <div class="card" style="padding:16px 20px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-check-circle" style="margin-right:6px; color:var(--success);"></i>Valor aprovado</div>
+                    <div id="prescritoresCardValorAprovado" style="font-size:1.35rem; font-weight:800; color:var(--success);">R$ 0,00</div>
+                </div>
+                <div class="card" style="padding:16px 20px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-times-circle" style="margin-right:6px; color:var(--danger);"></i>Valor recusado</div>
+                    <div id="prescritoresCardValorRecusado" style="font-size:1.35rem; font-weight:800; color:var(--danger, #EF4444);">R$ 0,00</div>
+                </div>
+                <div class="card" style="padding:16px 20px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-list-ol" style="margin-right:6px; color:var(--primary);"></i>Qtd aprovados</div>
+                    <div id="prescritoresCardQtdAprovados" style="font-size:1.35rem; font-weight:800; color:var(--text-primary);">0 ped.</div>
+                </div>
+                <div class="card" style="padding:16px 20px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-list-ol" style="margin-right:6px; color:var(--danger);"></i>Qtd recusados</div>
+                    <div id="prescritoresCardQtdRecusados" style="font-size:1.35rem; font-weight:800; color:var(--text-primary);">0 ped.</div>
+                </div>
+            </div>
+            <div class="pedidos-table-card">
+                <div id="paginaPrescritoresBody" style="min-height:200px; overflow-x:auto;">
+                    <table class="pedidos-table">
+                        <thead>
+                            <tr>
+                                <th id="prescritoresThPrescritor" onclick="sortPaginaPrescritoresBy('prescritor')" style="cursor:pointer; user-select:none;" title="Ordenar">Prescritor <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th>Profissão</th>
+                                <th id="prescritoresThValorAprovado" onclick="sortPaginaPrescritoresBy('valor_aprovado')" style="cursor:pointer; user-select:none; text-align:right;" title="Ordenar">Aprovados (valor + qtd) <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="prescritoresThValorRecusado" onclick="sortPaginaPrescritoresBy('valor_recusado')" style="cursor:pointer; user-select:none; text-align:right;" title="Ordenar">Recusados (valor + qtd) <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th style="text-align:center;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paginaPrescritoresTbody">
+                            <tr><td colspan="5" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="paginaPrescritoresPagination" class="pedidos-pagination"></div>
+            </div>
+        </div>
+
+        <!-- Página Pedidos (aprovados e recusados + carrinho) -->
+        <div id="paginaPedidos" class="visitador-page" style="display:none; padding:0 24px 32px;">
+            <div class="pedidos-page-header">
+                <h2>
+                    <span class="pedidos-icon"><i class="fas fa-list-alt"></i></span>
+                    Pedidos
+                </h2>
+            </div>
+            <div class="pedidos-filters">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <label for="paginaPedidosDataDe">De</label>
+                    <input type="date" id="paginaPedidosDataDe" style="padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <label for="paginaPedidosDataAte">Até</label>
+                    <input type="date" id="paginaPedidosDataAte" style="padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <label for="paginaPedidosFiltroStatus">Status</label>
+                    <select id="paginaPedidosFiltroStatus" class="pedidos-select-status" style="padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;">
+                        <option value="">Todos</option>
+                        <option value="Aprovado">Aprovados</option>
+                        <option value="Recusado">Recusados (No carrinho + Recusado)</option>
+                    </select>
+                </div>
+                <div class="pedidos-search-wrap">
+                    <i class="fas fa-search pedidos-search-icon"></i>
+                    <input type="text" id="searchPedidosPage" placeholder="Buscar por prescritor, cliente ou número..." autocomplete="off">
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button type="button" onclick="printPaginaPedidosFiltrados()" style="padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.85rem; font-weight:700; cursor:pointer; white-space:nowrap;">
+                        <i class="fas fa-print" style="margin-right:6px;"></i>Imprimir filtrados
+                    </button>
+                </div>
+            </div>
+            <div id="paginaPedidosCards" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:20px;">
+                <div class="card" style="padding:16px 20px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-coins" style="margin-right:6px; color:var(--success);"></i>Valor total</div>
+                    <div id="pedidosCardValor" style="font-size:1.35rem; font-weight:800; color:var(--text-primary);">R$ 0,00</div>
+                </div>
+                <div class="card" style="padding:16px 20px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;"><i class="fas fa-list-ol" style="margin-right:6px; color:var(--primary);"></i>Quantidade</div>
+                    <div id="pedidosCardQuantidade" style="font-size:1.35rem; font-weight:800; color:var(--text-primary);">0 pedidos</div>
+                </div>
+            </div>
+            <div class="pedidos-table-card">
+                <div id="paginaPedidosBody" style="min-height:200px; overflow-x:auto;">
+                    <table class="pedidos-table">
+                        <thead>
+                            <tr>
+                                <th id="pedidosThNumero" onclick="sortPaginaPedidosBy('numero_pedido')" style="cursor:pointer; user-select:none;" title="Ordenar">Nº Pedido <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThSerie" onclick="sortPaginaPedidosBy('serie_pedido')" style="cursor:pointer; user-select:none;" title="Ordenar">Série <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThDataAprovacao" onclick="sortPaginaPedidosBy('data_aprovacao')" style="cursor:pointer; user-select:none;" title="Ordenar">Data aprovação <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThDataOrcamento" onclick="sortPaginaPedidosBy('data_orcamento')" style="cursor:pointer; user-select:none;" title="Ordenar">Data orçamento <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThPrescritor" onclick="sortPaginaPedidosBy('prescritor')" style="cursor:pointer; user-select:none;" title="Ordenar">Prescritor <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThCliente" onclick="sortPaginaPedidosBy('cliente')" style="cursor:pointer; user-select:none;" title="Ordenar">Cliente <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThValor" onclick="sortPaginaPedidosBy('valor')" style="cursor:pointer; user-select:none;" title="Ordenar">Valor <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                                <th id="pedidosThStatus" onclick="sortPaginaPedidosBy('tipo')" style="cursor:pointer; user-select:none;" title="Ordenar">Status <i class="fas fa-sort" style="opacity:0.4; margin-left:4px;"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody id="paginaPedidosTbody">
+                            <tr><td colspan="8" style="text-align:center; padding:48px 24px; color:var(--text-secondary); font-size:0.9rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="paginaPedidosPagination" class="pedidos-pagination"></div>
+            </div>
+        </div>
+
+        <!-- Página Roteiro de Visitas (relatório completo) -->
+        <div id="paginaRoteiroVisitas" class="visitador-page roteiro-page" style="display:none; padding:0 24px 32px;">
+            <div class="roteiro-header">
+                <h2 class="roteiro-title"><i class="fas fa-route roteiro-title-icon"></i>Roteiro de Visitas</h2>
+                <p class="roteiro-subtitle">Relatório completo: distância, tempos, localizações e visitas realizadas.</p>
+            </div>
+            <div class="roteiro-filters">
+                <div class="roteiro-filter-group">
+                    <label for="roteiroDataDe" class="roteiro-label">De</label>
+                    <input type="date" id="roteiroDataDe" class="roteiro-input">
+                </div>
+                <div class="roteiro-filter-group">
+                    <label for="roteiroDataAte" class="roteiro-label">Até</label>
+                    <input type="date" id="roteiroDataAte" class="roteiro-input">
+                </div>
+                <button type="button" onclick="loadRoteiroVisitas()" class="roteiro-btn-atualizar"><i class="fas fa-sync-alt"></i> Atualizar</button>
+            </div>
+
+            <!-- KPIs resumo -->
+            <div id="roteiroKpis" class="roteiro-kpis" style="display:none;">
+                <div class="roteiro-kpi-card">
+                    <div class="roteiro-kpi-icon"><i class="fas fa-road"></i></div>
+                    <div class="roteiro-kpi-info">
+                        <div class="roteiro-kpi-value" id="roteiroKpiKm">0 km</div>
+                        <div class="roteiro-kpi-label">Distância percorrida</div>
+                    </div>
+                </div>
+                <div class="roteiro-kpi-card">
+                    <div class="roteiro-kpi-icon" style="background:rgba(16,185,129,0.12); color:#10B981;"><i class="fas fa-clock"></i></div>
+                    <div class="roteiro-kpi-info">
+                        <div class="roteiro-kpi-value" id="roteiroKpiTempoRota">0h 0min</div>
+                        <div class="roteiro-kpi-label">Tempo total de rota</div>
+                    </div>
+                </div>
+                <div class="roteiro-kpi-card">
+                    <div class="roteiro-kpi-icon" style="background:rgba(245,158,11,0.12); color:#F59E0B;"><i class="fas fa-user-clock"></i></div>
+                    <div class="roteiro-kpi-info">
+                        <div class="roteiro-kpi-value" id="roteiroKpiTempoVisita">0h 0min</div>
+                        <div class="roteiro-kpi-label">Tempo em visitas</div>
+                    </div>
+                </div>
+                <div class="roteiro-kpi-card">
+                    <div class="roteiro-kpi-icon" style="background:rgba(139,92,246,0.12); color:#8B5CF6;"><i class="fas fa-clipboard-check"></i></div>
+                    <div class="roteiro-kpi-info">
+                        <div class="roteiro-kpi-value" id="roteiroKpiVisitas">0</div>
+                        <div class="roteiro-kpi-label">Visitas realizadas</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="roteiroResumo" class="roteiro-resumo">—</div>
+
+            <!-- Lista de rotas detalhadas -->
+            <div id="roteiroDetalhes" style="display:none;"></div>
+
+            <!-- Mapa -->
+            <div id="roteiroDirecoes" class="roteiro-direcoes" style="display:none;"></div>
+            <div class="roteiro-map-card">
+                <div class="roteiro-map-layout">
+                    <div class="roteiro-map-wrap">
+                        <div id="roteiroMapContainer" class="roteiro-map-container"></div>
+                        <div id="roteiroMapEmpty" class="roteiro-map-empty" style="display:none;">
+                            <i class="fas fa-map-marked-alt"></i>
+                            <p>Nenhuma rota no período. Ajuste as datas e clique em Atualizar.</p>
+                        </div>
+                    </div>
+                    <aside class="roteiro-map-legend" aria-label="Legenda do mapa">
+                        <h4 class="roteiro-map-legend-title">Legenda</h4>
+                        <div class="roteiro-map-legend-block">
+                            <span class="roteiro-map-legend-label">Intensidade (calor)</span>
+                            <div class="roteiro-map-legend-gradient"></div>
+                            <div class="roteiro-map-legend-scale">
+                                <span>Baixa</span>
+                                <span>Alta</span>
+                            </div>
+                        </div>
+                        <div class="roteiro-map-legend-items">
+                            <div class="roteiro-map-legend-row"><span class="roteiro-map-swatch roteiro-map-swatch--visita"></span>Local de visita</div>
+                            <div class="roteiro-map-legend-row"><span class="roteiro-map-swatch roteiro-map-swatch--inicio"></span>Início da rota</div>
+                            <div class="roteiro-map-legend-row"><span class="roteiro-map-swatch roteiro-map-swatch--fim"></span>Fim da rota</div>
+                            <div class="roteiro-map-legend-row"><span class="roteiro-map-swatch roteiro-map-swatch--trajeto"></span>Trajeto</div>
+                        </div>
+                        <div class="roteiro-map-legend-divider"></div>
+                        <p class="roteiro-map-legend-note">
+                            Mapa de calor mostra regiões com mais passagens e visitas no período.
+                        </p>
+                    </aside>
+                </div>
+            </div>
+
+            <div class="roteiro-visitas-table-card">
+                <div class="roteiro-visitas-table-head">
+                    <div>
+                        <div class="roteiro-visitas-table-title">Visitas no período</div>
+                        <div class="roteiro-visitas-table-sub">Realizadas e <strong>recusadas</strong> entre <strong id="roteiroVisitasPeriodoLabel">—</strong> (somente leitura)</div>
+                    </div>
+                </div>
+                <div class="roteiro-table-responsive">
+                    <table class="roteiro-visitas-data-table" id="roteiroTabelaVisitas" aria-label="Visitas no período">
+                        <thead>
+                            <tr>
+                                <th class="roteiro-th-sortable roteiro-th-id" data-sort="id" scope="col" title="Ordenar por ID">ID <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="visitador" scope="col" title="Ordenar por visitador">Visitador <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="prescritor" scope="col" title="Ordenar por prescritor">Prescritor <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="data_visita" scope="col" title="Ordenar por data">Data <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="inicio" scope="col" title="Ordenar por início">Início <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="fim" scope="col" title="Ordenar por fim">Fim <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="duracao" scope="col" title="Ordenar por duração">Duração <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="status" scope="col" title="Ordenar por status">Status <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="local" scope="col" title="Ordenar por local">Local <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-sortable" data-sort="reagend" scope="col" title="Ordenar por próximo agendamento">Próx. agend. <span class="roteiro-th-sort-icon" aria-hidden="true"></span></th>
+                                <th class="roteiro-th-motivo" scope="col">Motivo recusa</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div id="modalRoteiroMotivoRecusa" class="roteiro-motivo-modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="roteiroMotivoRecusaTitulo" onclick="if(event.target===this)closeRoteiroMotivoRecusaModal()">
+                    <div class="roteiro-motivo-modal-box" onclick="event.stopPropagation()">
+                        <div class="roteiro-motivo-modal-head">
+                            <h3 id="roteiroMotivoRecusaTitulo"><i class="fas fa-comment-alt" style="margin-right:8px; color:#F87171;"></i>Motivo da recusa</h3>
+                            <button type="button" class="roteiro-motivo-modal-close" onclick="closeRoteiroMotivoRecusaModal()" aria-label="Fechar">&times;</button>
+                        </div>
+                        <div id="roteiroMotivoRecusaTexto" class="roteiro-motivo-modal-body"></div>
+                        <div class="roteiro-motivo-modal-foot">
+                            <button type="button" class="roteiro-motivo-modal-btn" onclick="closeRoteiroMotivoRecusaModal()">Fechar</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="roteiroVisitasPager" class="roteiro-visitas-pager" style="display:none;" aria-label="Paginação da tabela de visitas">
+                    <span id="roteiroVisitasPagerInfo" class="roteiro-visitas-pager-info"></span>
+                    <div class="roteiro-visitas-pager-nav">
+                        <button type="button" class="roteiro-visitas-pager-btn" id="roteiroVisitasPagerPrev" onclick="roteiroVisitasTablePrevPage()" title="Página anterior">&laquo; Anterior</button>
+                        <span id="roteiroVisitasPagerMeta" class="roteiro-visitas-pager-meta"></span>
+                        <button type="button" class="roteiro-visitas-pager-btn" id="roteiroVisitasPagerNext" onclick="roteiroVisitasTableNextPage()" title="Próxima página">Próxima &raquo;</button>
+                    </div>
+                    <label class="roteiro-visitas-pager-size">
+                        <span class="roteiro-visitas-pager-size-label">Linhas</span>
+                        <select id="roteiroVisitasPageSizeSelect" class="roteiro-visitas-page-size-select" title="Itens por página">
+                            <option value="10">10</option>
+                            <option value="15" selected>15</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </label>
+                </div>
+                <div id="roteiroVisitasEmpty" class="roteiro-visitas-empty" style="display:none;">Nenhuma visita neste período.</div>
+            </div>
+        </div>
+
+        <!-- Página Relatório de Visitas (oculta por padrão) -->
+        <div id="paginaRelatorioVisitas" class="visitador-page" style="display:none; padding:0 24px 24px;">
+            <div style="margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                <h2 style="margin:0; font-size:1.25rem; font-weight:700; color:var(--text-primary);">
+                    <i class="fas fa-clipboard-list" style="margin-right:8px; color:var(--primary);"></i>Relatório de visitas
+                </h2>
+                <button type="button" onclick="goVisitadorPage('dashboard', event)"
+                    style="padding:8px 14px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; font-size:0.85rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </button>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:20px;">
+                <div class="card" style="padding:14px 16px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
+                        <i class="fas fa-calendar-day" style="margin-right:6px; color:#0EA5E9;"></i>Visitas no dia
+                    </div>
+                    <div id="relatorioKpiDiaCount" style="font-size:1.6rem; line-height:1; font-weight:800; color:var(--text-primary);">0</div>
+                </div>
+                <div class="card" style="padding:14px 16px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
+                        <i class="fas fa-calendar-week" style="margin-right:6px; color:#10B981;"></i>Visitas na semana
+                    </div>
+                    <div id="relatorioKpiSemanaCount" style="font-size:1.6rem; line-height:1; font-weight:800; color:var(--text-primary);">0</div>
+                </div>
+                <div class="card" style="padding:14px 16px;">
+                    <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">
+                        <i class="fas fa-calendar-alt" style="margin-right:6px; color:#F59E0B;"></i>Visitas no mês
+                    </div>
+                    <div id="relatorioKpiMesCount" style="font-size:1.6rem; line-height:1; font-weight:800; color:var(--text-primary);">0</div>
+                </div>
+            </div>
+
+            <div class="relatorios-visitas-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                <div class="card" style="display:flex; flex-direction:column;">
+                    <div class="card-header" style="flex-shrink:0;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:36px; height:36px; border-radius:10px; background:rgba(16,185,129,0.12); display:flex; align-items:center; justify-content:center;">
+                                <i class="fas fa-clipboard-list" style="color:#10B981; font-size:0.95rem;"></i>
+                            </div>
+                            <div>
+                                <div class="card-title" style="font-size:0.95rem;">Relatório Semanal</div>
+                                <div class="card-subtitle" style="font-size:0.72rem;">Visitas realizadas esta semana</div>
+                            </div>
+                        </div>
+                        <span id="relatorioSemanaCount" style="font-size:0.7rem; padding:3px 10px; border-radius:999px; background:rgba(16,185,129,0.12); color:#10B981; font-weight:800;">0</span>
+                    </div>
+                    <div id="relatorioSemanaBody" style="flex:1; overflow-y:auto; max-height:320px; padding:4px 16px 16px 16px;">
+                        <div style="text-align:center; padding:24px 0; color:var(--text-secondary); font-size:0.85rem;">Carregando...</div>
+                    </div>
+                </div>
+                <div class="card" style="display:flex; flex-direction:column;">
+                    <div class="card-header" style="flex-shrink:0;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:36px; height:36px; border-radius:10px; background:rgba(37,99,235,0.12); display:flex; align-items:center; justify-content:center;">
+                                <i class="fas fa-calendar-check" style="color:#3B82F6; font-size:0.95rem;"></i>
+                            </div>
+                            <div>
+                                <div class="card-title" style="font-size:0.95rem;">Agenda de Visitas</div>
+                                <div class="card-subtitle" style="font-size:0.72rem;">Próximas visitas agendadas</div>
+                            </div>
+                        </div>
+                        <span id="relatorioAgendadasCount" style="font-size:0.7rem; padding:3px 10px; border-radius:999px; background:rgba(37,99,235,0.12); color:#3B82F6; font-weight:800;">0</span>
+                    </div>
+                    <div id="relatorioAgendadasBody" style="flex:1; overflow-y:auto; max-height:320px; padding:4px 16px 16px 16px;">
+                        <div style="text-align:center; padding:24px 0; color:var(--text-secondary); font-size:0.85rem;">Carregando...</div>
+                        </div>
+                    </div>
+                </div>
+
+            <div class="card" style="margin-bottom:24px;">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Roteiro de Visitas</div>
+                        <div class="card-subtitle">Visitas efetuadas com confirmação de GPS</div>
+            </div>
+                    <button type="button" onclick="openMapaVisitasStatsModal()"
+                        style="padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-weight:800;">
+                        <i class="fas fa-chart-simple"></i> Estatísticas
+                    </button>
+                </div>
+                <div id="relatorioMapaResumo" style="padding:0 18px 12px 18px; font-size:0.82rem; color:var(--text-secondary);">—</div>
+                <div style="padding:0 18px 18px 18px;">
+                    <div id="relatorioMapaEmpty" style="display:none; padding:18px; border:1px dashed var(--border); border-radius:12px; text-align:center; color:var(--text-secondary);">Nenhuma visita com GPS no período.</div>
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin:0 18px 12px;">O mapa completo está no painel principal.</p>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="app-footer visitador-footer">
+        Sistema para Gestão e Tomada de Decisões • © 2026 MyPharm - Todos os direitos reservados
+    </footer>
+
+    <!-- Modal Meu perfil -->
+    <div id="modalMeuPerfil"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:2500; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div
+            style="background:var(--bg-card); border-radius:16px; width:100%; max-width:420px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:0;"><i class="fas fa-user-circle" style="color:var(--primary); margin-right:8px;"></i>Meu perfil</h2>
+                <button type="button" onclick="closeMeuPerfilModal()"
+                    style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px; border-radius:6px;">&times;</button>
+            </div>
+            <div style="padding:24px;">
+                <div style="text-align:center; margin-bottom:24px;">
+                    <div class="perfil-foto-wrap" id="perfilFotoWrap" style="position:relative; display:inline-block;">
+                        <div class="avatar perfil-foto-inicial" id="perfilAvatarInicial" style="width:96px; height:96px; font-size:2.5rem;">V</div>
+                        <img class="avatar-img perfil-foto-img" id="perfilFotoImg" src="" alt="Foto" style="display:none; width:96px; height:96px; border-radius:50%; object-fit:cover;">
+                        <input type="file" id="inputFotoPerfilModal" accept="image/*" style="display:none;">
+                        <button type="button" onclick="document.getElementById('inputFotoPerfilModal').click()"
+                            style="margin-top:10px; padding:8px 16px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-size:0.85rem; font-weight:600;">
+                            <i class="fas fa-camera"></i> Alterar foto
+                        </button>
+                    </div>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">Nome</label>
+                    <input type="text" id="perfilNome" placeholder="Seu nome"
+                        style="width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); font-size:0.95rem; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">Usuário (login)</label>
+                    <input type="text" id="perfilUsuario" readonly
+                        style="width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-secondary); font-size:0.95rem; box-sizing:border-box; cursor:not-allowed;">
+                </div>
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">WhatsApp</label>
+                    <input type="text" id="perfilWhatsapp" placeholder="(00) 00000-0000"
+                        style="width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); font-size:0.95rem; box-sizing:border-box;">
+                </div>
+                <div style="border-top:1px solid var(--border); padding-top:20px; margin-top:20px;">
+                    <div style="font-size:0.9rem; font-weight:700; color:var(--text-primary); margin-bottom:12px;"><i class="fas fa-lock" style="margin-right:6px; color:var(--text-secondary);"></i>Alterar senha</div>
+                    <div style="margin-bottom:12px;">
+                        <input type="password" id="perfilSenhaAtual" placeholder="Senha atual"
+                            style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <input type="password" id="perfilSenhaNova" placeholder="Nova senha (8+, 1 maiúscula, 1 especial)"
+                            style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <input type="password" id="perfilSenhaConfirma" placeholder="Confirmar nova senha"
+                            style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                </div>
+            </div>
+            <div style="padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" onclick="closeMeuPerfilModal()"
+                    style="padding:10px 20px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-weight:600;">Fechar</button>
+                <button type="button" id="btnSalvarPerfil" onclick="salvarMeuPerfil()"
+                    style="padding:10px 20px; border-radius:10px; border:none; background:var(--primary); color:white; cursor:pointer; font-weight:600;">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Prescritores -->
+    <div id="modalPrescritores"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:2000; justify-content:center; align-items:center; padding:20px;">
+        <div
+            style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:95vw; max-height:85vh; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div
+                style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <div>
+                    <h2 id="modalPrescritorTitle" style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:0;"><i
+                            class="fas fa-user-md" style="color:var(--warning); margin-right:8px;"></i>Todos os Prescritores</h2>
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin:4px 0 0 0;"
+                        id="modalPrescritorSubtitle">Carteira completa do visitador</p>
+                </div>
+                <button onclick="closePrescritoresModal()"
+                    style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px; border-radius:6px; transition:all 0.2s;"
+                    onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#EF4444'"
+                    onmouseout="this.style.background='none';this.style.color='var(--text-secondary)'">&times;</button>
+            </div>
+            <div style="padding:16px 24px; border-bottom:1px solid var(--border); flex-shrink:0; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+                <div style="flex:1 1 320px; min-width:240px;">
+                    <input type="text" id="searchPrescritor" placeholder="Buscar prescritor..."
+                        oninput="filterPrescritores()"
+                        style="width:100%; padding:10px 16px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; outline:none; transition:border 0.2s;"
+                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-start; flex:2 1 540px;">
+                    <input type="date" id="modalPrescritorDataDe"
+                        style="padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.82rem;">
+                    <span style="font-size:0.78rem; color:var(--text-secondary);">até</span>
+                    <input type="date" id="modalPrescritorDataAte"
+                        style="padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.82rem;">
+                    <button type="button" onclick="applyModalPrescritoresDateFilter()"
+                        style="padding:8px 12px; border:none; border-radius:8px; background:var(--primary); color:#fff; font-size:0.78rem; font-weight:700; cursor:pointer;">
+                        Aplicar período
+                    </button>
+                    <button type="button" onclick="clearModalPrescritoresDateFilter()"
+                        style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.78rem; font-weight:700; cursor:pointer;">
+                        Limpar
+                    </button>
+                </div>
+            </div>
+            <div id="modalPrescritoresVisitaAtivaBanner" style="display:none; padding:12px 24px; border-bottom:1px solid var(--border); background:rgba(16,185,129,0.12); flex-shrink:0; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                <div style="font-size:0.88rem; color:var(--text-primary); flex:1; min-width:200px;">
+                    <strong><i class="fas fa-walking" style="margin-right:6px; color:var(--success, #10B981);"></i>Visita em andamento:</strong>
+                    <span id="modalPrescritoresVisitaAtivaNome" style="font-weight:600;"></span>
+                    <span id="modalPrescritoresVisitaAtivaInicio" style="color:var(--text-secondary); margin-left:8px; font-size:0.82rem;"></span>
+                </div>
+                <button type="button" id="btnEncerrarVisitaAtivaBanner" class="btn-encerrar-visita-banner"
+                    style="padding:8px 16px; border-radius:8px; border:none; background:#EF4444; color:white; cursor:pointer; font-weight:700; font-size:0.8rem;">
+                    Finalizar visita
+                </button>
+                <button type="button" id="btnCancelarVisitaAtivaBanner" class="btn-cancelar-visita-banner"
+                    style="padding:8px 16px; border-radius:8px; border:none; background:#F59E0B; color:white; cursor:pointer; font-weight:700; font-size:0.8rem;">
+                    Cancelar visita
+                </button>
+            </div>
+            <div style="overflow-y:auto; flex:1; padding:0;" id="modalBodyWrapper">
+                <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                    <thead style="position:sticky; top:0; background:var(--bg-card); z-index:1;">
+                        <tr style="border-bottom:2px solid var(--border);">
+                            <th
+                                style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">
+                                #</th>
+                            <th onclick="sortTable('prescritor')"
+                                style="padding:12px 16px; text-align:left; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
+                                Prescritor <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
+                            <th onclick="sortTable('total_aprovado')"
+                                style="padding:12px 16px; text-align:right; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
+                                Aprovados (valor + qtd) <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
+                            <th onclick="sortTable('total_recusado')"
+                                style="padding:12px 16px; text-align:right; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
+                                Recusados (valor + qtd) <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
+                            <th onclick="sortTable('dias_sem_compra')"
+                                style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
+                                Dias s/ Compra <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
+                            <th onclick="sortTable('ultima_visita')"
+                                style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; user-select:none;">
+                                Dias s/ Visita <i class="fas fa-sort" style="margin-left:4px; opacity:0.3;"></i></th>
+                            <th id="thVisita"
+                                style="padding:12px 16px; text-align:center; font-weight:600; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">
+                                Visita
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalPrescritoresBody">
+                        <tr>
+                            <td colspan="7" style="text-align:center; padding:40px; color:var(--text-secondary);">
+                                Carregando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination Footer -->
+            <div id="paginationContainer"
+                style="padding:12px 24px; border-top:1px solid var(--border); background:var(--bg-card); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; font-size:0.85rem;">
+                <div style="color:var(--text-secondary);" id="paginationInfo">Mostrando 0-0 de 0</div>
+                <div style="display:flex; gap:8px;">
+                    <button id="prevPage" onclick="changePage(-1)"
+                        style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; transition:all 0.2s;">Anterior</button>
+                    <button id="nextPage" onclick="changePage(1)"
+                        style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; transition:all 0.2s;">Próximo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mini-Modal para salvar WhatsApp -->
+    <div id="modalWhatsApp"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:3000; justify-content:center; align-items:center; padding:20px;">
+        <div
+            style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:420px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div
+                style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="font-size:1rem; font-weight:700; color:var(--text-primary); margin:0;">
+                    <i class="fab fa-whatsapp" style="color:#25D366; margin-right:8px;"></i>
+                    <span id="whatsModalTitle">Salvar WhatsApp</span>
+                </h3>
+                <button onclick="closeWhatsAppModal()"
+                    style="background:none; border:none; font-size:1.3rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:20px 24px;">
+                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;"
+                    id="whatsModalPrescritorName"></p>
+                <input type="hidden" id="whatsPrescritorNome">
+                <div style="display:flex; gap:8px;">
+                    <input type="tel" id="whatsPrescritorNumero" placeholder="(00) 00000-0000" maxlength="15"
+                        style="flex:1; padding:10px 16px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.95rem; outline:none;"
+                        onfocus="this.style.borderColor='#25D366'" onblur="this.style.borderColor='var(--border)'"
+                        oninput="formatWhatsApp(this)">
+                    <button onclick="savePrescritorWhatsApp()" id="btnSaveWhats"
+                        style="padding:10px 20px; background:#25D366; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.9rem; transition:all 0.2s; display:flex; align-items:center; gap:6px;"
+                        onmouseover="this.style.background='#128C7E'" onmouseout="this.style.background='#25D366'">
+                        <i class="fas fa-save"></i> Salvar
+                    </button>
+                </div>
+                <p id="whatsStatusMsg" style="font-size:0.8rem; margin-top:8px; display:none;"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detalhe do Pedido (dados + componentes) -->
+    <div id="modalDetalhePedido" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3200; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:960px; max-height:92vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
+            <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-file-invoice" style="margin-right:8px; color:var(--primary);"></i>Detalhe do Pedido</h3>
+                <button type="button" onclick="closeModalDetalhePedido()" style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px;">&times;</button>
+            </div>
+            <div id="modalDetalhePedidoBody" style="overflow-y:auto; flex:1; padding:24px;">
+                <div id="modalDetalhePedidoLoading" style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem; margin-bottom:12px;"></i><p>Carregando...</p></div>
+                <div id="modalDetalhePedidoError" style="display:none; text-align:center; padding:24px; color:var(--danger);"></div>
+                <div id="modalDetalhePedidoContent" style="display:none;">
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Dados do pedido</div>
+                        <div id="modalDetalhePedidoFields" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px;"></div>
+                    </div>
+                    <div id="modalDetalhePedidoItensGestaoWrap" style="margin-bottom:20px; display:none;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Itens (Gestão de Pedidos)</div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Produto</th><th style="padding:10px 12px; text-align:left;">Forma</th><th style="padding:10px 12px; text-align:right;">Qtd</th><th style="padding:10px 12px; text-align:right;">Preço liq.</th></tr></thead>
+                                <tbody id="modalDetalhePedidoItensGestao"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="modalDetalhePedidoItensOrcamentoWrap" style="margin-bottom:20px; display:none;">
+                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Itens (Orçamento)</div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Descrição</th><th style="padding:10px 12px; text-align:left;">Canal</th><th style="padding:10px 12px; text-align:right;">Qtd</th><th style="padding:10px 12px; text-align:right;">Valor liq.</th><th style="padding:10px 12px; text-align:left;">Inclusão</th><th style="padding:10px 12px; text-align:left;">Aprovador</th></tr></thead>
+                                <tbody id="modalDetalhePedidoItensOrcamento"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Componentes</div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                                <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:10px 12px; text-align:left;">#</th><th style="padding:10px 12px; text-align:left;">Descrição</th><th style="padding:10px 12px; text-align:right;">Qtd calc.</th></tr></thead>
+                                <tbody id="modalDetalhePedidoComponentes"></tbody>
+                            </table>
+                        </div>
+                        <p id="modalDetalhePedidoComponentesEmpty" style="display:none; padding:16px; text-align:center; color:var(--text-secondary); font-size:0.9rem;">Nenhum componente disponível.</p>
+                    </div>
+                </div>
+            </div>
+            <div style="padding:14px 24px; border-top:1px solid var(--border); flex-shrink:0;">
+                <button type="button" onclick="closeModalDetalhePedido()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Prescritor (dados completos) -->
+    <div id="modalEditarPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:560px; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
+            <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <h3 id="edPrescritorModalTitle" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-user-edit" style="margin-right:8px; color:var(--primary);"></i>Editar prescritor</h3>
+                <button type="button" onclick="closeEditarPrescritorModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:20px 24px; overflow-y:auto; flex:1;">
+                <input type="hidden" id="edPrescritorNome">
+                <div style="margin:0 0 16px 0;">
+                    <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Nome do prescritor *</label>
+                    <input type="text" id="edPrescritorNomeInput" placeholder="Ex.: João Silva" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.95rem; box-sizing:border-box;">
+                    <p id="edPrescritorNomeLabel" style="display:none; font-weight:600; color:var(--text-secondary); margin:8px 0 0 0; font-size:0.82rem;">Nome bloqueado no modo edição</p>
+                </div>
+                <div style="display:grid; gap:14px;">
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Profissão</label><select id="edPrescritorProfissao" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">Selecione</option></select></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Especialidade</label><select id="edPrescritorEspecialidade" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">Selecione</option></select></div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Registro</label><input type="text" id="edPrescritorRegistro" placeholder="Nº registro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">UF Registro</label><select id="edPrescritorUfRegistro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">UF</option><option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option><option value="AP">AP</option><option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option><option value="MA">MA</option><option value="MG">MG</option><option value="MS">MS</option><option value="MT">MT</option><option value="PA">PA</option><option value="PB">PB</option><option value="PE">PE</option><option value="PI">PI</option><option value="PR">PR</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RO">RO</option><option value="RR">RR</option><option value="RS">RS</option><option value="SC">SC</option><option value="SE">SE</option><option value="SP">SP</option><option value="TO">TO</option></select></div></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Data de nascimento</label><input type="date" id="edPrescritorDataNascimento" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">CEP</label><input type="text" id="edPrescritorCep" placeholder="00000-000" maxlength="9" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                    <div style="display:grid; grid-template-columns:1fr 80px; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Rua</label><input type="text" id="edPrescritorRua" placeholder="Logradouro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Nº</label><input type="text" id="edPrescritorNumero" placeholder="Nº" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div></div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;"><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Bairro</label><input type="text" id="edPrescritorBairro" placeholder="Bairro" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div><div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Cidade / UF</label><input type="text" id="edPrescritorCidadeUf" placeholder="Cidade - UF" readonly style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-secondary); font-size:0.9rem; box-sizing:border-box;"><input type="hidden" id="edPrescritorCidade"><input type="hidden" id="edPrescritorUf"></div></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">Local de atendimento</label><select id="edPrescritorLocalAtendimento" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"><option value="">Selecione</option><option value="Clínica">Clínica</option><option value="Hospital">Hospital</option><option value="Telemedicina">Telemedicina</option><option value="Consultório">Consultório</option><option value="On line">On line</option><option value="Assistência">Assistência</option><option value="Outros">Outros</option></select></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">WhatsApp</label><input type="tel" id="edPrescritorWhatsapp" placeholder="(00) 00000-0000" oninput="formatWhatsApp(this)" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                    <div><label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">E-mail</label><input type="email" id="edPrescritorEmail" placeholder="email@exemplo.com" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;"></div>
+                </div>
+            </div>
+            <div style="padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; flex-shrink:0;">
+                <button type="button" onclick="closeEditarPrescritorModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+                <button type="button" id="btnSaveEditarPrescritor" onclick="saveEditarPrescritorModal()" style="padding:10px 20px; border-radius:8px; border:none; background:var(--primary); color:white; font-weight:600; cursor:pointer;"><i class="fas fa-save" style="margin-right:6px;"></i>Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Pedidos Aprovados e Recusados + Carrinho (mesmo estilo do modal Prescritores) -->
+    <div id="modalPedidosVisitador" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:95vw; max-height:85vh; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <div>
+                    <h2 id="modalPedidosVisitadorTitle" style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:0;"><i class="fas fa-list-alt" style="color:var(--primary); margin-right:8px;"></i>Pedidos Aprovados e Recusados + Carrinho</h2>
+                    <p id="modalPedidosVisitadorSubtitle" style="font-size:0.8rem; color:var(--text-secondary); margin:4px 0 0 0;">Carregando...</p>
+                </div>
+                <button type="button" onclick="closeModalPedidosVisitador()" style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px; border-radius:6px;" onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#EF4444'" onmouseout="this.style.background='none';this.style.color='var(--text-secondary)'">&times;</button>
+            </div>
+            <div style="padding:16px 24px; border-bottom:1px solid var(--border); flex-shrink:0;">
+                <input type="text" id="searchPedidosVisitador" placeholder="Buscar por prescritor, cliente ou número do pedido..." oninput="filterPedidosVisitadorModal()" style="width:100%; padding:10px 16px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; outline:none;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+            </div>
+            <div id="modalPedidosVisitadorBody" style="overflow-y:auto; flex:1; padding:0;">
+                <div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+            </div>
+            <div id="modalPedidosVisitadorFooter" style="padding:12px 24px; border-top:1px solid var(--border); background:var(--bg-card); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; font-size:0.85rem;">
+                <div style="color:var(--text-secondary);" id="modalPedidosVisitadorPagination">Mostrando 0-0 de 0</div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button type="button" id="btnPedidosPrev" onclick="changePagePedidosModal(-1)" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; transition:all 0.2s;">Anterior</button>
+                    <button type="button" id="btnPedidosNext" onclick="changePagePedidosModal(1)" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; transition:all 0.2s;">Próximo</button>
+                    <button type="button" onclick="closeModalPedidosVisitador()" style="padding:8px 16px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Lista de componentes (aprovados ou recusados) por prescritor -->
+    <div id="modalComponentesPrescritor" class="modal-componentes-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div class="modal-componentes-card" style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div class="modal-componentes-header" style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <div class="modal-componentes-title-wrap" style="min-width:0;">
+                    <h2 id="modalComponentesPrescritorTitle" style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:0;"><i class="fas fa-atom" style="color:var(--primary); margin-right:8px;"></i>Componentes</h2>
+                    <p id="modalComponentesPrescritorSubtitle" style="font-size:0.8rem; color:var(--text-secondary); margin:4px 0 0 0;">Carregando...</p>
+                </div>
+                <button type="button" onclick="closeModalComponentesPrescritor()" style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px; border-radius:6px; flex-shrink:0;" onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#EF4444'" onmouseout="this.style.background='none';this.style.color='var(--text-secondary)'">&times;</button>
+            </div>
+            <div id="modalComponentesPrescritorBody" class="modal-componentes-body" style="overflow:visible; flex:1; min-height:0; padding:16px 24px;">
+                <div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+            </div>
+            <div style="padding:12px 24px; border-top:1px solid var(--border); background:var(--bg-card); flex-shrink:0; text-align:right;">
+                <button type="button" onclick="closeModalComponentesPrescritor()" style="padding:8px 16px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Aprovados / Recusados do prescritor -->
+    <div id="modalAprovadosRecusados" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:1200px; max-height:88vh; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden; display:flex; flex-direction:column;">
+            <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="modalAprovadosRecusadosTitle" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"></h3>
+                <button type="button" onclick="closeAprovadosRecusadosModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div id="modalAprovadosRecusadosBody" style="padding:16px 20px; overflow:auto; flex:1;">
+                <i class="fas fa-spinner fa-spin" style="color:var(--primary);"></i> Carregando...
+            </div>
+            <div style="padding:16px 24px; border-top:1px solid var(--border); text-align:right;">
+                <button type="button" onclick="closeAprovadosRecusadosModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Relatório de visitas do prescritor -->
+    <div id="modalRelatorioVisitasPrescritor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(2px); z-index:3100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:12px; width:100%; max-width:520px; box-shadow:0 20px 60px rgba(0,0,0,0.25); border:1px solid var(--border); overflow:hidden; max-height:85vh; display:flex; flex-direction:column;">
+            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <h3 id="modalRelatorioVisitasPrescritorTitle" style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-clipboard-list" style="margin-right:8px; color:#0ea5e9;"></i>Relatório de visitas</h3>
+                <button type="button" onclick="closeRelatorioVisitasPrescritorModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div id="modalRelatorioVisitasPrescritorBody" style="padding:18px 22px; overflow-y:auto; flex:1;">
+                <div style="text-align:center; padding:24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+            </div>
+            <div style="padding:14px 22px; border-top:1px solid var(--border); text-align:right;">
+                <button type="button" onclick="closeRelatorioVisitasPrescritorModal()" style="padding:10px 20px; border-radius:8px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); font-weight:600; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Bonificação do prescritor -->
+    <div id="modalBonusPrescritor" class="bonus-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalBonusPrescritorTitle">
+        <div class="bonus-modal-card">
+            <div class="bonus-modal-header">
+                <h3 id="modalBonusPrescritorTitle" class="bonus-modal-title"><i class="fas fa-gift"></i>Bonificação</h3>
+                <button type="button" onclick="closeBonusPrescritorModal()" class="bonus-modal-close" aria-label="Fechar modal de bonificação">&times;</button>
+            </div>
+            <div id="modalBonusPrescritorBody" class="bonus-modal-body">
+                <div class="bonus-modal-loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+            </div>
+            <div class="bonus-modal-footer">
+                <button type="button" onclick="closeBonusPrescritorModal()" class="bonus-modal-btn-secondary">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Análises do prescritor (painel de inteligência completo) -->
+    <div id="modalAnalisesPrescritor" class="modal-analise-prescritor-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:3100; justify-content:center; align-items:flex-start; padding:16px; box-sizing:border-box; overflow-y:auto;">
+        <div class="modal-analise-prescritor-card" style="background:var(--bg-card); border-radius:12px; width:100%; max-width:960px; margin:auto; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.25); border:1px solid var(--border); overflow:hidden;">
+            <div class="modal-analise-prescritor-header" style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; flex-wrap:wrap; gap:10px;">
+                <div class="modal-analise-prescritor-title-wrap" style="min-width:0;">
+                    <h3 id="modalAnalisesPrescritorTitle" style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);"><i class="fas fa-brain" style="margin-right:8px; color:#8b5cf6;"></i>Inteligência do Prescritor</h3>
+                    <p id="modalAnalisesPrescritorSubtitle" style="font-size:0.8rem; color:var(--text-secondary); margin:4px 0 0 0;">Prescritor</p>
+                </div>
+                <div class="modal-analise-prescritor-actions" style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+                    <label style="font-size:0.8rem; color:var(--text-secondary); font-weight:600;">Ano</label>
+                    <select id="modalAnalisesPrescritorAno" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem;"></select>
+                    <button type="button" onclick="closeModalAnalisesPrescritor()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px;">&times;</button>
+                </div>
+            </div>
+            <div id="modalAnalisesPrescritorBody" class="modal-analise-prescritor-body" style="padding:18px 22px; overflow-y:auto; max-height:calc(90vh - 110px); min-height:0;">
+                <div style="text-align:center; padding:40px 24px; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Encerrar Visita (Relatório + Próxima Visita) -->
+    <div id="modalEncerrarVisita" class="modal-encerrar-visita-overlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:3500; align-items:flex-start; justify-content:center; padding:20px; box-sizing:border-box; overflow-y:auto;">
+        <div class="modal-encerrar-visita-card" style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:720px; height:90vh; max-height:90vh; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden; display:flex; flex-direction:column; flex-shrink:0; margin:auto;">
+            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:var(--text-primary);">
+                    <i class="fas fa-clipboard-check" style="color:var(--success); margin-right:8px;"></i>
+                    Encerrar Visita
+                </h3>
+                <button onclick="closeEncerrarVisitaModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-encerrar-visita-body" style="padding:18px 22px; overflow-y:auto; flex:1; min-height:0;">
+                <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">
+                    Prescritor: <strong id="encerrarVisitaPrescritor" style="color:var(--text-primary);"></strong>
+                    <span id="encerrarVisitaInicio" style="margin-left:10px; opacity:0.8;"></span>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Status da visita</label>
+                        <select id="visitaStatus" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary);" required>
+                            <option value="" selected>Selecione</option>
+                            <option value="Realizada">Realizada</option>
+                            <option value="Não encontrado">Não encontrado</option>
+                            <option value="Remarcada">Remarcada</option>
+                            <option value="Cancelada">Cancelada</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Local de atendimento</label>
+                        <select id="visitaLocal" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;" required>
+                            <option value="">Selecione</option>
+                            <option value="Clínica">Clínica</option>
+                            <option value="Hospital">Hospital</option>
+                            <option value="Telemedicina">Telemedicina</option>
+                            <option value="Consultório">Consultório</option>
+                            <option value="On line">On line</option>
+                            <option value="Assistência">Assistência</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Confirmação de Local (GPS + Mapa) -->
+                <div style="margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div>
+                            <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">Confirmar local (GPS)</div>
+                            <div id="geoStatusText" style="font-size:0.72rem; color:var(--text-secondary); opacity:0.85;">Ao abrir este modal, o sistema tenta capturar o GPS automaticamente.</div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button id="btnCapturarGPS" type="button" onclick="capturarGPS()"
+                                style="padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-weight:700;">
+                                <i class="fas fa-location-crosshairs"></i> Capturar GPS
+                            </button>
+                            <a id="btnAbrirMapaExterno" href="#" target="_blank" style="display:none; padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); text-decoration:none; font-weight:700;">
+                                <i class="fas fa-map"></i> Abrir mapa
+                            </a>
+                        </div>
+                    </div>
+                    <div id="geoInfoLine" style="margin-top:8px; font-size:0.75rem; color:var(--text-secondary); display:none;"></div>
+                    <div id="mapContainer" style="display:none; margin-top:10px; border:1px solid var(--border); border-radius:12px; overflow:hidden;">
+                        <div id="visitaMap" style="height:220px; width:100%;"></div>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Amostra</label>
+                        <input id="visitaAmostra" type="text" placeholder="Opcional"
+                            style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Brinde</label>
+                        <input id="visitaBrinde" type="text" placeholder="Opcional"
+                            style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Artigo</label>
+                        <input id="visitaArtigo" type="text" placeholder="Opcional"
+                            style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                    </div>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Resumo da visita</label>
+                    <textarea id="visitaResumo" rows="4" placeholder="Escreva um resumo rápido..."
+                        style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none; resize:vertical;"></textarea>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Imagens da conversa (máx. 3)</label>
+                    <input id="visitaImagens" type="file" accept="image/*" onchange="handleVisitaImagensChange()"
+                        style="display:none;">
+                    <div class="visita-img-slots">
+                        <button id="visitaImgSlot0" type="button" onclick="openVisitaImagemPicker(0)"
+                            class="visita-img-slot visita-img-slot--empty">+</button>
+                        <button id="visitaImgSlot1" type="button" onclick="openVisitaImagemPicker(1)"
+                            class="visita-img-slot visita-img-slot--empty">+</button>
+                        <button id="visitaImgSlot2" type="button" onclick="openVisitaImagemPicker(2)"
+                            class="visita-img-slot visita-img-slot--empty">+</button>
+                    </div>
+                    <div id="visitaImagensInfo" style="margin-top:6px; font-size:0.72rem; color:var(--text-secondary);">
+                        Clique nos quadrados para adicionar até 3 imagens.
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:6px;">
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Próxima visita (data)</label>
+                        <input id="visitaProximaData" type="date"
+                            style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                        <div style="margin-top:6px; font-size:0.7rem; color:var(--text-secondary); margin-bottom:2px;">Sugestões:</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            <button type="button" onclick="aplicarSugestaoProximaData('amanha')" class="btn-sugestao-proxima" title="Amanhã">Amanhã</button>
+                            <button type="button" onclick="aplicarSugestaoProximaData(3)" class="btn-sugestao-proxima" title="Daqui a 3 dias">Em 3 dias</button>
+                            <button type="button" onclick="aplicarSugestaoProximaData(7)" class="btn-sugestao-proxima" title="Daqui a 1 semana">Em 1 semana</button>
+                            <button type="button" onclick="aplicarSugestaoProximaData('segunda')" class="btn-sugestao-proxima" title="Próxima segunda-feira">Próx. segunda</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px;">Próxima visita (hora)</label>
+                        <input id="visitaProximaHora" type="time"
+                            style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); outline:none;">
+                        <div style="margin-top:6px; font-size:0.7rem; color:var(--text-secondary); margin-bottom:2px;">Sugestões:</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            <button type="button" onclick="aplicarSugestaoProximaHora('08:00')" class="btn-sugestao-proxima" title="8h">8h</button>
+                            <button type="button" onclick="aplicarSugestaoProximaHora('09:00')" class="btn-sugestao-proxima" title="9h">9h</button>
+                            <button type="button" onclick="aplicarSugestaoProximaHora('10:00')" class="btn-sugestao-proxima" title="10h">10h</button>
+                            <button type="button" onclick="aplicarSugestaoProximaHora('14:00')" class="btn-sugestao-proxima" title="14h">14h</button>
+                            <button type="button" onclick="aplicarSugestaoProximaHora('16:00')" class="btn-sugestao-proxima" title="16h">16h</button>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="encerrarVisitaMsg" style="display:none; font-size:0.8rem; margin:0 0 10px 0;"></p>
+
+                <div style="display:flex; justify-content:flex-end; gap:10px;">
+                    <button onclick="closeEncerrarVisitaModal()"
+                        style="padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer;">
+                        Cancelar
+                    </button>
+                    <button id="btnEncerrarVisita" onclick="confirmEncerrarVisita()"
+                        style="padding:10px 14px; border-radius:10px; border:none; background:var(--success); color:white; cursor:pointer; font-weight:700;">
+                        <i class="fas fa-flag-checkered"></i> Encerrar visita
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Detalhes da Visita -->
+    <div id="modalDetalheVisita"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:3700; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--bg-card); border-radius:12px; width:100%; max-width:560px; box-shadow:0 20px 60px rgba(0,0,0,0.25); border:1px solid var(--border); overflow:hidden; max-height:90vh; display:flex; flex-direction:column;">
+            <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; background:var(--bg-body);">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div id="dvIconBox" style="width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <i id="dvIcon" class="fas fa-check-circle" style="font-size:1.1rem;"></i>
+                    </div>
+                    <div style="min-width:0;">
+                        <h3 style="margin:0; font-size:1.1rem; font-weight:800; color:var(--text-primary); letter-spacing:-0.02em;">Detalhes da Visita</h3>
+                        <div id="dvSubtitulo" style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">—</div>
+                    </div>
+                </div>
+                <button onclick="closeDetalheVisitaModal()" style="background:var(--bg-body); border:1px solid var(--border); width:36px; height:36px; border-radius:10px; font-size:1.25rem; color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;">&times;</button>
+            </div>
+            <div style="overflow-y:auto; padding:20px 24px; flex:1;">
+                <div id="dvViewContainer">
+
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+                    <div style="flex:1;">
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">Prescritor</div>
+                        <div id="dvPrescritor" style="font-size:1.1rem; font-weight:900; color:var(--text-primary);">—</div>
+                    </div>
+                    <div id="dvStatusBadge" style="padding:4px 12px; border-radius:999px; font-size:0.75rem; font-weight:800;">—</div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body);">
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="far fa-calendar" style="margin-right:4px;"></i>Data</div>
+                        <div id="dvData" style="font-size:0.92rem; font-weight:700; color:var(--text-primary);">—</div>
+                    </div>
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body); grid-column:1/-1;">
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px;"><i class="fas fa-stopwatch" style="margin-right:4px;"></i>Duração da visita</div>
+                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;">
+                            <div>
+                                <div style="font-size:0.65rem; color:var(--text-muted); margin-bottom:2px;">Início</div>
+                                <div id="dvHorarioInicio" style="font-size:0.88rem; font-weight:700; color:var(--text-primary);">—</div>
+                            </div>
+                            <div>
+                                <div style="font-size:0.65rem; color:var(--text-muted); margin-bottom:2px;">Fim</div>
+                                <div id="dvHorarioFim" style="font-size:0.88rem; font-weight:700; color:var(--text-primary);">—</div>
+                            </div>
+                            <div>
+                                <div style="font-size:0.65rem; color:var(--text-muted); margin-bottom:2px;">Duração</div>
+                                <div id="dvDuracao" style="font-size:0.88rem; font-weight:700; color:var(--primary);">—</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="dvLocalRow" style="display:none; margin-bottom:16px;">
+                    <div style="padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body);">
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="fas fa-map-pin" style="margin-right:4px;"></i>Local de atendimento</div>
+                        <div id="dvLocal" style="font-size:0.88rem; font-weight:600; color:var(--text-primary); line-height:1.4;">—</div>
+                    </div>
+                </div>
+
+                <div id="dvResumoRow" style="display:none; margin-bottom:16px;">
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;"><i class="fas fa-align-left" style="margin-right:4px;"></i>Resumo</div>
+                    <div id="dvResumo" style="font-size:0.85rem; color:var(--text-primary); line-height:1.6; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-body);">—</div>
+                </div>
+
+                <div id="dvItensRow" style="display:none; margin-bottom:16px;">
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px;"><i class="fas fa-box-open" style="margin-right:4px;"></i>Itens entregues</div>
+                    <div id="dvItens" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+                </div>
+
+                <div id="dvImagensRow" style="display:none; margin-bottom:16px;">
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px;"><i class="fas fa-images" style="margin-right:4px;"></i>Imagens da conversa</div>
+                    <div id="dvImagensGrid" class="dv-imagens-grid"></div>
+                </div>
+
+                <div id="dvReagendRow" style="display:none; margin-bottom:16px;">
+                    <div style="padding:14px 16px; border:1px solid rgba(37,99,235,0.3); border-radius:12px; background:rgba(37,99,235,0.08);">
+                        <div style="font-size:0.68rem; color:#2563EB; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;"><i class="fas fa-calendar-plus" style="margin-right:6px;"></i>Próxima visita agendada</div>
+                        <div id="dvReagend" style="font-size:0.95rem; font-weight:700; color:var(--text-primary);">—</div>
+                    </div>
+                </div>
+
+                <div id="dvGeoRow" style="display:none; margin-bottom:4px;">
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;"><i class="fas fa-location-dot" style="margin-right:4px;"></i>Confirmação GPS</div>
+                    <div id="dvGeoInfo" style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:8px;">—</div>
+                    <div id="dvGeoMapContainer" style="height:180px; border:1px solid var(--border); border-radius:12px; overflow:hidden;"></div>
+                </div>
+
+                </div>
+                <div id="dvEditContainer" style="display:none;">
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin:0 0 16px 0;">Ajuste o resumo ou os itens entregues após a visita (ex.: resumo que não ficou coerente ou amostra/brinde/artigo enviados depois).</p>
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="fas fa-align-left" style="margin-right:4px;"></i>Resumo</div>
+                    <textarea id="dvEditResumo" rows="3" placeholder="Resumo da visita" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box; margin-bottom:14px; resize:vertical;"></textarea>
+                    <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;"><i class="fas fa-box-open" style="margin-right:4px;"></i>Itens entregues</div>
+                    <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:8px;">
+                        <input type="text" id="dvEditAmostra" placeholder="Amostra (ex.: enviada após a visita)" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                        <input type="text" id="dvEditBrinde" placeholder="Brinde" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                        <input type="text" id="dvEditArtigo" placeholder="Artigo" style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                </div>
+            </div>
+            <div id="dvFooter" style="padding:14px 24px; border-top:1px solid var(--border); background:var(--bg-body); flex-shrink:0; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" id="dvBtnEditar" onclick="dvToggleEdit(true)" style="padding:10px 18px; border-radius:8px; border:none; background:var(--primary); color:white; font-weight:600; cursor:pointer; font-size:0.9rem;"><i class="fas fa-pen" style="margin-right:6px;"></i>Editar</button>
+                <span id="dvFooterEdit" style="display:none;">
+                    <button type="button" onclick="dvToggleEdit(false)" style="padding:10px 18px; border-radius:8px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary); font-weight:600; cursor:pointer; font-size:0.9rem;">Cancelar</button>
+                    <button type="button" id="dvBtnSalvar" onclick="dvSalvarDetalheVisita()" style="padding:10px 18px; border-radius:8px; border:none; background:var(--success); color:white; font-weight:600; cursor:pointer; font-size:0.9rem;"><i class="fas fa-check" style="margin-right:6px;"></i>Salvar</button>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div id="dvImagemLightbox" class="dv-imagem-lightbox" onclick="closeDvImagemLightbox(event)">
+        <button type="button" class="dv-imagem-lightbox-close" onclick="closeDvImagemLightbox(event)" aria-label="Fechar visualização">&times;</button>
+        <img id="dvImagemLightboxImg" src="" alt="Imagem da conversa">
+    </div>
+
+    <!-- Modal: Estatísticas do Mapa -->
+    <div id="modalMapaVisitasStats"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:3600; justify-content:center; align-items:center; padding:20px;">
+        <div style="background:var(--bg-card); border-radius:var(--radius); width:100%; max-width:860px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:1.05rem; font-weight:900; color:var(--text-primary);">
+                    <i class="fas fa-map-location-dot" style="color:var(--primary); margin-right:8px;"></i>
+                    Estatísticas do Mapa
+                </h3>
+                <button onclick="closeMapaVisitasStatsModal()" style="background:none; border:none; font-size:1.4rem; color:var(--text-secondary); cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:18px 22px;">
+                <div id="mapaStatsSubtitulo" style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:12px;">
+                    Calculando...
+                </div>
+
+                <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px; margin-bottom:14px;">
+                    <div style="border:1px solid var(--border); border-radius:12px; padding:12px; background:var(--bg-body);">
+                        <div style="font-size:0.72rem; color:var(--text-secondary); font-weight:700;">Visitas (período)</div>
+                        <div id="mapaStatTotalVisitas" style="font-size:1.2rem; font-weight:900; color:var(--text-primary);">-</div>
+                    </div>
+                    <div style="border:1px solid var(--border); border-radius:12px; padding:12px; background:var(--bg-body);">
+                        <div style="font-size:0.72rem; color:var(--text-secondary); font-weight:700;">Realizadas</div>
+                        <div id="mapaStatRealizadas" style="font-size:1.2rem; font-weight:900; color:var(--success);">-</div>
+                    </div>
+                    <div style="border:1px solid var(--border); border-radius:12px; padding:12px; background:var(--bg-body);">
+                        <div style="font-size:0.72rem; color:var(--text-secondary); font-weight:700;">No mapa</div>
+                        <div id="mapaStatComGPS" style="font-size:1.2rem; font-weight:900; color:var(--primary);">-</div>
+                    </div>
+                    <div style="border:1px solid var(--border); border-radius:12px; padding:12px; background:var(--bg-body);">
+                        <div style="font-size:0.72rem; color:var(--text-secondary); font-weight:700;">Distância (km)</div>
+                        <div id="mapaStatDistanciaKm" style="font-size:1.2rem; font-weight:900; color:var(--warning);">-</div>
+                    </div>
+                </div>
+
+                <div style="border:1px solid var(--border); border-radius:12px; overflow:hidden;">
+                    <div style="padding:10px 12px; background:var(--bg-body); border-bottom:1px solid var(--border); font-weight:900; color:var(--text-primary); font-size:0.9rem;">
+                        Trechos (ordem cronológica)
+                    </div>
+                    <div class="table-responsive" style="max-height:320px; overflow:auto;">
+                        <table class="data-table" style="width:100%; min-width:0;">
+                            <thead>
+                                <tr>
+                                    <th style="width:90px;">Data</th>
+                                    <th>De → Para</th>
+                                    <th style="width:110px; text-align:right;">Distância</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mapaStatsTrechosBody">
+                                <tr><td colspan="3" style="text-align:center; padding:26px; color:var(--text-secondary);">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="js/app.js?v=20260401-visitas-copy-clean"></script>
+    <script src="js/shared/mypharm-utils.js"></script>
+    <script src="js/visitador/prescritores-feature.js"></script>
+    <script src="js/visitador/visitador-main.js?v=20260401-rota-bg-gps"></script>
+</body>
+
+</html>

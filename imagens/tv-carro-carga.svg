@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 32" fill="currentColor">
+  <!-- Caminhonete: cabine + caçamba -->
+  <path d="M0 21v-1c0-1 1-2 2-2h5l1.5-2.2h14l1-1.6h20l1 1.6h14l1.5 2.2h5c1 0 2 1 2 2v1h2l.5 1H0l.5-1H0zm2-4.2v.7h9v-.7l-.9-1.1c-.2-.2-.35-.5-.35-.8v-1.2H2.4v1.2c0 .3-.15.6-.35.8L2 16.8zm28 0v.7h9v-.7l-.9-1.1c-.2-.2-.35-.5-.35-.8v-1.2H30.4v1.2c0 .3-.15.6-.35.8L30 16.8z"/>
+  <rect x="48" y="8" width="48" height="10" rx="0.6" opacity="0.28"/>
+  <circle cx="16" cy="26" r="4.2" fill="#0f172a"/>
+  <circle cx="78" cy="26" r="4.2" fill="#0f172a"/>
+</svg>

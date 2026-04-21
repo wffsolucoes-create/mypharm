@@ -1,0 +1,622 @@
+(function () {
+    const API_URL = 'api_gestao.php';
+    /** Com dados estáveis (mesmo db_version), volta a pedir só após vários minutos. */
+    const POLL_FAST_MS = 8000;
+    const POLL_SLOW_MS = 120000;
+    let tvRequestInFlight = false;
+    let tvPollTimer = null;
+    
+    // Lista ampliada de cores neon vibrantes (garantindo variedade)
+    const CAR_THEMES = [
+        { body: '#fbbf24', glow: 'rgba(251,191,36,.8)' },   // Ouro/Amarelo
+        { body: '#cbd5e1', glow: 'rgba(203,213,225,.8)' },   // Prata/Cinza
+        { body: '#d97706', glow: 'rgba(217,119,6,.8)' },    // Bronze
+        { body: '#3b82f6', glow: 'rgba(59,130,246,.8)' },   // Azul Neon
+        { body: '#10b981', glow: 'rgba(16,185,129,.8)' },   // Verde Esmeralda
+        { body: '#ec4899', glow: 'rgba(236,72,153,.8)' },   // Rosa Pink
+        { body: '#8b5cf6', glow: 'rgba(139,92,246,.8)' },   // Roxo Violeta
+        { body: '#f43f5e', glow: 'rgba(244,63,94,.8)' },    // Vermelho Rose
+        { body: '#06b6d4', glow: 'rgba(6,182,212,.8)' },    // Ciano
+        { body: '#84cc16', glow: 'rgba(132,204,22,.8)' },   // Verde Limão
+        { body: '#f97316', glow: 'rgba(249,115,22,.8)' },   // Laranja Claro
+        { body: '#eab308', glow: 'rgba(234,179,8,.8)' },    // Amarelo Sol
+        { body: '#6366f1', glow: 'rgba(99,102,241,.8)' },   // Indigo
+        { body: '#14b8a6', glow: 'rgba(20,184,166,.8)' },   // Teal
+        { body: '#d946ef', glow: 'rgba(217,70,239,.8)' }    // Fuschia
+    ];
+    const REAL_CAR_MODELS = [
+        { name: 'Ferrari', src: 'imagens/tv-real/ferrari.png', flipX: false },
+        { name: 'Camaro', src: 'imagens/tv-real/camaro.png', flipX: true },
+        { name: 'Mustang', src: 'imagens/tv-real/mustang.png', flipX: true },
+        { name: 'Lamborghini', src: 'imagens/tv-real/lamborghini.png', flipX: false },
+        { name: 'Porsche', src: 'imagens/tv-real/porsche.png', flipX: true },
+        { name: 'BMW', src: 'imagens/tv-real/bmw.png', flipX: false },
+        { name: 'Mercedes', src: 'imagens/tv-real/mercedes.png', flipX: true },
+        { name: 'Pickup', src: 'imagens/tv-real/pickup.png', flipX: false }
+    ];
+    const lastPctByVendor = {};
+    const lastRankByVendor = {};
+    const lastReceitaByVendor = {};
+    const lastRaceRevenueByVendor = {};
+    const assignedThemeIndices = {};
+    let nextThemeIdx = 0;
+    let lastRaceFingerprint = '';
+    let lastRaceUpdatedAt = '';
+    let lastDbVersion = '';
+    /** Evita repetir som/confetti do “líder na linha” a cada re-render (só 1x por db_version). */
+    let leaderLineCelebrationDbVersion = null;
+
+    // Sons nas ações (Web Audio API - sem arquivos externos)
+    var tvAudioCtx = null;
+    function getAudioCtx() {
+        if (tvAudioCtx) return tvAudioCtx;
+        try {
+            tvAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) { return null; }
+        return tvAudioCtx;
+    }
+    function playSoundNow(type, ctx) {
+        var now = ctx.currentTime;
+        var gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+        if (type === 'overtake') {
+            var osc = ctx.createOscillator();
+            osc.connect(gain);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(400, now);
+            osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
+            osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+            osc.start(now);
+            osc.stop(now + 0.25);
+        } else if (type === 'confetti' || type === 'celebration') {
+            [523, 659, 784, 1047].forEach(function (freq, i) {
+                var o = ctx.createOscillator();
+                o.connect(gain);
+                o.type = 'sine';
+                o.frequency.setValueAtTime(freq, now + i * 0.05);
+                o.start(now + i * 0.05);
+                o.stop(now + 0.3 + i * 0.05);
+            });
+        } else if (type === 'tick') {
+            var o = ctx.createOscillator();
+            o.connect(gain);
+            o.type = 'sine';
+            o.frequency.setValueAtTime(600, now);
+            o.start(now);
+            o.stop(now + 0.05);
+        }
+    }
+    function playSound(type) {
+        var ctx = getAudioCtx();
+        if (!ctx) return;
+        try {
+            if (ctx.state === 'suspended') {
+                ctx.resume().then(function () { playSoundNow(type, ctx); }).catch(function () {});
+                return;
+            }
+            playSoundNow(type, ctx);
+        } catch (e) {}
+    }
+    // No primeiro clique/toque na página, ativa o áudio (política do navegador exige gesto do usuário)
+    function resumeAudioOnFirstInteraction() {
+        var done = false;
+        function resume() {
+            if (done) return;
+            done = true;
+            var ctx = getAudioCtx();
+            if (ctx && ctx.state === 'suspended') ctx.resume().catch(function () {});
+        }
+        document.addEventListener('click', resume, { once: true, passive: true });
+        document.addEventListener('touchstart', resume, { once: true, passive: true });
+    }
+
+    function fmtMoney(v) {
+        return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    function fmtDateBr(isoDate) {
+        const s = String(isoDate || '').trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return s || '-';
+        const p = s.split('-');
+        return `${p[2]}/${p[1]}/${p[0]}`;
+    }
+
+    function fmtDateTimeBr(isoDateTime) {
+        const s = String(isoDateTime || '').trim();
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}:\d{2})/);
+        if (!m) return s || '--';
+        return `${m[3]}/${m[2]}/${m[1]} ${m[4]}`;
+    }
+
+    function currentMonthRange() {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        // Usar do dia 01 até o dia atual
+        return { data_de: `${yyyy}-${mm}-01`, data_ate: `${yyyy}-${mm}-${dd}` };
+    }
+
+    async function apiGet(action, params) {
+        const query = new URLSearchParams({ action, ...(params || {}) });
+        const res = await fetch(`${API_URL}?${query.toString()}`, { credentials: 'include' });
+        const text = await res.text();
+        try {
+            return text ? JSON.parse(text) : {};
+        } catch (e) {
+            return { success: false, error: `Erro ${res.status}` };
+        }
+    }
+
+    function getCarProfile(posicao) {
+        if (posicao === 1) {
+            return { cls: 'leader', podiumLabel: '1º Diamante' };
+        }
+        if (posicao === 2) {
+            return { cls: 'rank-gold', podiumLabel: '2º Ouro' };
+        }
+        if (posicao === 3) {
+            return { cls: 'rank-luxury', podiumLabel: '3º Prata' };
+        }
+        return { cls: '', podiumLabel: posicao + 'º' };
+    }
+
+    // Função para animar números (receita)
+    function animateValue(obj, start, end, duration) {
+        let startTimestamp = null;
+        const step = (timestamp) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            obj.innerHTML = fmtMoney(progress * (end - start) + start);
+            if (progress < 1) {
+                window.requestAnimationFrame(step);
+            } else {
+                obj.innerHTML = fmtMoney(end);
+            }
+        };
+        window.requestAnimationFrame(step);
+    }
+
+    function triggerConfetti() {
+        playSound('celebration');
+        if(typeof confetti !== 'undefined'){
+            var duration = 3000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 100 };
+
+            function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+
+            var interval = setInterval(function() {
+                var timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) { return clearInterval(interval); }
+                var particleCount = 50 * (timeLeft / duration);
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+    }
+
+    let isFirstLoad = true;
+
+    function renderPodium(ranking) {
+        const wrap = document.getElementById('tvPodium');
+        if (!wrap) return;
+        const top3 = (ranking || []).slice(0, 3);
+        if (!top3.length) {
+            wrap.innerHTML = '<div class="podium-item glass-panel">Sem dados no período.</div>';
+            return;
+        }
+        
+        let shouldConfetti = false;
+        if(isFirstLoad && top3.length > 0) shouldConfetti = true;
+
+        wrap.innerHTML = top3.map(function (r, i) {
+            const place = (i + 1) + 'º';
+            
+            // Check if rank changed (simplificando: baseia-se apenas no ID do vendedor, se disponível, ou nome)
+            const key = safeKey(r.vendedor);
+            let valueHtml = `<div class="value" data-vendor="${key}" data-val="${r.receita}">${fmtMoney(r.receita || 0)}</div>`;
+
+            return `<div class="podium-item glass-panel" data-place="${place}">
+                <div class="place">${i === 0 ? '👑 LÍDER' : '🏆 TOP ' + (i+1)}</div>
+                <div class="name">${r.vendedor || '-'}</div>
+                ${valueHtml}
+            </div>`;
+        }).join('');
+
+        if(shouldConfetti) {
+            triggerConfetti();
+            isFirstLoad = false;
+        }
+
+        // Animate numbers
+        wrap.querySelectorAll('.value').forEach(el => {
+            const val = parseFloat(el.getAttribute('data-val'));
+            const key = el.getAttribute('data-vendor');
+            const oldVal = lastReceitaByVendor[key] || 0;
+            if (val > oldVal) {
+                animateValue(el, oldVal, val, 1500);
+                lastReceitaByVendor[key] = val;
+            } else {
+                el.innerHTML = fmtMoney(val);
+                lastReceitaByVendor[key] = val;
+            }
+        });
+    }
+
+    function safeKey(name) {
+        return String(name || '').trim().toLowerCase();
+    }
+
+    function pickTheme(vendorKey, position) {
+        // Se já associamos uma cor "única" a esse vendedor antes, continua com ela
+        if (assignedThemeIndices[vendorKey] !== undefined) {
+            return CAR_THEMES[assignedThemeIndices[vendorKey]];
+        }
+        
+        // Pega a próxima cor sequencial garantindo que parem de se repetir à toa
+        const idx = nextThemeIdx % CAR_THEMES.length;
+        assignedThemeIndices[vendorKey] = idx;
+        nextThemeIdx++;
+        
+        return CAR_THEMES[idx];
+    }
+
+    function modelIndexByName(name) {
+        const n = String(name || '').toLowerCase();
+        for (let i = 0; i < REAL_CAR_MODELS.length; i++) {
+            if (String(REAL_CAR_MODELS[i].name || '').toLowerCase() === n) return i;
+        }
+        return -1;
+    }
+
+    function assignModelsForRace(ranking) {
+        const used = new Set();
+        const assigned = [];
+        const preferredByPos = ['Ferrari', 'Lamborghini', 'Porsche'];
+
+        for (let i = 0; i < ranking.length; i++) {
+            const prefName = preferredByPos[i] || null;
+            let idx = prefName ? modelIndexByName(prefName) : -1;
+
+            if (idx >= 0 && !used.has(idx)) {
+                used.add(idx);
+                assigned.push(REAL_CAR_MODELS[idx]);
+                continue;
+            }
+
+            idx = -1;
+            for (let j = 0; j < REAL_CAR_MODELS.length; j++) {
+                if (!used.has(j)) {
+                    idx = j;
+                    break;
+                }
+            }
+
+            if (idx === -1) {
+                // fallback raro quando ranking > quantidade de modelos
+                idx = i % REAL_CAR_MODELS.length;
+            }
+            used.add(idx);
+            assigned.push(REAL_CAR_MODELS[idx]);
+        }
+        return assigned;
+    }
+
+    function scaleForPosition(posicao) {
+        const p = Number(posicao || 0);
+        if (p <= 1) return 1.12;
+        if (p === 2) return 1.08;
+        if (p === 3) return 1.02;
+        if (p === 4) return 0.98;
+        if (p === 5) return 0.92;
+        if (p === 6) return 0.86;
+        if (p === 7) return 0.80;
+        return 0.74;
+    }
+
+    function buildRaceFingerprint(ranking) {
+        if (!Array.isArray(ranking) || !ranking.length) return '';
+        return ranking.map(function (r, i) {
+            const key = safeKey(r.vendedor);
+            const receita = Number(r.receita || 0).toFixed(2);
+            const meta = Number(r.percentual_meta || 0).toFixed(2);
+            const lider = Number(r.percentual_lider || 0).toFixed(2);
+            return `${i + 1}:${key}:${receita}:${meta}:${lider}`;
+        }).join('|');
+    }
+
+    function laneTemplate(r, targetPct, carModel) {
+        const key = safeKey(r.vendedor);
+        const theme = pickTheme(key || r.posicao);
+        const profile = getCarProfile(r.posicao);
+        const prev = Number(lastPctByVendor[key] || 6);
+        const metaPct = Number(r.percentual_meta || 0);
+        const isMetaBatida = metaPct >= 100;
+        const startClampMax = isMetaBatida ? 102 : 96;
+        const targetClampMax = isMetaBatida ? 102 : 96;
+        const startLeft = `${Math.max(4, Math.min(startClampMax, prev)).toFixed(2)}%`;
+        const pct = Math.max(4, Math.min(targetClampMax, Number(targetPct || 0)));
+        const boostedPct = isMetaBatida ? Math.max(99.2, pct) : pct;
+        const targetLeft = `${boostedPct.toFixed(2)}%`;
+        const pctMetaText = `${Math.max(0, metaPct).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% meta`;
+        const metaBadgeHtml = isMetaBatida ? '<span class="meta-hit-badge">META BATIDA</span>' : '';
+        const posLabel = r.posicao + 'º';
+        const carScale = scaleForPosition(r.posicao);
+        const posClass = 'pos-' + String(r.posicao || '');
+
+        return `<div class="lane">
+            <div class="lane-label"><span class="lane-pos">${posLabel}</span> ${r.vendedor || '-'}</div>
+            <div class="track">
+                <div class="cart cart-img-wrap ${profile.cls} ${posClass}" data-vendor="${key}" data-target-left="${targetLeft}" data-money="${fmtMoney(r.receita || 0)} | ${pctMetaText}"
+                     style="color:${theme.body}; left:${startLeft}; --car-scale:${carScale};">
+                    <span class="cart-img">
+                        <img class="cart-photo ${carModel.flipX ? 'cart-photo--flip' : ''}" src="${carModel.src}" alt="${carModel.name}" data-fallback="imagens/tv-carro.svg" loading="eager" decoding="async" />
+                    </span>
+                </div>
+                <div class="finish-line"></div>
+                <div class="finish-flag"><i class="fas fa-flag-checkered"></i></div>
+                ${metaBadgeHtml}
+            </div>
+        </div>`;
+    }
+
+    function buildTargetPositions(ranking) {
+        const minGap = 4.5; // mantém uma separação visual estável entre posições
+        const minPct = 8;
+        const maxPct = 92;
+        const out = [];
+        if (!Array.isArray(ranking) || !ranking.length) return out;
+
+        let prev = null;
+        for (let i = 0; i < ranking.length; i++) {
+            const rawLeaderPct = Number(ranking[i].percentual_lider || 0);
+            const rawMetaPct = Number(ranking[i].percentual_meta || 0);
+            const base = rawLeaderPct > 0 ? rawLeaderPct : Math.max(0, Math.min(100, rawMetaPct));
+            let p = minPct + (Math.max(0, Math.min(100, base)) / 100) * (maxPct - minPct);
+            
+            if (prev !== null && p > (prev - minGap)) {
+                p = Math.max(minPct, prev - minGap);
+            }
+            out.push(p);
+            prev = p;
+        }
+        return out;
+    }
+
+    function scheduleNextTvPoll(delayMs) {
+        if (tvPollTimer) clearTimeout(tvPollTimer);
+        tvPollTimer = setTimeout(function () {
+            loadRace().catch(function () {});
+        }, delayMs);
+    }
+
+    function renderRace(ranking, maxReceita, updatedAt, dbVersion) {
+        const wrap = document.getElementById('tvRace');
+        if (!wrap) return;
+        if (!Array.isArray(ranking) || !ranking.length) {
+            wrap.innerHTML = '<div class="race-empty">Sem vendas no período.</div>';
+            return;
+        }
+        const currentFingerprint = buildRaceFingerprint(ranking);
+        // NÃO usar updated_at da API como "mudou": o PHP gera timestamp novo a cada request,
+        // então online hasDataChanged ficava sempre true e disparava ultrapassagem falsa.
+        const fingerprintChanged = lastRaceFingerprint === '' || currentFingerprint !== lastRaceFingerprint;
+
+        const positions = buildTargetPositions(ranking);
+        const modelsByLane = assignModelsForRace(ranking);
+        wrap.innerHTML = ranking.map(function (r, i) { return laneTemplate(r, positions[i] || 0, modelsByLane[i]); }).join('');
+        
+        // Verifica Ultrapassagem (Overtake Detection)
+        let overtakeOccurred = "";
+        
+        ranking.forEach(function (r, i) {
+            const key = safeKey(r.vendedor);
+            const currentPosition = i + 1; // 1-indexed
+
+            if (!isFirstLoad && fingerprintChanged && lastRankByVendor[key] !== undefined) {
+                // se ele tava numa posição maior (pior) e agora tá numa melhor (menor)
+                if (currentPosition < lastRankByVendor[key]) {
+                    const cents = function (v) { return Math.round(Number(v || 0) * 100); };
+                    const revenueMoved = Math.abs(cents(r.receita) - cents(lastRaceRevenueByVendor[key] || 0)) >= 1;
+                    if (revenueMoved) {
+                        overtakeOccurred = r.vendedor;
+                    }
+                }
+            }
+        });
+
+        if (overtakeOccurred && !isFirstLoad) {
+            triggerOvertake(overtakeOccurred);
+        }
+
+        // Trigger animations
+        var dvKey = String(dbVersion || '').trim() || '_sessao';
+        setTimeout(function () {
+            wrap.querySelectorAll('.cart').forEach(function (cart) {
+                const target = cart.getAttribute('data-target-left');
+                if (target) {
+                    cart.style.left = target;
+                    // Líder perto da meta: confetti/som só uma vez por versão da base (não a cada poll)
+                    if (parseFloat(target) > 90 && cart.classList.contains('leader')) {
+                        if (leaderLineCelebrationDbVersion !== dvKey) {
+                            leaderLineCelebrationDbVersion = dvKey;
+                            setTimeout(function () { triggerConfetti(); }, 2500);
+                        }
+                    }
+                }
+            });
+        }, 100);
+
+        wrap.querySelectorAll('.cart-photo').forEach(function (img) {
+            img.addEventListener('error', function () {
+                const fb = img.getAttribute('data-fallback') || 'imagens/tv-carro.svg';
+                if (img.getAttribute('src') !== fb) {
+                    img.setAttribute('src', fb);
+                    img.classList.add('cart-photo--fallback');
+                }
+            }, { once: true });
+        });
+
+        ranking.forEach(function (r, i) {
+            const key = safeKey(r.vendedor);
+            lastRankByVendor[key] = i + 1;
+            lastPctByVendor[key] = Number(positions[i] || 0);
+            lastRaceRevenueByVendor[key] = Number(r.receita || 0);
+        });
+        lastRaceFingerprint = currentFingerprint;
+        lastRaceUpdatedAt = String(updatedAt || '').trim();
+    }
+
+    function triggerOvertake(nome) {
+        playSound('overtake');
+        const overlay = document.getElementById('overtakeOverlay');
+        const textObj = document.getElementById('overtakeText');
+        if(!overlay) return;
+
+        textObj.innerHTML = `🔥 ULTRAPASSAGEM: <br> ${nome} 🔥`;
+        overlay.classList.add('active');
+        
+        // Ativa o confetti "explosão no meio"
+        if(typeof confetti !== 'undefined'){
+            var duration = 4000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 40, spread: 360, ticks: 100, zIndex: 10000 };
+
+            function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+
+            var interval = setInterval(function() {
+                var timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) { return clearInterval(interval); }
+                var particleCount = 80 * (timeLeft / duration);
+                
+                // Explode no centro da tela
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.4, 0.6), y: randomInRange(0.4, 0.6) } }));
+            }, 250);
+        }
+
+        setTimeout(() => {
+            overlay.classList.remove('active');
+        }, 5000); // Overlay fica ativo por 5s
+    }
+
+    async function loadRace() {
+        if (tvRequestInFlight) return;
+        tvRequestInFlight = true;
+        var nextPollMs = POLL_SLOW_MS;
+        // Tentaremos pegar os dados do período padrão. O sistema de vcs aceita os mesmos params.
+        const range = currentMonthRange();
+        try {
+            const data = await apiGet('tv_corrida_vendedores', Object.assign({}, range, { refresh_rd: 1 }));
+            if (!data || data.success === false) {
+                return;
+            }
+
+            const ranking = data.ranking || [];
+            const max = Number(data.max_receita || 0);
+            const sourceDb = String(data.fonte || '') === 'banco_local';
+            const dbVersion = String(data.db_version || '').trim();
+            const dbChanged = !sourceDb || dbVersion === '' || lastDbVersion === '' || dbVersion !== lastDbVersion;
+
+            // Sem alteração na base: próximo poll demora minutos; com mudança: intervalo curto
+            nextPollMs = (sourceDb && dbVersion !== '' && !dbChanged) ? POLL_SLOW_MS : POLL_FAST_MS;
+
+            // Só re-renderiza corrida/pódio quando a base mudou (ou quando a fonte não é DB).
+            if (dbChanged) {
+                renderPodium(ranking);
+                renderRace(ranking, max, data.updated_at || '', dbVersion);
+            }
+            if (sourceDb && dbVersion !== '') {
+                lastDbVersion = dbVersion;
+            }
+
+            const p = data.periodo || {};
+            const updated = data.updated_at || '--';
+            const periodoEl = document.getElementById('tvPeriodo');
+            const updEl = document.getElementById('tvUpdatedAt');
+            if (periodoEl) {
+                let inicio = p.data_de ? fmtDateBr(p.data_de) : fmtDateBr(range.data_de);
+                let fim = p.data_ate ? fmtDateBr(p.data_ate) : fmtDateBr(range.data_ate);
+                periodoEl.textContent = `Período: ${inicio} até ${fim}`;
+            }
+            if (updEl) {
+                const stale = data.cache && data.cache.stale === true;
+                const idade = stale && data.cache.idade_segundos != null
+                    ? ` ${data.cache.idade_segundos}s`
+                    : '';
+                let line = stale
+                    ? `Atualizado (cache${idade}): ${fmtDateTimeBr(updated)}`
+                    : `Atualizado: ${fmtDateTimeBr(updated)}`;
+                if (String(data.fonte || '') === 'banco_local') {
+                    line += dbChanged ? ' · BD interno (atualizado)' : ' · BD interno (sem alterações)';
+                }
+                updEl.textContent = line;
+                const tip = String(data.aviso_rd || '').trim();
+                updEl.title = tip || (String(data.fonte || '') === 'banco_local'
+                    ? 'Ranking pela base importada (gestão_pedidos), não pelo RD Station.'
+                    : '');
+            }
+        } finally {
+            tvRequestInFlight = false;
+            scheduleNextTvPoll(nextPollMs);
+        }
+    }
+
+    function bindUi() {
+        const fsBtn = document.getElementById('tvFullscreenBtn');
+        if (fsBtn) {
+            fsBtn.addEventListener('click', goFullscreen);
+        }
+    }
+
+    async function goFullscreen() {
+        if (document.fullscreenElement) {
+            try { await document.exitFullscreen(); } catch (_) {}
+            return;
+        }
+        try { await document.documentElement.requestFullscreen(); } catch (_) {}
+    }
+
+    function tryAutoFullscreen() {
+        if (document.fullscreenElement) return;
+        goFullscreen();
+    }
+
+    /** Navegadores de TV às vezes reportam viewport errado; visualViewport ajuda em alguns WebKit. */
+    function applyTvLayoutVars() {
+        var root = document.documentElement;
+        var vv = window.visualViewport;
+        var w = vv && vv.width ? vv.width : window.innerWidth;
+        var h = vv && vv.height ? vv.height : window.innerHeight;
+        if (!w || !h) return;
+        root.style.setProperty('--app-vw', w + 'px');
+        root.style.setProperty('--app-vh', h + 'px');
+        var unit = Math.min(w, h) / 100;
+        root.style.setProperty('--app-vmin', unit + 'px');
+        /* 1% da largura/altura em px — permite calc(var(--vw) * N) ≈ N% da largura */
+        root.style.setProperty('--vw', w / 100 + 'px');
+        root.style.setProperty('--vh', h / 100 + 'px');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        bindUi();
+        resumeAudioOnFirstInteraction();
+        applyTvLayoutVars();
+        window.addEventListener('resize', applyTvLayoutVars);
+        window.addEventListener('orientationchange', function () {
+            setTimeout(applyTvLayoutVars, 150);
+        });
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', applyTvLayoutVars);
+            window.visualViewport.addEventListener('scroll', applyTvLayoutVars);
+        }
+        loadRace().catch(function () {});
+        // Forçar tela cheia ao abrir a página (tentativa imediata e após 300ms para quando o navegador exige primeiro frame)
+        tryAutoFullscreen();
+        setTimeout(tryAutoFullscreen, 300);
+    });
+})();
+

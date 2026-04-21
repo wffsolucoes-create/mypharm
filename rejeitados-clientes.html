@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rejeitados | Clientes | MyPharm</title>
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/ui-feedback.css">
+    <link rel="stylesheet" href="css/rejeitados-rd.css?v=20260324rej1">
+</head>
+<body data-view="clientes">
+    <main class="rej-page">
+        <header class="rej-topbar">
+            <div>
+                <h1 class="rej-title">Análise de Clientes Rejeitados</h1>
+                <p class="rej-sub">Dados da API externa RD Station CRM para recuperação comercial por cliente.</p>
+            </div>
+            <div class="rej-actions">
+                <a class="rej-btn" href="rejeitados-prescritores.html">Ver Prescritores</a>
+                <a class="rej-btn" href="gestao-comercial.html">Voltar à Gestão Comercial</a>
+            </div>
+        </header>
+
+        <section class="rej-filters">
+            <label>Data inicial
+                <input type="date" id="rejDataDe">
+            </label>
+            <label>Data final
+                <input type="date" id="rejDataAte">
+            </label>
+            <label>Buscar
+                <input type="text" id="rejSearch" placeholder="Cliente, prescritor, contato...">
+            </label>
+            <label>Atualizar
+                <button type="button" id="rejApplyBtn">Atualizar dados</button>
+            </label>
+        </section>
+
+        <section class="rej-cards">
+            <article class="rej-card"><div class="k">Total rejeições</div><div class="v" id="rejTotalRej">—</div></article>
+            <article class="rej-card"><div class="k">Valor rejeitado</div><div class="v" id="rejTotalValor">—</div></article>
+            <article class="rej-card"><div class="k">Com contato</div><div class="v" id="rejTotalContato">—</div></article>
+            <article class="rej-card"><div class="k">Top motivo</div><div class="v" id="rejTopMotivo">—</div></article>
+        </section>
+
+        <section class="rej-cards">
+            <article class="rej-card"><div class="k">Período</div><div class="v" id="rejPeriodo">—</div></article>
+            <article class="rej-card"><div class="k">Atualizado em</div><div class="v" id="rejUpdatedAt">—</div></article>
+            <article class="rej-card"><div class="k">Perfil</div><div class="v" id="rejUser">—</div></article>
+        </section>
+
+        <section class="rej-table-wrap">
+            <table class="rej-table">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Prescritor</th>
+                        <th>Contato</th>
+                        <th>Qtd rejeições</th>
+                        <th>Valor rejeitado</th>
+                        <th>Motivo principal</th>
+                        <th>Última perda</th>
+                        <th>Atendente</th>
+                    </tr>
+                </thead>
+                <tbody id="rejTbody">
+                    <tr><td colspan="8" class="rej-empty">Carregando...</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <script src="js/ui-feedback.js"></script>
+    <script src="js/rejeitados-rd.js?v=20260324rej1"></script>
+</body>
+</html>

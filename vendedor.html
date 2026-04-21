@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#E63946">
+    <title>Portal do Vendedor | MyPharm</title>
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/visitador-inline.css">
+    <link rel="stylesheet" href="css/visitador.css">
+    <link rel="stylesheet" href="css/vendedor.css?v=20260326cards11">
+    <style>
+        body{visibility:hidden;}
+        #vdLoadingOverlay {
+            position: fixed; inset: 0; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: var(--bg-primary, #1a1d24);
+            gap: 1rem;
+        }
+        #vdLoadingOverlay .vd-spinner {
+            width: 48px; height: 48px;
+            border: 4px solid var(--border-color, rgba(255,255,255,0.15));
+            border-top-color: var(--primary, #E63946);
+            border-radius: 50%;
+            animation: vdSpin 0.9s linear infinite;
+        }
+        #vdLoadingOverlay .vd-loading-text {
+            color: var(--text-secondary, rgba(255,255,255,0.7));
+            font-size: 0.9rem;
+        }
+        @keyframes vdSpin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <script>!(function(){if(!localStorage.getItem('loggedIn')){window.location.replace('index.html');return;}document.body.style.visibility='visible';})();</script>
+    <div id="vdLoadingOverlay" role="status" aria-live="polite" aria-label="Carregando">
+        <div class="vd-spinner"></div>
+        <span class="vd-loading-text">Carregando...</span>
+    </div>
+    <div id="vdApp" style="display:none;">
+        <header>
+            <div class="brand">
+                <div class="logo-container">
+                    <img src="imagens/logoMypharm.png?v=20260402" alt="MyPharm">
+                </div>
+                <div class="brand-text-col">
+                    <span class="brand-title">Portal Alta Performance</span>
+                    <span class="brand-subtitle">Vendas & Conversão</span>
+                </div>
+            </div>
+            <nav class="visitador-nav" aria-label="Menu principal">
+                <a href="vendedor.html" class="visitador-nav-link active">
+                    <i class="fas fa-chart-line"></i><span class="d-none-mobile">Gestão Geral</span>
+                </a>
+                <a href="vendedor-pedidos.html" class="visitador-nav-link">
+                    <i class="fas fa-list-alt"></i><span class="d-none-mobile">Pedidos</span>
+                </a>
+                <a href="vendedor-revenda.html" class="visitador-nav-link">
+                    <i class="fas fa-store"></i><span class="d-none-mobile">Revenda</span>
+                </a>
+                <a href="vendedor-comissao-transferencias.html" class="visitador-nav-link">
+                    <i class="fas fa-hand-holding-usd"></i><span class="d-none-mobile">Comissão</span>
+                </a>
+            </nav>
+            <div class="user-menu">
+                <div class="theme-toggle" id="vdThemeBtn" title="Alternar tema">
+                    <div class="theme-toggle-knob">
+                        <i class="fas fa-sun icon-sun"></i>
+                        <i class="fas fa-moon icon-moon"></i>
+                    </div>
+                </div>
+                <div class="notifications-wrap">
+                    <button type="button" class="btn-notifications" id="btnNotifications" onclick="toggleNotificationsPanel(event)" title="Mensagens e notificações" aria-label="Notificações">
+                        <span class="btn-notifications-icon" aria-hidden="true">
+                            <i class="fas fa-bell"></i>
+                        </span>
+                        <span class="notifications-badge" id="notificationsBadge" style="display:none;">0</span>
+                    </button>
+                    <div class="notifications-backdrop" id="notificationsBackdrop" onclick="closeNotificationsPanel()" aria-hidden="true"></div>
+                    <div class="notifications-panel" id="notificationsPanel">
+                        <div class="notifications-panel-header">
+                            <span><i class="fas fa-bell"></i> Mensagens e alertas</span>
+                            <button type="button" class="notifications-panel-close" onclick="closeNotificationsPanel()" aria-label="Fechar">&times;</button>
+                        </div>
+                        <div class="notifications-body">
+                            <div class="notifications-list" id="notificationsListAll">
+                                <div class="notifications-empty" id="notificationsEmptyAll">
+                                    <i class="fas fa-inbox"></i>
+                                    <p>Nenhuma mensagem no momento.</p>
+                                </div>
+                            </div>
+                            <div class="notifications-send-wrap">
+                                <label class="notifications-send-label">Enviar mensagem para usuário</label>
+                                <select id="notifParaUsuarioSelect" class="notifications-send-select"></select>
+                                <textarea id="notifMensagemUsuarioInput" class="notifications-send-textarea" placeholder="Sua mensagem..." rows="3"></textarea>
+                                <button type="button" id="btnEnviarMsgUsuario" class="notifications-send-btn" onclick="enviarMensagemUsuarioUI()"><i class="fas fa-paper-plane"></i> Enviar para usuário</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="user-profile">
+                    <div class="avatar-wrap" id="avatarWrap" title="Clique para alterar foto de perfil">
+                        <div class="avatar" id="vdAvatar">V</div>
+                        <img class="avatar-img" id="userAvatarImg" src="" alt="" style="display:none;">
+                        <input type="file" id="inputFotoPerfil" accept="image/*" style="display:none;">
+                    </div>
+                    <div class="d-none-mobile" style="cursor:pointer;" onclick="openMeuPerfilModal()">
+                        <div id="vdUserName" style="font-weight:600; font-size:0.95rem;">Vendedor</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Meu Painel</div>
+                    </div>
+                </div>
+                <button class="btn-logout" id="vdLogoutBtn">
+                    <i class="fas fa-sign-out-alt"></i> <span class="d-none-mobile">Sair</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="dashboard-container">
+            <div class="welcome-section" style="display:block;">
+                <div style="margin-bottom:24px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;">
+                    <div>
+                        <h1 id="vdGreeting" style="margin:0; font-size:1.8rem;">Cockpit de Vendas</h1>
+                        <p style="margin:4px 0 0 0; color:var(--text-secondary);">Acompanhe resultados, performance de atendimento e qualidade.</p>
+                    </div>
+                    <div class="date-badge" id="vdPeriodoInfo">
+                        --/--/---- a --/--/----
+                    </div>
+                </div>
+
+                <!-- SEÇÃO 1: Metas Financeiras -->
+                <section id="metas" class="dashboard-section pt-0">
+                    <h2 class="section-title"><i class="fas fa-wallet" style="color:#10b981;"></i> Metas Financeiras</h2>
+                    <div class="meta-grid">
+                        <div class="card premium-card">
+                            <div class="card-header-flex">
+                                <span class="card-label">Meta Diária</span>
+                                <span class="card-pct" id="vdPctMetaDiaria">0%</span>
+                            </div>
+                            <div class="vd-progress"><div id="vdProgFatDia" class="vd-progress-bar bg-blue"></div></div>
+                            <div class="card-footer-flex">
+                                <span id="vdFatDiaAtual">R$ 0,00</span>
+                                <span id="vdMetaDiaria">R$ 0,00</span>
+                            </div>
+                        </div>
+
+                        <div class="card premium-card">
+                            <div class="card-header-flex">
+                                <span class="card-label">Meta Semanal</span>
+                                <span class="card-pct text-gold" id="vdPctMetaSemanal">0%</span>
+                            </div>
+                            <div class="vd-progress"><div id="vdProgFatSem" class="vd-progress-bar bg-gold"></div></div>
+                            <div class="card-footer-flex">
+                                <span id="vdFatSemAtual">R$ 0,00</span>
+                                <span id="vdMetaSemanal">R$ 0,00</span>
+                            </div>
+                        </div>
+
+                        <div class="card premium-card">
+                            <div class="card-header-flex">
+                                <span class="card-label">Meta Mensal</span>
+                                <span class="card-pct text-green" id="vdPctMetaMensal">0%</span>
+                            </div>
+                            <div class="vd-progress"><div id="vdProgFatMes" class="vd-progress-bar bg-green"></div></div>
+                            <div class="card-footer-flex">
+                                <span id="vdFatMesAtual">R$ 0,00</span>
+                                <span id="vdMetaMensal">R$ 0,00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="card premium-card highlight-card">
+                            <div class="card-icon"><i class="fas fa-coins text-gold"></i></div>
+                            <div class="card-center-content">
+                                <span class="card-label">Previsão Projetada</span>
+                                <div class="card-big-value text-green" id="vdComissaoEstimValor">R$ 0,00</div>
+                                <div class="card-sub-value" id="vdComissaoIndividualDetalhe">Faixa atual: 0%</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SEÇÃO 2: Produtividade -->
+                <section id="produtividade" class="dashboard-section">
+                    <h2 class="section-title"><i class="fas fa-chart-pie" style="color:#3b82f6;"></i> Produtividade e Conversão</h2>
+                    <div class="kpi-grid">
+                        <!-- Clientes e Atendimentos -->
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-users kpi-bg-icon"></i>
+                                <div class="kpi-label">Volume de Clientes (Mês)</div>
+                                <div class="kpi-value" id="vdVolumeClientes">0</div>
+                                <div class="kpi-desc">Clientes distintos no período (gestao_pedidos)</div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-hand-holding-dollar kpi-bg-icon" style="color:var(--success-alpha)"></i>
+                                <div class="kpi-label">Valor Aprovado</div>
+                                <div class="kpi-value text-green" id="vdValorAprovado">R$ 0,00</div>
+                                <div class="kpi-desc" id="vdValorAprovadoDesc">Receita fechada no período</div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-ban kpi-bg-icon" style="color:var(--danger-alpha)"></i>
+                                <div class="kpi-label">Valor Reprovado</div>
+                                <div class="kpi-value" id="vdValorReprovado">R$ 0,00</div>
+                                <div class="kpi-desc" id="vdValorReprovadoDesc">Pedidos recusados/no carrinho</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Conversão Win Rate -->
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-check-circle kpi-bg-icon" style="color:var(--success-alpha)"></i>
+                                <div class="kpi-label">Taxa de Conversão</div>
+                                <div class="kpi-value text-green" id="vdTaxaConversao">0%</div>
+                                <div class="kpi-desc" id="vdConversaoDetalhe">0 aprovados / 0 orçamentos</div>
+                            </div>
+                        </div>
+
+                        <!-- Tempos Médios -->
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-clock kpi-bg-icon" style="color:var(--warning-alpha)"></i>
+                                <div class="kpi-label">Tempo Médio Espera</div>
+                                <div class="kpi-value" id="vdTMAEspera">0 min</div>
+                                <div class="kpi-desc">Até o primeiro contato</div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-stopwatch kpi-bg-icon" style="color:var(--primary-alpha)"></i>
+                                <div class="kpi-label">Duração Atendimento</div>
+                                <div class="kpi-value" id="vdTMAAtendimento">0 min</div>
+                                <div class="kpi-desc">Do início ao fechamento</div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-star kpi-bg-icon" style="color:var(--warning-alpha)"></i>
+                                <div class="kpi-label">Perda de Pontos</div>
+                                <div class="kpi-value" id="vdScorePerformance">0 pts</div>
+                                <div class="kpi-desc" id="vdScorePerformanceDesc">Impacto de perdas e inconsistências no período</div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-receipt kpi-bg-icon" style="color:var(--success-alpha)"></i>
+                                <div class="kpi-label">Ticket Médio Aprovado</div>
+                                <div class="kpi-value" id="vdTicketMedioAprovado">R$ 0,00</div>
+                                <div class="kpi-desc" id="vdTicketMedioAprovadoDesc">Por pedido aprovado no período</div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="kpi-box">
+                                <i class="fas fa-receipt kpi-bg-icon" style="color:var(--danger-alpha)"></i>
+                                <div class="kpi-label">Ticket Médio Reprovado</div>
+                                <div class="kpi-value" id="vdTicketMedioReprovado">R$ 0,00</div>
+                                <div class="kpi-desc" id="vdTicketMedioReprovadoDesc">Por pedido recusado/no carrinho</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="avaliacao" class="dashboard-section">
+                    <div class="card premium-quality-card">
+                        <div class="card-header border-0">
+                            <div class="card-title text-gold"><i class="fas fa-star-half-alt"></i> Avaliação de Qualidade (Critérios)</div>
+                            <div class="card-subtitle" style="color:rgba(255,255,255,0.7);">Auditoria Mensal e Bônus de Performance</div>
+                        </div>
+                        <div class="card-body" style="padding-top:0;">
+                            <div class="quality-score-wrap">
+                                <div class="quality-big-score" id="vdQualidadeScore">0/100</div>
+                                <div class="quality-premio" id="vdPremioPerformance">Bônus Adicional: R$ 0,00</div>
+                            </div>
+                            
+                            <div class="vd-table-wrap mb-0">
+                                <table class="vd-table small-table">
+                                    <thead><tr><th>Critério Analisado</th><th>Status / Nota</th></tr></thead>
+                                    <tbody id="vdTabelaQualidade">
+                                        <tr><td>Qualidade de Envio</td><td>-</td></tr>
+                                        <tr><td>Ausência de Erros</td><td>-</td></tr>
+                                        <tr><td>Retornos</td><td>-</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="vd-error" id="vdError" style="display:none;"></div>
+            </div>
+            
+        </main>
+    </div>
+
+    <!-- Modal Meu perfil (api.php — igual visitador) -->
+    <div id="modalMeuPerfil"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:2500; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div
+            style="background:var(--bg-card); border-radius:16px; width:100%; max-width:420px; box-shadow:var(--shadow-lg); border:1px solid var(--border); overflow:hidden;">
+            <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:0;"><i class="fas fa-user-circle" style="color:var(--primary); margin-right:8px;"></i>Meu perfil</h2>
+                <button type="button" onclick="closeMeuPerfilModal()"
+                    style="background:none; border:none; font-size:1.5rem; color:var(--text-secondary); cursor:pointer; padding:4px 8px; border-radius:6px;">&times;</button>
+            </div>
+            <div style="padding:24px;">
+                <div style="text-align:center; margin-bottom:24px;">
+                    <div class="perfil-foto-wrap" id="perfilFotoWrap" style="position:relative; display:inline-block;">
+                        <div class="avatar perfil-foto-inicial" id="perfilAvatarInicial" style="width:96px; height:96px; font-size:2.5rem;">V</div>
+                        <img class="avatar-img perfil-foto-img" id="perfilFotoImg" src="" alt="Foto" style="display:none; width:96px; height:96px; border-radius:50%; object-fit:cover;">
+                        <input type="file" id="inputFotoPerfilModal" accept="image/*" style="display:none;">
+                        <button type="button" onclick="document.getElementById('inputFotoPerfilModal').click()"
+                            style="margin-top:10px; padding:8px 16px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-size:0.85rem; font-weight:600;">
+                            <i class="fas fa-camera"></i> Alterar foto
+                        </button>
+                    </div>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">Nome</label>
+                    <input type="text" id="perfilNome" placeholder="Seu nome"
+                        style="width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); font-size:0.95rem; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">Usuário (login)</label>
+                    <input type="text" id="perfilUsuario" readonly
+                        style="width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-secondary); font-size:0.95rem; box-sizing:border-box; cursor:not-allowed;">
+                </div>
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">WhatsApp</label>
+                    <input type="text" id="perfilWhatsapp" placeholder="(00) 00000-0000"
+                        style="width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg-body); color:var(--text-primary); font-size:0.95rem; box-sizing:border-box;">
+                </div>
+                <div style="border-top:1px solid var(--border); padding-top:20px; margin-top:20px;">
+                    <div style="font-size:0.9rem; font-weight:700; color:var(--text-primary); margin-bottom:12px;"><i class="fas fa-lock" style="margin-right:6px; color:var(--text-secondary);"></i>Alterar senha</div>
+                    <div style="margin-bottom:12px;">
+                        <input type="password" id="perfilSenhaAtual" placeholder="Senha atual"
+                            style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <input type="password" id="perfilSenhaNova" placeholder="Nova senha (8+, 1 maiúscula, 1 especial)"
+                            style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <input type="password" id="perfilSenhaConfirma" placeholder="Confirmar nova senha"
+                            style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-body); color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+                </div>
+            </div>
+            <div style="padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" onclick="closeMeuPerfilModal()"
+                    style="padding:10px 20px; border-radius:10px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-primary); cursor:pointer; font-weight:600;">Fechar</button>
+                <button type="button" id="btnSalvarPerfil" onclick="salvarMeuPerfil()"
+                    style="padding:10px 20px; border-radius:10px; border:none; background:var(--primary); color:white; cursor:pointer; font-weight:600;">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/vendedor-main.js?v=20260415-perfil-api"></script>
+</body>
+</html>

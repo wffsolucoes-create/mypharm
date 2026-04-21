@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="MyPharm — Análise da base de clientes importada">
+    <meta name="theme-color" content="#E63946">
+    <title>Clientes | MyPharm</title>
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
+    <link rel="apple-touch-icon" href="imagens/IconeMyPharm.png?v=20260402">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/ui-feedback.css">
+    <link rel="stylesheet" href="css/gestao-comercial.css?v=20260414-ui4">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <style>
+        /* ── Clientes-specific overrides ── */
+        :root { --cli-accent: #E63946; --cli-accent-soft: #fde8ea; }
+        [data-theme="dark"] { --cli-accent-soft: rgba(230,57,70,.15); }
+
+        .cli-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        @media (min-width: 1200px) {
+            .cli-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+        @media (min-width: 1600px) {
+            .cli-kpi-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+        }
+        .cli-kpi-card {
+            --cli-kpi-accent: var(--cli-accent);
+            --cli-kpi-icon-bg: var(--cli-accent-soft);
+            position: relative;
+            background: var(--bg-card, #fff);
+            border: 1px solid var(--border, #e5e7eb);
+            border-radius: 14px;
+            padding: 0;
+            min-height: 158px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            overflow: hidden;
+        }
+        .cli-kpi-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: var(--cli-kpi-accent);
+            border-radius: 14px 0 0 14px;
+            opacity: 0.85;
+        }
+        .cli-kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+            border-color: #d1d5db;
+        }
+        [data-theme="dark"] .cli-kpi-card:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .cli-kpi-card,
+            .cli-kpi-card__meter-fill { transition: none; }
+        }
+        .cli-kpi-card__inner {
+            padding: 16px 16px 14px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+        .cli-kpi-card__icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            background: var(--cli-kpi-icon-bg);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--cli-kpi-accent);
+            font-size: 1.05rem;
+        }
+        .cli-kpi-card__val {
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: var(--text-primary, #111);
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            font-variant-numeric: tabular-nums;
+        }
+        .cli-kpi-card__label {
+            font-size: 0.76rem;
+            color: var(--text-secondary, #6b7280);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            line-height: 1.25;
+        }
+        .cli-kpi-card__sub {
+            font-size: 0.72rem;
+            color: var(--text-secondary, #6b7280);
+            margin-top: -2px;
+        }
+        .cli-kpi-card__sub--pill {
+            display: inline-block;
+            align-self: flex-start;
+            margin-top: 2px;
+            padding: 2px 8px;
+            border-radius: 99px;
+            background: rgba(15, 23, 42, 0.06);
+            color: var(--text-secondary, #4b5563);
+            font-weight: 600;
+        }
+        [data-theme="dark"] .cli-kpi-card__sub--pill {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-secondary, #cbd5e1);
+        }
+        .cli-kpi-card__meter {
+            height: 5px;
+            border-radius: 99px;
+            background: var(--border, #e5e7eb);
+            margin: 0 16px 14px 18px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        [data-theme="dark"] .cli-kpi-card__meter {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .cli-kpi-card__meter-fill {
+            display: block;
+            height: 100%;
+            border-radius: 99px;
+            width: 0%;
+            background: var(--cli-kpi-accent);
+            transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .cli-kpi-card--total {
+            --cli-kpi-accent: #457B9D;
+            --cli-kpi-icon-bg: rgba(69, 123, 157, 0.12);
+        }
+        .cli-kpi-card--cpf {
+            --cli-kpi-accent: #E63946;
+            --cli-kpi-icon-bg: var(--cli-accent-soft);
+        }
+        .cli-kpi-card--completo {
+            --cli-kpi-accent: #2A9D8F;
+            --cli-kpi-icon-bg: rgba(42, 157, 143, 0.14);
+        }
+        .cli-kpi-card--simples {
+            --cli-kpi-accent: #ca8a04;
+            --cli-kpi-icon-bg: rgba(234, 179, 8, 0.15);
+        }
+        .cli-kpi-card--email {
+            --cli-kpi-accent: #7c3aed;
+            --cli-kpi-icon-bg: rgba(124, 58, 237, 0.12);
+        }
+        .cli-kpi-card--nasc {
+            --cli-kpi-accent: #db2777;
+            --cli-kpi-icon-bg: rgba(219, 39, 119, 0.12);
+        }
+        .cli-kpi-card--cel {
+            --cli-kpi-accent: #0d9488;
+            --cli-kpi-icon-bg: rgba(13, 148, 136, 0.14);
+        }
+
+        /* ── busca ── */
+        .cli-search-bar {
+            display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; align-items: flex-end;
+        }
+        .cli-search-bar input,
+        .cli-search-bar select {
+            padding: 8px 12px; border: 1px solid var(--border, #d1d5db);
+            border-radius: 8px; background: var(--bg-input, #fff);
+            color: var(--text-primary, #111); font-size: 0.88rem; font-family: inherit;
+        }
+        .cli-search-bar input { flex: 1; min-width: 220px; }
+        .cli-search-bar input:focus,
+        .cli-search-bar select:focus { outline: 2px solid var(--cli-accent); outline-offset: 2px; }
+        .cli-search-btn {
+            padding: 8px 18px; background: var(--cli-accent); color: #fff; border: none;
+            border-radius: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .cli-search-btn:hover { filter: brightness(1.08); }
+        .cli-search-btn--ghost {
+            background: var(--bg-card, #fff);
+            color: var(--cli-accent);
+            border: 1px solid var(--cli-accent);
+        }
+        .cli-search-btn--ghost:hover { filter: none; background: var(--cli-accent-soft); }
+        .cli-busca-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+        .cli-busca-print-meta {
+            display: none;
+            font-size: 0.8rem;
+            color: var(--text-secondary, #4b5563);
+            margin: 0 0 10px 0;
+            line-height: 1.4;
+        }
+        .cli-th-sort {
+            background: none; border: none; font: inherit;
+            color: inherit; text-transform: inherit; letter-spacing: inherit;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+            padding: 0; margin: 0; white-space: nowrap;
+        }
+        .cli-th-sort:hover { color: var(--cli-accent); }
+        .cli-th-sort i { opacity: 0.55; font-size: 0.72rem; }
+        .cli-th-sort:focus { outline: 2px solid var(--cli-accent); outline-offset: 2px; border-radius: 4px; }
+        .cli-th-num, .cli-td-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .cli-table-wrap--busca {
+            border-radius: 12px;
+            border: 1px solid var(--border, #e5e7eb);
+            background: var(--bg-card, #fff);
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+        }
+        .cli-table--busca {
+            font-size: 0.8125rem;
+        }
+        .cli-table--busca thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            color: #475569;
+            font-weight: 600;
+            padding: 11px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 1px 0 #e2e8f0;
+        }
+        .cli-table--busca thead th.cli-th-num {
+            text-align: right;
+        }
+        .cli-table--busca tbody td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .cli-table--busca tbody tr:nth-child(even) td {
+            background: rgba(248, 250, 252, 0.65);
+        }
+        .cli-table--busca tbody tr:hover td {
+            background: rgba(241, 245, 249, 0.95);
+        }
+        .cli-table--busca .cli-td-num {
+            font-weight: 600;
+            color: #0f172a;
+            letter-spacing: -0.01em;
+        }
+        .cli-table--busca .cli-td-num--muted {
+            font-weight: 500;
+            color: var(--text-secondary, #64748b);
+        }
+        [data-theme="dark"] .cli-table-wrap--busca {
+            border-color: rgba(148, 163, 184, 0.25);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+        }
+        [data-theme="dark"] .cli-table--busca thead th {
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            color: #94a3b8;
+            border-bottom-color: #334155;
+            box-shadow: 0 1px 0 #334155;
+        }
+        [data-theme="dark"] .cli-table--busca tbody td { border-bottom-color: rgba(51, 65, 85, 0.5); }
+        [data-theme="dark"] .cli-table--busca tbody tr:nth-child(even) td { background: rgba(30, 41, 59, 0.45); }
+        [data-theme="dark"] .cli-table--busca tbody tr:hover td { background: rgba(51, 65, 85, 0.55); }
+        [data-theme="dark"] .cli-table--busca .cli-td-num { color: #f1f5f9; }
+        [data-theme="dark"] .cli-table--busca .cli-td-num--muted { color: #64748b; }
+        .cli-table--busca th.cli-th-num .cli-th-sort {
+            width: 100%;
+            justify-content: flex-end;
+            text-transform: inherit;
+            letter-spacing: inherit;
+            font-size: inherit;
+            font-weight: inherit;
+            color: inherit;
+        }
+        select#cliBuscaMunicipio:disabled {
+            opacity: 0.55; cursor: not-allowed;
+        }
+
+        .cli-cruzamento-panel { font-size: 0.88rem; line-height: 1.45; color: var(--text-primary, #111); }
+        .cli-cruzamento-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin: 14px 0;
+        }
+        .cli-cruzamento-stat {
+            background: var(--bg-card, #fff);
+            border: 1px solid var(--border, #e5e7eb);
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+        .cli-cruzamento-stat strong { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; color: var(--cli-accent); }
+        .cli-cruzamento-stat span { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+        .cli-cruzamento-amostra { margin-top: 10px; padding: 10px 12px; background: rgba(15,23,42,0.04); border-radius: 8px; font-size: 0.8rem; max-height: 160px; overflow: auto; }
+
+        /* Análise de Compras — KPIs alinhados a gestao-comercial.html (kpi-grid / kpi-card) */
+        #cliMain #cliAnaliseKpis.kpi-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin: 16px 0 18px;
+        }
+        @media (max-width: 1200px) {
+            #cliMain #cliAnaliseKpis.kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (max-width: 900px) {
+            #cliMain #cliAnaliseKpis.kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 520px) {
+            #cliMain #cliAnaliseKpis.kpi-grid { grid-template-columns: 1fr; }
+        }
+        body.gc-compact-ui #cliMain #cliAnaliseKpis .kpi-card {
+            padding: 12px 14px;
+            min-height: 118px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        body.gc-compact-ui #cliMain #cliAnaliseKpis .kpi-icon {
+            width: 34px;
+            height: 34px;
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+        }
+        body.gc-compact-ui #cliMain #cliAnaliseKpis .kpi-label {
+            font-size: 0.68rem;
+            margin-bottom: 4px;
+            line-height: 1.35;
+        }
+        body.gc-compact-ui #cliMain #cliAnaliseKpis .kpi-value {
+            font-size: 1.45rem;
+            line-height: 1.15;
+            color: var(--primary, #E63946);
+            font-variant-numeric: tabular-nums;
+        }
+        body.gc-compact-ui #cliMain #cliAnaliseKpis .kpi-sub {
+            margin-top: 6px;
+            font-size: 0.72rem;
+            line-height: 1.35;
+        }
+        #cliAnaliseKpis .kpi-card:nth-child(9)::before {
+            background: linear-gradient(90deg, #6366f1, #a5b4fc);
+        }
+        #cliAnaliseKpis .kpi-card:nth-child(10)::before {
+            background: linear-gradient(90deg, #64748b, #94a3b8);
+        }
+        #cliAnaliseKpis .kpi-card:nth-child(9) .kpi-icon {
+            background: rgba(99, 102, 241, 0.14);
+            color: #6366f1;
+        }
+        #cliAnaliseKpis .kpi-card:nth-child(10) .kpi-icon {
+            background: rgba(100, 116, 139, 0.14);
+            color: #64748b;
+        }
+        [data-theme="dark"] .cli-cruzamento-amostra { background: rgba(255,255,255,0.06); }
+
+        @media print {
+            body { background: #fff !important; }
+            body * { visibility: hidden; }
+            /* Não forçar visibility em colunas ocultas (CPF, UF, Ano CSV na busca). */
+            #cliBuscaPrintArea, #cliBuscaPrintArea *:not(.cli-busca-print-hide) { visibility: visible; }
+            #cliBuscaPrintArea .cli-no-print { display: none !important; visibility: hidden !important; }
+            #cliBuscaPrintArea .cli-busca-print-hide,
+            #cliBuscaPrintArea .cli-busca-print-hide * {
+                display: none !important;
+                visibility: hidden !important;
+            }
+            #cliBuscaPrintArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .cli-table { font-size: 9pt; }
+            .cli-table--busca thead th { background: #f1f5f9 !important; box-shadow: none; }
+            .cli-th-sort { color: #000 !important; font-weight: 700; }
+            .cli-th-sort i { display: none !important; }
+            .cli-pag { display: none !important; }
+        }
+
+        /* ── tabela ── */
+        .cli-table-wrap { overflow-x: auto; }
+        .cli-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .cli-table th {
+            background: var(--bg-table-head, #f3f4f6); color: var(--text-secondary, #6b7280);
+            font-size: 0.72rem; text-transform: uppercase; letter-spacing: .04em;
+            padding: 10px 12px; text-align: left; border-bottom: 2px solid var(--border, #e5e7eb);
+            white-space: nowrap;
+        }
+        .cli-table td {
+            padding: 9px 12px; border-bottom: 1px solid var(--border, #f0f0f0);
+            color: var(--text-primary, #111); vertical-align: middle;
+        }
+        .cli-table tr:hover td { background: var(--bg-hover, #f9fafb); }
+        .cli-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 99px;
+            font-size: 0.72rem; font-weight: 600;
+        }
+        .cli-badge--completo { background: #d1fae5; color: #065f46; }
+        .cli-badge--simples  { background: #e5e7eb; color: #374151; }
+        .cli-badge--invalido { background: #fee2e2; color: #991b1b; }
+
+        /* ── paginação ── */
+        .cli-pag {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-top: 14px; flex-wrap: wrap; gap: 8px;
+        }
+        .cli-pag__info { font-size: 0.82rem; color: var(--text-secondary, #6b7280); }
+        .cli-pag__btns { display: flex; gap: 6px; flex-wrap: wrap; }
+        .cli-pag__btn {
+            padding: 5px 12px; border: 1px solid var(--border, #d1d5db);
+            border-radius: 6px; background: var(--bg-card, #fff);
+            color: var(--text-primary, #111); font-size: 0.82rem; cursor: pointer;
+        }
+        .cli-pag__btn:hover:not(:disabled) { background: var(--cli-accent-soft); border-color: var(--cli-accent); }
+        .cli-pag__btn--active { background: var(--cli-accent); color: #fff; border-color: var(--cli-accent); }
+        .cli-pag__btn:disabled { opacity: .4; cursor: default; }
+
+        /* ── modal detalhe ── */
+        .cli-modal-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9000;
+            display: none; align-items: center; justify-content: center; padding: 16px;
+        }
+        .cli-modal-backdrop.is-open { display: flex; }
+        .cli-modal {
+            background: var(--bg-card, #fff); border-radius: 14px;
+            width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,.25);
+        }
+        .cli-modal__head {
+            padding: 20px 24px 16px; border-bottom: 1px solid var(--border, #e5e7eb);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .cli-modal__title { font-size: 1.05rem; font-weight: 700; color: var(--text-primary, #111); }
+        .cli-modal__close {
+            width: 32px; height: 32px; border-radius: 8px; border: none;
+            background: var(--bg-hover, #f3f4f6); color: var(--text-secondary, #6b7280);
+            font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .cli-modal__body { padding: 20px 24px; }
+        .cli-modal__row {
+            display: flex; gap: 8px; margin-bottom: 10px;
+            border-bottom: 1px solid var(--border, #f0f0f0); padding-bottom: 10px;
+        }
+        .cli-modal__row:last-child { border-bottom: none; margin-bottom: 0; }
+        .cli-modal__key { font-size: 0.78rem; color: var(--text-secondary, #6b7280); min-width: 130px; font-weight: 500; }
+        .cli-modal__val { font-size: 0.88rem; color: var(--text-primary, #111); font-weight: 600; word-break: break-all; }
+
+        /* ── empty / loading ── */
+        .cli-empty { text-align: center; padding: 48px 16px; color: var(--text-secondary, #9ca3af); }
+        .cli-empty i { font-size: 2.5rem; display: block; margin-bottom: 10px; }
+        .cli-loading { text-align: center; padding: 32px; color: var(--text-secondary, #9ca3af); font-size: 0.9rem; }
+
+        /* ── chart panel override altura ── */
+        .cli-chart-canvas-wrap { position: relative; height: 280px; }
+        .cli-chart-canvas-wrap--tall { height: 360px; }
+
+        /* Ícones Font Awesome no menu: #gcApp aplica font:inherit nos botões — preservar família dos ícones */
+        #gcApp .sidebar-nav .nav-item i.fas,
+        #gcApp .sidebar-nav .nav-item i.far,
+        #gcApp .sidebar-nav .nav-item i.fal {
+            font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", sans-serif !important;
+            font-style: normal;
+            font-variant: normal;
+            text-rendering: auto;
+        }
+        #gcApp .sidebar-nav .nav-item i.fas { font-weight: 900; }
+        #gcApp .sidebar-nav .nav-item i.far { font-weight: 400; }
+
+        /*
+         * Tipografia do menu = index.html (styles.css .nav-item).
+         * gestao-comercial.css usa `font: inherit` em button.nav-item e anula 0.875rem — botões ficavam maiores que os links.
+         */
+        #gcApp .sidebar-nav button.nav-item {
+            font-size: 0.875rem;
+            font-weight: 500;
+            line-height: 1.35;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        #gcApp .sidebar-nav a.nav-item {
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        #gcApp .sidebar-nav a.nav-item.active {
+            font-weight: 600;
+        }
+        #gcApp .sidebar-nav .nav-section-title {
+            font-size: 0.65rem;
+            letter-spacing: 0.14em;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* Mapa geográfico: mesmo padrão visual do index (mapa-rotas) + coroplético clientes */
+        #cli-section-geografico .chart-card.mapa-rotas-card {
+            min-width: 0;
+        }
+        #cli-section-geografico .mapa-rotas-map-wrap {
+            display: flex;
+            flex-direction: column;
+        }
+        #cli-section-geografico .cli-mapa-calor-uf {
+            flex: 1;
+            width: 100%;
+            min-height: 420px;
+            border: none;
+            border-radius: 0;
+            overflow: hidden;
+            background: var(--bg-input, #f1f5f9);
+        }
+        @media (min-width: 1200px) {
+            #cli-section-geografico .cli-mapa-calor-uf {
+                min-height: min(52vh, 560px);
+            }
+        }
+        /* body.gc-compact-ui reduz charts — na Geográfica precisamos de mais altura */
+        body.gc-compact-ui #cli-section-geografico .gc-chart-canvas-wrap--tall {
+            height: 520px !important;
+            min-height: 440px !important;
+        }
+        body.gc-compact-ui #cli-section-geografico .gc-chart-canvas-wrap:not(.gc-chart-canvas-wrap--tall) {
+            min-height: 320px;
+        }
+        [data-theme="dark"] .cli-mapa-calor-uf {
+            background: var(--bg-input, #0f172a);
+        }
+        .cli-mapa-calor-uf .leaflet-control-attribution { font-size: 0.65rem; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #cli-section-geografico .cli-mapa-rotas-legend-gradient {
+            background: linear-gradient(90deg, #fff7ed 0%, #fb923c 45%, #c2410c 75%, #7f1d1d 100%);
+            box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+        }
+        [data-theme="dark"] #cli-section-geografico .cli-mapa-rotas-legend-gradient {
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+        .cli-mapa-rotas-swatch--area,
+        .cli-mapa-rotas-swatch--sel {
+            flex-shrink: 0;
+            display: inline-block;
+            box-sizing: border-box;
+        }
+        .cli-mapa-rotas-swatch--area {
+            width: 16px;
+            height: 10px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #fff7ed, #9a3412);
+            border: 1px solid var(--border, #e5e7eb);
+        }
+        .cli-mapa-rotas-swatch--sel {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+            background: rgba(230, 57, 70, 0.2);
+            border: 2px solid var(--cli-accent, #E63946);
+        }
+        .cli-mapa-toolbar-strip {
+            flex-shrink: 0;
+        }
+        #cli-section-geografico .cli-mapa-toolbar-strip .cli-mapa-pro-toolbar--embed {
+            margin: 0;
+            border-radius: 0;
+            border: none;
+            border-bottom: 1px solid var(--border, #e2e8f0);
+        }
+        .cli-mapa-calor-msg {
+            padding: 48px 16px;
+            text-align: center;
+            color: var(--text-secondary, #64748b);
+            font-size: 0.9rem;
+        }
+        .leaflet-tooltip.cli-mapa-calor-tooltip {
+            max-width: 280px;
+            white-space: normal;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 0.82rem;
+            line-height: 1.35;
+        }
+
+        /* Toolbar filtros do mapa (embed no cartão estilo index) */
+        .cli-mapa-pro-toolbar {
+            margin: 18px 0 16px;
+            padding: 16px 18px;
+            border-radius: 12px;
+            background: linear-gradient(180deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.65) 100%);
+            border: 1px solid var(--border, #e2e8f0);
+        }
+        [data-theme="dark"] .cli-mapa-pro-toolbar {
+            background: linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.4) 100%);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+        .cli-mapa-pro-toolbar__grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px 16px;
+            align-items: end;
+        }
+        .cli-mapa-pro-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        @media (min-width: 900px) {
+            .cli-mapa-pro-toolbar__grid {
+                grid-template-columns: 1fr 1.2fr 1.2fr auto;
+            }
+        }
+        .cli-mapa-pro-label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary, #64748b);
+            margin-bottom: 6px;
+        }
+        .cli-mapa-pro-select {
+            width: 100%;
+            padding: 9px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border, #cbd5e1);
+            background: var(--bg-input, #fff);
+            color: var(--text-primary, #0f172a);
+            font-size: 0.86rem;
+            font-family: inherit;
+        }
+        .cli-mapa-pro-select:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+        .cli-mapa-pro-btn {
+            padding: 9px 16px;
+            border-radius: 10px;
+            border: 1px solid var(--border, #cbd5e1);
+            background: var(--bg-card, #fff);
+            color: var(--text-primary, #334155);
+            font-size: 0.84rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cli-mapa-pro-btn:hover { border-color: #94a3b8; }
+        .cli-mapa-pro-btn--primary {
+            background: var(--cli-accent, #E63946);
+            border-color: var(--cli-accent, #E63946);
+            color: #fff;
+        }
+        .cli-mapa-pro-btn--primary:hover { filter: brightness(1.05); }
+        .cli-mapa-pro-hint {
+            margin: 12px 0 0;
+            font-size: 0.78rem;
+            color: var(--text-secondary, #64748b);
+        }
+        .cli-mapa-bairros-wrap {
+            margin-top: 20px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--border, #e2e8f0);
+        }
+        .cli-analise-toolbar {
+            display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin-bottom: 16px;
+        }
+        .cli-analise-toolbar--panel {
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border, #e2e8f0);
+            background: var(--bg-secondary, rgba(148, 163, 184, 0.08));
+            margin-bottom: 14px;
+        }
+        .cli-analise-meta + .gc-block-title {
+            margin-top: 4px;
+        }
+        .cli-analise-toolbar select {
+            padding: 8px 12px; border: 1px solid var(--border, #d1d5db); border-radius: 8px;
+            background: var(--bg-input, #fff); font-size: 0.88rem; font-family: inherit; min-width: 160px;
+        }
+        .cli-analise-meta {
+            font-size: 0.82rem; color: var(--text-secondary, #64748b); margin: 0 0 14px 0; line-height: 1.45;
+        }
+        .cli-analise-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border, #e5e7eb); }
+        .cli-analise-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .cli-analise-table th {
+            text-align: left; padding: 10px 12px; background: var(--bg-table-head, #f3f4f6);
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary);
+            border-bottom: 2px solid var(--border);
+        }
+        .cli-analise-table td { padding: 9px 12px; border-bottom: 1px solid var(--border, #f0f0f0); vertical-align: middle; }
+        .cli-analise-table th.cli-analise-num, .cli-analise-table td.cli-analise-num { text-align: right; font-variant-numeric: tabular-nums; }
+        .cli-analise-table tbody tr:hover td { background: var(--bg-hover, #f9fafb); }
+
+        /* Overlay de carregamento — mesmo padrão visual do index/dashboard (fundo claro esmaecido + blur) */
+        #loadingOverlay.loading-overlay {
+            z-index: 100000;
+            pointer-events: auto;
+        }
+        [data-theme="light"] #loadingOverlay.loading-overlay,
+        html[data-theme="light"] #loadingOverlay.loading-overlay {
+            background: rgba(245, 246, 250, 0.88);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        [data-theme="dark"] #loadingOverlay.loading-overlay {
+            background: rgba(15, 17, 23, 0.88);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        #loadingOverlay .loading-spinner {
+            border-color: rgba(203, 213, 225, 0.95);
+            border-top-color: var(--primary, #E63946);
+            border-width: 3px;
+        }
+        #loadingOverlay .loading-text {
+            color: var(--text-secondary, #64748b);
+            font-weight: 500;
+            letter-spacing: 0.01em;
+        }
+
+        /* ── Responsividade (gráficos + KPI) ── */
+        #gcApp .main-content {
+            min-width: 0;
+        }
+        #cliMain.gc-analytics {
+            max-width: 1680px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #cliMain .gc-chart-panel,
+        #cliMain .gc-block {
+            max-width: 100%;
+            min-width: 0;
+        }
+        #cliMain .gc-chart-canvas-wrap,
+        #cliMain .gc-chart-canvas-wrap--exec-forma {
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+        #cliMain .gc-chart-canvas-wrap canvas {
+            display: block;
+            max-width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            #gcApp .gc-chart-panel--exec-forma {
+                min-height: 280px;
+            }
+            #gcApp .gc-chart-canvas-wrap--exec-forma {
+                height: min(52vh, 300px);
+                min-height: 220px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .cli-kpi-grid {
+                grid-template-columns: minmax(0, 1fr) !important;
+            }
+            #cliMain .gc-tab-head__desc {
+                font-size: 0.82rem;
+            }
+        }
+
+        @media (max-width: 400px) {
+            #cliMain.page-content {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            #gcApp .app-footer {
+                padding-left: 12px;
+                padding-right: 12px;
+                font-size: 0.72rem;
+            }
+        }
+    </style>
+</head>
+<body class="gc-compact-ui">
+    <a href="#cliMain" class="gc-skip-link">Ir para o conteúdo</a>
+
+    <!-- id gcApp: mesmos seletores #gcApp do gestao-comercial.css (menu lateral + botões) -->
+    <div id="gcApp" class="app-layout" style="display:none;">
+
+        <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+        <!-- ── SIDEBAR: mesmo visual do index (styles.css), conteúdo só desta página ── -->
+        <aside class="sidebar collapsed" id="sidebar" aria-label="Menu lateral">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <img src="./imagens/logoMypharm1.png?v=20260402" alt="MyPharm" class="sidebar-brand-logo sidebar-brand-logo--expanded" width="280" height="72" decoding="async">
+                    <img src="./imagens/IconeMyPharm.png?v=20260402" alt="MyPharm" class="sidebar-brand-logo sidebar-brand-logo--collapsed" width="40" height="40" decoding="async">
+                </div>
+            </div>
+            <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Expandir menu">
+                <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            </button>
+            <nav class="sidebar-nav" aria-label="Seções">
+                <div class="nav-section-title">Análise</div>
+                <div class="gc-sidebar-tablist" role="tablist">
+                    <button type="button" class="nav-item gc-menu-item active" role="tab"
+                            data-section="visao-geral" aria-selected="true">
+                        <i class="fas fa-gauge-high" aria-hidden="true"></i>
+                        <span>Visão Geral</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab"
+                            data-section="evolucao" aria-selected="false">
+                        <i class="fas fa-chart-line" aria-hidden="true"></i>
+                        <span>Evolução de Cadastros</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab"
+                            data-section="geografico" aria-selected="false">
+                        <i class="fas fa-map-location-dot" aria-hidden="true"></i>
+                        <span>Distribuição Geográfica</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab"
+                            data-section="analise-compras" aria-selected="false">
+                        <i class="fas fa-chart-pie" aria-hidden="true"></i>
+                        <span>Análise de Compras</span>
+                    </button>
+                    <button type="button" class="nav-item gc-menu-item" role="tab"
+                            data-section="busca" aria-selected="false">
+                        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                        <span>Busca de Clientes</span>
+                    </button>
+                </div>
+                <div class="nav-section-title">Atalhos</div>
+                <a class="nav-item" href="gestao-comercial.html">
+                    <i class="fas fa-chart-line" aria-hidden="true"></i>
+                    <span>Gestão Comercial</span>
+                </a>
+                <a class="nav-item" href="index.html">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    <span>Painel Administrativo</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="avatar-wrap sidebar-avatar-wrap" id="avatarWrap" title="Clique para alterar foto de perfil">
+                        <div class="user-avatar" id="userAvatar">A</div>
+                        <img class="avatar-img" id="userAvatarImg" src="" alt="" style="display:none;">
+                        <input type="file" id="inputFotoPerfil" accept="image/*" style="display:none;">
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name" id="userName">Administrador</div>
+                        <div class="user-role" id="userRole">Base de Clientes</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ── MAIN (topbar alinhado ao index.html) ── -->
+        <div class="main-content">
+            <div class="topbar">
+                <div class="topbar-left">
+                    <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Abrir menu" title="Menu">
+                        <i class="fas fa-bars" aria-hidden="true"></i>
+                    </button>
+                    <div style="min-width:0">
+                        <h1 id="cliPageTitle">Clientes</h1>
+                        <div class="breadcrumb" id="cliPageSubtitle">Base importada · análise de cadastros</div>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <div class="theme-toggle" id="cliThemeToggle" title="Alternar tema claro/escuro" role="button" tabindex="0">
+                        <div class="theme-toggle-knob">
+                            <i class="fas fa-moon icon-moon" aria-hidden="true"></i>
+                            <i class="fas fa-sun icon-sun" aria-hidden="true"></i>
+                        </div>
+                    </div>
+                    <div class="notifications-wrap">
+                        <button type="button" class="btn-notifications" id="btnNotifications" title="Mensagens e notificações" aria-label="Notificações">
+                            <span class="btn-notifications-icon" aria-hidden="true"><i class="fas fa-bell"></i></span>
+                            <span class="notifications-badge" id="notificationsBadge" style="display:none;">0</span>
+                        </button>
+                        <div class="notifications-backdrop" id="notificationsBackdrop" aria-hidden="true"></div>
+                        <div class="notifications-panel" id="notificationsPanel">
+                            <div class="notifications-panel-header">
+                                <span><i class="fas fa-bell"></i> Mensagens e alertas</span>
+                                <button type="button" class="notifications-panel-close" aria-label="Fechar">&times;</button>
+                            </div>
+                            <div class="notifications-body">
+                                <div class="notifications-list" id="notificationsListAll">
+                                    <div class="notifications-empty" id="notificationsEmptyAll">
+                                        <i class="fas fa-inbox"></i>
+                                        <p>Nenhuma mensagem no momento.</p>
+                                    </div>
+                                </div>
+                                <div class="notifications-send-wrap">
+                                    <label class="notifications-send-label">Enviar mensagem para usuário</label>
+                                    <select id="notifParaUsuarioSelect" class="notifications-send-select"></select>
+                                    <textarea id="notifMensagemUsuarioInput" class="notifications-send-textarea" placeholder="Sua mensagem..." rows="3"></textarea>
+                                    <button type="button" id="btnEnviarMsgUsuario" class="notifications-send-btn"><i class="fas fa-paper-plane"></i> Enviar para usuário</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="topbar-btn" id="cliRefreshBtn" title="Atualizar dados">
+                        <i class="fas fa-sync-alt" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="logout-btn" id="cliLogoutBtn">
+                        <i class="fas fa-sign-out-alt" aria-hidden="true"></i> <span class="d-none-mobile">Sair</span>
+                    </button>
+                </div>
+            </div>
+
+            <main id="cliMain" class="page-content gc-analytics" tabindex="-1">
+
+                <!-- ══ VISÃO GERAL ══════════════════════════════════════════ -->
+                <section class="gc-section active" id="cli-section-visao-geral" role="tabpanel">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Visão Geral</p>
+                        <p class="gc-tab-head__desc">Evolução do cadastro ao longo do tempo, distribuição geográfica (UF), KPIs da base e perfil por tipo e sexo.</p>
+                    </header>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-chart-area"></i></span> Evolução e distribuição</h3>
+                        <div class="gc-chart-grid gc-chart-grid--2">
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Evolução do cadastro</h4>
+                                <p class="gc-chart-sub">Volume mensal: total (linha) e Completo vs Simples (barras).</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--exec-forma"><canvas id="cliChartVisaoEvolucao" aria-label="Evolução do cadastro"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Distribuição por UF</h4>
+                                <p class="gc-chart-sub">Barras verticais por UF (maiores volumes primeiro); demais UFs somadas em Outros.</p>
+                                <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--exec-forma"><canvas id="cliChartVisaoUf" aria-label="Distribuição por UF"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-gauge-high"></i></span> Indicadores da base</h3>
+                        <div class="cli-kpi-grid" id="cliKpiGrid">
+                            <div class="cli-kpi-card cli-kpi-card--total">
+                                <div class="cli-kpi-card__inner">
+                                    <div class="cli-kpi-card__icon"><i class="fas fa-users" aria-hidden="true"></i></div>
+                                    <div class="cli-kpi-card__val" id="kpiTotal">—</div>
+                                    <div class="cli-kpi-card__label">Total de clientes</div>
+                                </div>
+                                <div class="cli-kpi-card__meter" aria-hidden="true"><span class="cli-kpi-card__meter-fill" id="kpiTotalMeter"></span></div>
+                            </div>
+                            <div class="cli-kpi-card cli-kpi-card--cpf">
+                                <div class="cli-kpi-card__inner">
+                                    <div class="cli-kpi-card__icon"><i class="fas fa-id-card" aria-hidden="true"></i></div>
+                                    <div class="cli-kpi-card__val" id="kpiComCpf">—</div>
+                                    <div class="cli-kpi-card__label">Com CPF válido</div>
+                                    <div class="cli-kpi-card__sub cli-kpi-card__sub--pill" id="kpiComCpfPct"></div>
+                                </div>
+                                <div class="cli-kpi-card__meter" aria-hidden="true"><span class="cli-kpi-card__meter-fill" id="kpiComCpfMeter"></span></div>
+                            </div>
+                            <div class="cli-kpi-card cli-kpi-card--completo">
+                                <div class="cli-kpi-card__inner">
+                                    <div class="cli-kpi-card__icon"><i class="fas fa-clipboard-check" aria-hidden="true"></i></div>
+                                    <div class="cli-kpi-card__val" id="kpiCompleto">—</div>
+                                    <div class="cli-kpi-card__label">Cadastro Completo</div>
+                                    <div class="cli-kpi-card__sub cli-kpi-card__sub--pill" id="kpiCompletoPct"></div>
+                                </div>
+                                <div class="cli-kpi-card__meter" aria-hidden="true"><span class="cli-kpi-card__meter-fill" id="kpiCompletoMeter"></span></div>
+                            </div>
+                            <div class="cli-kpi-card cli-kpi-card--simples">
+                                <div class="cli-kpi-card__inner">
+                                    <div class="cli-kpi-card__icon"><i class="fas fa-clipboard-list" aria-hidden="true"></i></div>
+                                    <div class="cli-kpi-card__val" id="kpiSimples">—</div>
+                                    <div class="cli-kpi-card__label">Cadastro Simples</div>
+                                    <div class="cli-kpi-card__sub cli-kpi-card__sub--pill" id="kpiSimplesPct"></div>
+                                </div>
+                                <div class="cli-kpi-card__meter" aria-hidden="true"><span class="cli-kpi-card__meter-fill" id="kpiSimplesMeter"></span></div>
+                            </div>
+                            <div class="cli-kpi-card cli-kpi-card--email">
+                                <div class="cli-kpi-card__inner">
+                                    <div class="cli-kpi-card__icon"><i class="fas fa-envelope" aria-hidden="true"></i></div>
+                                    <div class="cli-kpi-card__val" id="kpiComEmail">—</div>
+                                    <div class="cli-kpi-card__label">Com e-mail</div>
+                                    <div class="cli-kpi-card__sub cli-kpi-card__sub--pill" id="kpiComEmailPct"></div>
+                                </div>
+                                <div class="cli-kpi-card__meter" aria-hidden="true"><span class="cli-kpi-card__meter-fill" id="kpiComEmailMeter"></span></div>
+                            </div>
+                            <div class="cli-kpi-card cli-kpi-card--nasc">
+                                <div class="cli-kpi-card__inner">
+                                    <div class="cli-kpi-card__icon"><i class="fas fa-cake-candles" aria-hidden="true"></i></div>
+                                    <div class="cli-kpi-card__val" id="kpiComNasc">—</div>
+                                    <div class="cli-kpi-card__label">Com data de nasc.</div>
+                                    <div class="cli-kpi-card__sub cli-kpi-card__sub--pill" id="kpiComNascPct"></div>
+                                </div>
+                                <div class="cli-kpi-card__meter" aria-hidden="true"><span class="cli-kpi-card__meter-fill" id="kpiComNascMeter"></span></div>
+                            </div>
+                            <div class="cli-kpi-card cli-kpi-card--cel">
+                                <div class="cli-kpi-card__inner">
+                                    <div class="cli-kpi-card__icon"><i class="fas fa-mobile-screen-button" aria-hidden="true"></i></div>
+                                    <div class="cli-kpi-card__val" id="kpiComCelular">—</div>
+                                    <div class="cli-kpi-card__label">Com celular</div>
+                                    <div class="cli-kpi-card__sub cli-kpi-card__sub--pill" id="kpiComCelularPct"></div>
+                                </div>
+                                <div class="cli-kpi-card__meter" aria-hidden="true"><span class="cli-kpi-card__meter-fill" id="kpiComCelularMeter"></span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block" id="cliCruzamentoBlock">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-cart-shopping"></i></span> Cadastro × pedidos (por nome)</h3>
+                        <p class="gc-chart-sub">Cruzamento entre a base <strong>clientes</strong> e nomes que aparecem em <strong>gestao_pedidos</strong> (aprovados) e em <strong>itens_orcamentos_pedidos</strong> (recusado / no carrinho). Opcionalmente <strong>orcamentos_pedidos</strong>, se existir coluna de nome. Nomes são normalizados (acentos e espaços) — não usa CPF.</p>
+                        <div id="cliCruzamentoPanel" class="cli-cruzamento-panel">
+                            <p class="gc-chart-sub" style="margin:0;">Carregando cruzamento…</p>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-chart-pie"></i></span> Perfil da base</h3>
+                        <div class="gc-chart-grid gc-chart-grid--2">
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Tipo de cadastro</h4>
+                                <p class="gc-chart-sub">Distribuição entre Completo e Simples.</p>
+                                <div class="gc-chart-canvas-wrap"><canvas id="cliChartTipo" aria-label="Tipo de cadastro"></canvas></div>
+                            </div>
+                            <div class="gc-chart-panel">
+                                <h4 class="gc-chart-title">Distribuição por sexo</h4>
+                                <p class="gc-chart-sub">Somente registros com sexo informado (cadastro Completo).</p>
+                                <div class="gc-chart-canvas-wrap"><canvas id="cliChartSexo" aria-label="Distribuição por sexo"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-file-csv"></i></span> Registros por arquivo de origem</h3>
+                        <div class="gc-chart-panel gc-chart-panel--wide">
+                            <h4 class="gc-chart-title">Cadastros importados por ano</h4>
+                            <p class="gc-chart-sub">Total, completos e com CPF por arquivo CSV de origem.</p>
+                            <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--exec-forma"><canvas id="cliChartFonteAno" aria-label="Registros por arquivo"></canvas></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ══ EVOLUÇÃO ════════════════════════════════════════════ -->
+                <section class="gc-section" id="cli-section-evolucao" role="tabpanel" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Evolução de Cadastros</p>
+                        <p class="gc-tab-head__desc">Volume de novos cadastros ao longo do tempo, segmentado por tipo.</p>
+                    </header>
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-chart-line"></i></span> Cadastros por mês</h3>
+                        <div class="gc-chart-panel gc-chart-panel--wide">
+                            <h4 class="gc-chart-title">Novos cadastros mês a mês</h4>
+                            <p class="gc-chart-sub">Linha: total de cadastros. Barras: Completo vs Simples.</p>
+                            <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--exec-forma"><canvas id="cliChartPorMes" aria-label="Cadastros por mês"></canvas></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ══ GEOGRÁFICO ══════════════════════════════════════════ -->
+                <section class="gc-section" id="cli-section-geografico" role="tabpanel" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Distribuição Geográfica</p>
+                        <p class="gc-tab-head__desc">Mapa de calor com drill-down: Brasil → estado → município e detalhe por bairro.</p>
+                    </header>
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-map-location-dot"></i></span> Mapa de calor</h3>
+                        <div class="chart-card full-width mapa-rotas-card cli-mapa-geografico-card">
+                            <div class="chart-header mapa-rotas-card__head">
+                                <div>
+                                    <div class="chart-title">Distribuição geográfica</div>
+                                    <div class="chart-subtitle">Malha oficial (IBGE) + dados da base. Escolha UF para municípios; depois município para bairros e gráfico.</div>
+                                </div>
+                            </div>
+                            <div class="chart-body mapa-rotas-chart-body mapa-rotas-chart-body--with-toolbar">
+                                <div class="cli-mapa-toolbar-strip">
+                                    <div class="cli-mapa-pro-toolbar cli-mapa-pro-toolbar--embed" id="cliMapaProToolbar">
+                                        <div class="cli-mapa-pro-toolbar__grid">
+                                            <div class="cli-mapa-pro-field">
+                                                <label class="cli-mapa-pro-label" for="cliMapFiltroUf">Estado (UF)</label>
+                                                <select id="cliMapFiltroUf" class="cli-mapa-pro-select">
+                                                    <option value="">Brasil — todos os estados</option>
+                                                </select>
+                                            </div>
+                                            <div class="cli-mapa-pro-field">
+                                                <label class="cli-mapa-pro-label" for="cliMapFiltroMun">Município</label>
+                                                <select id="cliMapFiltroMun" class="cli-mapa-pro-select" disabled>
+                                                    <option value="">Todos no estado</option>
+                                                </select>
+                                            </div>
+                                            <div class="cli-mapa-pro-field">
+                                                <label class="cli-mapa-pro-label" for="cliMapFiltroBairro">Bairro</label>
+                                                <select id="cliMapFiltroBairro" class="cli-mapa-pro-select" disabled>
+                                                    <option value="">Todos no município</option>
+                                                </select>
+                                            </div>
+                                            <div class="cli-mapa-pro-actions">
+                                                <button type="button" class="cli-mapa-pro-btn cli-mapa-pro-btn--primary" id="cliMapBtnAplicar">
+                                                    <i class="fas fa-rotate" aria-hidden="true"></i> Atualizar mapa
+                                                </button>
+                                                <button type="button" class="cli-mapa-pro-btn" id="cliMapBtnBrasil">Brasil</button>
+                                            </div>
+                                        </div>
+                                        <p class="cli-mapa-pro-hint" id="cliMapaProHint">Carregando filtros…</p>
+                                    </div>
+                                </div>
+                                <div class="mapa-rotas-layout">
+                                    <div class="mapa-rotas-map-wrap">
+                                        <div id="cliMapaCalorUf" class="mapa-rotas-leaflet cli-mapa-calor-uf" role="img" aria-label="Mapa de calor geográfico"></div>
+                                    </div>
+                                    <aside class="mapa-rotas-legend" aria-label="Legenda do mapa de clientes">
+                                        <h4 class="mapa-rotas-legend-title">Legenda</h4>
+                                        <div class="mapa-rotas-legend-block">
+                                            <span class="mapa-rotas-legend-label">Volume de clientes na região</span>
+                                            <div class="mapa-rotas-legend-gradient cli-mapa-rotas-legend-gradient" role="img" aria-label="Escala de menos para mais clientes"></div>
+                                            <div class="mapa-rotas-legend-scale"><span>Menos</span><span>Mais clientes</span></div>
+                                        </div>
+                                        <div class="mapa-rotas-legend-items">
+                                            <div class="mapa-rotas-legend-row">
+                                                <span class="cli-mapa-rotas-swatch--area" aria-hidden="true"></span>
+                                                <span>Área colorida pelo total de clientes cadastrados</span>
+                                            </div>
+                                            <div class="mapa-rotas-legend-row">
+                                                <span class="cli-mapa-rotas-swatch--sel" aria-hidden="true"></span>
+                                                <span>Município selecionado (contorno em destaque)</span>
+                                            </div>
+                                        </div>
+                                        <div class="mapa-rotas-legend-divider"></div>
+                                        <h4 class="mapa-rotas-legend-title mapa-rotas-legend-title--camadas">Navegação</h4>
+                                        <p class="mapa-rotas-legend-note">Use <strong>Atualizar mapa</strong> após alterar UF, cidade ou bairro. <strong>Brasil</strong> volta ao mapa de estados.</p>
+                                        <p class="mapa-rotas-legend-note mapa-rotas-legend-note--cluster">Passe o mouse sobre estado ou município para ver totais e percentuais.</p>
+                                        <p class="mapa-rotas-legend-note" style="margin-top:10px;">Com um <strong>município</strong> escolhido, o mapa mostra <strong>um ponto por cadastro</strong> (endereço). Sem latitude/longitude na base, o sistema consulta o <strong>OpenStreetMap Nominatim</strong> e grava as coordenadas quando encontra; o gráfico ao lado continua sendo o ranking por bairro.</p>
+                                    </aside>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gc-chart-panel gc-chart-panel--wide cli-mapa-bairros-wrap" id="cliMapaBairrosWrap" style="display:none;">
+                            <h4 class="gc-chart-title" style="margin-top:4px;">Clientes por bairro</h4>
+                            <p class="gc-chart-sub" id="cliMapaBairrosSub">Volume no município filtrado.</p>
+                            <div class="gc-chart-canvas-wrap" style="height:380px;"><canvas id="cliChartBairrosMapa" aria-label="Gráfico por bairro"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-city"></i></span> Top municípios</h3>
+                        <div class="gc-chart-panel gc-chart-panel--wide">
+                            <h4 class="gc-chart-title">Top 20 municípios</h4>
+                            <p class="gc-chart-sub">Cidades com maior concentração de clientes cadastrados.</p>
+                            <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--tall"><canvas id="cliChartMunicipio" aria-label="Top municípios"></canvas></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ══ ANÁLISE DE COMPRAS ═════════════════════════════════════ -->
+                <section class="gc-section" id="cli-section-analise-compras" role="tabpanel" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Análise de Compras</p>
+                        <p class="gc-tab-head__desc">Recorrência, potencial (pipeline), volume por ano e ranking de clientes com compras repetidas — útil para planejar rotas e novas praças (ex.: Ariquemes).</p>
+                    </header>
+                    <div class="gc-block">
+                        <div class="cli-analise-toolbar cli-analise-toolbar--panel cli-no-print">
+                            <div>
+                                <label class="cli-mapa-pro-label" for="cliAnaliseUf">UF</label>
+                                <select id="cliAnaliseUf" aria-label="UF análise"><option value="">Brasil (todos)</option></select>
+                            </div>
+                            <div>
+                                <label class="cli-mapa-pro-label" for="cliAnaliseMunicipio">Município</label>
+                                <select id="cliAnaliseMunicipio" aria-label="Município análise" disabled title="Selecione UF">
+                                    <option value="">Todos do estado</option>
+                                </select>
+                            </div>
+                            <button type="button" class="cli-search-btn" id="cliAnaliseBtn">
+                                <i class="fas fa-rotate"></i> Atualizar análise
+                            </button>
+                        </div>
+                        <p id="cliAnaliseMeta" class="cli-analise-meta" role="status"></p>
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon" aria-hidden="true"><i class="fas fa-chart-pie"></i></span> Indicadores do filtro</h3>
+                        <div class="kpi-grid gc-kpi-grid" id="cliAnaliseKpis" role="list">
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-users"></i></div>
+                                <div class="kpi-label">Clientes no filtro</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkCad">—</div>
+                                <div class="kpi-sub">Cadastros no recorte geográfico</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-rotate"></i></div>
+                                <div class="kpi-label">Compras recorrentes</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkRec">—</div>
+                                <div class="kpi-sub">2 ou mais pedidos aprovados</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-check-circle"></i></div>
+                                <div class="kpi-label">Uma compra aprovada</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkUma">—</div>
+                                <div class="kpi-sub">Exatamente um pedido aprovado</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-user-slash"></i></div>
+                                <div class="kpi-label">Sem compra aprovada</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkSem">—</div>
+                                <div class="kpi-sub">Sem pedido aprovado na gestão</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-percent"></i></div>
+                                <div class="kpi-label">% recorrentes na base</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkRecPct">—</div>
+                                <div class="kpi-sub">Sobre clientes no filtro</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-sack-dollar"></i></div>
+                                <div class="kpi-label">Receita aprovada (R$)</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkReceita">—</div>
+                                <div class="kpi-sub">Soma de preço líquido — gestão</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-receipt"></i></div>
+                                <div class="kpi-label">Ticket médio</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkTicket">—</div>
+                                <div class="kpi-sub">Por comprador (compradores)</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-cart-shopping"></i></div>
+                                <div class="kpi-label">Pedidos distintos</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkPedidos">—</div>
+                                <div class="kpi-sub">Pedidos aprovados (vínculo nome)</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-filter-circle-dollar"></i></div>
+                                <div class="kpi-label">Pipeline rec./carrinho</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkPipe">—</div>
+                                <div class="kpi-sub">Itens recusados + no carrinho (R$)</div>
+                            </div>
+                            <div class="kpi-card" role="listitem">
+                                <div class="kpi-icon" aria-hidden="true"><i class="fas fa-hourglass-half"></i></div>
+                                <div class="kpi-label">Só pipeline</div>
+                                <div class="kpi-value gc-metric-value" id="cliAkPipeCli">—</div>
+                                <div class="kpi-sub">Clientes sem aprovado, com pipeline</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-calendar-days"></i></span> Compras aprovadas por ano</h3>
+                        <div class="gc-chart-panel gc-chart-panel--wide">
+                            <p class="gc-chart-sub">Receita e pedidos distintos em gestão (vínculo nome cadastro × cliente/paciente no pedido).</p>
+                            <div class="gc-chart-canvas-wrap gc-chart-canvas-wrap--exec-forma"><canvas id="cliChartAnaliseAno" aria-label="Compras por ano"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="gc-block">
+                        <h3 class="gc-block-title"><span class="gc-block-title__icon"><i class="fas fa-repeat"></i></span> Top clientes recorrentes (por receita)</h3>
+                        <p class="gc-chart-sub">Apenas cadastros com 2 ou mais pedidos aprovados no filtro geográfico.</p>
+                        <div class="cli-analise-table-wrap">
+                            <table class="cli-analise-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Cliente</th>
+                                        <th scope="col">Cidade</th>
+                                        <th scope="col">UF</th>
+                                        <th scope="col" class="cli-analise-num">Pedidos</th>
+                                        <th scope="col" class="cli-analise-num">Anos c/ compra</th>
+                                        <th scope="col" class="cli-analise-num">Receita (R$)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cliAnaliseTopBody">
+                                    <tr><td colspan="6" class="cli-empty" style="padding:20px;">Carregue a análise.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="gc-block">
+                        <p class="gc-chart-sub" id="cliAnaliseMetodologia" style="margin:0;"></p>
+                    </div>
+                </section>
+
+                <!-- ══ BUSCA ════════════════════════════════════════════════ -->
+                <section class="gc-section" id="cli-section-busca" role="tabpanel" aria-hidden="true">
+                    <header class="gc-tab-head">
+                        <p class="gc-tab-head__kicker">Busca de Clientes</p>
+                        <p class="gc-tab-head__desc">Pesquise por nome, CPF, telefone, e-mail ou município. Clique em um registro para ver detalhes.</p>
+                    </header>
+                    <div class="gc-block">
+                        <div class="cli-search-bar">
+                            <input type="search" id="cliBuscaQ" placeholder="Nome, CPF, telefone, e-mail, município..." autocomplete="off">
+                            <select id="cliBuscaUf" aria-label="UF"><option value="">Todos os estados</option></select>
+                            <select id="cliBuscaMunicipio" aria-label="Município" disabled title="Selecione um estado">
+                                <option value="">Todos os municípios</option>
+                            </select>
+                            <select id="cliBuscaTipo">
+                                <option value="">Todos os tipos</option>
+                                <option value="Completo">Completo</option>
+                                <option value="Simples">Simples</option>
+                            </select>
+                            <select id="cliBuscaAno">
+                                <option value="">Todos os anos</option>
+                                <option value="2023">2023</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026">2026</option>
+                            </select>
+                            <button type="button" class="cli-search-btn" id="cliBuscaBtn">
+                                <i class="fas fa-magnifying-glass"></i> Buscar
+                            </button>
+                        </div>
+                        <div class="cli-busca-toolbar cli-no-print">
+                            <button type="button" class="cli-search-btn cli-search-btn--ghost" id="cliBuscaBtnPrint" title="Imprimir resultado atual (tabela)">
+                                <i class="fas fa-print"></i> Imprimir
+                            </button>
+                            <button type="button" class="cli-search-btn cli-search-btn--ghost" id="cliBuscaBtnCsv" title="Baixar CSV com os mesmos filtros da busca (até 80 mil linhas)">
+                                <i class="fas fa-file-csv"></i> Baixar CSV
+                            </button>
+                        </div>
+                        <div id="cliBuscaPrintArea">
+                        <p id="cliBuscaPrintMeta" class="cli-busca-print-meta cli-no-print" aria-hidden="true"></p>
+                        <div id="cliBuscaInfo" class="cli-no-print" style="font-size:.82rem; color:var(--text-secondary); margin-bottom:12px;"></div>
+                        <div class="cli-table-wrap cli-table-wrap--busca">
+                            <table class="cli-table cli-table--busca">
+                                <thead id="cliBuscaThead">
+                                    <tr>
+                                        <th scope="col"><button type="button" class="cli-th-sort" data-sort="nome">Nome <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" title="Último prescritor: gestão aprovada; senão itens de orçamento; senão cabeçalho de orçamento (nome igual ao cadastro)"><button type="button" class="cli-th-sort" data-sort="prescritor_cliente">Prescritor <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" title="Visitador da carteira (prescritores_cadastro.visitador), pelo nome do prescritor"><button type="button" class="cli-th-sort" data-sort="visitador_prescritor">Visitador <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" class="cli-th-num" title="Soma de preço líquido — gestão aprovada (nome em cliente ou paciente)"><button type="button" class="cli-th-sort" data-sort="receita_aprovada_gestao">Receita aprov. <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" class="cli-th-num" title="Soma de valor líquido — itens recusado e no carrinho (paciente)"><button type="button" class="cli-th-sort" data-sort="valor_itens_recusados">Recusados <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" title="Maior data entre data_aprovacao e data_orcamento em gestão aprovada (nome cliente/paciente)"><button type="button" class="cli-th-sort" data-sort="ultima_compra_aprovada">Última compra <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col"><button type="button" class="cli-th-sort" data-sort="tipo_cadastro">Tipo <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col"><button type="button" class="cli-th-sort" data-sort="telefone">Telefone <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" class="cli-busca-print-hide"><button type="button" class="cli-th-sort" data-sort="cpf">CPF <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col" class="cli-busca-print-hide"><button type="button" class="cli-th-sort" data-sort="uf">UF <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col"><button type="button" class="cli-th-sort" data-sort="municipio">Município <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                        <th scope="col"><button type="button" class="cli-th-sort" data-sort="data_cadastro">Data Cad. <i class="fas fa-sort-down" aria-hidden="true"></i></button></th>
+                                        <th scope="col" class="cli-busca-print-hide"><button type="button" class="cli-th-sort" data-sort="fonte_ano">Ano CSV <i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cliBuscaTbody">
+                                    <tr><td colspan="13" class="cli-empty"><i class="fas fa-magnifying-glass"></i>Use a busca acima para encontrar clientes.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="cli-pag" id="cliBuscaPag" style="display:none;">
+                            <span class="cli-pag__info" id="cliBuscaPagInfo"></span>
+                            <div class="cli-pag__btns" id="cliBuscaPagBtns"></div>
+                        </div>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+
+            <footer class="app-footer">
+                Sistema para Gestão e Tomada de Decisões • © 2026 MyPharm - Todos os direitos reservados
+            </footer>
+        </div>
+    </div>
+
+    <!-- ── MODAL DETALHE ── -->
+    <div class="cli-modal-backdrop" id="cliModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="cliModalTitle">
+        <div class="cli-modal" id="cliModal">
+            <div class="cli-modal__head">
+                <span class="cli-modal__title" id="cliModalTitle">Detalhes do cliente</span>
+                <button type="button" class="cli-modal__close" id="cliModalClose" aria-label="Fechar">&times;</button>
+            </div>
+            <div class="cli-modal__body" id="cliModalBody"></div>
+        </div>
+    </div>
+
+    <!-- Loading overlay (visual alinhado ao dashboard / index — tema claro) -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;" role="status" aria-live="polite" aria-busy="false">
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <div class="loading-text">Carregando dados...</div>
+    </div>
+
+    <script src="js/ui-feedback.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>
+    <script src="js/clientes.js?v=20260420-menu-original"></script>
+</body>
+</html>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f172a">
+    <title>Comparação - Vendas RD Station</title>
+    <link rel="icon" type="image/png" href="imagens/IconeMyPharm.png?v=20260402">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #111c36;
+            --border: #263552;
+            --text: #e5e7eb;
+            --muted: #94a3b8;
+            --ok: #10b981;
+            --danger: #ef4444;
+            --primary: #2563eb;
+        }
+        * { box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Inter, Segoe UI, Arial, sans-serif;
+        }
+        .wrap { max-width: 1440px; margin: 0 auto; padding: 18px; }
+        .top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+        .title { font-size: 1.3rem; font-weight: 800; }
+        .muted { color: var(--muted); font-size: 0.85rem; }
+        .filters {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--card);
+        }
+        .input {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #0b1428;
+            color: var(--text);
+            padding: 8px 10px;
+        }
+        .btn {
+            border: none;
+            border-radius: 8px;
+            background: var(--primary);
+            color: #fff;
+            padding: 9px 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--card);
+            padding: 12px;
+        }
+        .label {
+            color: var(--muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
+        .value {
+            margin-top: 4px;
+            font-size: 1.15rem;
+            font-weight: 800;
+        }
+        .ok { color: var(--ok); }
+        .table-wrap {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow-x: auto;
+            overflow-y: auto;
+            max-height: calc(100vh - 260px);
+            -webkit-overflow-scrolling: touch;
+            background: var(--card);
+        }
+        table { width: 100%; border-collapse: collapse; min-width: 1200px; }
+        th, td {
+            padding: 9px 10px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.82rem;
+            text-align: left;
+            vertical-align: top;
+        }
+        th { color: var(--muted); font-weight: 700; }
+        td.num, th.num { text-align: right; white-space: nowrap; }
+        .loading, .error {
+            padding: 20px;
+            text-align: center;
+            color: var(--muted);
+        }
+        .error { color: var(--danger); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="top">
+        <div>
+            <div class="title">Comparação - Vendas RD Station</div>
+            <div id="subInfo" class="muted">Carregando...</div>
+        </div>
+    </div>
+
+    <div class="filters">
+        <label class="muted">De</label>
+        <input id="dataDe" class="input" type="date">
+        <label class="muted">até</label>
+        <input id="dataAte" class="input" type="date">
+        <button class="btn" onclick="loadData()">Atualizar</button>
+    </div>
+
+    <div class="cards">
+        <div class="card">
+            <div class="label">Fonte</div>
+            <div id="cardFonte" class="value">-</div>
+        </div>
+        <div class="card">
+            <div class="label">Total de vendas</div>
+            <div id="cardDeals" class="value">0</div>
+        </div>
+        <div class="card">
+            <div class="label">Receita total</div>
+            <div id="cardReceita" class="value ok">R$ 0,00</div>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome do Deal</th>
+                <th>Responsável</th>
+                <th class="num">Valor</th>
+                <th>Data fechamento</th>
+                <th>Pipeline</th>
+                <th>Etapa</th>
+                <th>Cliente</th>
+                <th>Contato</th>
+                <th>Prescritor</th>
+            </tr>
+            </thead>
+            <tbody id="tbody">
+            <tr><td colspan="10" class="loading">Carregando vendas...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function fmtMoney(v) {
+    return (parseFloat(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+function esc(v) {
+    return String(v || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+function ymd(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+function initDates() {
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    document.getElementById('dataDe').value = ymd(first);
+    document.getElementById('dataAte').value = ymd(now);
+}
+
+async function loadData() {
+    const de = document.getElementById('dataDe').value;
+    const ate = document.getElementById('dataAte').value;
+    const tbody = document.getElementById('tbody');
+    const sub = document.getElementById('subInfo');
+    tbody.innerHTML = '<tr><td colspan="10" class="loading">Carregando vendas do RD Station...</td></tr>';
+    try {
+        const url = `api_comparacao.php?data_de=${encodeURIComponent(de)}&data_ate=${encodeURIComponent(ate)}`;
+        const r = await fetch(url, { cache: 'no-store' });
+        const raw = await r.text();
+        if (!raw || !raw.trim()) {
+            throw new Error('Resposta vazia da API (verifique PHP/Apache e logs).');
+        }
+        let j = null;
+        try {
+            j = JSON.parse(raw);
+        } catch (_) {
+            const snippet = raw.slice(0, 220).replace(/\s+/g, ' ').trim();
+            throw new Error(`Resposta inválida da API (não JSON): ${snippet || 'vazia'}`);
+        }
+        if (!j || !j.success) {
+            throw new Error((j && j.error) ? j.error : 'Falha ao carregar dados.');
+        }
+        document.getElementById('cardFonte').textContent = j.fonte || '-';
+        document.getElementById('cardDeals').textContent = (j.total_deals || 0).toLocaleString('pt-BR');
+        document.getElementById('cardReceita').textContent = fmtMoney(j.total_receita || 0);
+        sub.textContent = `Período: ${j.periodo?.data_de || de} até ${j.periodo?.data_ate || ate} | ${j.total_deals || 0} vendas`;
+
+        const rows = Array.isArray(j.data) ? j.data : [];
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="10" class="loading">Sem vendas encontradas no período.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = rows.map((x) => `
+            <tr>
+                <td>${esc(x.id ?? '-')}</td>
+                <td>${esc(x.nome)}</td>
+                <td>${esc(x.responsavel)}</td>
+                <td class="num">${fmtMoney(x.valor || 0)}</td>
+                <td>${esc(x.data_fechamento || '-')}</td>
+                <td>${esc(x.pipeline || '-')}</td>
+                <td>${esc(x.etapa || '-')}</td>
+                <td>${esc(x.cliente || '-')}</td>
+                <td>${esc(x.contato || '-')}</td>
+                <td>${esc(x.prescritor || '-')}</td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="10" class="error">${esc(e.message || 'Erro ao consultar RD Station')}</td></tr>`;
+        sub.textContent = 'Falha ao carregar dados.';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initDates();
+    loadData();
+});
+</script>
+</body>
+</html>
+

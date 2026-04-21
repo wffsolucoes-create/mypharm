@@ -1,0 +1,19 @@
+RewriteEngine On
+# Produção Hostinger (https://dominio/tv/): /tv/
+# XAMPP com pasta mypharm: altere para RewriteBase /mypharm/tv/
+RewriteBase /tv/
+
+# Assets estáticos: redireciona para dist/
+RewriteRule ^favicon\.svg$ dist/favicon.svg [L]
+RewriteRule ^icons\.svg$ dist/icons.svg [L]
+RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
+RewriteRule ^audio/(.*)$ dist/audio/$1 [L]
+
+# SPA fallback: tudo que não existe como arquivo/pasta → dist/index.html
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ dist/index.html [L]
+
+# Página em /tv/: usar primeiro o ranking em index.html na raiz da pasta tv.
+# dist/index.html = app React antigo (só fallback).
+DirectoryIndex index.html dist/index.html

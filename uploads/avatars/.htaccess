@@ -1,0 +1,5 @@
+# Permitir apenas leitura de imagens (evitar execução de scripts)
+<FilesMatch "\.(jpg|jpeg|png|gif|webp)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>

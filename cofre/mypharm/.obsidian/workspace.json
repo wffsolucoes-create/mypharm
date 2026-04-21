@@ -1,0 +1,241 @@
+{
+  "main": {
+    "id": "58b6c52e1e26e23f",
+    "type": "split",
+    "children": [
+      {
+        "id": "8c7d94e298a7b466",
+        "type": "tabs",
+        "dimension": 35.91370558375635,
+        "children": [
+          {
+            "id": "47963ade9d615604",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Bem-vindo.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Bem-vindo"
+            }
+          }
+        ]
+      },
+      {
+        "id": "71a2bcf3783bdc20",
+        "type": "tabs",
+        "dimension": 64.08629441624365,
+        "children": [
+          {
+            "id": "29ac689f90668d4e",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Visualização em gráfico"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "297d128ad66205d4",
+    "type": "split",
+    "children": [
+      {
+        "id": "a70c0192cf42a322",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b058ec3334097ba9",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Explorador de arquivos"
+            }
+          },
+          {
+            "id": "3c6dff2e6727943b",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Procurar"
+            }
+          },
+          {
+            "id": "6bc30123a33b9e72",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Marcadores"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "71f30387cf64f199",
+    "type": "split",
+    "children": [
+      {
+        "id": "84f2d4760af94686",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "8290fb8c3b7c5c2c",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Bem-vindo.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Links inversos para Bem-vindo"
+            }
+          },
+          {
+            "id": "b1de293feabff88d",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Bem-vindo.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Links de saída para Bem-vindo"
+            }
+          },
+          {
+            "id": "098c0a62406edef9",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Etiquetas"
+            }
+          },
+          {
+            "id": "8225093ecad3ab85",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Todas as propriedades"
+            }
+          },
+          {
+            "id": "e609327d0cbe7eb0",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Bem-vindo.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Sumário de Bem-vindo"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Abrir a troca rápida": false,
+      "graph:Abrir visualização em gráfico": false,
+      "canvas:Criar novo canvas": false,
+      "daily-notes:Abrir a nota de hoje": false,
+      "templates:Inserir modelo": false,
+      "command-palette:Abrir paleta de comandos": false,
+      "bases:Criar nova base": false
+    }
+  },
+  "active": "b058ec3334097ba9",
+  "lastOpenFiles": [
+    "06-tv-ranking/LAYOUT_REDESIGN_2026_04_15.md",
+    "06-tv-ranking/SESSION_COMPLETION_2026_04_15.md",
+    "06-tv-ranking/RESUMO_IMPLEMENTACAO_AUDIO.md",
+    "06-tv-ranking/Design Premium — Em Andamento.md",
+    "06-tv-ranking/Metas do Banco.md",
+    "04-apis/API Principal.md",
+    "05-frontend/Padrao Visual e CSS.md",
+    "09-decisoes/Divida Tecnica.md",
+    "09-decisoes/Decisoes de Arquitetura.md",
+    "08-deploy/Variaveis de Ambiente.md",
+    "08-deploy/Deploy e Infraestrutura.md",
+    "07-seguranca/Seguranca.md",
+    "04-apis/API RD Station.md",
+    "06-tv-ranking/TV Ranking — React App.md",
+    "06-tv-ranking/Modulo TV Ranking.md",
+    "03-banco/Tabela usuarios.md",
+    "03-banco/Banco de Dados — Visao Geral.md",
+    "01-arquitetura/Fluxo de Autenticacao.md",
+    "01-arquitetura/Perfis de Acesso.md",
+    "01-arquitetura/Arquitetura Geral.md",
+    "01-arquitetura/Stack Tecnologica.md",
+    "00-inicio/Visao Geral.md",
+    "00-inicio/HOME.md",
+    "09-decisoes",
+    "08-deploy",
+    "07-seguranca",
+    "06-tv-ranking",
+    "05-frontend",
+    "04-apis",
+    "03-banco",
+    "02-modulos",
+    "01-arquitetura",
+    "00-inicio",
+    "Bem-vindo.md"
+  ]
+}
